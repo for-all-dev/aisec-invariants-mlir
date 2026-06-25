@@ -1,0 +1,31 @@
+# Bazel
+/bazel-*
+/.bazel-cache/
+
+# uv / Python
+/.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Nix
+/.direnv/
+/result
+/result-*
+
+# IDE / editor
+/.vscode/
+/.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+/.claude/worktrees/
+
+# Non-public / Excluded Materials (Lucid Release & Consent, Exhibit A.3) — kept
+# on disk for local work, never published.
+/docs/ignored/

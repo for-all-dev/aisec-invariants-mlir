@@ -1,0 +1,16 @@
+aisec-invariants-mlir
+Copyright 2026 Lucid Computing Inc.
+
+This product is licensed under the Apache License, Version 2.0 (the "License");
+you may not use this product except in compliance with the License. A copy of
+the License is provided in the LICENSE file in this repository, and may also be
+obtained at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Portions of this work were originally developed by Quinn Dougherty for Lucid
+Computing Inc. and are released under the Apache License, Version 2.0.
+
+This product depends on third-party software, including MLIR, HEIR, Bazel, and
+Nix-related materials, each of which remains subject to its own license and
+terms.

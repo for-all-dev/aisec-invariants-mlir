@@ -1,0 +1,17 @@
+load("@llvm-project//llvm:lit_test.bzl", "lit_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# Discover every .mlir file under test/ as a lit test.
+[
+    lit_test(
+        name = "%s.test" % src,
+        srcs = [src],
+        data = [
+            "lit.cfg.py",
+            "//tools/aisec-opt",
+            "@llvm-project//llvm:FileCheck",
+        ],
+    )
+    for src in glob(["Transforms/**/*.mlir"])
+]

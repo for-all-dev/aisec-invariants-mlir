@@ -1,0 +1,42 @@
+# Inherits the shape of HEIR's .bazelrc because we share their LLVM toolchain.
+# Keep in sync with HEIR when upgrading.
+
+common --enable_bzlmod
+common --incompatible_strict_action_env
+
+# C++20 to match HEIR / MLIR.
+common --action_env=BAZEL_CXXOPTS=-std=c++20
+common --cxxopt=-std=c++20
+common --copt=-fdiagnostics-color=always
+common --test_output=errors
+common --test_summary=terse
+
+common --enable_platform_specific_config
+
+# Default to fastbuild — no debug info, much faster LLVM/MLIR compiles.
+# Override with `-c dbg` when you actually need a debugger, or `-c opt` for
+# benchmarking. -c dbg is ~3x slower because several MLIR dialect files
+# (LLVMDialect, NVVMDialect, ROCDLDialect, X86ISelLowering) become 5-7min
+# single-action bottlenecks with debug info enabled.
+common -c fastbuild
+
+# -- Hermetic C++ toolchain from rules_nixpkgs (#22, phase 2) --
+#
+# Bazel uses the gcc14 derivation that rules_nixpkgs materializes out of
+# the pinned nixpkgs in flake.lock. See MODULE.bazel + extension.bzl +
+# nix/cc-toolchain.nix for how it's wired. Phase 1 used env-var forwarding
+# from the `nix develop` shell; phase 2 retires that in favor of proper
+# Bazel toolchain resolution.
+#
+# `nix develop` is still required — rules_nixpkgs shells out to
+# nix-build at analysis time. The devshell's job is now just to provide
+# `bazelisk` + `nix` on PATH.
+build --host_platform=@rules_nixpkgs_core//platforms:host
+build --extra_toolchains=@nixpkgs_config_cc_toolchains//:all
+build --incompatible_enable_cc_toolchain_resolution
+
+# Only show warnings for our own code.
+build --output_filter="^//(lib|tools|test)/"
+
+# Linux: use lld (also provided by the nix devshell).
+build:linux --linkopt="-fuse-ld=lld"

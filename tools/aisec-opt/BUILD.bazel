@@ -1,0 +1,18 @@
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "aisec-opt",
+    srcs = ["aisec-opt.cpp"],
+    deps = [
+        "//include/AISec/Transforms:PassesHeaders",
+        "//lib/Transforms:Transforms",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        # AllPassesAndDialects is a headers-only alias in this LLVM version.
+        # The actual registerAllDialects / registerAllPasses symbols live in
+        # these two separate cc_library targets.
+        "@llvm-project//mlir:RegisterAllDialects",
+        "@llvm-project//mlir:RegisterAllPasses",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MlirOptLib",
+    ],
+)

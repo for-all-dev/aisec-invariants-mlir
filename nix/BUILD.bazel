@@ -1,0 +1,9 @@
+# Exports the nix expressions used by rules_nixpkgs (#22, phase 2).
+# Kept out of the repo root so the top level stays readable.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "nixpkgs.nix",
+    "cc-toolchain.nix",
+])

@@ -1,0 +1,30 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+gentbl_cc_library(
+    name = "PassesIncGen",
+    tbl_outs = [
+        (
+            ["-gen-pass-decls", "-name=AISec"],
+            "Passes.h.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Passes.td",
+    deps = [
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:PassBaseTdFiles",
+    ],
+)
+
+cc_library(
+    name = "PassesHeaders",
+    hdrs = ["Passes.h"],
+    includes = ["../.."],  # so downstream sees "AISec/Transforms/Passes.h"
+    deps = [
+        ":PassesIncGen",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:Pass",
+    ],
+)

@@ -1,0 +1,3 @@
+# Root BUILD file. Intentionally empty — real targets live in lib/, tools/, test/.
+
+package(default_visibility = ["//visibility:public"])

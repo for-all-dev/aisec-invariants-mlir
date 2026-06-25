@@ -1,0 +1,100 @@
+"""aisec-invariants-mlir — MLIR non-interference verifier built on HEIR's secret dialect.
+
+We depend on google/heir for the `secret` dialect (`!secret.secret<T>`, `secret.conceal`,
+`secret.reveal`, `secret.generic`) and layer our verifier pass on top. HEIR is not in
+the Bazel Central Registry, so we pull it via `git_override` pinned to a specific commit.
+
+HEIR configures LLVM/MLIR through a custom module extension (`@heir//bazel:extensions.bzl`
+`llvm_deps`). We re-use that same extension so HEIR and our code share a single
+`@llvm-project` repository. Declaring a second LLVM source would give us two conflicting
+graphs and likely ODR violations.
+"""
+
+module(
+    name = "aisec_invariants_mlir",
+    version = "0.0.1",
+)
+
+# -- Core Bazel deps. Versions match HEIR's MODULE.bazel to avoid duplicate graphs. --
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.13")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "1.5.1")
+# The following are needed because @llvm-project's BUILD files reference them
+# directly, and our module-scope llvm_configure(...) call puts @llvm-project
+# under OUR module's repo mapping. Keep versions aligned with HEIR's
+# MODULE.bazel so we don't end up with duplicate module versions.
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_license", version = "1.0.0")
+
+# -- Phase 2 nixification (#22): hermetic C++ toolchain via rules_nixpkgs --
+#
+# rules_nixpkgs_core is in the BCR. rules_nixpkgs_cc is NOT — it ships
+# in the same tarball but as a subdirectory module, so we pull it via
+# archive_override with the same strip_prefix pattern the BCR uses.
+bazel_dep(name = "rules_nixpkgs_core", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_cc", version = "0.13.0")
+archive_override(
+    module_name = "rules_nixpkgs_cc",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/cc",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+)
+
+nix_repo = use_extension("@rules_nixpkgs_core//extensions:repository.bzl", "nix_repo")
+nix_repo.file(
+    name = "nixpkgs",
+    file = "//nix:nixpkgs.nix",
+    file_deps = ["//:flake.lock"],
+)
+use_repo(nix_repo, "nixpkgs")
+
+cc_configure = use_extension("//:extension.bzl", "cc_configure")
+use_repo(
+    cc_configure,
+    "nixpkgs_config_cc",
+    "nixpkgs_config_cc_info",
+    "nixpkgs_config_cc_toolchains",
+)
+register_toolchains("@nixpkgs_config_cc_toolchains//:all")
+
+# -- HEIR (unregistered; pinned via git_override) --
+# The `version` field is ignored when a git_override is set.
+bazel_dep(name = "heir", version = "0.0.0")
+git_override(
+    module_name = "heir",
+    remote = "https://github.com/google/heir.git",
+    # PINNED ON DAY 1 — this is a placeholder 40-char SHA that will NOT resolve.
+    commit = "ee6909ec12e5747417f9f551a5994940d9b36f64",
+)
+
+# -- LLVM/MLIR via HEIR's custom extension --
+# HEIR's `llvm_deps` extension generates `@llvm-raw` plus zlib/zstd shims.
+# `@llvm-project` itself is materialized by calling `llvm_configure` at module
+# scope, using the rule exposed under `@llvm-raw`. We mirror HEIR's pattern
+# exactly so our BUILD files can reference `@llvm-project//mlir:*` the same
+# way HEIR's do.
+#
+# Note: this creates OUR OWN `@llvm-project` repo, separate from HEIR's.
+# Same targets on both sides; Bazel usually deduplicates byte-identical
+# configurations. If we hit duplicate-symbol link errors, the fallback is to
+# fork HEIR and make it the top-level module — see TODOs.agents.md T2.
+llvm_extensions = use_extension("@heir//bazel:extensions.bzl", "llvm_deps")
+use_repo(
+    llvm_extensions,
+    "llvm-raw",
+    "llvm_zlib",
+    "llvm_zstd",
+)
+
+_LLVM_TARGETS = [
+    "X86",
+    "AArch64",
+]
+
+llvm_configure = use_repo_rule("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
+llvm_configure(
+    name = "llvm-project",
+    targets = _LLVM_TARGETS,
+)

@@ -1,0 +1,25 @@
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "VerifyNonInterference",
+    srcs = ["VerifyNonInterference.cpp"],
+    deps = [
+        "//include/AISec/Transforms:PassesHeaders",
+        "//include/AISec/Transforms:PassesIncGen",
+        "@heir//lib/Dialect/Secret/IR:Dialect",
+        "@heir//lib/Dialect/Secret/IR:SecretOps",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+    alwayslink = True,
+)
+
+# Convenience target: all aisec transform passes linked together.
+cc_library(
+    name = "Transforms",
+    deps = [
+        ":VerifyNonInterference",
+    ],
+)

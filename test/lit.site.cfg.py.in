@@ -1,0 +1,7 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import lit.llvm
+
+config.aisec_opt_path = "@AISEC_OPT_PATH@"
+
+lit_config.load_config(config, "@CMAKE_CURRENT_SOURCE_DIR@/lit.cfg.py")
