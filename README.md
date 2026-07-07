@@ -6,6 +6,8 @@
 
 If you own a file (you're the primary writer), name it `./docs/research/*.<yourname>.md`. If an AI is the primary writer (and reader), call it `./docs/research/*.agents.md`. If more than one people are collaborating on it, just call it `./docs/research/*.md`
 
+Feel free to dump pdfs of preexisting work and/or `*.<yourname|agent>.md` summary files of preexisting work in `./docs/priorlit/`.
+
 ### python dev
 
 Make `uv` projects, avoid pip.
