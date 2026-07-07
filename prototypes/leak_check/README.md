@@ -21,7 +21,8 @@ Start with the methodology document: [`../../docs/research/leak_check.methodolog
 Reference materials:
 - **Empirical results**: [`../../docs/research/leak_check.results.siddarth.md`](../../docs/research/leak_check.results.siddarth.md)
 - **Environment setup**: [`../../docs/research/leak_check.environment.siddarth.md`](../../docs/research/leak_check.environment.siddarth.md)
-- **CSI-NN paper reference**: [`../../docs/research/leak_check.csi_nn_paper.siddarth.md`](../../docs/research/leak_check.csi_nn_paper.siddarth.md)
+- **CSI-NN paper reference**: [`../../docs/priorlit/csi_nn_paper.siddarth.md`](../../docs/priorlit/csi_nn_paper.siddarth.md)
+- **Journal**: [`../../docs/research/journal/`](../../docs/research/journal/)
 
 ### Core Modules
 
