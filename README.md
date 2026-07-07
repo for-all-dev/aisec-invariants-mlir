@@ -21,3 +21,11 @@ in every `uv` package, run `uv add --dev ruff ty pytest hypothesis`
 ### Outward facing writeups in `./comms`
 
 We won't do this for a while.
+
+## License
+
+This repository is licensed under the **MIT License** (see [`LICENSE`](LICENSE)), with the following exception:
+
+- **`prototypes/initial/`** — **Apache License 2.0** (see [`prototypes/initial/LICENSE`](prototypes/initial/LICENSE))
+
+See [`NOTICE`](NOTICE) for full details.

@@ -1,0 +1,22 @@
+Compiler Security in Deep Learning
+
+This repository contains materials from Apart's Secure Program Synthesis Fellowship.
+
+LICENSING:
+
+This repository is licensed under the MIT License (see LICENSE) for the majority of its contents.
+
+Exceptions:
+
+- prototypes/initial/: Licensed under the Apache License, Version 2.0 (see
+  prototypes/initial/LICENSE). Portions of this work were originally developed
+  by Quinn Dougherty for Lucid Computing Inc. and are released under the Apache
+  License, Version 2.0. This component depends on third-party software,
+  including MLIR, HEIR, Bazel, and Nix-related materials, each of which
+  remains subject to its own license and terms.
+
+STRUCTURE:
+
+- docs/: Research documentation, methodology, and prior literature references
+- prototypes/leak_check/: MIT Licensed. Compiler-introduced information leak detection
+- prototypes/initial/: Apache 2.0 Licensed. MLIR-based compiler invariants prototype
