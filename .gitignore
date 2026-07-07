@@ -1,6 +1,6 @@
 # Bazel
-/bazel-*
-/.bazel-cache/
+bazel-*
+.bazel-cache/
 
 # uv / Python
 /.venv/
@@ -9,9 +9,9 @@ __pycache__/
 *.pyo
 
 # Nix
-/.direnv/
-/result
-/result-*
+.direnv/
+result
+result-*
 
 # IDE / editor
 /.vscode/
