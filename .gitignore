@@ -29,3 +29,6 @@ Thumbs.db
 # Non-public / Excluded Materials (Lucid Release & Consent, Exhibit A.3) — kept
 # on disk for local work, never published.
 /docs/ignored/
+
+# subrepo
+siddarth/
