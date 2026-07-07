@@ -1,0 +1,21 @@
+# Compiler security in deep learning: stream of Apart's Secure Program Synthesis Fellowship
+
+## Research monorepo conventions
+
+### Research notes
+
+If you own a file (you're the primary writer), name it `./docs/research/*.<yourname>.md`. If an AI is the primary writer (and reader), call it `./docs/research/*.agents.md`. If more than one people are collaborating on it, just call it `./docs/research/*.md`
+
+### python dev
+
+Make `uv` projects, avoid pip.
+
+in every `uv` package, run `uv add --dev ruff ty pytest hypothesis`
+
+### Subdirectories in `./prototypes`
+
+**Feel free to make as many subdirectories as you want** we can organize later if we want to. `./prototypes/*/` will be the main day to day work, I'm expecting, unless that work is in `./docs/research/`
+
+### Outward facing writeups in `./comms`
+
+We won't do this for a while.
