@@ -1,0 +1,5 @@
+# reproducible build artifacts
+**/bin/
+*.o
+*.out
+setup_binsec.log
