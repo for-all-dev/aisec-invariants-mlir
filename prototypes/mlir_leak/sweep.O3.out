@@ -1,0 +1,16 @@
+Building 1 pipeline(s) x 4 kernel(s), backend clang-18 -O3 -mavx2 -mno-avx512f ...
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O3]
+[compiler-introduced = P0 oblivious -> some P_k distinguishable]
+
+kernel           P0
+matvec            .
+cond_reduce       .
+mask_select       .
+idx_gather        L
+
+DETAIL (taint: cf=control-flow, addr=address; counts corroborate)
+  matvec         P0   obliv  clean
+  cond_reduce    P0   obliv  clean
+  mask_select    P0   obliv  clean
+  idx_gather     P0   LEAK   taint:addr
