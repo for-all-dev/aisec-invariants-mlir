@@ -1,0 +1,6 @@
+# Generated (see sparse/README.md reproduce steps).
+scatter.lld.mlir
+scatter.ll
+scatter.o
+scatter_bin
+*.bin

@@ -123,15 +123,24 @@ idx_gather     L    L    L     table[secret_idx]: secret-dependent load address;
    live.** `dynshape` (write-only buffer) loses its `Dw` channel to DCE at `-O2`; the bufferized
    `dynshape_t` (buffer reduced/read) keeps a secret-sized `Dw` footprint at `-O2`. Bufferization
    supplies the intrinsic secret-sized alloc but no *extra* secret-sized copy -- no amplification.
+8. **An *optimizing* pass that DOES introduce a leak: `sparse_tensor` + `--sparsification`**
+   (see `sparse/`). The sparsifier lowers a `linalg.generic` over a sparse tensor into iteration
+   over *stored coordinates*, so the loop trip count and the `x[coordinates[k]]` load address
+   depend on the sparsity **pattern** -- while the dense lowering of the same op is oblivious.
+   Measured on a scatter kernel (`out[crd[i]] = vals[i]`, secret = coordinates, identical vals/
+   nnz across classes): **taint fires (address leak)**, count is blind (`dIr=dBc=dDw=0`, trip
+   count public). This is the "compiler-introduced" quadrant firing via an optimization -- the
+   known sparsity/pruning-pattern side channel -- and the one case in this study where an
+   optimizing pass (not the `-O0` selector) manufactures the channel.
 
 ## Gaps / honest caveats
 
 - All builds are **AVX2-capped** (`-mno-avx512f`) so valgrind 3.22 can decode them; native
   AVX-512 codegen is a different config point (valgrind can't measure it here).
-- The irreducible leaks (`idx_gather` address, `dynshape` extent) are **authored** — the secret
-  drives the address/shape in the source. No *optimizing* pass was observed to introduce a leak
-  into genuinely oblivious code (the one introduced leak, `mask_select` @ `-O0`, is the
-  unoptimized instruction selector's, and optimization removes it). "Not detected" ≠ "proven
-  absent" (PRINCIPLES §1).
+- Within the CORE-dialect sweep, no *optimizing* pass introduced a leak into oblivious code
+  (the one introduced leak, `mask_select` @ `-O0`, is the unoptimized instruction selector's,
+  removed by optimization); `idx_gather`/`dynshape` are **authored**. The exception is outside
+  core dialects: `sparse_tensor` + `--sparsification` (finding 8, `sparse/`) is an optimizing
+  pass that DOES introduce an address channel. "Not detected" ≠ "proven absent" (PRINCIPLES §1).
 - **P3 super-vectorize** lowered every kernel but its verdicts equal P0's; whether it actually
   vectorized (vs no-op'd) is not confirmed at the IR level.
