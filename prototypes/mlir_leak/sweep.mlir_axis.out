@@ -1,0 +1,32 @@
+Building 5 pipeline(s) x 4 kernel(s), backend clang-18 -O0 -mavx2 -mno-avx512f ...
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O0]
+[compiler-introduced = P0 oblivious -> some P_k distinguishable]
+
+kernel           P0    P1    P2    P3    P5
+matvec            .     .     .     .     .
+cond_reduce       L     L     L     L     L
+mask_select       L     L     L     L     L
+idx_gather        L     L     L     L     L
+
+DETAIL (taint: cf=control-flow, addr=address; counts corroborate)
+  matvec         P0   obliv  clean
+  matvec         P1   obliv  clean
+  matvec         P2   obliv  clean
+  matvec         P3   obliv  clean
+  matvec         P5   obliv  clean
+  cond_reduce    P0   LEAK   taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P1   LEAK   taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P2   LEAK   taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P3   LEAK   taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P5   LEAK   taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  mask_select    P0   LEAK   taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P1   LEAK   taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P2   LEAK   taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P3   LEAK   taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P5   LEAK   taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  idx_gather     P0   LEAK   taint:addr
+  idx_gather     P1   LEAK   taint:addr
+  idx_gather     P2   LEAK   taint:addr
+  idx_gather     P3   LEAK   taint:addr
+  idx_gather     P5   LEAK   taint:addr
