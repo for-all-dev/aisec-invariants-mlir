@@ -3,3 +3,8 @@
 *.o
 *.out
 setup_binsec.log
+# ML probe artifacts (also excluded from the binsec docker context via the
+# .dockerignore -> .gitignore symlink); the binsec image uses no torch/nanoGPT
+nanogpt/nanoGPT/
+nanogpt/__pycache__/
+nanogpt/.venv/

@@ -1,0 +1,6 @@
+# the ML image self-bootstraps the clone and resolves torch itself; never ship
+# the host copies into the build context
+nanoGPT/
+__pycache__/
+.venv/
+*.pyc

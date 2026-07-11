@@ -19,8 +19,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # System deps: opam + build toolchain, 32-bit multilib (gcc-multilib),
 # clang for the differential arm, binutils (objdump/objcopy used by the
 # scripts), z3 solver, and binsec's build deps (m4, pkg-config, libgmp).
-RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends \
+RUN echo 'Acquire::Retries "8";' > /etc/apt/apt.conf.d/80retries && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends --fix-missing \
         opam build-essential gcc-multilib clang binutils \
         m4 pkg-config libgmp-dev z3 git ca-certificates && \
     rm -rf /var/lib/apt/lists/*
