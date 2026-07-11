@@ -1,0 +1,5 @@
+# keep the build context clean — artifacts are regenerated inside the image
+**/bin/
+*.o
+*.out
+setup_binsec.log

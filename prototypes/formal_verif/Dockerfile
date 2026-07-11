@@ -1,0 +1,53 @@
+# BINSEC/checkct formal-verification pipeline — reproducible image.
+#
+# Mirrors setup_binsec.sh (Debian/apt + opam) so kapedalex's scripts run
+# verbatim inside the container. No host pollution: the 32-bit toolchain,
+# opam switch, and binsec build all live in the image.
+#
+#   build:  docker build -t formal-verif prototypes/formal_verif
+#   run:    docker run --rm formal-verif            # full reproduction
+#   shell:  docker run --rm -it formal-verif bash   # poke around
+#
+# binsec -checkct decodes x86-32 ONLY, so every target is built -m32 -static;
+# gcc-multilib supplies the 32-bit libc/crt that gcc *and* clang link against.
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    OPAMROOT=/root/.opam \
+    OPAMYES=1
+
+# System deps: opam + build toolchain, 32-bit multilib (gcc-multilib),
+# clang for the differential arm, binutils (objdump/objcopy used by the
+# scripts), z3 solver, and binsec's build deps (m4, pkg-config, libgmp).
+RUN apt-get update -qq && \
+    apt-get install -y -qq --no-install-recommends \
+        opam build-essential gcc-multilib clang binutils \
+        m4 pkg-config libgmp-dev z3 git ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# opam init + OCaml switch + binsec. Sandboxing off = container-safe
+# (bubblewrap can't nest in a plain container), exactly as setup_binsec.sh.
+# bitwuzla is binsec's preferred CT solver but optional — never fail on it.
+RUN opam init --disable-sandboxing --bare -y && \
+    (opam switch create default 5.1.1 || opam switch create default) && \
+    eval "$(opam env)" && \
+    opam install -y binsec z3 && \
+    (opam install -y bitwuzla bitwuzla-cxx || echo "bitwuzla optional: skipped") && \
+    opam clean -a -c
+
+# Put the switch bin (where `binsec` lives) on PATH so the scripts' own
+# `eval "$(opam env)"` is belt-and-suspenders rather than load-bearing.
+ENV PATH=/root/.opam/default/bin:$PATH
+
+# Self-contained: the prototype ships in the image, so `docker run` needs no
+# mount. Bind-mount over /opt/formal_verif for live editing (see dockerize.sh).
+COPY . /opt/formal_verif
+WORKDIR /opt/formal_verif
+
+# Sanity: fail the build early if binsec or the 32-bit toolchain is broken.
+RUN binsec --version && \
+    echo 'int main(){return 0;}' | gcc -m32 -static -x c - -o /tmp/m32ok && \
+    echo 'int main(){return 0;}' | clang -m32 -static -x c - -o /tmp/m32okc && \
+    rm -f /tmp/m32ok /tmp/m32okc
+
+CMD ["bash", "run_all.sh"]
