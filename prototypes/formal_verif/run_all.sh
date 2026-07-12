@@ -22,4 +22,10 @@ rule "FUNCTIONAL EQUIVALENCE — negative control (expect NOT EQUIVALENT)"
 # fut_diff.c is a deliberately different function => DIFF reachable => cex.
 CC=gcc bash equiv/run.sh fut_diff.c
 
+rule "nanoGPT WEIGHT-CONFIDENTIALITY — gcc  (secret = weights)"
+CC=gcc bash nanogpt/run.sh
+
+rule "nanoGPT WEIGHT-CONFIDENTIALITY — clang  (watch mm_codebook_ct for NY)"
+CC=clang bash nanogpt/run.sh
+
 rule "DONE"

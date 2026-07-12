@@ -1,0 +1,5 @@
+# python / uv artifacts
+__pycache__/
+.venv/
+*.pyc
+/nanoGPT/

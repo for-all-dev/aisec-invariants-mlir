@@ -6,6 +6,7 @@
 #   ./dockerize.sh shell      build + drop into an interactive shell
 #   ./dockerize.sh mount      run with the prototype bind-mounted (live edits)
 #   ./dockerize.sh build      build the image only
+#   ./dockerize.sh ml         build+run the nanoGPT ML-IR probe (separate image)
 #
 # Uses docker if present, else podman.
 set -euo pipefail
@@ -22,5 +23,7 @@ case "${1:-run}" in
   shell)  build; exec "$ENGINE" run --rm -it "$IMG" bash ;;
   mount)  build; exec "$ENGINE" run --rm -it -v "$PWD":/opt/formal_verif "$IMG" bash run_all.sh ;;
   run)    build; exec "$ENGINE" run --rm "$IMG" ;;
-  *)      echo "usage: $0 [run|shell|mount|build]" >&2; exit 2 ;;
+  ml)     "$ENGINE" build -f nanogpt/Dockerfile.ml -t "${IMG}-ml" nanogpt
+          exec "$ENGINE" run --rm "${IMG}-ml" ;;
+  *)      echo "usage: $0 [run|shell|mount|build|ml]" >&2; exit 2 ;;
 esac

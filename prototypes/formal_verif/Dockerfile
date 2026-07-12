@@ -10,7 +10,11 @@
 #
 # binsec -checkct decodes x86-32 ONLY, so every target is built -m32 -static;
 # gcc-multilib supplies the 32-bit libc/crt that gcc *and* clang link against.
-FROM debian:bookworm-slim
+#
+# Base is ubuntu:24.04 (not debian:bookworm-slim): the opam `z3` package builds
+# z3 4.16 from source, which needs C++20 <format> — absent from bookworm's g++-12,
+# present in 24.04's g++-13+. Mirrors the verified host env (setup_binsec.sh).
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     OPAMROOT=/root/.opam \
@@ -19,10 +23,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # System deps: opam + build toolchain, 32-bit multilib (gcc-multilib),
 # clang for the differential arm, binutils (objdump/objcopy used by the
 # scripts), z3 solver, and binsec's build deps (m4, pkg-config, libgmp).
-RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends \
+RUN echo 'Acquire::Retries "8";' > /etc/apt/apt.conf.d/80retries && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends --fix-missing \
         opam build-essential gcc-multilib clang binutils \
-        m4 pkg-config libgmp-dev z3 git ca-certificates && \
+        m4 pkg-config libgmp-dev z3 python3 git ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # opam init + OCaml switch + binsec. Sandboxing off = container-safe
@@ -45,7 +50,8 @@ COPY . /opt/formal_verif
 WORKDIR /opt/formal_verif
 
 # Sanity: fail the build early if binsec or the 32-bit toolchain is broken.
-RUN binsec --version && \
+# (binsec has no --version flag -- it exits 2 on unknown options; --help exits 0.)
+RUN binsec --help >/dev/null && \
     echo 'int main(){return 0;}' | gcc -m32 -static -x c - -o /tmp/m32ok && \
     echo 'int main(){return 0;}' | clang -m32 -static -x c - -o /tmp/m32okc && \
     rm -f /tmp/m32ok /tmp/m32okc
