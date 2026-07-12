@@ -6,3 +6,27 @@
 .pytest_cache/
 .hypothesis/
 __pycache__/
+
+# Build artifacts — regenerated on demand, machine-specific binaries.
+# vgshim.so is rebuilt by run_all.ensure_shim() whenever it is older than
+# vgshim.c; ctbench/build/ is filled by the gcc/clang flag sweep in run_ct.py.
+vgshim.so
+ctbench/build/
+*.o
+
+# Generated secret buffers. Deterministically regenerable (run_all.ensure_secrets
+# seeds np.random.default_rng(0); run_activations.gen and ctbench/run_ct.py write
+# fixed constants), ~1 MB each — jj's snapshot size guard already refuses them.
+# Covers secrets/_ctx/, the per-run context copies noninterference.context_dir
+# makes and removes.
+secrets/
+
+# Deliberately NOT ignored here, unlike prototypes/formal_verif/.gitignore:
+#
+#   *.out    — these are recorded raw evidence, not build output. The research
+#              notes cite them by name ("raw output in leak_check/run_all.out"),
+#              which PRINCIPLES §1 requires: every quantitative claim names the
+#              script and exact command that produced it.
+#   uv.lock  — pins the exact dependency set, i.e. the config point a verdict is
+#              scoped to (PRINCIPLES §2, §4: "pin determinism ... note the
+#              machine/versions").
