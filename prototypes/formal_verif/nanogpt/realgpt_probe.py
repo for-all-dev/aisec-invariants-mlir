@@ -79,7 +79,7 @@ from model import GPT, GPTConfig  # Karpathy's real nanoGPT
 torch.manual_seed(0)
 
 GATHER_OPS = ("index", "embedding", "gather", "index_select", "take")
-MATMUL_OPS = ("addmm", "mm", "matmul", "linear", "bmm")
+MATMUL_OPS = ("addmm", "mm", "matmul", "linear", "bmm", "mv", "dot")
 
 
 def banner(s):
@@ -160,7 +160,9 @@ print(f"\nfunctional check: max|dense - codebook| = {err:.4f} "
 # 3. Lower each to an aten-level IR graph and localize the leak.
 # ---------------------------------------------------------------------------
 def analyze(mod, name):
-    gm = make_fx(mod, tracing_mode="fake")(torch.randn(n_in))
+    # real tracing (not fake): the module holds real weight Parameters, and the
+    # toy dims make real execution instant. Captures the aten ops verbatim.
+    gm = make_fx(mod)(torch.randn(n_in))
     code = gm.code
     gathers = [op for op in GATHER_OPS if op in code]
     matmuls = [op for op in MATMUL_OPS if op in code]
