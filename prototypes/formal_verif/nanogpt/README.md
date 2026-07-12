@@ -14,6 +14,11 @@ is **secure** iff the weight *values* never influence a branch condition or a
 memory address; they may only flow into arithmetic. Formally: non-interference
 of the leakage trace (PC + addresses) w.r.t. the secret weights.
 
+For the full adversary analysis — capability bundle, concrete attacker profiles
+(cloud co-tenant, malicious TEE host, on-device, physical), and the formal-vs-
+cache-line-resolution caveat — see
+[`docs/research/formal_verif.threat-model.agents.md`](../../../docs/research/formal_verif.threat-model.agents.md).
+
 - **Secret** = `W[]` (weights) — `secret global W` in `w.cfg`
 - **Public** = `x[]` (activations) — `public global x`
 - **Concrete** = `codebook[]` — a fixed public dequant table (not an input, so
