@@ -56,6 +56,10 @@ def main():
                 chan.append(f"dIr={b['ir_diff']:+d}")
             if b["bc_diff"]:
                 chan.append(f"dBc={b['bc_diff']:+d}")
+            # A count under the floor is uninterpretable noise, not a clean
+            # reading: say which, or the numbers above read as a finding.
+            if chan and not b["counts_distinguish"]:
+                chan.append(f"(under floor Ir {b['ir_floor']:+d} Bc {b['bc_floor']:+d} -> noise)")
             if b["taint"]["leak"]:
                 chan.append("taint")
             verd = "DISTINGUISHABLE" if b["distinguishable"] else "oblivious"

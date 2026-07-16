@@ -27,13 +27,13 @@ reimplement it here.
     python probe_softmax.py             # softmax (default)
     python probe_softmax.py exp         # any activation in corpus_activations
 """
+
 import difflib
 import os
 import re
 import subprocess
 import sys
 
-import corpus_activations as CA
 import run_activations as RA
 from probe_autotune import normalize
 
@@ -48,10 +48,21 @@ BRANCHFREE_PAT = re.compile(r"blendv|vec::maximum|vec::minimum|where|clamp|maske
 
 
 def run(act, secret_path):
-    env = dict(os.environ, TORCH_LOGS="output_code", OMP_NUM_THREADS="1",
-               MKL_NUM_THREADS="1", PYTHONHASHSEED="0")
-    p = subprocess.run([sys.executable, "_softmax_worker.py", act, secret_path],
-                       cwd=HERE, capture_output=True, text=True, env=env, timeout=1800)
+    env = dict(
+        os.environ,
+        TORCH_LOGS="output_code",
+        OMP_NUM_THREADS="1",
+        MKL_NUM_THREADS="1",
+        PYTHONHASHSEED="0",
+    )
+    p = subprocess.run(
+        [sys.executable, "_softmax_worker.py", act, secret_path],
+        cwd=HERE,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=1800,
+    )
     result = None
     for line in p.stdout.splitlines():
         if line.startswith("RESULT"):
@@ -67,7 +78,7 @@ def kernel_body(raw):
     lines = [prefix.sub("", ln) for ln in raw.splitlines()]
     body, on = [], False
     for ln in lines:
-        if "extern \"C\"" in ln or "cpp_fused" in ln or "#pragma" in ln:
+        if 'extern "C"' in ln or "cpp_fused" in ln or "#pragma" in ln:
             on = True
         if on:
             body.append(ln.rstrip())
@@ -89,8 +100,11 @@ def main():
     same = code_a == code_b
     print(f"A1. generated code identical (normalized): {same}")
     if not same:
-        d = list(difflib.unified_diff(code_a.splitlines(), code_b.splitlines(),
-                                      fromfile=la, tofile=lb, lineterm="", n=2))
+        d = list(
+            difflib.unified_diff(
+                code_a.splitlines(), code_b.splitlines(), fromfile=la, tofile=lb, lineterm="", n=2
+            )
+        )
         print(f"    codegen DIFFERS — {len(d)} diff lines; first 40:")
         for ln in d[:40]:
             print("      " + ln)
@@ -111,7 +125,7 @@ def main():
     for ln in blends[:10]:
         print("      " + ln)
 
-    print("\n--- generated kernel (class %s) ---" % la)
+    print(f"\n--- generated kernel (class {la}) ---")
     print(body if body.strip() else "(no kernel body captured)")
 
 

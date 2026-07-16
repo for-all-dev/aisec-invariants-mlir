@@ -134,7 +134,7 @@ if __name__ == "__main__":
     args = get_args()
     compiled_module_main('None', lambda times, repeat: benchmark_compiled_module(args, times=times, repeat=repeat))
 
-Output code written to: /tmp/torchinductor_q/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
-I0716 16:20:22.644000 151815 .venv/lib/python3.14/site-packages/torch/_inductor/graph.py:2693] [0/0] [__output_code] Output code written to: /tmp/torchinductor_q/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
-/home/q/Documents/Work/safeguarded/lucid/aisec-invariants-mlir/prototypes/leak_check/.venv/lib/python3.14/site-packages/torch/_dynamo/pgo.py:605: UserWarning: dynamo_pgo force disabled by torch.compiler.config.force_disable_caches
+Output code written to: /tmp/torchinductor_<user>/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
+I0716 16:20:22.644000 151815 .venv/lib/python3.14/site-packages/torch/_inductor/graph.py:2693] [0/0] [__output_code] Output code written to: /tmp/torchinductor_<user>/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
+<repo>/prototypes/leak_check/.venv/lib/python3.14/site-packages/torch/_dynamo/pgo.py:605: UserWarning: dynamo_pgo force disabled by torch.compiler.config.force_disable_caches
   warn_once(

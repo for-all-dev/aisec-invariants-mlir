@@ -22,19 +22,28 @@ def _install_fakes(monkeypatch, *, eager_leak, compiled_leak, channel="cg"):
 
     channel="cg"    -> the difference shows up in the callgrind Ir count
     channel="taint" -> the difference shows up as a memcheck taint report
+
+    Substituted at `NI.counts` rather than `instruments.callgrind_count`: the
+    criterion now measures each class over several contexts, copying the secret
+    to a real path per repeat (see noninterference._context), so a fake below
+    that layer would be handed a temp path and could not tell the classes apart
+    — nor is there a file named "zero" to copy. `counts` is the same seam one
+    level up, and still receives the class as passed to `analyze`.
     """
 
-    def callgrind_count(model, secret, compile=False):
+    def counts(model, secret, compile=False, repeats=NI.REPEATS, ctx_dir=None):
         distinguish = compiled_leak if compile else eager_leak
         bumped = channel == "cg" and distinguish and secret == RAND
-        return {"Ir": 100 if bumped else 50, "Bc": 5, "Bi": 0}
+        row = {"Ir": 100 if bumped else 50, "Bc": 5, "Bi": 0}
+        # Same count in every context: a fake leak that is real is repeatable.
+        return [dict(row) for _ in range(repeats)]
 
     def memcheck_taint(model, secret, compile=False):
         distinguish = compiled_leak if compile else eager_leak
         leak = channel == "taint" and distinguish
         return {"leak": leak, "reports": ["dep"] if leak else []}
 
-    monkeypatch.setattr(instruments, "callgrind_count", callgrind_count)
+    monkeypatch.setattr(NI, "counts", counts)
     monkeypatch.setattr(instruments, "memcheck_taint", memcheck_taint)
 
 
@@ -59,10 +68,11 @@ def test_verdict_quadrants(monkeypatch, channel, eager_leak, compiled_leak, expe
 def test_diff_is_signed_but_any_nonzero_distinguishes(monkeypatch):
     # A leak that shows up as *fewer* instructions for the random secret must
     # still count: the criterion is "differs", not "increases".
-    def callgrind_count(model, secret, compile=False):
-        return {"Ir": 10 if secret == RAND else 50, "Bc": 5, "Bi": 0}
+    def counts(model, secret, compile=False, repeats=NI.REPEATS, ctx_dir=None):
+        row = {"Ir": 10 if secret == RAND else 50, "Bc": 5, "Bi": 0}
+        return [dict(row) for _ in range(repeats)]
 
-    monkeypatch.setattr(instruments, "callgrind_count", callgrind_count)
+    monkeypatch.setattr(NI, "counts", counts)
     monkeypatch.setattr(
         instruments, "memcheck_taint", lambda *a, **k: {"leak": False, "reports": []}
     )
