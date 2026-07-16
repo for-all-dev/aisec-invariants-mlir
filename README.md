@@ -1,4 +1,4 @@
-# Compiler security in deep learning: stream of Apart's Secure Program Synthesis Fellowship
+# Confidential compiling: stream of Apart's Secure Program Synthesis Fellowship
 
 ## Research monorepo conventions
 
