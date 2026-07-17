@@ -31,7 +31,10 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.29"
-          python-version: "3.12"
+          # Match local dev (the committed uv.lock resolves on 3.14). ty's
+          # typeshed is Python-version-specific, so a CI/local skew lets a type
+          # error pass locally and fail here on identical code.
+          python-version: "3.14"
           enable-cache: true
           cache-dependency-glob: "prototypes/leak_check/uv.lock"
 
