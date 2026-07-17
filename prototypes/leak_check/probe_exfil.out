@@ -1,0 +1,61 @@
+probe_exfil: compiler artifact exfiltration of secret weights
+torch=2.13.0+cu130  python=3.14.0
+platform=Linux-7.1.3-arch1-2-x86_64-with-glibc2.43
+umask=0o22
+AOTInductor available: True
+
+--- default (SHARED) cache location, the real-world threat surface ---
+torch's default cache dir: /tmp/torchinductor_q
+  dir 0o755 /tmp/torchinductor_q
+  dir 0o755 /tmp/torchinductor_q
+  dir 0o777 /tmp
+  Files the compiler writes here inherit the process umask; under the
+  default umask 0022 that is 0644/0755 (group- and other-readable),
+  and /tmp is world-traversable.
+
+--- controls ---
+  positive (0644 sentinel file): detected = True   (want True)
+  negative (random bytes):       detected = False   (want False)
+
+=== pass: caches enabled (private cache dir, force_disable_caches=False) ===
+cache dir: <cache>  (real path redacted; contains only compiler-placed files)
+  CHILD aoti_package=<cache>/aoti_package.pt2
+  CHILD done
+  HIT mode=0o755 group=r other=r  size=3507048  <cache>/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2/cufdu3krzhskkw326mdd3o2wli6fnhn4keqsvyb2hjkyl7cxjw74.wrapper.so
+      sentinels: ascii_LEAK, ascii_W3IG, magic_deadbeef, float_1234567
+      recovered[ascii_LEAK] = b'LEAKLEAKLEAKLEAK'
+      dir 0o755 <cache>/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2
+      dir 0o700 <cache>
+      dir 0o777 /tmp
+  package (user-chosen path): mode=0o644 group=r other=r size=3548341 sentinels=['ascii_LEAK', 'ascii_W3IG', 'magic_deadbeef', 'float_1234567']  [expected: a package holds its weights]
+
+=== pass: caches disabled (private cache dir, force_disable_caches=True) ===
+cache dir: <cache>  (real path redacted; contains only compiler-placed files)
+  CHILD aoti_package=<cache>/aoti_package.pt2
+  CHILD done
+  HIT mode=0o755 group=r other=r  size=3507112  <cache>/tmp2tvs4cwc/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2/cufdu3krzhskkw326mdd3o2wli6fnhn4keqsvyb2hjkyl7cxjw74.wrapper.so
+      sentinels: ascii_LEAK, ascii_W3IG, magic_deadbeef, float_1234567
+      recovered[ascii_LEAK] = b'LEAKLEAKLEAKLEAK'
+      dir 0o755 <cache>/tmp2tvs4cwc/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2
+      dir 0o700 <cache>/tmp2tvs4cwc
+      dir 0o700 <cache>
+      dir 0o777 /tmp
+  package (user-chosen path): mode=0o644 group=r other=r size=3548533 sentinels=['ascii_LEAK', 'ascii_W3IG', 'magic_deadbeef', 'float_1234567']  [expected: a package holds its weights]
+
+=== pass: default SHARED cache dir (end-to-end exposure) ===
+shared cache dir: /tmp/torchinductor_q
+  NEW HIT mode=0o755 group=r other=r  /tmp/torchinductor_q/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2/cufdu3krzhskkw326mdd3o2wli6fnhn4keqsvyb2hjkyl7cxjw74.wrapper.so
+      full path chain to /tmp, all traversable/readable by other:
+      dir 0o755 /tmp/torchinductor_q/cwfonw3tyofe2w5xiayqjtzxkjk4jbxj2armuzy2psngo56o5xw2
+      dir 0o755 /tmp/torchinductor_q
+      dir 0o777 /tmp
+
+=== verdict ===
+GUN FIRED: secret weight bytes in an OTHER-READABLE file under a
+fully other-traversable dir chain, persisting after the compiling
+process exited (default shared cache dir).
+  mode=0o755 (group=r other=r) sentinels=['ascii_LEAK', 'ascii_W3IG', 'magic_deadbeef', 'float_1234567'] cufdu3krzhskkw326mdd3o2wli6fnhn4keqsvyb2hjkyl7cxjw74.wrapper.so
+
+Repro: run this model through aoti_compile_and_package with the
+default TORCHINDUCTOR_CACHE_DIR, then, as ANOTHER user:
+  grep -rl LEAK /tmp/torchinductor_*/   # -> the weight-bearing .so
