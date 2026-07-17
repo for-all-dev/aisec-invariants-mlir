@@ -44,14 +44,24 @@ RUN opam init --disable-sandboxing --bare -y && \
 # `eval "$(opam env)"` is belt-and-suspenders rather than load-bearing.
 ENV PATH=/root/.opam/default/bin:$PATH
 
+# uv for the ctverify package (layers A/B drive it). Pinned, pulled from the
+# official image so no curl/pip is needed. UV_LINK_MODE=copy silences the
+# hardlink warning across the /root and image layers.
+COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /usr/local/bin/
+ENV UV_LINK_MODE=copy
+
 # Self-contained: the prototype ships in the image, so `docker run` needs no
 # mount. Bind-mount over /opt/formal_verif for live editing (see dockerize.sh).
 COPY . /opt/formal_verif
 WORKDIR /opt/formal_verif
 
+# Provision the ctverify environment from its lockfile so `run.sh` (layers A/B)
+# can drive the CLI offline at run time.
+RUN cd ctverify && uv sync --locked
+
 # Sanity: fail the build early if binsec or the 32-bit toolchain is broken.
 # (binsec has no --version flag -- it exits 2 on unknown options; --help exits 0.)
-RUN binsec --help >/dev/null && \
+RUN binsec --help >/dev/null && uv --version >/dev/null && \
     echo 'int main(){return 0;}' | gcc -m32 -static -x c - -o /tmp/m32ok && \
     echo 'int main(){return 0;}' | clang -m32 -static -x c - -o /tmp/m32okc && \
     rm -f /tmp/m32ok /tmp/m32okc

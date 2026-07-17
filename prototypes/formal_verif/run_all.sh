@@ -28,4 +28,19 @@ CC=gcc bash nanogpt/run.sh
 rule "nanoGPT WEIGHT-CONFIDENTIALITY — clang  (watch mm_codebook_ct for NY)"
 CC=clang bash nanogpt/run.sh
 
+rule "TIMING LAYER A — variable-latency CT (gcc)  [defaultCT vs layerA]"
+CC=gcc bash timing_a/run.sh
+
+rule "TIMING LAYER A — variable-latency CT (clang)"
+CC=clang bash timing_a/run.sh
+
+rule "LEAKAGE CONTRACT B — cache-line granularity (gcc)  [ct vs cache-line]"
+CC=gcc bash contract_b/run.sh
+
+rule "LEAKAGE CONTRACT B — cache-line granularity (clang)"
+CC=clang bash contract_b/run.sh
+
+rule "ctverify UNIT TESTS  (parser + contract math; no binsec needed)"
+( cd ctverify && uv run pytest )
+
 rule "DONE"

@@ -24,15 +24,16 @@ bash run.sh            # gcc
 CC=clang bash run.sh   # clang
 ```
 
-Requires binsec (`eval $(opam env)`) and a `-m32` toolchain. Result (gcc):
+Requires binsec (`eval $(opam env)`), a `-m32` toolchain, and `uv` (the driver
+calls the `ctverify` CLI). Result (gcc, at `-O0`):
 
-| kernel | defaultCT(-O0) | layerA(-O0) | layerA(-O2) |
-|---|---|---|---|
-| `a_ct_baseline` | secure | secure | secure |
-| `a_div_public` | secure | secure | secure |
-| `a_div_divisor` | secure | **insecure** | insecure |
-| `a_div_dividend` | secure | **insecure** | insecure |
-| `a_mul_operand` | secure | **insecure** | insecure |
+| kernel | defaultCT | layerA |
+|---|---|---|
+| `a_ct_baseline` | secure | secure |
+| `a_div_public` | secure | secure |
+| `a_div_divisor` | secure | **insecure** |
+| `a_div_dividend` | secure | **insecure** |
+| `a_mul_operand` | secure | **insecure** |
 
 The headline is the **delta**: `a_div_*` and `a_mul_operand` have no
 secret-dependent branch or address, so default constant-time verifies them
