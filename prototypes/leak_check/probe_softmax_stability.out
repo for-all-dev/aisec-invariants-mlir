@@ -1,0 +1,21 @@
+Check B — callgrind determinism for `softmax` | repeats=3
+classes: small vs large
+
+  build=eager
+    small  : Ir=[2316505, 2316505, 2316505]  spread=+0
+             Bc=[144673, 144673, 144673]
+    large  : Ir=[2316505, 2316505, 2317382]  spread=+877
+             Bc=[144673, 144673, 144875]
+    dIr(large-small) per repeat = [0, 0, 877]
+    dBc(large-small) per repeat = [0, 0, 202]
+    => HARNESS ARTIFACT — within-class spread is nonzero, so callgrind is not deterministic here and dIr is not interpretable as a secret-dependent path
+
+  build=compiled
+    small  : Ir=[2504002, 2505698, 2505698]  spread=+1,696
+             Bc=[130284, 130558, 130558]
+    large  : Ir=[2505698, 2505698, 2505698]  spread=+0
+             Bc=[130558, 130558, 130558]
+    dIr(large-small) per repeat = [1696, 0, 0]
+    dBc(large-small) per repeat = [274, 0, 0]
+    => HARNESS ARTIFACT — within-class spread is nonzero, so callgrind is not deterministic here and dIr is not interpretable as a secret-dependent path
+

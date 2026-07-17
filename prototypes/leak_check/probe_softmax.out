@@ -1,0 +1,140 @@
+Check A — generated-kernel inspection for `softmax`
+classes: small vs large  (from corpus_activations.secret_classes)
+
+  RESULT act=softmax secret=softmax_small.npy out[0]=0.001953125 sum=512
+  RESULT act=softmax secret=softmax_large.npy out[0]=0.001953125 sum=512
+
+A1. generated code identical (normalized): True
+
+A2. branch-like lines in generated kernel: 3
+      if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+      if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+      if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+    branch-free select/blend lines: 2
+      tmp_acc0_vec = at::vec::maximum(tmp_acc0_vec, tmp0);
+      tmp_acc0 = max_propagate_nan(tmp_acc0, at::vec::vec_reduce_all<float, 1>([](at::vec::Vectorized<float>& x, at::vec::Vectorized<float>& y) { return at::vec::maximum(x, y); }, tmp_acc0_vec));
+
+--- generated kernel (class small) ---
+cpp_fused__softmax_0 = async_compile.cpp_pybinding(['const float*', 'float*', 'float*', 'float*'], r'''
+#include <torch/csrc/inductor/cpp_prefix.h>
+extern "C"  void  kernel(const float* in_ptr0,
+                       float* out_ptr0,
+                       float* out_ptr1,
+                       float* out_ptr2)
+{
+    std::atomic<int> inductor_cpu_integer_div_error{0};
+    inductor_cpu_integer_div_error_flag = &inductor_cpu_integer_div_error;
+    {
+        std::unique_ptr<float []> buf_local_buffer_data_0 = std::make_unique<float []>(512L);
+        float* local_buffer_data_0 = buf_local_buffer_data_0.get();
+        #pragma GCC ivdep
+        for(int64_t x0=static_cast<int64_t>(0L); x0<static_cast<int64_t>(512L); x0+=static_cast<int64_t>(1L))
+        {
+            {
+                float tmp_acc0 = -std::numeric_limits<float>::infinity();
+                at::vec::Vectorized<float> tmp_acc0_vec = at::vec::Vectorized<float>(-std::numeric_limits<float>::infinity());
+                for(int64_t x1=static_cast<int64_t>(0L); x1<static_cast<int64_t>(512L); x1+=static_cast<int64_t>(16L))
+                {
+                    {
+                        if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+                        {
+                            auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x1 + 512L*x0), static_cast<int64_t>(16));
+                            tmp_acc0_vec = at::vec::maximum(tmp_acc0_vec, tmp0);
+                        }
+                    }
+                }
+                tmp_acc0 = max_propagate_nan(tmp_acc0, at::vec::vec_reduce_all<float, 1>([](at::vec::Vectorized<float>& x, at::vec::Vectorized<float>& y) { return at::vec::maximum(x, y); }, tmp_acc0_vec));
+                out_ptr0[static_cast<int64_t>(x0)] = static_cast<float>(tmp_acc0);
+            }
+            {
+                float tmp_acc0 = 0;
+                at::vec::Vectorized<float> tmp_acc0_vec = at::vec::Vectorized<float>(0);
+                for(int64_t x1=static_cast<int64_t>(0L); x1<static_cast<int64_t>(512L); x1+=static_cast<int64_t>(16L))
+                {
+                    {
+                        if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+                        {
+                            auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x1 + 512L*x0), static_cast<int64_t>(16));
+                            auto tmp1 = out_ptr0[static_cast<int64_t>(x0)];
+                            auto tmp2 = at::vec::Vectorized<float>(tmp1);
+                            auto tmp3 = tmp0 - tmp2;
+                            auto tmp4 = tmp3.exp();
+                            tmp4.store(local_buffer_data_0 + static_cast<int64_t>(x1));
+                            tmp_acc0_vec = tmp_acc0_vec + tmp4;
+                        }
+                    }
+                }
+                tmp_acc0 = tmp_acc0 + at::vec::vec_reduce_all<float, 1>([](at::vec::Vectorized<float>& x, at::vec::Vectorized<float>& y) { return x + y; }, tmp_acc0_vec);
+                out_ptr1[static_cast<int64_t>(x0)] = static_cast<float>(tmp_acc0);
+            }
+            for(int64_t x1=static_cast<int64_t>(0L); x1<static_cast<int64_t>(512L); x1+=static_cast<int64_t>(16L))
+            {
+                {
+                    if(C10_LIKELY(x1 >= static_cast<int64_t>(0) && x1 < static_cast<int64_t>(512L)))
+                    {
+                        auto tmp0 = at::vec::Vectorized<float>::loadu(local_buffer_data_0 + static_cast<int64_t>(x1), static_cast<int64_t>(16));
+                        auto tmp1 = out_ptr1[static_cast<int64_t>(x0)];
+                        auto tmp2 = at::vec::Vectorized<float>(tmp1);
+                        auto tmp3 = tmp0 / tmp2;
+                        tmp3.store(out_ptr2 + static_cast<int64_t>(x1 + 512L*x0));
+                    }
+                }
+            }
+        }
+    }
+    inductor_cpu_integer_div_error_flag = nullptr;
+    inductor_cpu_throw_if_integer_div_error(inductor_cpu_integer_div_error);
+}
+''')
+
+
+async_compile.wait(globals())
+del async_compile
+
+class Runner:
+    def __init__(self, partitions):
+        self.partitions = partitions
+
+    def recursively_apply_fns(self, fns):
+        new_callables = []
+        for fn, c in zip(fns, self.partitions):
+            new_callables.append(fn(c))
+        self.partitions = new_callables
+
+    def call(self, args):
+        arg0_1, = args
+        args.clear()
+        assert_size_stride(arg0_1, (512, 512), (512, 1), 'input')
+        buf0 = empty_strided_cpu((512, 1), (1, 512), torch.float32)
+        buf2 = empty_strided_cpu((512, 1), (1, 512), torch.float32)
+        buf3 = empty_strided_cpu((512, 512), (512, 1), torch.float32)
+        cpp_fused__softmax_0(arg0_1, buf0, buf2, buf3)
+        del arg0_1
+        return (buf3, )
+
+runner = Runner(partitions=[])
+call = runner.call
+recursively_apply_fns = runner.recursively_apply_fns
+
+
+def get_args():
+    from torch._dynamo.testing import rand_strided
+    arg0_1 = rand_strided((512, 512), (512, 1), device='cpu', dtype=torch.float32)
+    return [arg0_1]
+
+
+def benchmark_compiled_module(args, times=10, repeat=10):
+    from torch._inductor.utils import print_performance
+    fn = lambda: call(list(args))
+    return print_performance(fn, times=times, repeat=repeat, device='cpu')
+
+
+if __name__ == "__main__":
+    from torch._inductor.wrapper_benchmark import compiled_module_main
+    args = get_args()
+    compiled_module_main('None', lambda times, repeat: benchmark_compiled_module(args, times=times, repeat=repeat))
+
+Output code written to: /tmp/torchinductor_<user>/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
+I0716 16:20:22.644000 151815 .venv/lib/python3.14/site-packages/torch/_inductor/graph.py:2693] [0/0] [__output_code] Output code written to: /tmp/torchinductor_<user>/tmpworevg1z/op/cop65c36yfqaoauo45usqpq5idqzlurritezc4syrqlvjfr3ie32.py
+<repo>/prototypes/leak_check/.venv/lib/python3.14/site-packages/torch/_dynamo/pgo.py:605: UserWarning: dynamo_pgo force disabled by torch.compiler.config.force_disable_caches
+  warn_once(

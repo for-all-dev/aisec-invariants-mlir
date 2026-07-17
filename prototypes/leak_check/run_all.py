@@ -48,9 +48,20 @@ def ensure_secrets():
 
 def fmt_build(b):
     t = "TAINT" if b["taint"]["leak"] else "clean"
+    # Say WHY a nonzero count didn't count. Printing the verdict without the
+    # reason is how "-573" got read as evidence in the first place.
+    why = ""
+    if (b["ir_diff"] or b["bc_diff"]) and not b["counts_distinguish"]:
+        why = (
+            " [under floor]"
+            if abs(b["ir_diff"]) <= b["ir_floor"]
+            else " [varies across contexts: layout, not secret]"
+        )
     return (
         f"Ir_zero={b['cg_zero']['Ir']:>12,}  Ir_rand={b['cg_rand']['Ir']:>12,}  "
-        f"dIr={b['ir_diff']:>+12,}  dBc={b['bc_diff']:>+10,}  taint={t}  "
+        f"dIr={b['ir_diff']:>+12,}  dBc={b['bc_diff']:>+10,}  "
+        f"floor=(Ir {b['ir_floor']:,} Bc {b['bc_floor']:,})  "
+        f"pairs={b['ir_pairs']}{why}  taint={t}  "
         f"-> {'DISTINGUISHABLE' if b['distinguishable'] else 'oblivious'}"
     )
 
@@ -62,7 +73,9 @@ def main():
 
     print(
         f"corpus DIM={corpus.DIM} | secrets: zero vs random | "
-        f"instruments: callgrind(Ir,Bc) + memcheck(taint)\n"
+        f"instruments: callgrind(Ir,Bc) x{NI.REPEATS} contexts + memcheck(taint)\n"
+        f"a count distinguishes only if it clears the context floor AND the "
+        f"paired diff agrees across contexts (noninterference.py)\n"
     )
 
     rows = []
