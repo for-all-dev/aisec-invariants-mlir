@@ -49,14 +49,43 @@ the crypto beachhead — "the codebook gather is the transformer's S-box."
 | `mm_dense` | — (weights → arithmetic only) | **secure** (baseline / false-positive guard) |
 | `mm_sparse` | **branch** (skip-zero → leaks sparsity mask) | insecure |
 | `mm_codebook` | **memory address** (quantized dequant → the S-box analog) | insecure, no branch |
-| `mm_codebook_ct` | oblivious dequant (read-all + mask-select) | secure at `-O0`; does `-O2` break it? |
+| `mm_codebook_ct` | oblivious dequant (read-all + mask-select) | secure at `-O0`; **clang `-O1` reintroduces the leak** (see below) |
 
 The headline candidate is `mm_codebook`: the leak is a secret-dependent **load
 address** with **no conditional jump**, so branch-counting / eyeballing the
 disassembly sees nothing — only the relational memory-address check catches it.
 `mm_codebook_ct` is the compiler-*introduced* experiment (parallels
-`quadrants/q_oblivious`): oblivious source, watch whether clang `-O2` reintroduces
-the leak.
+`quadrants/q_oblivious`); the result is below.
+
+## A compiler-introduced leak (`mm_codebook_ct`)
+
+`mm_codebook_ct` is written to be constant-time: it reads **all** codebook
+entries at public addresses and mask-selects the one at the secret index, so
+there is no secret-dependent branch or address in the source. It verifies
+`secure` at `-O0`. Sweeping `binsec -checkct` across compilers and optimisation
+levels (`bash compiler_introduced.sh`, which drives the `ctverify` package):
+
+| | `-O0` | `-O1` | `-O2` | `-O3` |
+|---|---|---|---|---|
+| **gcc** | secure | secure | secure | secure |
+| **clang** | secure | **insecure** | secure | secure |
+
+**clang `-O1` lowers the branchless mask-select back into a secret-dependent
+branch** (`control flow` leak at `0x80499dc`): a leak the *compiler* introduces,
+not the source. The disassembly shows it directly —
+
+```asm
+cmp    ebp, ecx        ; ebp = W[i] & 7  (secret index) vs ecx = j
+jne    ...             ; secret-dependent conditional jump
+mov    esi, [edx+ecx*4] ; codebook[j] now loaded only when j == secret index
+```
+
+This is a real compiler-introduced constant-time regression on a transformer's
+weight-dequant kernel — the same class as the documented Clangover ML-KEM case
+(branchless constant-time source → secret-dependent branch after lowering). It
+is `secure → insecure` across the *same source*, differing only in the compiler
+pass, which is exactly the compiler-introduced quadrant (`../README.md`); gcc and
+clang `-O2/-O3` keep the kernel oblivious.
 
 ## Run
 
