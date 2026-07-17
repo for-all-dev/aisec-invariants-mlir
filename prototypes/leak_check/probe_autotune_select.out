@@ -1,0 +1,30 @@
+Probe — value-specialized max-autotune GEMM kernel selection
+
+config point: torch 2.13.0+cu130, cpu, freezing+max_autotune, DIM=512
+
+SAME-CLASS control (independent 'dense' draws, seeds 0/1/2):
+  dense    seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=71.9%]  t0=2272us
+  dense    seed=1  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=80.3%]  t0=2547us
+  dense    seed=2  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=55.2%]  t0=2657us
+  -> same decision across draws: True; same codegen: True
+  -> SAME-CLASS CONTROL CLEAN
+
+CROSS-CLASS baits (same shape+dtype, one property each, seed 0):
+  dense    seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=71.9%]  t0=2272us
+  denormal seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=64.7%]  t0=2268us
+  sparse   seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=82.2%]  t0=2779us
+  small    seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=92.1%]  t0=2973us
+  large    seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=56.7%]  t0=2591us
+  lowrank  seed=0  winner=cpp_CppMicroGemmFP32Vec  [cpp_CppMicroGemmFP32Vec=100.0%  _mkl_linear=67.8%]  t0=2295us
+
+  autotune engaged (>=2 candidates every run): True  (dense: 2 choices)
+
+  decision identical across all baits: True
+  normalized codegen identical vs dense: True
+
+=> NO leak: kernel selection is VALUE-INDEPENDENT. Every bait selects the same
+   kernel with the same candidate set and byte-identical normalized codegen, and
+   independent same-class draws are indistinguishable. The old max-autotune
+   'compiler-introduced leak' does NOT reproduce with the fixed normalizer.
+
+SUMMARY {"verdict": "value-independent", "autotune_engaged": true, "same_class_clean": true, "decisions": {"dense": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 71.9]]}, "denormal": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 64.7]]}, "sparse": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 82.2]]}, "small": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 92.1]]}, "large": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 56.7]]}, "lowrank": {"winner": "cpp_CppMicroGemmFP32Vec", "candidates": [["cpp_CppMicroGemmFP32Vec", 100.0], ["_mkl_linear", 67.8]]}}}
