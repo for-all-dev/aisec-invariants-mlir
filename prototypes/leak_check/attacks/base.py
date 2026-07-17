@@ -19,8 +19,9 @@ without editing the other side.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -40,16 +41,14 @@ class Oracle(Protocol):
     internals, which is what keeps the attack reusable across targets.
     """
 
-    def query(self, x: np.ndarray) -> float:
-        ...
+    def query(self, x: np.ndarray) -> float: ...
 
 
 @runtime_checkable
 class Labeler(Protocol):
     """Maps an oracle observable to the discrete class an attacker learns."""
 
-    def label(self, x: np.ndarray) -> int:
-        ...
+    def label(self, x: np.ndarray) -> int: ...
 
 
 @dataclass

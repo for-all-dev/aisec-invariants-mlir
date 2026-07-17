@@ -17,15 +17,21 @@ can score how well an attack did -- an attack must never call it.
 
 import time
 
-import numpy as np
 import torch
 
 from .model import GPT
 
 
 class EarlyExitEnclave:
-    def __init__(self, cfg, exit_after_layer, context_len=8,
-                 synthetic_delay_per_layer=0.0, seed=1, verbose=False):
+    def __init__(
+        self,
+        cfg,
+        exit_after_layer,
+        context_len=8,
+        synthetic_delay_per_layer=0.0,
+        seed=1,
+        verbose=False,
+    ):
         if not 0 < exit_after_layer < cfg.n_layer:
             raise ValueError(
                 f"exit_after_layer must be in (0, {cfg.n_layer}), got {exit_after_layer}"
@@ -57,8 +63,9 @@ class EarlyExitEnclave:
     @torch.no_grad()
     def _build_embedding(self, x_last_np):
         T = self.context_len
-        ctx_emb = (self.model.transformer.wte(self.context_ids)
-                   + self.model.transformer.wpe(torch.arange(T - 1).unsqueeze(0)))
+        ctx_emb = self.model.transformer.wte(self.context_ids) + self.model.transformer.wpe(
+            torch.arange(T - 1).unsqueeze(0)
+        )
         pos_last = torch.tensor([[T - 1]])
         x_last = torch.tensor(x_last_np, dtype=torch.float32).view(1, 1, -1)
         last_emb = x_last + self.model.transformer.wpe(pos_last)

@@ -57,8 +57,12 @@ class CausalSelfAttention(nn.Module):
 
         if self.flash:
             y = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None,
-                dropout_p=self.dropout if self.training else 0, is_causal=True,
+                q,
+                k,
+                v,
+                attn_mask=None,
+                dropout_p=self.dropout if self.training else 0,
+                is_causal=True,
             )
         else:
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
@@ -112,13 +116,15 @@ class GPT(nn.Module):
     def __init__(self, config, verbose=False):
         super().__init__()
         self.config = config
-        self.transformer = nn.ModuleDict(dict(
-            wte=nn.Embedding(config.vocab_size, config.n_embd),
-            wpe=nn.Embedding(config.block_size, config.n_embd),
-            drop=nn.Dropout(config.dropout),
-            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f=LayerNorm(config.n_embd, bias=config.bias),
-        ))
+        self.transformer = nn.ModuleDict(
+            dict(
+                wte=nn.Embedding(config.vocab_size, config.n_embd),
+                wpe=nn.Embedding(config.block_size, config.n_embd),
+                drop=nn.Dropout(config.dropout),
+                h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+                ln_f=LayerNorm(config.n_embd, bias=config.bias),
+            )
+        )
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
         self.transformer.wte.weight = self.lm_head.weight
         self.apply(self._init_weights)
@@ -126,7 +132,7 @@ class GPT(nn.Module):
             if pn.endswith("c_proj.weight"):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
         if verbose:
-            print("number of parameters: %.2fM" % (self.get_num_params() / 1e6,))
+            print(f"number of parameters: {self.get_num_params() / 1e6:.2f}M")
 
     def get_num_params(self, non_embedding=True):
         n_params = sum(p.numel() for p in self.parameters())

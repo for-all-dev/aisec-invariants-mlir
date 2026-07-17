@@ -52,20 +52,29 @@ class RegressionExtractionAttack(ExtractionAttack):
         for r in range(self.cfg.n_rounds):
             for x in self._propose(regressor, per_round, dim):
                 X_all.append(x)
-                y_all.append(observe(x))       # the continuous logit, not a label
+                y_all.append(observe(x))  # the continuous logit, not a label
 
             X, y = np.array(X_all), np.array(y_all)
-            regressor = self.cfg.regressor_factory().fit(X, y)   # fits from round 0
-            history.append({"round": r, "queries": len(X),
-                            "train_r2": float(regressor.score(X, y))})
+            regressor = self.cfg.regressor_factory().fit(X, y)  # fits from round 0
+            history.append(
+                {"round": r, "queries": len(X), "train_r2": float(regressor.score(X, y))}
+            )
 
-        return AttackResult(surrogate=_SignRegressor(regressor),
-                            queries_used=len(X_all), history=history)
+        return AttackResult(
+            surrogate=_SignRegressor(regressor), queries_used=len(X_all), history=history
+        )
 
     def _propose(self, regressor, n, dim):
         if regressor is None:
             return random_probes(self._rng, n, dim, self.cfg.probe_scale)
         # LinearRegression exposes the hyperplane as coef_ / intercept_ (scalar);
         # the boundary is where the predicted logit crosses zero.
-        return boundary_probes(self._rng, regressor.coef_, regressor.intercept_,
-                               n, dim, self.cfg.probe_scale, self.cfg.refine_jitter)
+        return boundary_probes(
+            self._rng,
+            regressor.coef_,
+            regressor.intercept_,
+            n,
+            dim,
+            self.cfg.probe_scale,
+            self.cfg.refine_jitter,
+        )

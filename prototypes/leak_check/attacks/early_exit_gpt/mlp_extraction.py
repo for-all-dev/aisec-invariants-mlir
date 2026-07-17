@@ -32,9 +32,12 @@ class MlpLogitExtractionAttack(ExtractionAttack):
 
     def _new_surrogate(self):
         return TorchMLPRegressor(
-            hidden=self.cfg.mlp_hidden, epochs=self.cfg.mlp_epochs,
-            lr=self.cfg.mlp_lr, weight_decay=self.cfg.mlp_weight_decay,
-            seed=self.cfg.seed)
+            hidden=self.cfg.mlp_hidden,
+            epochs=self.cfg.mlp_epochs,
+            lr=self.cfg.mlp_lr,
+            weight_decay=self.cfg.mlp_weight_decay,
+            seed=self.cfg.seed,
+        )
 
     def run(self, observe: Observe, dim: int, budget: int) -> AttackResult:
         per_round = max(10, budget // self.cfg.n_rounds)
@@ -45,18 +48,16 @@ class MlpLogitExtractionAttack(ExtractionAttack):
         for r in range(self.cfg.n_rounds):
             for x in self._propose(mlp, per_round, dim):
                 X_all.append(x)
-                y_all.append(observe(x))       # continuous logit
+                y_all.append(observe(x))  # continuous logit
             X, y = np.array(X_all), np.array(y_all)
             mlp = self._new_surrogate().fit(X, y)
-            history.append({"round": r, "queries": len(X),
-                            "train_r2": _r2(y, mlp.predict(X))})
+            history.append({"round": r, "queries": len(X), "train_r2": _r2(y, mlp.predict(X))})
 
-        return AttackResult(surrogate=_SignRegressor(mlp),
-                            queries_used=len(X_all), history=history)
+        return AttackResult(surrogate=_SignRegressor(mlp), queries_used=len(X_all), history=history)
 
     def _propose(self, mlp, n, dim):
         if mlp is None:
             return random_probes(self._rng, n, dim, self.cfg.probe_scale)
         return gradient_boundary_probes(
-            self._rng, mlp.value_and_grad, n, dim,
-            self.cfg.probe_scale, self.cfg.refine_jitter)
+            self._rng, mlp.value_and_grad, n, dim, self.cfg.probe_scale, self.cfg.refine_jitter
+        )

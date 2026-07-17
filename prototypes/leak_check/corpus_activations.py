@@ -10,6 +10,7 @@ differential question: does torch.compile/Inductor change that data-dependence
 Consumed by measured_run.py (build/example_input/names) and run_activations.py
 (secret_classes).
 """
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -57,9 +58,7 @@ def secret_classes(name):
     """Return ((labelA, arrA), (labelB, arrB)) — same shape/dtype, baited regimes."""
     shp = (DIM, DIM)
     if name == "relu":
-        return (("neg", np.full(shp, -1.0, np.float32)),
-                ("pos", np.full(shp, 1.0, np.float32)))
+        return (("neg", np.full(shp, -1.0, np.float32)), ("pos", np.full(shp, 1.0, np.float32)))
     # transcendentals: moderate vs large-magnitude (overflow/saturation paths in
     # scalar libm: expf overflows ~|x|>88, sigmoid/tanh saturate, gelu erf tail).
-    return (("small", np.full(shp, 0.5, np.float32)),
-            ("large", np.full(shp, 100.0, np.float32)))
+    return (("small", np.full(shp, 0.5, np.float32)), ("large", np.full(shp, 100.0, np.float32)))

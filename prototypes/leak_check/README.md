@@ -8,11 +8,30 @@ This prototype measures whether a compiler (e.g., `torch.compile`/Inductor) tran
 
 ### Installation
 
-This project uses `uv` for dependency management:
+This project uses `uv` for dependency management. One command gives every
+contributor the same environment — the full runtime stack (torch + CUDA,
+scikit-learn) plus the dev tools — resolved from the committed `uv.lock`:
 
 ```bash
-uv sync --dev
+uv sync
 ```
+
+### Development / CI
+
+The same four checks run in GitHub Actions ([`.github/workflows/leak-check-ci.yml`](../../.github/workflows/leak-check-ci.yml)) and should pass locally before pushing:
+
+```bash
+uv run ruff format --check .   # formatting (ruff is the single formatting authority)
+uv run ruff check .            # lint
+uv run ty check .              # type-check
+uv run pytest                  # tests
+```
+
+`ruff format` normalises the whole package; run `uv run ruff format .` to apply
+it. Notebooks (`*.ipynb`) are analysis artifacts and are never linted or
+formatted. `ty` skips the pure torch-nn model files, where it only
+false-positives on torch's dynamic attribute typing (see `[tool.ty.src]` in
+`pyproject.toml`).
 
 ### Documentation
 

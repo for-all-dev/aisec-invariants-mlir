@@ -14,10 +14,9 @@ Instruments wrap this script:
   * memcheck reports any control-flow/address dependence on the tainted weights
 """
 
-import os
-import sys
-import ctypes
 import argparse
+import ctypes
+import os
 
 # Determinism knobs BEFORE importing torch.
 os.environ.setdefault("PYTHONHASHSEED", "0")
@@ -30,8 +29,8 @@ import torch
 torch.manual_seed(0)
 torch.set_num_threads(1)
 
-import corpus
-import corpus_activations
+import corpus  # noqa: E402  (must follow the determinism setup above)
+import corpus_activations  # noqa: E402
 
 
 def _resolve(name):
@@ -89,8 +88,9 @@ def main():
             out = fn(x)
         # Re-define the derived output so our own teardown (dealloc, exit) can't
         # raise spurious reports.
-        shim.vg_make_defined(ctypes.c_void_p(out.data_ptr()),
-                             ctypes.c_size_t(out.numel() * out.element_size()))
+        shim.vg_make_defined(
+            ctypes.c_void_p(out.data_ptr()), ctypes.c_size_t(out.numel() * out.element_size())
+        )
         shim.vg_make_defined(ctypes.c_void_p(wptr), ctypes.c_size_t(nbytes))
         shim.vg_marker(b"### LEAKCHECK taint region end ###")
     else:

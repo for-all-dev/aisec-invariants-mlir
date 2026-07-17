@@ -10,6 +10,7 @@ introduced / removed / preserved a data-dependent activation path.
     python run_activations.py                     # focused default set
     python run_activations.py relu exp gelu ...   # subset
 """
+
 import os
 import sys
 
@@ -29,14 +30,18 @@ def gen(name):
     pa = os.path.join(SEC, f"{name}_{la}.npy")
     pb = os.path.join(SEC, f"{name}_{lb}.npy")
     import numpy as np
-    np.save(pa, a); np.save(pb, b)
+
+    np.save(pa, a)
+    np.save(pb, b)
     return la, pa, lb, pb
 
 
 def main():
     acts = sys.argv[1:] or DEFAULT
-    print("Activation differential sweep (eager vs Inductor) | channels: "
-          "callgrind Ir/Bc + memcheck taint\n")
+    print(
+        "Activation differential sweep (eager vs Inductor) | channels: "
+        "callgrind Ir/Bc + memcheck taint\n"
+    )
     rows = []
     for act in acts:
         la, pa, lb, pb = gen(act)
@@ -47,22 +52,31 @@ def main():
         for build in ("eager", "compiled"):
             b = res[build]
             chan = []
-            if b["ir_diff"]: chan.append(f"dIr={b['ir_diff']:+d}")
-            if b["bc_diff"]: chan.append(f"dBc={b['bc_diff']:+d}")
-            if b["taint"]["leak"]: chan.append("taint")
+            if b["ir_diff"]:
+                chan.append(f"dIr={b['ir_diff']:+d}")
+            if b["bc_diff"]:
+                chan.append(f"dBc={b['bc_diff']:+d}")
+            if b["taint"]["leak"]:
+                chan.append("taint")
             verd = "DISTINGUISHABLE" if b["distinguishable"] else "oblivious"
             print(f"  {build:<9}: {verd:<16} {' '.join(chan) or 'clean'}")
         print(f"  VERDICT: {res['verdict'].upper()}\n")
-        rows.append((act, res["verdict"],
-                     res["eager"]["distinguishable"],
-                     res["compiled"]["distinguishable"]))
+        rows.append(
+            (
+                act,
+                res["verdict"],
+                res["eager"]["distinguishable"],
+                res["compiled"]["distinguishable"],
+            )
+        )
 
     print("=" * 74)
     print("SUMMARY  (eager? / compiled?  ->  verdict)")
     print("=" * 74)
     for act, verdict, de, dc in rows:
-        print(f"  {act:<10} eager={'L' if de else '.'}  compiled={'L' if dc else '.'}"
-              f"   -> {verdict}")
+        print(
+            f"  {act:<10} eager={'L' if de else '.'}  compiled={'L' if dc else '.'}   -> {verdict}"
+        )
 
 
 if __name__ == "__main__":

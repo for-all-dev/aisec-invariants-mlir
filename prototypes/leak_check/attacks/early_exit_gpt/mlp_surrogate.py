@@ -47,8 +47,7 @@ class TorchMLPRegressor:
         yt = torch.tensor((y - self._y_mu) / self._y_sd).view(-1, 1)
 
         self._net = self._build(X.shape[1])
-        opt = torch.optim.Adam(self._net.parameters(), lr=self.lr,
-                               weight_decay=self.weight_decay)
+        opt = torch.optim.Adam(self._net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         loss_fn = nn.MSELoss()
         self._net.train()
         for _ in range(self.epochs):
@@ -73,7 +72,7 @@ class TorchMLPRegressor:
         X = np.asarray(X, dtype=np.float32)
         Xt = torch.tensor((X - self._x_mu) / self._x_sd, requires_grad=True)
         v = self._logit_std_in(Xt)
-        grad_std, = torch.autograd.grad(v.sum(), Xt)   # rows decouple under sum
+        (grad_std,) = torch.autograd.grad(v.sum(), Xt)  # rows decouple under sum
         # chain rule from standardized input back to raw x: d/dx = d/dXn * (1/sd)
         grad_x = grad_std.numpy() / self._x_sd
         return v.detach().numpy(), grad_x
