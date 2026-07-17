@@ -35,12 +35,12 @@ false-positives on torch's dynamic attribute typing (see `[tool.ty.src]` in
 
 ### Documentation
 
-Start with the methodology document: [`../../docs/research/leak_check.methodology.siddarth.md`](../../docs/research/leak_check.methodology.siddarth.md)
+Start with the methodology document: [`../../docs/research/leak_check.methodology.siddharth.md`](../../docs/research/leak_check.methodology.siddharth.md)
 
 Reference materials:
-- **Empirical results**: [`../../docs/research/leak_check.results.siddarth.md`](../../docs/research/leak_check.results.siddarth.md)
-- **Environment setup**: [`../../docs/research/leak_check.environment.siddarth.md`](../../docs/research/leak_check.environment.siddarth.md)
-- **CSI-NN paper reference**: [`../../docs/priorlit/csi_nn_paper.siddarth.md`](../../docs/priorlit/csi_nn_paper.siddarth.md)
+- **Empirical results**: [`../../docs/research/leak_check.results.siddharth.md`](../../docs/research/leak_check.results.siddharth.md)
+- **Environment setup**: [`../../docs/research/leak_check.environment.siddharth.md`](../../docs/research/leak_check.environment.siddharth.md)
+- **CSI-NN paper reference**: [`../../docs/priorlit/csi_nn_paper.siddharth.md`](../../docs/priorlit/csi_nn_paper.siddharth.md)
 - **Journal**: [`../../docs/research/journal/`](../../docs/research/journal/)
 
 ### Core Modules
