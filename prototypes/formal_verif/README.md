@@ -42,7 +42,10 @@ stops at LLVM IR and misses backend-introduced leaks, e.g. `select`→branch).
 
 ## Layered timing plan A/B/C/D (no single tool does all four — verified)
 
-Compose ourselves; reuse existing tools per layer.
+Compose ourselves; reuse existing tools per layer. The software layers A and B
+are implemented as a reusable package, [`ctverify/`](ctverify/) (API + CLI over
+binsec, JSON verdicts); [`timing_a/`](timing_a/) and [`contract_b/`](contract_b/)
+are worked-example corpora that drive it.
 
 - **A — cheapest, formal (software only).** Forbid secret from reaching
   variable-latency instructions (taint/leakage property). Backed by hardware

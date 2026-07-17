@@ -13,6 +13,10 @@ on some microarchitectures, multiplication. It needs **no external library**:
 
 (`multiplication`, `dividend`, `divisor` are marked experimental upstream.)
 
+The check itself lives in the reusable [`../ctverify/`](../ctverify/) package
+(`ctverify checkct --features layerA`); this directory is a worked example whose
+`run.sh` just compiles the corpus and drives that CLI.
+
 ## Run
 
 ```sh

@@ -10,10 +10,12 @@ cache line is **secure under `[cache-line]`** even though it is insecure under
 `[ct]`.
 
 This is the **software** half of layer B and needs no external library: binsec
-supplies the formal byte-level leak (and the leaking instruction address);
-[`contract.py`](contract.py) computes the cache-line verdict from the access
-layout. The **hardware** half (verify RTL ⊨ contract with *LeaVe*) is a
-separate tool on an RTL core and is out of scope here.
+supplies the formal byte-level leak (and the leaking instruction address); the
+reusable [`../ctverify/`](../ctverify/) package (`ctverify contract`) computes
+the cache-line verdict from the access layout. This directory is a worked
+example whose `run.sh` compiles the corpus and drives that CLI. The **hardware**
+half (verify RTL ⊨ contract with *LeaVe*) is a separate tool on an RTL core and
+is out of scope here.
 
 ## How the cache-line verdict is computed (not asserted)
 
@@ -26,10 +28,10 @@ distinct_lines == 1  ⟹  secure   under [cache-line]   (all secrets share a lin
 distinct_lines  > 1  ⟹  insecure under [cache-line]   (secret moves the line)
 ```
 
-`elem` and `index_count` are the source ground truth in [`layout.tsv`](layout.tsv);
-the verdict is derived from them plus binsec's `[ct]` result. If `[ct]` is
-`secure`, `[cache-line]` is secure too (a coarser observer sees no more than the
-byte observer).
+`elem` and `index_count` are the source ground truth (passed as `--elem`/`--count`
+to `ctverify contract`, listed per kernel in `run.sh`); the verdict is derived
+from them plus binsec's `[ct]` result. If `[ct]` is `secure`, `[cache-line]` is
+secure too (a coarser observer sees no more than the byte observer).
 
 ## Run
 
@@ -59,7 +61,8 @@ span many lines, so it leaks under both contracts.
 
 - **Alignment.** The one-line "secure" claim holds because the tables are
   cache-line aligned; an unaligned base could straddle a boundary, and
-  `contract.py` stays conservative (`insecure`) when alignment is unknown.
+  `ctverify` stays conservative (`insecure`) when alignment is unknown
+  (`--unaligned`).
 - **Contract, not silicon.** `[cache-line]` is a *model* of the observer.
   Whether a given CPU actually leaks exactly at line granularity is layer **C**
   (Revizor / Scam-V), and the analog wall-clock residue is layer **D**

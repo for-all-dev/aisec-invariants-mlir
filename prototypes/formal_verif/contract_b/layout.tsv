@@ -1,5 +1,0 @@
-# kernel	elem_size_bytes	index_count	aligned64	note
-b_dense	0	0	1	no secret-dependent address
-b_codebook_small	4	8	1	codebook_small[secret&7]
-b_codebook_wide	4	64	1	codebook_wide[secret&63]
-b_embedding_row	128	32	1	emb[secret&31] row base (row = 32*4 B)
