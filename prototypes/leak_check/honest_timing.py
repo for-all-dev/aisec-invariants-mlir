@@ -35,8 +35,9 @@ This answers "can an attacker actually tell?", unlike a raw delta in seconds.
 """
 
 import time
-import torch
+
 import numpy as np
+import torch
 from scipy import stats
 
 # ---------------------------------------------------------------------------
@@ -47,8 +48,8 @@ torch.set_num_threads(1)
 device = torch.device("cpu")
 
 DIM = 4096
-WARMUP = 50       # calls discarded per condition (compile + cache warm)
-ITERS = 800       # measured calls per condition
+WARMUP = 50  # calls discarded per condition (compile + cache warm)
+ITERS = 800  # measured calls per condition
 
 
 # ---------------------------------------------------------------------------
@@ -132,8 +133,7 @@ def summarize(name, t_zero, t_rand):
     print(f"  {name}")
     print(f"    zero   : median {med_z:8.1f} us   IQR {iqr_z:7.1f} us")
     print(f"    random : median {med_r:8.1f} us   IQR {iqr_r:7.1f} us")
-    print(f"    attacker AUC = {auc:.3f}  (leakage strength {strength:.3f})   "
-          f"MWU p = {p:.1e}")
+    print(f"    attacker AUC = {auc:.3f}  (leakage strength {strength:.3f})   MWU p = {p:.1e}")
     return auc, strength, p
 
 
@@ -152,10 +152,14 @@ def interleaved_benchmark(fn, x, model, iters=ITERS, warmup=WARMUP):
     for i in range(iters):
         # random half
         set_secret(model, "random")
-        t0 = time.perf_counter(); fn(x); t_rand[i] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(x)
+        t_rand[i] = time.perf_counter() - t0
         # zero half
         set_secret(model, "zero")
-        t0 = time.perf_counter(); fn(x); t_zero[i] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(x)
+        t_zero[i] = time.perf_counter() - t0
     return t_zero, t_rand
 
 
@@ -185,13 +189,16 @@ def verdict(name, res, threshold=0.2):
     e_leak = res["eager"] > threshold
     c_leak = res["compiled"] > threshold
     print(f"[{name}]")
-    print(f"    eager    leakage strength = {res['eager']:.3f}  -> "
-          f"{'LEAKS' if e_leak else 'no detectable leak'}")
-    print(f"    compiled leakage strength = {res['compiled']:.3f}  -> "
-          f"{'LEAKS' if c_leak else 'no detectable leak'}")
+    print(
+        f"    eager    leakage strength = {res['eager']:.3f}  -> "
+        f"{'LEAKS' if e_leak else 'no detectable leak'}"
+    )
+    print(
+        f"    compiled leakage strength = {res['compiled']:.3f}  -> "
+        f"{'LEAKS' if c_leak else 'no detectable leak'}"
+    )
     if e_leak and c_leak:
-        print("    => Leak present in BOTH -> AUTHORED (algorithmic), not "
-              "compiler-introduced.")
+        print("    => Leak present in BOTH -> AUTHORED (algorithmic), not compiler-introduced.")
     elif (not e_leak) and c_leak:
         print("    => Leak appears ONLY after compilation -> COMPILER-INTRODUCED.")
     elif e_leak and not c_leak:
@@ -202,19 +209,28 @@ def verdict(name, res, threshold=0.2):
 
 
 if __name__ == "__main__":
-    print("threads =", torch.get_num_threads(), "| iters =", ITERS,
-          "| warmup =", WARMUP, "| dim =", DIM)
+    print(
+        "threads =",
+        torch.get_num_threads(),
+        "| iters =",
+        ITERS,
+        "| warmup =",
+        WARMUP,
+        "| dim =",
+        DIM,
+    )
     print()
     res_branchless = run_case(
-        "CONTROL: Branchless (always x @ w, no data-dependent control flow)",
-        BranchlessLinear)
+        "CONTROL: Branchless (always x @ w, no data-dependent control flow)", BranchlessLinear
+    )
     res_branched = run_case(
-        "AUTHORED BRANCH: skip matmul when weights==0, via torch.cond",
-        BranchedLinear)
+        "AUTHORED BRANCH: skip matmul when weights==0, via torch.cond", BranchedLinear
+    )
 
     print("=" * 72)
-    print("VERDICTS  (leakage strength = |attacker_AUC - 0.5| * 2; "
-          "0 = oblivious, 1 = perfect leak)")
+    print(
+        "VERDICTS  (leakage strength = |attacker_AUC - 0.5| * 2; 0 = oblivious, 1 = perfect leak)"
+    )
     print("=" * 72)
     verdict("Branchless / control", res_branchless)
     verdict("Authored branch (torch.cond)", res_branched)

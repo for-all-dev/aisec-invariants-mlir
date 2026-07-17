@@ -59,7 +59,7 @@ class WhereSelect(torch.nn.Module):
     def forward(self, x):
         pos = torch.matmul(x, self.weight)
         neg = -pos
-        col_sign = (self.weight.sum(dim=0) > 0)  # [DIM] secret-derived mask
+        col_sign = self.weight.sum(dim=0) > 0  # [DIM] secret-derived mask
         return torch.where(col_sign, pos, neg)
 
 
@@ -73,8 +73,8 @@ _MODELS = {
 # method's own predictions (calibration).
 EXPECTED = {
     "branchless": "oblivious",
-    "cond_skip": "authored",       # leaks in both builds
-    "where_select": "oblivious",   # data-dependent value, oblivious execution
+    "cond_skip": "authored",  # leaks in both builds
+    "where_select": "oblivious",  # data-dependent value, oblivious execution
 }
 
 

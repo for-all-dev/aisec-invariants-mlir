@@ -7,8 +7,8 @@ Two presets:
   full   the notebook's 124M-parameter GPT-2 with real (un-amplified) latency.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from sklearn.linear_model import LinearRegression, LogisticRegression
 
@@ -37,10 +37,10 @@ class AttackConfig:
     synthetic_delay_per_layer: float = 0.0
 
     # Attack loop
-    query_budget_multiplier: int = 5     # budget = this * (# secret params)
+    query_budget_multiplier: int = 5  # budget = this * (# secret params)
     n_rounds: int = 15
-    probe_scale: float = 3.0             # std of the random query distribution
-    refine_jitter: float = 0.5          # noise added to boundary-projected probes
+    probe_scale: float = 3.0  # std of the random query distribution
+    refine_jitter: float = 0.5  # noise added to boundary-projected probes
 
     # Calibration / oracle
     calib_lo: float = -6.0
@@ -49,8 +49,8 @@ class AttackConfig:
     oracle_reps: int = 1
 
     seed: int = 1
-    surrogate_factory: Callable = field(default=_default_surrogate)   # label attack
-    regressor_factory: Callable = field(default=_default_regressor)   # logit attack (linear)
+    surrogate_factory: Callable = field(default=_default_surrogate)  # label attack
+    regressor_factory: Callable = field(default=_default_regressor)  # logit attack (linear)
 
     # MLP logit attack (nonlinear surrogate + Jacobian active learning)
     mlp_hidden: tuple = (64,)
@@ -61,12 +61,13 @@ class AttackConfig:
     @classmethod
     def preset(cls, mode: str) -> "AttackConfig":
         if mode == "small":
-            gpt = GPTConfig(block_size=16, vocab_size=100, n_layer=6,
-                            n_head=4, n_embd=32, bias=True)
+            gpt = GPTConfig(
+                block_size=16, vocab_size=100, n_layer=6, n_head=4, n_embd=32, bias=True
+            )
             # per-layer cost on a 32-dim model is sub-microsecond; amplify so the
             # 2-vs-6 layer difference is measurable above wall-clock noise.
             return cls(gpt=gpt, exit_after_layer=2, synthetic_delay_per_layer=2e-4)
         if mode == "full":
-            gpt = GPTConfig(block_size=256)   # 124M GPT-2, 12 layers
+            gpt = GPTConfig(block_size=256)  # 124M GPT-2, 12 layers
             return cls(gpt=gpt, exit_after_layer=2, synthetic_delay_per_layer=0.0)
         raise ValueError(f"unknown mode {mode!r} (expected 'small' or 'full')")

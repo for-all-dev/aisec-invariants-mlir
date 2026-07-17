@@ -82,10 +82,12 @@ class ThresholdLabeler:
         self.threshold = None
 
     def calibrate(self):
-        lo = np.median([self._oracle.query(np.full(self.dim, self.lo_fill))
-                        for _ in range(self.calib_reps)])
-        hi = np.median([self._oracle.query(np.full(self.dim, self.hi_fill))
-                        for _ in range(self.calib_reps)])
+        lo = np.median(
+            [self._oracle.query(np.full(self.dim, self.lo_fill)) for _ in range(self.calib_reps)]
+        )
+        hi = np.median(
+            [self._oracle.query(np.full(self.dim, self.hi_fill)) for _ in range(self.calib_reps)]
+        )
         self.threshold = (lo + hi) / 2
         return self.threshold
 

@@ -1,9 +1,11 @@
 import time
-import torch
+
 import numpy as np
+import torch
 
 # Force CPU execution for clear sequential execution timing
 device = torch.device("cpu")
+
 
 # =====================================================================
 # 1. DEFINE THE MODEL OPERATOR
@@ -27,6 +29,7 @@ class SparseOptimizedLinear(torch.nn.Module):
         else:
             # Standard matrix multiplication
             return torch.matmul(x, self.weight)
+
 
 # Initialize our baseline model
 model = SparseOptimizedLinear()
@@ -69,7 +72,7 @@ _ = compiled_model(public_input)
 # Test Scenario Alpha (Random Weights) on Compiled Graph
 torch.nn.init.normal_(model.weight)
 timings_alpha = []
-for _ in range(50): # Run multiple iterations to filter out OS noise
+for _ in range(50):  # Run multiple iterations to filter out OS noise
     t0 = time.perf_counter()
     _ = compiled_model(public_input)
     timings_alpha.append(time.perf_counter() - t0)

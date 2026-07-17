@@ -24,8 +24,7 @@ TIMEOUT = 900  # memcheck is slow; be generous
 
 def _env():
     e = dict(os.environ)
-    e.update(PYTHONHASHSEED="0", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1",
-             PYTHONUNBUFFERED="1")
+    e.update(PYTHONHASHSEED="0", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", PYTHONUNBUFFERED="1")
     return e
 
 
@@ -42,13 +41,24 @@ def callgrind_count(model, secret, compile=False):
     with tempfile.NamedTemporaryFile(suffix=".cg", delete=False) as f:
         out = f.name
     try:
-        vg = ["valgrind", "--tool=callgrind", "--instr-atstart=no",
-              "--branch-sim=yes", "--cache-sim=no",
-              f"--callgrind-out-file={out}", "--quiet"]
-        subprocess.run(vg + _cmd(model, secret, compile, taint=False),
-                       cwd=HERE, env=_env(), timeout=TIMEOUT,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       check=True)
+        vg = [
+            "valgrind",
+            "--tool=callgrind",
+            "--instr-atstart=no",
+            "--branch-sim=yes",
+            "--cache-sim=no",
+            f"--callgrind-out-file={out}",
+            "--quiet",
+        ]
+        subprocess.run(
+            vg + _cmd(model, secret, compile, taint=False),
+            cwd=HERE,
+            env=_env(),
+            timeout=TIMEOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
         return _parse_callgrind(out)
     finally:
         try:
@@ -70,9 +80,14 @@ def _parse_callgrind(path):
                 totals = [int(x) for x in line.split(":", 1)[1].split()]
     if not events or not totals:
         raise RuntimeError(f"could not parse callgrind output {path}")
-    m = dict(zip(events, totals))
-    return {"Ir": m.get("Ir", 0), "Bc": m.get("Bc", 0), "Bi": m.get("Bi", 0),
-            "Dr": m.get("Dr", 0), "Dw": m.get("Dw", 0)}
+    m = dict(zip(events, totals, strict=False))
+    return {
+        "Ir": m.get("Ir", 0),
+        "Bc": m.get("Bc", 0),
+        "Bi": m.get("Bi", 0),
+        "Dr": m.get("Dr", 0),
+        "Dw": m.get("Dw", 0),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -86,13 +101,24 @@ def callgrind_count_cmd(cmd, cwd=HERE, env=None, cache_sim=False):
     with tempfile.NamedTemporaryFile(suffix=".cg", delete=False) as f:
         out = f.name
     try:
-        vg = ["valgrind", "--tool=callgrind", "--instr-atstart=no",
-              "--branch-sim=yes",
-              "--cache-sim=yes" if cache_sim else "--cache-sim=no",
-              f"--callgrind-out-file={out}", "--quiet"]
-        subprocess.run(vg + list(cmd), cwd=cwd, env=env or _env(), timeout=TIMEOUT,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       check=True)
+        vg = [
+            "valgrind",
+            "--tool=callgrind",
+            "--instr-atstart=no",
+            "--branch-sim=yes",
+            "--cache-sim=yes" if cache_sim else "--cache-sim=no",
+            f"--callgrind-out-file={out}",
+            "--quiet",
+        ]
+        subprocess.run(
+            vg + list(cmd),
+            cwd=cwd,
+            env=env or _env(),
+            timeout=TIMEOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
         return _parse_callgrind(out)
     finally:
         try:
@@ -105,11 +131,22 @@ def memcheck_taint_cmd(cmd, cwd=HERE, env=None):
     with tempfile.NamedTemporaryFile(suffix=".mc", delete=False) as f:
         log = f.name
     try:
-        vg = ["valgrind", "--tool=memcheck", "--track-origins=yes",
-              "--error-exitcode=0", f"--log-file={log}"]
-        subprocess.run(vg + list(cmd), cwd=cwd, env=env or _env(), timeout=TIMEOUT,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       check=True)
+        vg = [
+            "valgrind",
+            "--tool=memcheck",
+            "--track-origins=yes",
+            "--error-exitcode=0",
+            f"--log-file={log}",
+        ]
+        subprocess.run(
+            vg + list(cmd),
+            cwd=cwd,
+            env=env or _env(),
+            timeout=TIMEOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
         return _parse_memcheck(log)
     finally:
         try:
@@ -127,12 +164,22 @@ def memcheck_taint(model, secret, compile=False):
     with tempfile.NamedTemporaryFile(suffix=".mc", delete=False) as f:
         log = f.name
     try:
-        vg = ["valgrind", "--tool=memcheck", "--track-origins=yes",
-              "--error-exitcode=0", f"--log-file={log}"]
-        subprocess.run(vg + _cmd(model, secret, compile, taint=True),
-                       cwd=HERE, env=_env(), timeout=TIMEOUT,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       check=True)
+        vg = [
+            "valgrind",
+            "--tool=memcheck",
+            "--track-origins=yes",
+            "--error-exitcode=0",
+            f"--log-file={log}",
+        ]
+        subprocess.run(
+            vg + _cmd(model, secret, compile, taint=True),
+            cwd=HERE,
+            env=_env(),
+            timeout=TIMEOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
         return _parse_memcheck(log)
     finally:
         try:

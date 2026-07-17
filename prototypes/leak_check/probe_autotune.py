@@ -10,7 +10,12 @@ kernel on an identical neutral w0. Decisive channel = the generated code diff:
 
 Timing on w0 is a corroborating channel.
 """
-import os, re, subprocess, sys
+
+import os
+import re
+import subprocess
+import sys
+
 import numpy as np
 from scipy import stats
 
@@ -27,11 +32,21 @@ def normalize(code):
     prefix = re.compile(r"^V\d+ [\d:.]+ \d+ [^\]]*\] \[[^\]]*\] \[__output_code\] ?")
     for line in code.splitlines():
         line = prefix.sub("", line)
-        if any(s in line for s in ("/tmp", "codecache", "async_compile",
-                                   "AsyncCompile", ".so", "torch version",
-                                   "# Topologically", "from torch")):
+        if any(
+            s in line
+            for s in (
+                "/tmp",
+                "codecache",
+                "async_compile",
+                "AsyncCompile",
+                ".so",
+                "torch version",
+                "# Topologically",
+                "from torch",
+            )
+        ):
             continue
-        line = re.sub(r"c[a-z0-9]{20,}", "HASH", line)          # cache hashes
+        line = re.sub(r"c[a-z0-9]{20,}", "HASH", line)  # cache hashes
         line = re.sub(r"(cpp_fused\w*?_)[0-9a-f]+", r"\1X", line)  # kernel ids
         line = re.sub(r"0x[0-9a-f]+", "0xADDR", line)
         line = re.sub(r"kernel_\w+", "kernel_X", line)
@@ -41,10 +56,15 @@ def normalize(code):
 
 
 def run(secret, w0_path, out_npy):
-    env = dict(os.environ, TORCH_LOGS="output_code", OMP_NUM_THREADS="1",
-               MKL_NUM_THREADS="1")
-    p = subprocess.run([sys.executable, "_autotune_worker.py", secret, w0_path, out_npy],
-                       cwd=HERE, capture_output=True, text=True, env=env, timeout=1800)
+    env = dict(os.environ, TORCH_LOGS="output_code", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1")
+    p = subprocess.run(
+        [sys.executable, "_autotune_worker.py", secret, w0_path, out_npy],
+        cwd=HERE,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=1800,
+    )
     median = None
     for line in p.stdout.splitlines():
         if line.startswith("RESULT"):
@@ -74,16 +94,19 @@ def main():
     tr = np.load(os.path.join(HERE, "secrets", "at_random.npy"))
     u, p = stats.mannwhitneyu(tr, tz, alternative="two-sided")
     auc = u / (len(tz) * len(tr))
-    print(f"  timing-on-w0 AUC(zero-compile vs random-compile) = {auc:.3f} "
-          f"(0.5 = same kernel)")
+    print(f"  timing-on-w0 AUC(zero-compile vs random-compile) = {auc:.3f} (0.5 = same kernel)")
 
     print()
     if same_code:
-        print("=> NO compile-time leak: max-autotune selected the SAME kernel "
-              "regardless of the secret present at compile time (value-independent).")
+        print(
+            "=> NO compile-time leak: max-autotune selected the SAME kernel "
+            "regardless of the secret present at compile time (value-independent)."
+        )
     else:
-        print("=> POSSIBLE compile-time leak: the secret changed the generated kernel. "
-              "Writing diffs to secrets/at_code_{zero,random}.txt for inspection.")
+        print(
+            "=> POSSIBLE compile-time leak: the secret changed the generated kernel. "
+            "Writing diffs to secrets/at_code_{zero,random}.txt for inspection."
+        )
         with open(os.path.join(HERE, "secrets", "at_code_zero.txt"), "w") as f:
             f.write(code_z)
         with open(os.path.join(HERE, "secrets", "at_code_random.txt"), "w") as f:

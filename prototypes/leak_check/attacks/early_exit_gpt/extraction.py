@@ -38,19 +38,27 @@ class SurrogateExtractionAttack(ExtractionAttack):
             if len(np.unique(y)) < 2:
                 continue  # can't fit a classifier until both classes appear
             surrogate = self.cfg.surrogate_factory().fit(X, y)
-            history.append({"round": r, "queries": len(X),
-                            "train_acc": float(surrogate.score(X, y))})
+            history.append(
+                {"round": r, "queries": len(X), "train_acc": float(surrogate.score(X, y))}
+            )
 
         if surrogate is None:
             raise RuntimeError(
                 "every query returned the same label; the oracle never separated "
-                "the classes, so no boundary could be recovered")
-        return AttackResult(surrogate=surrogate, queries_used=len(X_all),
-                            history=history)
+                "the classes, so no boundary could be recovered"
+            )
+        return AttackResult(surrogate=surrogate, queries_used=len(X_all), history=history)
 
     def _propose(self, surrogate, n, dim):
         if surrogate is None:
             return random_probes(self._rng, n, dim, self.cfg.probe_scale)
         # LogisticRegression exposes the hyperplane as coef_[0] / intercept_[0].
-        return boundary_probes(self._rng, surrogate.coef_[0], surrogate.intercept_[0],
-                               n, dim, self.cfg.probe_scale, self.cfg.refine_jitter)
+        return boundary_probes(
+            self._rng,
+            surrogate.coef_[0],
+            surrogate.intercept_[0],
+            n,
+            dim,
+            self.cfg.probe_scale,
+            self.cfg.refine_jitter,
+        )

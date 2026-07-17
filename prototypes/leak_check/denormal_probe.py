@@ -21,6 +21,7 @@ So this is the honest stress test the calibration corpus omitted:
 """
 
 import time
+
 import numpy as np
 import torch
 from scipy import stats
@@ -75,9 +76,13 @@ def interleaved(fn, x, model, wA, wB):
     tB = np.empty(ITERS)
     for i in range(ITERS):
         set_w(model, wA)
-        t0 = time.perf_counter(); fn(x); tA[i] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(x)
+        tA[i] = time.perf_counter() - t0
         set_w(model, wB)
-        t0 = time.perf_counter(); fn(x); tB[i] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(x)
+        tB[i] = time.perf_counter() - t0
     return tA, tB
 
 
@@ -90,18 +95,24 @@ def auc(tA, tB):
 def report(tag, tA, tB):
     a, strength, p = auc(tA, tB)
     print(f"  {tag}")
-    print(f"    normal(A)   median {np.median(tA)*1e6:9.1f} us")
-    print(f"    denormal(B) median {np.median(tB)*1e6:9.1f} us   "
-          f"({np.median(tB)/np.median(tA):.1f}x slower)")
-    print(f"    attacker AUC={a:.3f}  leakage strength={strength:.3f}  p={p:.1e}"
-          f"  -> {'LEAKS' if strength > 0.2 else 'clean'}")
+    print(f"    normal(A)   median {np.median(tA) * 1e6:9.1f} us")
+    print(
+        f"    denormal(B) median {np.median(tB) * 1e6:9.1f} us   "
+        f"({np.median(tB) / np.median(tA):.1f}x slower)"
+    )
+    print(
+        f"    attacker AUC={a:.3f}  leakage strength={strength:.3f}  p={p:.1e}"
+        f"  -> {'LEAKS' if strength > 0.2 else 'clean'}"
+    )
     return strength
 
 
 def main():
     wA, wB = make_weight("normal"), make_weight("denormal")
-    print(f"DIM={DIM} iters={ITERS} | class A=normal(~{NORMAL_VAL:.0e}) "
-          f"B=denormal(~{DENORMAL_VAL:.0e})")
+    print(
+        f"DIM={DIM} iters={ITERS} | class A=normal(~{NORMAL_VAL:.0e}) "
+        f"B=denormal(~{DENORMAL_VAL:.0e})"
+    )
     print(f"subnormal fraction: A={is_subnormal(wA):.2f}  B={is_subnormal(wB):.2f}\n")
     x = torch.randn(1, DIM)
 
@@ -110,22 +121,26 @@ def main():
 
     mc = Branchless()
     comp = torch.compile(mc, fullgraph=True)
-    s_c = report("COMPILED (backend=inductor)",
-                 *interleaved(lambda i: comp(i), x, mc, wA, wB))
+    s_c = report("COMPILED (backend=inductor)", *interleaved(lambda i: comp(i), x, mc, wA, wB))
 
-    print("\nDeterministic channels here would read dIr=0 / taint clean in BOTH "
-          "builds (same instructions).")
+    print(
+        "\nDeterministic channels here would read dIr=0 / taint clean in BOTH "
+        "builds (same instructions)."
+    )
     el = s_e > 0.2
     cl = s_c > 0.2
-    print(f"TIMING non-interference: eager={'LEAK' if el else 'clean'} "
-          f"compiled={'LEAK' if cl else 'clean'}")
+    print(
+        f"TIMING non-interference: eager={'LEAK' if el else 'clean'} "
+        f"compiled={'LEAK' if cl else 'clean'}"
+    )
     if not el and cl:
         print("=> COMPILER-INTRODUCED timing leak (invisible to Ir/taint).")
     elif el and not cl:
         print("=> COMPILER-REMOVED (compiled path flushes denormals, e.g. FTZ).")
     elif el and cl:
-        print("=> Denormal timing leak present in BOTH -> hardware effect, not the "
-              "compiler's doing.")
+        print(
+            "=> Denormal timing leak present in BOTH -> hardware effect, not the compiler's doing."
+        )
     else:
         print("=> No timing leak either build (FTZ likely on everywhere).")
 

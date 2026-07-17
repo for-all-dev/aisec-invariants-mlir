@@ -37,8 +37,10 @@ def logit_fidelity(result, logit_oracle, X):
     """R^2 between the surrogate's predicted logit and the true gate logit."""
     surrogate = result.surrogate
     if not hasattr(surrogate, "decision_function"):
-        raise TypeError("logit_fidelity needs a surrogate exposing decision_function "
-                        "(the logit attack); the label attack has no logit estimate")
+        raise TypeError(
+            "logit_fidelity needs a surrogate exposing decision_function "
+            "(the logit attack); the label attack has no logit estimate"
+        )
     true = np.array([logit_oracle.query(x) for x in X])
     pred = surrogate.decision_function(X)
     ss_res = float(np.sum((true - pred) ** 2))

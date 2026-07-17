@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ctverify"
+version = "0.1.0"
+description = "Reusable constant-time / leakage-contract verdicts for binaries, wrapping binsec -checkct"
+requires-python = ">=3.10"
+# Pure standard-library at runtime: binsec is invoked as a subprocess, so the
+# package installs light and runs anywhere binsec + a -m32 toolchain exist.
+dependencies = []
+
+[project.scripts]
+ctverify = "ctverify.cli:main"
+
+[dependency-groups]
+# Dev tooling per the monorepo convention (README: ruff/ty/pytest/hypothesis).
+dev = [
+  "ruff>=0.6",
+  "ty>=0.0.1a1",
+  "pytest>=8",
+  "hypothesis>=6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # the formatter owns line length
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -27,9 +27,12 @@ def _measure_build(model, zero, rand, compile):
     taint = I.memcheck_taint(model, rand, compile=compile)
     distinguishable = (ir_diff != 0) or (bc_diff != 0) or taint["leak"]
     return {
-        "cg_zero": cg_zero, "cg_rand": cg_rand,
-        "ir_diff": ir_diff, "bc_diff": bc_diff,
-        "taint": taint, "distinguishable": distinguishable,
+        "cg_zero": cg_zero,
+        "cg_rand": cg_rand,
+        "ir_diff": ir_diff,
+        "bc_diff": bc_diff,
+        "taint": taint,
+        "distinguishable": distinguishable,
     }
 
 

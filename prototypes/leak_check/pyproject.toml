@@ -7,15 +7,58 @@ name = "leak-check"
 version = "0.1.0"
 description = "Detecting compiler-introduced information leaks in deep learning"
 requires-python = ">=3.10"
+# One environment for everyone: `uv sync` installs the full stack (torch + CUDA,
+# scikit-learn) plus the dev tools, so runs and tests are identical for every
+# contributor and in CI.
 dependencies = [
   "torch>=2.0",
   "numpy>=1.24",
   "scikit-learn>=1.2",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
+# Dev tooling per the monorepo convention (README: `uv add --dev ruff ty
+# pytest hypothesis`). Synced by default alongside the project dependencies.
 dev = [
-  "ruff",
-  "pytest",
-  "hypothesis",
+  "ruff>=0.6",
+  "ty>=0.0.1a1",
+  "pytest>=8",
+  "hypothesis>=6",
 ]
+
+[tool.uv]
+# Flat script layout (no importable `leak_check/` package dir), so don't try to
+# build/install the project itself — uv just manages the environment.
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# `ruff format` is the single formatting authority for this package. Notebooks
+# are analysis artifacts, not modules — never reformatted or linted.
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# The formatter owns line length; E501 would only fire on lines it can't split.
+ignore = ["E501"]
+
+[tool.ty.src]
+# ty (pre-release) can't model torch's `nn.Module.__getattr__`, which returns
+# `Tensor | Module`; over pure torch-nn model code it emits only false positives
+# (calling a submodule, subscripting a ModuleList, `.weight` access). Skip those
+# files — everything else in the package is type-checked. Notebooks aren't
+# modules and are never checked.
+exclude = [
+  "**/*.ipynb",
+  "attacks/early_exit_gpt/model.py",
+  "attacks/early_exit_gpt/enclave.py",
+  "attacks/early_exit_gpt/mlp_surrogate.py",
+]
+
+[tool.pytest.ini_options]
+# The modules import each other by top-level name (`import instruments`), so
+# put the package root on sys.path for the test session.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

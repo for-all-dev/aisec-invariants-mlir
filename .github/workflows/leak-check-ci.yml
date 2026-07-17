@@ -1,0 +1,58 @@
+name: leak_check CI
+
+# Lint + type-check + tests for the prototypes/leak_check uv package.
+# Scoped by path so it only runs when that package (or this workflow) changes —
+# the monorepo holds other prototypes with their own toolchains.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "prototypes/leak_check/**"
+      - ".github/workflows/leak-check-ci.yml"
+  pull_request:
+    paths:
+      - "prototypes/leak_check/**"
+      - ".github/workflows/leak-check-ci.yml"
+
+concurrency:
+  group: leak-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototypes/leak_check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.29"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "prototypes/leak_check/uv.lock"
+
+      # One environment for everyone: the full pinned stack (torch/CUDA, sklearn)
+      # plus the dev tools, resolved from uv.lock. The torch wheels are large but
+      # cached across runs, so runs and tests are identical for every contributor
+      # and here in CI.
+      - name: Sync environment
+        run: uv sync --locked
+
+      - name: Format check (ruff format)
+        run: uv run --no-sync ruff format --check .
+
+      - name: Lint (ruff check)
+        run: uv run --no-sync ruff check .
+
+      # Type-checks the whole package (excludes in pyproject skip notebooks and
+      # the pure torch-nn model files, where ty only false-positives on torch's
+      # dynamic attribute typing).
+      - name: Type check (ty)
+        run: uv run --no-sync ty check .
+
+      - name: Tests (pytest)
+        run: uv run --no-sync pytest

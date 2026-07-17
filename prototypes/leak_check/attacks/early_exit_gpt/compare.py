@@ -26,15 +26,19 @@ from dataclasses import replace
 from .config import AttackConfig
 from .run import run_attack
 
-BUDGET_MULTIPLIERS = (1, 2, 3, 5)   # x (gate parameters)
+BUDGET_MULTIPLIERS = (1, 2, 3, 5)  # x (gate parameters)
 
 
 def main(mode="small"):
     base = AttackConfig.preset(mode)
-    print(f"target: {mode} preset (dim={base.gpt.n_embd}) | "
-          f"label channel: layercount (noise-free) | logit channel: gate confidence\n")
-    header = (f"{'budget':>7} {'queries':>8} | {'label acc':>9} | "
-              f"{'lin acc':>8} {'lin R^2':>8} | {'mlp acc':>8} {'mlp R^2':>8}")
+    print(
+        f"target: {mode} preset (dim={base.gpt.n_embd}) | "
+        f"label channel: layercount (noise-free) | logit channel: gate confidence\n"
+    )
+    header = (
+        f"{'budget':>7} {'queries':>8} | {'label acc':>9} | "
+        f"{'lin acc':>8} {'lin R^2':>8} | {'mlp acc':>8} {'mlp R^2':>8}"
+    )
     print(header)
     print("-" * len(header))
     for mult in BUDGET_MULTIPLIERS:
@@ -42,10 +46,12 @@ def main(mode="small"):
         _, lab = run_attack(cfg, attack="label", oracle_kind="layercount", verbose=False)
         _, lin = run_attack(cfg, attack="logit", verbose=False)
         _, mlp = run_attack(cfg, attack="mlp", verbose=False)
-        print(f"{mult:>6}x {lab['queries_used']:>8} | "
-              f"{lab['surrogate_alignment'] * 100:>8.1f}% | "
-              f"{lin['surrogate_alignment'] * 100:>7.1f}% {lin['logit_fidelity']:>8.3f} | "
-              f"{mlp['surrogate_alignment'] * 100:>7.1f}% {mlp['logit_fidelity']:>8.3f}")
+        print(
+            f"{mult:>6}x {lab['queries_used']:>8} | "
+            f"{lab['surrogate_alignment'] * 100:>8.1f}% | "
+            f"{lin['surrogate_alignment'] * 100:>7.1f}% {lin['logit_fidelity']:>8.3f} | "
+            f"{mlp['surrogate_alignment'] * 100:>7.1f}% {mlp['logit_fidelity']:>8.3f}"
+        )
 
 
 if __name__ == "__main__":

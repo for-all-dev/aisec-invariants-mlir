@@ -10,7 +10,11 @@ C++ to stderr (captured by the driver).
 If Inductor autotunes with synthetic sample inputs and caches by shape (not by
 value), the generated code and the w0-timing will be identical across secrets.
 """
-import os, sys, time
+
+import os
+import sys
+import time
+
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 import numpy as np
@@ -37,7 +41,8 @@ def main():
     secret, w0_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
     import torch._inductor.config as ic
-    ic.force_disable_caches = True          # force a real, fresh autotune
+
+    ic.force_disable_caches = True  # force a real, fresh autotune
     ic.max_autotune = True
 
     m = Branchless()
@@ -45,8 +50,11 @@ def main():
         if secret == "zero":
             m.weight.zero_()
         else:
-            m.weight.copy_(torch.from_numpy(
-                np.random.default_rng(0).standard_normal((DIM, DIM), dtype=np.float32)))
+            m.weight.copy_(
+                torch.from_numpy(
+                    np.random.default_rng(0).standard_normal((DIM, DIM), dtype=np.float32)
+                )
+            )
 
     x = torch.randn(1, DIM)
     fn = torch.compile(m, mode="max-autotune", fullgraph=True)
@@ -64,9 +72,11 @@ def main():
 
     t = np.empty(ITERS)
     for i in range(ITERS):
-        t0 = time.perf_counter(); fn(x); t[i] = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(x)
+        t[i] = time.perf_counter() - t0
     np.save(out_path, t)
-    print(f"RESULT secret={secret} median_us={np.median(t)*1e6:.2f}")
+    print(f"RESULT secret={secret} median_us={np.median(t) * 1e6:.2f}")
 
 
 if __name__ == "__main__":

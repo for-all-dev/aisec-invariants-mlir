@@ -1,0 +1,8 @@
+# uv-managed environment (uv.lock IS committed for reproducible CI)
+.venv/
+
+# tool caches
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+__pycache__/

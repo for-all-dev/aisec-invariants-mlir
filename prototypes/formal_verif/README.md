@@ -42,7 +42,10 @@ stops at LLVM IR and misses backend-introduced leaks, e.g. `select`→branch).
 
 ## Layered timing plan A/B/C/D (no single tool does all four — verified)
 
-Compose ourselves; reuse existing tools per layer.
+Compose ourselves; reuse existing tools per layer. The software layers A and B
+are implemented as a reusable package, [`ctverify/`](ctverify/) (API + CLI over
+binsec, JSON verdicts); [`timing_a/`](timing_a/) and [`contract_b/`](contract_b/)
+are worked-example corpora that drive it.
 
 - **A — cheapest, formal (software only).** Forbid secret from reaching
   variable-latency instructions (taint/leakage property). Backed by hardware
@@ -123,19 +126,27 @@ that layers A/B build on. Concrete next steps per layer:
 
 ### A — cheapest, formal, software-only (extend what works)
 Forbid the secret from reaching variable-latency instructions; rely on hardware
-DOIT/DIT for fixed latency of the rest.
-- [ ] Enable `-checkct-features` for **division/multiplication** operands
-  (var-latency) — binsec already exposes these check points.
+DOIT/DIT for fixed latency of the rest. **Implemented: [`timing_a/`](timing_a/).**
+- [x] Enable `-checkct-features` for **division/multiplication** operands
+  (var-latency) — binsec already exposes these check points. Corpus + runner in
+  `timing_a/`; the mul/div-secret kernels are `secure` under default CT and
+  `insecure` only with the layer-A features (the coverage delta).
 - [ ] Add a denormal/subnormal-operand check (or forbid FP-on-secret) — the
-  ~25× channel binsec's model does not see.
-- [ ] Document the DOIT/DIT assumption as the trust anchor for layer A.
+  ~25× channel binsec's model does not see. (Not formal here — a **layer D**
+  concern; documented as A's scope limit.)
+- [x] Document the DOIT/DIT assumption as the trust anchor for layer A — see
+  `timing_a/README.md`.
 
 ### B — strict, formal relative to a leakage contract
-- [ ] Pick a leakage contract (`[ct]`, then cache-line granularity).
-- [ ] Software side: re-express our checkct runs as "program ⊨ contract"
-  (observation set = contract, not hard-wired).
+**Software half implemented: [`contract_b/`](contract_b/).**
+- [x] Pick a leakage contract (`[ct]`, then cache-line granularity).
+- [x] Software side: re-express our checkct runs as "program ⊨ contract"
+  (observation set = contract, not hard-wired). `contract.py` computes the
+  `[cache-line]` verdict from binsec's byte-level leak + the access layout; a
+  one-line table (`b_codebook_small`) is `insecure` under `[ct]` but `secure`
+  under `[cache-line]`, a wide table / embedding-row gather leaks under both.
 - [ ] Hardware side: **LeaVe** on an open-source RTL core (verify RTL ⊨ contract).
-  Trust gap = contract vs silicon.
+  Trust gap = contract vs silicon. (Out of scope — separate RTL tool.)
 
 ### C — validate the model against real silicon
 - [ ] **Revizor** / Scam-V: relational testing that the target CPU does not leak
