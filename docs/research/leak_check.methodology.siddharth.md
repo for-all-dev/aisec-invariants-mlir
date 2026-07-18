@@ -81,9 +81,17 @@ The channel is the execution property we read off to tell A from B.
    any report localizes the leaking instruction. Needs no magnitude difference at all.
 
 2. **Deterministic instruction / branch counts.** callgrind `Ir` (retired
-   instructions) and `Bc`/`Bi` (conditional/indirect branches). Exactly reproducible,
-   so a **single** run per class is decisive: `Ir(A) == Ir(B)` byte-for-byte ⇒
-   oblivious at the instruction level; any difference is a real secret-dependent path.
+   instructions) and `Bc`/`Bi` (conditional/indirect branches). Exactly reproducible
+   under **repetition** — repeat a run unchanged and it is bit-identical. But that is not
+   reproducibility under **re-measurement**: with ASLR disabled, layout is a deterministic
+   function of argv/env, and the two classes necessarily differ in something (at minimum
+   the file they load, of a different path length), so a small `dIr` is confounded with the
+   context, not decided by it. The channel is still the right one; the inference that a
+   single run per class is decisive is not. A count is read only when both classes are
+   measured at **matched contexts** and the paired diff clears a floor and agrees across
+   contexts — see `noninterference.py` and `leak_check.count-confound.agents.md` (upstream
+   `d0d3232`). A large positive is still decisive (`cond_skip` ±10^5, `exp` +35M); a
+   few-hundred `dIr` without taint corroboration is not.
 
 3. **Wall-clock latency (weakest).** The dudect/TVLA-style statistical test — Welch
    t-test or the Mann-Whitney **attacker-AUC** (0.5 = indistinguishable, 1.0 = perfect

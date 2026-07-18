@@ -1,7 +1,16 @@
 # Empirical results
 
 Concrete measurements. These are machine- and version-specific (see
-`../reference/environment.md`) and change on re-run.
+`leak_check.environment.siddharth.md`) and change on re-run.
+
+> **Recalibration note (2026-07).** Everything below was measured on the original 8-core
+> host, where callgrind was bit-exact. On the re-provisioned Zen5 box the count channel is
+> confounded across processes (path-length / ASLR-off layout), so **any verdict resting on a
+> small `|dIr|` (a few hundred) with no taint corroboration is no longer interpretable** —
+> softmax's `-573`, `branchless`' `+11/+257`, `where_select`'s `+264`. The large positives
+> (`exp` +35M, `cond_skip` ±10^5) and every taint-backed verdict stand unchanged. Full
+> account: `leak_check.count-confound.agents.md`; criterion change in `noninterference.py`
+> (upstream `d0d3232`). The softmax cell is retired below.
 
 ## Activation-function corpus (CSI-NN mechanism 2)
 
@@ -15,7 +24,7 @@ deterministic channels. Code: `leak_check/corpus_activations.py`, `run_activatio
 | relu | oblivious | oblivious | **OBLIVIOUS** | Ir/Bc + taint |
 | exp | **DISTINGUISHABLE** dIr=+35,061,760, dBc=+3,416,064, taint | oblivious, clean | **COMPILER-REMOVED** | Ir/Bc + taint |
 | gelu | oblivious | oblivious | oblivious (count only) | Ir/Bc |
-| softmax | oblivious | **dIr=-573, dBc=-93** | *UNVERIFIED lead* | Ir/Bc |
+| softmax | oblivious | ~~dIr=-573, dBc=-93~~ | **RETIRED — degenerate probe** | Ir/Bc |
 
 ### Findings
 1. **relu is already branchless in PyTorch** — unlike the naive C `relu` (which branches
@@ -30,18 +39,29 @@ deterministic channels. Code: `leak_check/corpus_activations.py`, `run_activatio
    yet of the where_select/relu "compiler removes value-dependent control flow" pattern.
 3. **gelu oblivious** on the count channel in both builds (taint not run in the fast pass).
 
-### ⚠ softmax: an UNVERIFIED lead, NOT a finding
-softmax is **oblivious in eager but shows a small `dIr=-573, dBc=-93` in compiled** —
-the shape of a *compiler-introduced* leak (the empty quadrant). BUT: (a) it is tiny;
-(b) both secret classes are uniform, so `x - max(x) = 0` for both — semantically they
-should be identical, which makes a real value-dependent path surprising; (c) the taint
-channel was NOT run for softmax; (d) we have already been burned once by an unverified
-"compiler-introduced" signal (the max-autotune false positive from a normalizer bug).
-**Do not record softmax as compiler-introduced until verified.** Required checks before
-any claim: re-run the compiled softmax pair to confirm the count difference is
-deterministic (callgrind is deterministic, so a stable ≠0 is real; a varying one is a
-harness artifact); run the taint channel; inspect the generated softmax kernel for a
-value-dependent branch (e.g. a denormal/relative-precision path in the vectorized exp).
+### ✗ softmax: RETIRED — a degenerate probe, not a lead
+This was recorded as an unverified lead (oblivious eager, `dIr=-573, dBc=-93` compiled —
+the shape of the empty quadrant). Two of the three required checks were run
+(`leak_check.count-confound.agents.md` §1) and both say no:
+
+- **Generated-kernel inspection** (`probe_softmax.py`): the compiled code is identical
+  (normalized) across both classes. The only branch-like lines are compile-time bounds
+  guards (`if(x1 >= 0 && x1 < 512)`); the data path is branch-free vector code. Worse, the
+  corpus gives softmax two *uniform* classes (`full(0.5)` vs `full(100.0)`), so
+  `x - max(x) = 0` for both and the outputs are bit-identical `1/512` — there is nothing
+  for a compiled kernel to leak. The cell is **degenerate**, not merely unverified: the
+  bait targets `exp`'s overflow regime, which softmax's max-subtraction cancels before the
+  `exp`. A real softmax probe needs **non-uniform rows**.
+- **Within-class repeats** (`probe_softmax_stability.py`): the *same* secret gave `Ir`
+  spreads up to ~1,696, ≈3× the `-573`. The `-573` is within the instrument's own
+  cross-context noise at this config point (see the recalibration note at the top and
+  `count-confound.agents.md` §2) — not a signal.
+
+The taint channel remains unrun for softmax (it costs hours under `torch.compile`), but the
+two checks agree, so this is completeness, not a live question. **Conclusion: not
+compiler-introduced; retired.** (Caveat per PRINCIPLES §1: this retirement is measured on
+the Zen5 box; it does not establish that the original `-573` was noise *on the 8-core
+host*, a different config point — only that the probe cannot show what it was read to show.)
 
 ### Method note (channel coverage of this pass)
 relu/exp used both channels (full run); gelu/softmax used **callgrind only** (fast pass,
@@ -139,6 +159,15 @@ Valgrind 3.22.0. Full sweep via `python leak_check/run_all.py`
 (raw output in `leak_check/run_all.out`). Instruments: callgrind (`Ir` instructions,
 `Bc` conditional branches, gated to the forward pass) + memcheck taint. `dIr`/`dBc` =
 count(random) − count(zero); exactly 0 ⇒ provably oblivious at that granularity.
+
+> **Config-point caveat (Zen5 re-run).** This table is the **8-core host under the old
+> single-run criterion**, where `dIr = 0` was decisive. That `+0` is host- and
+> method-specific: re-measured single-run on the Zen5 box, `branchless` reads `+11` (eager)
+> / `+257` (compiled) — cross-process confound, not a leak — and only the paired
+> matched-context criterion (`noninterference.py`, upstream `d0d3232`) restores it to `+0`.
+> The `cond_skip` and `where_select` **taint** verdicts are unaffected (taint is immune);
+> `where_select`'s `+264` count is now uninterpretable but its COMPILER-REMOVED verdict
+> rests on its taint report, so it stands.
 
 | Model | Build | Ir(zero) | Ir(random) | dIr | dBc | taint | distinguishable? |
 |---|---|---|---|---|---|---|---|
