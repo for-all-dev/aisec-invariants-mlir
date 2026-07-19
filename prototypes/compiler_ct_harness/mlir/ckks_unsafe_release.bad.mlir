@@ -4,20 +4,22 @@
 // upstream GitHub source: https://github.com/microsoft/SEAL
 // upstream revision: none -- this is a policy model, not a Microsoft SEAL defect
 // secret: %raw_approximate_plaintext
-// public: certified value, certificate flag, and public release address
-// expected verdict: reject
-// exact incident boundary: L1 ordering/policy; real noise sufficiency is an L4 obligation
+// public: trusted-integrity sanitizer mask and certificate flag, plus the public-release stored value
+// input invariant: %certificate_ok is a well-formed Boolean in {0, 1}
+// private result: the function return is not in the public observer projection
+// expected verdict: unsafe
+// exact incident boundary: L1 public-sink flow; real CKKS semantics are outside this reduction
 module {
   llvm.func @ckks_unsafe_release_bad(
       %raw_approximate_plaintext: i32,
-      %certified_public_value: i32,
+      %public_sanitizer_mask: i32,
       %certificate_ok: i32,
       %public_release: !llvm.ptr) -> i32 {
-    // CONFIDENTIALITY ERROR: raw approximate plaintext released without validation
+    // CONFIDENTIALITY ERROR: raw approximate plaintext reaches the public release sink
     // secret source: %raw_approximate_plaintext is an unsanitized decryption result
     // observable effect: the public release sink receives the raw value
-    // reason: no approved sanitizer or certificate dominates this release
-    // detection boundary: L1 structural ordering check; L4 must justify a real sanitizer
+    // reason: no approved sanitizer result or certificate check dominates this store
+    // detection boundary: direct L1 output-flow violation; no L4 fact can repair this path
     llvm.store %raw_approximate_plaintext, %public_release : i32, !llvm.ptr
     llvm.return %raw_approximate_plaintext : i32
   }

@@ -1,8 +1,10 @@
 # Catching the harness cases at L0, L1, and L2
 
 This document explains what the current C/MLIR fixtures can demonstrate before
-the SPS verifier exists. The checked-in MLIR comments are documentation only;
-later they can become sidecar annotations, attributes, or lit expectations.
+the SPS verifier exists. Most checked-in MLIR annotations are documentation
+only; the wolfSSL 3579 target model also demonstrates generic `sps.*` profile
+attributes. Later these can become validated SPS attributes or lit
+expectations.
 
 ## Level meanings
 
@@ -17,12 +19,13 @@ later they can become sidecar annotations, attributes, or lit expectations.
 ## Security property
 
 Let `P` be the artifact under analysis, `p` public inputs, `s0` and `s1` two
-secret inputs, and `Obs_Theta` the observation projection selected by target
-profile `Theta`.
+secret inputs, `R` the tuple of releases authorized for the observer, and
+`Obs_Theta` the observation projection selected by target profile `Theta`.
 
 ```text
 for every p, s0, s1:
-  Obs_Theta(Trace(P, p, s0)) == Obs_Theta(Trace(P, p, s1))
+  R(p, s0) == R(p, s1)
+    implies Obs_Theta(Trace(P, p, s0)) == Obs_Theta(Trace(P, p, s1))
 ```
 
 Returned private data may depend on the secret. The violation is an additional
@@ -36,18 +39,18 @@ placement.
 | --- | --- | ---: | ---: | --- |
 | Clangover | Mark message bit secret; branch direction observable | yes on lowered branch | yes, `bit=0/1` | Catches unsafe target; L3 needed to call it a compiler regression |
 | wolfSSL 3580 | Secret table index; RV32I branch profile | yes if `bnez` is imported or modeled | yes, index pair | Requires machine-level artifact; L3 stores backend evidence |
-| wolfSSL 3579 | Secret operands; `__muldi3` helper summary | partial known-helper sink | partial with latency semantics | Helper timing fact remains L4 |
+| wolfSSL 3579 | Secret operands; selected `__muldi3` helper summary | yes under the affected profile; unknown without a summary | yes under operand-dependent latency semantics | Unsafe under the named profile; validating its timing fact remains L4 |
 | KyberSlash1 | Secret coefficient; division variable-time | yes | optional | Strong direct L1 case |
 | KyberSlash2 | Secret coefficient; division variable-time | yes | optional | Strong direct L1 case |
 | Wrong-party plaintext | Owners, hosts, audiences, public/unauthorized sinks | yes | usually unnecessary | Direct L1 placement/output violation |
 | redis-py analogue | Actors and public response channel | yes for sequential model | optional | Analogue only; exact concurrent incident needs future runtime semantics |
 | Secret logging/checkpoint | Declare public log and artifact sinks | yes with call/sink summaries | usually unnecessary | Direct L1 sink violation |
-| Explicit error oracle | Error/status/length observable; allowed validity release | yes | yes for residual leakage | L1 rejects direct secret status; L2 can justify witnesses |
-| BREACH analogue | Transfer size observable; compressor summary | partial size taint | yes if compressor semantics exist | Modeled compressor only; compressor fact is L4 |
+| Explicit error oracle | Allowed validity release plus unauthorized error-detail output | yes on the detail store | yes with validity held fixed | Bad is unsafe; fixed preserves exactly the sanctioned status bit |
+| BREACH analogue | Public wire-length output; match-to-length relation already inlined | yes on the length store | yes, lengths 31/32 | Complete for the reduced output model; relating it to compression is L4 |
 | Secret embedding index | Secret index; address granularity observable | yes | optional | Direct L1 address-effect violation |
-| Dynamic tensor/KV length | Shape/length secret; allocation and loop counts visible | planned but v1 incomplete | partial with dynamic-shape semantics | Needs dynamic-shape support beyond current tiny model |
+| Dynamic tensor/KV length | Secret length and two public count fields | yes on both stores | yes, unequal count pairs | Complete for the reduced output model; no allocator, shape, loop, or scheduler event is encoded |
 | Wrong-host FHE reveal | Host authority and reveal/release policy | yes | usually unnecessary | Direct L1 host-policy violation |
-| CKKS unsafe release | Sanitizer prerequisite and certificate slot | yes for ordering/host/policy | partial for release correctness | Noise sufficiency remains L4 |
+| CKKS unsafe release | Named sanitizer, trusted policy mask/certificate, public release sink, and private return | yes for direct-flow/ordering | yes for the declared masked-release function | Fixed model is conditional on real sanitizer/certificate sufficiency at L4 |
 | LeftoverLocals analogue | Scratch ownership and tenant boundary | yes for sequential scratch model | optional | Analogue only; exact GPU persistence/isolation is L4 |
 
 ## L0 profile sketch
@@ -81,12 +84,21 @@ helpers:
     latency: operand_dependent
     relevant_operands: [0, 1]
 
-unknown_call: reject_or_obligation
+release_policies:
+  padding_validity_v1:
+    function: not(padding_is_valid)
+  ckks_masked_release_v1:
+    function: raw_approximate_plaintext & public_sanitizer_mask & certificate_mask
+    required_integrity: [public_sanitizer_mask, certificate_ok]
+
+unknown_call: unknown
 ```
 
 L0 is a contract, not a proof. If it says `__muldi3` is operand-dependent, L1
 may reject the call. If the helper body and timing summary are absent, the
-checker should return `unknown` or a target obligation, not silently pass.
+checker should return `unknown`; an explicit assumed contract may instead
+produce a named obligation and a `conditional` result, but never a silent
+`verified` result.
 
 ## L1 rules
 
@@ -133,6 +145,7 @@ StateWF(run0)
 AND StateWF(run1)
 AND PublicInputs(run0) == PublicInputs(run1)
 AND SecretInputs(run0) != SecretInputs(run1)
+AND AuthorizedReleases(run0) == AuthorizedReleases(run1)
 AND Semantics(P, run0, trace0)
 AND Semantics(P, run1, trace1)
 AND ObservableEffect(trace0, e) != ObservableEffect(trace1, e)
@@ -145,11 +158,12 @@ Example witnesses:
 | Clangover | `bit=0` goes to `^not_taken`; `bit=1` goes to `^taken`. |
 | wolfSSL 3580 | Same public scan index, two secret table indices make the modeled `bnez` differ. |
 | KyberSlash | Same public constants, two coefficients reach variable-time `llvm.udiv`. |
-| Explicit error oracle | `padding_is_valid=0` and `1` produce different public status values. |
+| Explicit error oracle | Hold `padding_is_valid` fixed; two `padding_error_detail` values produce different bad detail outputs while the authorized status is equal. |
 | BREACH analogue | `secret_byte == public_guess` shortens the public wire length. |
+| CKKS unsafe release | With trusted mask 12 and certificate 1, raw values 55 and 23 have the same authorized release 4; the bad sink still exposes 55 versus 23. |
 | Secret embedding index | Two secret indices produce different `llvm.getelementptr` addresses. |
 
-Unsupported semantics or timeout should produce `unknown`, not `pass`.
+Unsupported semantics or timeout should produce `unknown`, not `verified`.
 
 ## Per-family notes
 
@@ -163,8 +177,10 @@ models the reported RV32I `bnez`/`bne` backend shape. L1/L2 can reject the
 modeled target artifact, while L3 records the GCC backend evidence.
 
 wolfSSL 3579: source `llvm.mul i64` is not enough by itself. The RV32I target
-profile matters because legalization may call `__muldi3`. L1 can reject a
-known unsafe helper summary, but the helper timing evidence is L4.
+profile matters because legalization may call `__muldi3`. The bad target model
+attaches a named operand-dependent helper contract, so it is unsafe under that
+profile. With no helper summary the result is unknown; L4 must validate the
+selected profile's timing fact.
 
 KyberSlash1 and KyberSlash2: the vulnerable fixtures contain direct
 secret-derived `llvm.udiv`. They are the cleanest L1 cases. The fixed fixtures
@@ -172,6 +188,8 @@ replace division with multiply/add/shift and retain the final bit or nibble
 mask.
 
 Semantic/runtime models: these are not claims about compiler bugs. They give
-the same SPS machinery non-crypto examples: wrong sink, public error bit,
-compressed length, secret address, dynamic length, host authority, release
-ordering, and tenant scratch state.
+the same SPS machinery non-crypto examples: wrong sink, detail beyond an
+authorized error bit, a directly modeled public length, secret address,
+direct public count fields, host authority, release ordering, and tenant
+scratch state. Real compression, dynamic allocation/work, and CKKS sanitizer
+sufficiency remain explicit L4 extrapolations.

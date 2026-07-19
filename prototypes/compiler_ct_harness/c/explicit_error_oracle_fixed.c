@@ -23,20 +23,26 @@
  *   7fc67e0a33102aa47bbaa56533eeecb98c0450f7
  *
  * Reduction classification:
- *   independently-written-equivalent-reduction
+ *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models only uniform public status. OpenSSL's real repair selects a
+ *   Preserves an explicitly sanctioned valid/invalid status while suppressing
+ *   a more specific padding diagnostic. OpenSSL's real repair selects a
  *   synthetic plaintext and requires a stronger cryptographic contract.
  *
  * Secret inputs:
- *   padding_is_valid
+ *   padding_is_valid and padding_error_detail
+ *
+ * Input invariant:
+ *   padding_is_valid is a well-formed Boolean in {0, 1}
  *
  * Public inputs:
- *   authorized_plaintext_length, public_status address, and success status
+ *   authorized_plaintext_length, public_status address, and
+ *   public_error_detail address
  *
  * Expected confidentiality repair:
- *   The public status is identical for valid and invalid secret padding.
+ *   public_status reveals only the sanctioned validity bit, while
+ *   public_error_detail is uniform across secret padding failures.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Werror -c explicit_error_oracle_fixed.c
@@ -49,9 +55,12 @@
 #include <stdint.h>
 
 uint32_t explicit_error_oracle_fixed(uint32_t padding_is_valid,
+                                     uint32_t padding_error_detail,
                                      uint32_t authorized_plaintext_length,
-                                     uint32_t *public_status) {
-  (void)padding_is_valid;
-  *public_status = 0;
+                                     uint32_t *public_status,
+                                     uint32_t *public_error_detail) {
+  (void)padding_error_detail;
+  *public_status = 1u ^ (padding_is_valid & 1u);
+  *public_error_detail = 0u;
   return authorized_plaintext_length;
 }

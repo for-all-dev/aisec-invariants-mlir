@@ -23,20 +23,28 @@
  *   7fc67e0a33102aa47bbaa56533eeecb98c0450f7
  *
  * Reduction classification:
- *   independently-written-equivalent-reduction
+ *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Isolates only the explicit public status channel. It does not implement
- *   RSA, padding validation, or OpenSSL's synthetic-plaintext mechanism.
+ *   Models an API where the valid/invalid status is an explicitly sanctioned
+ *   release, but a more specific padding diagnostic is not. It does not
+ *   implement RSA, padding validation, or OpenSSL's synthetic-plaintext
+ *   mechanism.
  *
  * Secret inputs:
- *   padding_is_valid
+ *   padding_is_valid and padding_error_detail
+ *
+ * Input invariant:
+ *   padding_is_valid is a well-formed Boolean in {0, 1}
  *
  * Public inputs:
- *   authorized_plaintext_length and public_status address
+ *   authorized_plaintext_length, public_status address, and
+ *   public_error_detail address
  *
  * Expected confidentiality issue:
- *   The public status distinguishes valid from invalid secret padding.
+ *   The validity bit released through public_status is authorized. The
+ *   public_error_detail output additionally distinguishes secret padding
+ *   failures that have the same validity bit, so it exceeds that release.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Werror -c explicit_error_oracle_bad.c
@@ -49,8 +57,11 @@
 #include <stdint.h>
 
 uint32_t explicit_error_oracle_bad(uint32_t padding_is_valid,
+                                   uint32_t padding_error_detail,
                                    uint32_t authorized_plaintext_length,
-                                   uint32_t *public_status) {
+                                   uint32_t *public_status,
+                                   uint32_t *public_error_detail) {
   *public_status = 1u ^ (padding_is_valid & 1u);
+  *public_error_detail = padding_error_detail;
   return authorized_plaintext_length;
 }

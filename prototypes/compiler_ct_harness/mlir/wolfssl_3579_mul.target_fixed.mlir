@@ -4,9 +4,9 @@
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
 // upstream revision: 8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
 // secret: %secret_a and %secret_b
-// public: fixed loop count 64 and target profile RV32I without the M extension
-// expected verdict: pass with fixed-iteration helper in verified region
-// exact incident boundary: L1 accepts the loop shape subject to target operation profile; exact target profile remains L4
+// public: fixed loop count 64 and selected fixed-operation RV32I profile
+// expected verdict: conditional on the fixed-operation profile and preservation below this IR
+// exact incident boundary: L1 verifies the modeled loop; target-operation and backend-conformance facts remain L4
 module {
   llvm.func @wolfssl_3579_mul_fixed_model(%secret_a: i64, %secret_b: i64) -> i64 {
     %zero64 = llvm.mlir.constant(0 : i64) : i64

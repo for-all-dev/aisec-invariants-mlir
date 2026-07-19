@@ -1,10 +1,11 @@
 # Minimal C/MLIR confidentiality harness
 
 This is a standalone regression corpus for compiler-security and information
-flow examples. It intentionally does not use the AISec dialect or SPS passes
-yet. The checked-in files are small C reductions plus review-sized MLIR
-fixtures with comments at the operation where confidentiality is broken or
-repaired.
+flow examples. It does not use the AISec dialect or SPS passes yet. The
+checked-in files are small C reductions plus review-sized MLIR fixtures with
+comments at the operation where confidentiality is broken or repaired.
+Selected release and target fixtures also carry generic `sps.*` attributes
+for policy identities, integrity prerequisites, and helper-timing profiles.
 
 There is no key-recovery code and no full crypto implementation here.
 
@@ -71,17 +72,20 @@ them into lit expectations.
 
 ## Mathematical contract
 
-Each pair is meant to document:
+Each pair is meant to document release-relative noninterference. For cases
+without an authorized release, `R` is empty:
 
 ```text
-Functional behavior:
-    F_bad(secret, public) = F_fixed(secret, public)
+Authorized/private functional result (excluding Obs):
+    F_authorized_bad(secret, public) = F_authorized_fixed(secret, public)
 
 Confidentiality requirement:
-    Obs(secret_0, public) = Obs(secret_1, public)
+    R(secret_0, public) = R(secret_1, public)
+      implies Obs(secret_0, public) = Obs(secret_1, public)
 
 Violation:
     secret_0 != secret_1
+    R(secret_0, public) = R(secret_1, public)
     Obs_bad(secret_0, public) != Obs_bad(secret_1, public)
 ```
 
@@ -96,18 +100,18 @@ is functionally identical.
 | --- | --- | --- | --- | --- |
 | Clangover / `poly_frommsg` | `clangover_poly_frommsg_*` | `pq-crystals/kyber` `poly_frommsg`, Clangover repo | faithful minimal reduction plus target model | L1 target, L2 witness, L3 compiler regression |
 | wolfSSL CVE-2026-3580 | `wolfssl_3580_mask_*` | wolfSSL PR 9855 and vulnerable 5.8.4 source tree | independently written equivalent reduction | L1/L2 target model, L3 backend evidence |
-| wolfSSL CVE-2026-3579 | `wolfssl_3579_mul_*` | wolfSSL PR 9855 and vulnerable 5.8.4 source tree | independently written equivalent reduction | L1 known-helper sink, L4 helper timing fact |
+| wolfSSL CVE-2026-3579 | `wolfssl_3579_mul_*` | wolfSSL PR 9855 and vulnerable 5.8.4 source tree | independently written equivalent reduction | unsafe at L1 under the named affected-helper profile; unknown without a summary; timing evidence at L4 |
 | KyberSlash1 | `kyberslash1_poly_tomsg_*` | Kyber `poly_tomsg`, fix `dda29cc...` | faithful minimal reduction | L1 |
 | KyberSlash2 | `kyberslash2_compress_*` | Kyber `poly_compress`, fix `11d00ff...` | faithful minimal reduction | L1 |
 | Wrong-party plaintext | `wrong_party_plaintext_*` | hosted-system disclosure class | seeded semantic harness | L1 |
 | redis-py analogue | `redis_pool_reuse_*` | redis-py cancellation/pool incident class | reduced runtime model | analogue L1; exact race needs runtime semantics |
 | Secret logging/checkpoint | `secret_logging_checkpoint_*` | logging/checkpoint sink class | seeded semantic harness | L1 |
-| Explicit error oracle | `explicit_error_oracle_*` | OpenSSL-style oracle class | seeded semantic harness | L1, optional L2 |
-| BREACH analogue | `breach_compressed_length_*` | compression-length leak class | seeded semantic harness | L2 model, compressor fact at L4 |
+| Explicit error oracle | `explicit_error_oracle_*` | OpenSSL-style oracle class | seeded semantic harness | L1 extra-detail flow; L2 holds the sanctioned validity bit fixed |
+| BREACH analogue | `breach_compressed_length_*` | compression-length leak class | reduced runtime model | L1/L2 reduced public-length model; real compression link at L4 |
 | Secret embedding index | `secret_embedding_index_*` | tensor embedding lookup class | seeded semantic harness | L1 |
-| Dynamic tensor/KV length | `dynamic_kv_length_*` | vLLM-style dynamic-cache privacy class | seeded semantic harness | planned L1/L2 dynamic-shape support |
+| Dynamic tensor/KV length | `dynamic_kv_length_*` | vLLM-style dynamic-cache privacy class | seeded semantic harness | L1 reduced public-count outputs; real allocation/loop mapping at L4 |
 | Wrong-host FHE reveal | `wrong_host_fhe_reveal_*` | FHE host/reveal policy class | seeded semantic harness | L1 |
-| CKKS unsafe release | `ckks_unsafe_release_*` | approximate-release policy class | seeded semantic harness | L1/L2 structure; noise proof at L4 |
+| CKKS unsafe release | `ckks_unsafe_release_*` | approximate-release policy class | seeded semantic harness | L1 declared masked release with trusted policy/certificate and private return; conditional on L4 sufficiency |
 | LeftoverLocals analogue | `leftoverlocals_scratch_*` | Trail of Bits LeftoverLocals report | reduced runtime model | analogue L1; exact GPU issue at L4 |
 
 Every C file has a structured provenance header. Where original C exists, the
@@ -116,15 +120,23 @@ was not C, the header says so and labels the file as a model.
 
 ## Generated evidence
 
-`make -C c regen-mlir` emits raw imported MLIR under `build/mlir/`. The
-checked-in MLIR remains hand-minimized and annotated for review. Backend-only
-effects, such as GCC RV32I `bnez` and legalization to `__muldi3`, are labeled
-as target models derived from compiler evidence; they are not represented as
-literal GCC-generated MLIR.
+`make -C c regen-mlir` emits truthful source-level imports under `build/mlir/`.
+For backend-modeled Clangover/wolf families, vulnerable/source files use
+`.source.mlir` and fixed-source imports use `.fixed_source.mlir`; KyberSlash's
+source-level bad/fixed names remain accurate. The command deliberately emits
+no `target_bad` or `target_fixed` files, because LLVM-dialect import happens
+before backend effects. The checked-in target MLIR remains hand-minimized and
+annotated for review.
+Backend-only effects, such as GCC RV32I `bnez` and legalization to `__muldi3`,
+are target models derived from compiler evidence; they are not literal
+GCC-generated MLIR. In the wolfSSL 3579 bad target model, generated assembly
+supports the call shape while operand-dependent helper latency is an explicit
+selected-profile assumption.
 
-Future SPS tests can consume these comments as:
+Future SPS tests need to assert the four-valued result rather than treating
+every fixture as shell success/failure. For example:
 
 ```text
-not aisec-opt --aisec-verify-ct --target-profile=<profile> bad.mlir
-aisec-opt --aisec-verify-ct --target-profile=<profile> fixed.mlir
+aisec-opt --aisec-verify-ifc --expect=unsafe bad.mlir
+aisec-opt --aisec-verify-ifc --expect=conditional fixed-with-obligation.mlir
 ```

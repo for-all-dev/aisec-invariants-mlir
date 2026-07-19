@@ -32,8 +32,10 @@
  * Public inputs:
  *   fixed loop count 64 and target profile
  *
- * Expected confidentiality issue:
- *   The fixed reduction should not call __muldi3 or branch on secret bits.
+ * Expected confidentiality repair:
+ *   The fixed reduction should not call __muldi3 or branch on secret bits;
+ *   final assurance remains conditional on the selected target-operation
+ *   profile.
  *
  * Canonical compiler command:
  *   clang -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -S wolfssl_3579_mul_fixed.c

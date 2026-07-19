@@ -30,11 +30,15 @@
  *   secret_a and secret_b
  *
  * Public inputs:
- *   target profile RV32I without hardware 64-bit multiply
+ *   selected target/helper profile; the bad MLIR fixture names
+ *   affected-rv32i-muldi3-v1
  *
  * Expected confidentiality issue:
- *   Backend legalization emits __muldi3, whose timing depends on operand
- *   values in the affected target profile.
+ *   Backend legalization emits __muldi3. The call is unsafe under the named
+ *   affected profile's operand-dependent latency contract; without a helper
+ *   timing summary, the confidentiality verdict is unknown rather than safe.
+ *   Applying that affected profile to a real target remains conditional until
+ *   L4 validates the helper-timing evidence.
  *
  * Canonical compiler command:
  *   clang -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -S wolfssl_3579_mul_vulnerable.c
