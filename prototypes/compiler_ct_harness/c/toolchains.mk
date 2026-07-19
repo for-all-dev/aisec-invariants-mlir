@@ -1,5 +1,6 @@
 LLVM_BIN ?= /opt/homebrew/opt/llvm/bin
 CLANG ?= $(LLVM_BIN)/clang
+HOST_CC ?= cc
 MLIR_TRANSLATE ?= $(LLVM_BIN)/mlir-translate
 MLIR_OPT ?= $(LLVM_BIN)/mlir-opt
 OPT ?= $(LLVM_BIN)/opt

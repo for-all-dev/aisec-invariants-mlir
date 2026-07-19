@@ -1,19 +1,27 @@
-// case: kyberslash2/compress
-// classification: compiler-imported decisive operation
-// source: KyberSlash pre-fix compression arithmetic
-// compiler: clang 17.0.6 -O0 -Xclang -disable-O0-optnone -target aarch64
-// target: AArch64
-// SECRET: %coefficient is secret-derived.
-// CONFIDENTIALITY BREAK: the compression quotient uses secret-dependent division.
+// case: kyberslash2/poly_compress
+// classification: compiler-generated-minimized
+// c source: ../c/kyberslash2_compress_vulnerable.c
+// upstream GitHub source: https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L23-L32
+// upstream revision: b628ba78711bc28327dc7d2d5c074a00f061884e
+// secret: %coefficient
+// public: KYBER_Q=3329 and rounding constants
+// expected verdict: reject
+// exact incident boundary: direct L1 variable-time division check
 module {
-  llvm.func @compress_bad(%coefficient: i32) -> i32 {
+  llvm.func @kyberslash2_compress_bad(%coefficient: i32) -> i32 {
     %four = llvm.mlir.constant(4 : i32) : i32
+    %fifteen = llvm.mlir.constant(15 : i32) : i32
     %round = llvm.mlir.constant(1664 : i32) : i32
     %q = llvm.mlir.constant(3329 : i32) : i32
     %shifted = llvm.shl %coefficient, %four : i32
     %numerator = llvm.add %shifted, %round : i32
-    // CONFIDENTIALITY BREAK: llvm.udiv is on a secret-derived value.
+    // CONFIDENTIALITY ERROR: secret-dependent division
+    // secret source: %numerator is derived from secret %coefficient
+    // observable effect: division latency can vary with the numerator value
+    // reason: inputs differing only in %coefficient execute a variable-time llvm.udiv before the public four-bit mask
+    // detection boundary: direct L1 source/LLVM-dialect check
     %quotient = llvm.udiv %numerator, %q : i32
-    llvm.return %quotient : i32
+    %compressed = llvm.and %quotient, %fifteen : i32
+    llvm.return %compressed : i32
   }
 }

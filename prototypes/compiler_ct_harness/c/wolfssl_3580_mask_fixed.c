@@ -1,11 +1,46 @@
 /*
- * CVE-2026-3580 fixed-shape reduction.  The equality is computed as a
- * bitwise zero/nonzero test in a noinline helper, so the caller cannot turn
- * the secret index into a conditional load or branch.
- * Upstream fix: https://github.com/wolfSSL/wolfssl/pull/9855
- * Compile: gcc -O3 -march=rv32i -mabi=ilp32 -S (historical target).
- * Secret input: table_index; expected unsafe instruction: bnez/bne.
- * Classification: fixed clean-room reduction.
+ * Case: wolfSSL CVE-2026-3580 table-selection mask fixed reduction
+ *
+ * Upstream repository:
+ *   https://github.com/wolfSSL/wolfssl
+ *
+ * Original vulnerable code:
+ *   https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
+ *
+ * Original fixed code:
+ *   https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
+ *
+ * Upstream symbol:
+ *   sp_256_get_entry_256_9
+ *
+ * Upstream vulnerable revision:
+ *   b6fbfad945d4b98fce619b6e5b6561b3eca1205b
+ *
+ * Upstream fixed revision:
+ *   8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
+ *
+ * Reduction classification:
+ *   independently-written-equivalent-reduction
+ *
+ * Relationship to upstream:
+ *   Re-expresses only the fixed-count table scan with a branchless equality
+ *   mask helper, not the complete wolfSSL ECC routine.
+ *
+ * Secret inputs:
+ *   table_index
+ *
+ * Public inputs:
+ *   table contents and fixed scan bound 16
+ *
+ * Expected confidentiality issue:
+ *   The fixed reduction should not expose table_index through a branch or
+ *   conditional table access.
+ *
+ * Canonical compiler command:
+ *   riscv32-gcc -O3 -march=rv32i -mabi=ilp32 -S wolfssl_3580_mask_fixed.c
+ *
+ * License note:
+ *   This independently written reduction contains no copied wolfSSL source.
  */
 typedef unsigned int uint32_t;
 

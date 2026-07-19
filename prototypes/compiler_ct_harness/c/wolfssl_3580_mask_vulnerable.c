@@ -1,15 +1,46 @@
 /*
- * wolfSSL CVE-2026-3580 clean-room reduction.
- * Upstream: https://osv.dev/vulnerability/CVE-2026-3580
- * Fix:      https://github.com/wolfSSL/wolfssl/pull/9855
- * Historical target: GCC -O3, RISC-V RV32I, symbol sp_256_get_entry_256_9.
- * Secret: table_index.  The scan bound and table contents are public.
- * Compile: gcc -O3 -march=rv32i -mabi=ilp32 -S (historical target).
- * Expected unsafe instruction: secret-dependent `bnez`/`bne`.
- * Classification: modeled backend-reproduction reduction.
+ * Case: wolfSSL CVE-2026-3580 table-selection mask vulnerable reduction
  *
- * The intended source idiom is a fixed scan plus an equality mask.  The
- * reported GCC backend can turn the equality into a secret-dependent `bnez`.
+ * Upstream repository:
+ *   https://github.com/wolfSSL/wolfssl
+ *
+ * Original vulnerable code:
+ *   https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
+ *
+ * Original fixed code:
+ *   https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
+ *
+ * Upstream symbol:
+ *   sp_256_get_entry_256_9
+ *
+ * Upstream vulnerable revision:
+ *   b6fbfad945d4b98fce619b6e5b6561b3eca1205b
+ *
+ * Upstream fixed revision:
+ *   8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
+ *
+ * Reduction classification:
+ *   independently-written-equivalent-reduction
+ *
+ * Relationship to upstream:
+ *   Re-expresses only the fixed-count table scan and equality-mask selection
+ *   shape. It does not copy the GPL-licensed wolfSSL function body.
+ *
+ * Secret inputs:
+ *   table_index
+ *
+ * Public inputs:
+ *   table contents and fixed scan bound 16
+ *
+ * Expected confidentiality issue:
+ *   On RV32I with GCC -O3, the equality mask can be lowered to a
+ *   secret-dependent bnez/bne branch.
+ *
+ * Canonical compiler command:
+ *   riscv32-gcc -O3 -march=rv32i -mabi=ilp32 -S wolfssl_3580_mask_vulnerable.c
+ *
+ * License note:
+ *   This independently written reduction contains no copied wolfSSL source.
  */
 typedef unsigned int uint32_t;
 
