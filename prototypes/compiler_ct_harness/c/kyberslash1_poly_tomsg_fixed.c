@@ -1,11 +1,46 @@
 /*
- * KyberSlash1 fixed multiply/shift reduction from the official patch.
- * The input domain is the same normalized coefficient as the vulnerable
- * function.  The division is replaced by a Barrett-style constant multiply.
- * Paper: https://kyberslash.cr.yp.to/kyberslash-20240628.pdf
- * Compile: clang -O0 -Xclang -disable-O0-optnone -target aarch64.
- * Secret input: coefficient; expected unsafe operation: secret-derived udiv.
- * Classification: fixed regression reduction.
+ * Case: KyberSlash1 / poly_tomsg fixed reduction
+ *
+ * Upstream repository:
+ *   https://github.com/pq-crystals/kyber
+ *
+ * Original vulnerable code:
+ *   https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L180-L198
+ *
+ * Original fixed code:
+ *   https://github.com/pq-crystals/kyber/commit/dda29cc63af721981ee2c831cf00822e69be3220
+ *
+ * Upstream symbol:
+ *   poly_tomsg
+ *
+ * Upstream vulnerable revision:
+ *   b628ba78711bc28327dc7d2d5c074a00f061884e
+ *
+ * Upstream fixed revision:
+ *   dda29cc63af721981ee2c831cf00822e69be3220
+ *
+ * Reduction classification:
+ *   faithful-minimal-reduction
+ *
+ * Relationship to upstream:
+ *   Replaces the division with the upstream multiply/add/shift formula while
+ *   preserving the final bit extraction.
+ *
+ * Secret inputs:
+ *   coefficient
+ *
+ * Public inputs:
+ *   KYBER_Q-derived constants
+ *
+ * Expected confidentiality issue:
+ *   The fixed reduction should contain no secret-derived division.
+ *
+ * Canonical compiler command:
+ *   clang -O0 -Xclang -disable-O0-optnone --target=aarch64-unknown-linux-gnu -S -emit-llvm kyberslash1_poly_tomsg_fixed.c
+ *
+ * License note:
+ *   This is a minimal reduction. Consult the linked upstream source for the
+ *   original implementation and license.
  */
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;

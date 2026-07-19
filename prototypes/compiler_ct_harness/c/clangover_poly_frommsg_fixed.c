@@ -1,10 +1,47 @@
 /*
- * Patched Clangover reduction.
- * Provenance and rationale: see clangover_ct_cmov.c and the Clangover links
- * in clangover_poly_frommsg_vulnerable.c.  No LTO is used for this pair.
- * Compile: clang -Os -fno-vectorize -fno-slp-vectorize -S (no LTO).
- * Secret input: msg; expected unsafe instruction: secret-dependent jcc.
- * Classification: fixed regression reduction.
+ * Case: Clangover / ML-KEM poly_frommsg fixed reduction
+ *
+ * Upstream repository:
+ *   https://github.com/pq-crystals/kyber
+ *
+ * Original vulnerable code:
+ *   https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L141-L159
+ *
+ * Original fixed code:
+ *   https://github.com/antoonpurnal/clangover/tree/7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
+ *
+ * Upstream symbol:
+ *   poly_frommsg
+ *
+ * Upstream vulnerable revision:
+ *   b628ba78711bc28327dc7d2d5c074a00f061884e
+ *
+ * Upstream fixed revision:
+ *   7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
+ *
+ * Reduction classification:
+ *   faithful-minimal-reduction
+ *
+ * Relationship to upstream:
+ *   Retains the bit-to-coefficient behavior but calls a separately compiled
+ *   constant-time helper, matching the Clangover mitigation strategy.
+ *
+ * Secret inputs:
+ *   msg
+ *
+ * Public inputs:
+ *   loop counters and public coefficient constant 1665
+ *
+ * Expected confidentiality issue:
+ *   The fixed pair should avoid a secret-dependent branch in the caller when
+ *   compiled without LTO; the helper becomes the review boundary.
+ *
+ * Canonical compiler command:
+ *   clang -Os -fno-vectorize -fno-slp-vectorize --target=x86_64-unknown-linux-gnu -S clangover_poly_frommsg_fixed.c
+ *
+ * License note:
+ *   This is a minimal reduction. Consult the linked upstream source and
+ *   Clangover repository for original implementation and license context.
  */
 typedef unsigned char uint8_t;
 typedef signed short int16_t;

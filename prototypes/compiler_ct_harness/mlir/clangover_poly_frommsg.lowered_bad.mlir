@@ -1,28 +1,28 @@
 // case: clangover/poly_frommsg
-// classification: modeled-from-verified-assembly (the imported LLVM IR remains branchless)
-// source revision: pq-crystals/kyber b628ba7
-// compiler: clang 17.0.6 -Os -fno-vectorize -fno-slp-vectorize
-// target: x86_64
-// SECRET: %bit is derived from %msg.
-// CONFIDENTIALITY BREAK: the backend makes the secret bit a branch condition.
+// classification: modeled-from-verified-assembly
+// c source: ../c/clangover_poly_frommsg_vulnerable.c
+// upstream GitHub source: https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L141-L159
+// upstream revision: b628ba78711bc28327dc7d2d5c074a00f061884e
+// secret: %bit, one bit derived from the message byte
+// public: coefficient constant 1665
+// expected verdict: reject
+// exact incident boundary: L1 target check catches this; L2 can produce bit=0/1 witness; L3 explains compiler regression
 module {
-  llvm.func @poly_frommsg_mask(%bit: i16) -> i16 {
+  // Verified x86 excerpt from the reduction:
+  //   btl %ecx, %r8d
+  //   jae .LBB0_4
+  llvm.func @clangover_poly_frommsg_x86_bad_model(%bit: i1) -> i16 {
     %zero = llvm.mlir.constant(0 : i16) : i16
     %constant = llvm.mlir.constant(1665 : i16) : i16
-    %mask = llvm.sub %zero, %bit : i16
-    %coefficient = llvm.and %mask, %constant : i16
-    llvm.return %coefficient : i16
-  }
-
-  // Verified x86 excerpt: btl %ecx, %r8d; jae .LBB0_4; movl $1665, %edx
-  // CONFIDENTIALITY BREAK: `jae` depends on the selected message bit.
-  llvm.func @poly_frommsg_x86_bad_model(%bit: i1) -> i16 {
-    %zero = llvm.mlir.constant(0 : i16) : i16
-    %constant = llvm.mlir.constant(1665 : i16) : i16
-    llvm.cond_br %bit, ^set, ^clear
-  ^set:
+    // CONFIDENTIALITY ERROR: secret-dependent branch
+    // secret source: %bit is derived from the secret message
+    // observable effect: branch direction and execution timing
+    // reason: inputs differing only in %bit select different successors
+    // detection boundary: L1 here; L2 reports bit=0/1; L3 attributes compiler introduction
+    llvm.cond_br %bit, ^taken, ^not_taken
+  ^taken:
     llvm.return %constant : i16
-  ^clear:
+  ^not_taken:
     llvm.return %zero : i16
   }
 }

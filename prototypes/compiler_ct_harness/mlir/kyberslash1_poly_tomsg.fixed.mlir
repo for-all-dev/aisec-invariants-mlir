@@ -1,20 +1,28 @@
 // case: kyberslash1/poly_tomsg
-// classification: compiler-imported fixed reduction
-// source revision: pq-crystals/kyber dda29cc / 11d00ff
-// compiler: clang 17.0.6 -O0 -Xclang -disable-O0-optnone -target aarch64
-// target: AArch64
-// SECRET: %coefficient is secret-derived.
-// PATCHED: multiply/add/shift replacement contains no division.
+// classification: compiler-generated-minimized
+// c source: ../c/kyberslash1_poly_tomsg_fixed.c
+// upstream GitHub source: https://github.com/pq-crystals/kyber/commit/dda29cc63af721981ee2c831cf00822e69be3220
+// upstream revision: dda29cc63af721981ee2c831cf00822e69be3220
+// secret: %coefficient
+// public: KYBER_Q-derived reciprocal and shift constants
+// expected verdict: pass
+// exact incident boundary: L1 confirms no division remains
 module {
-  llvm.func @poly_tomsg_fixed(%coefficient: i32) -> i32 {
-    %two = llvm.mlir.constant(2 : i32) : i32
+  llvm.func @kyberslash1_poly_tomsg_fixed(%coefficient: i32) -> i32 {
+    %one = llvm.mlir.constant(1 : i32) : i32
     %round = llvm.mlir.constant(1665 : i32) : i32
     %reciprocal = llvm.mlir.constant(80635 : i32) : i32
     %shift = llvm.mlir.constant(28 : i32) : i32
-    %shifted = llvm.shl %coefficient, %two : i32
+    %shifted = llvm.shl %coefficient, %one : i32
     %numerator = llvm.add %shifted, %round : i32
+    // CONFIDENTIALITY REPAIR: reciprocal multiply replaces division
+    // secret source: %numerator is derived from secret %coefficient
+    // safe effect: no division instruction or helper is selected
+    // reason: multiply/add/shift sequence preserves the documented bit result on the Kyber coefficient domain
+    // detection boundary: L1 confirms forbidden division is absent
     %scaled = llvm.mul %numerator, %reciprocal : i32
     %quotient = llvm.lshr %scaled, %shift : i32
-    llvm.return %quotient : i32
+    %bit = llvm.and %quotient, %one : i32
+    llvm.return %bit : i32
   }
 }

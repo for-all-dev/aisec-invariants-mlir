@@ -2,11 +2,16 @@ SHELL := /bin/sh
 
 include toolchains.mk
 
-.PHONY: all verify compile-host regen-mlir check-codegen clean \
-	clangover wolfssl-3580 wolfssl-3579 kyberslash
+.PHONY: all verify compile-host regen-mlir check-codegen check-equivalence \
+	check-provenance check-annotations clean clangover clangover-models \
+	wolfssl-3580 wolfssl-3579 kyberslash
 
-SOURCES := $(wildcard *.c)
+PYTHON ?= python3
+
+SOURCES := $(filter-out equivalence_driver.c,$(wildcard *.c))
 HOST_OBJECTS := $(patsubst %.c,$(BUILD)/host/%.o,$(SOURCES))
+EQUIV_DRIVER := $(BUILD)/host/equivalence_driver.o
+EQUIV_BIN := $(BUILD)/host/equivalence_driver
 
 all: verify
 
@@ -17,6 +22,9 @@ clangover: \
 	$(BUILD)/mlir/clangover_poly_frommsg.lowered_bad.mlir \
 	$(BUILD)/mlir/clangover_poly_frommsg.lowered_fixed.mlir
 	@echo "Clangover C, assembly, LLVM IR, and imported MLIR are ready"
+
+clangover-models:
+	./generate_clangover_mlir.sh
 
 wolfssl-3580: \
 	$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.s \
@@ -45,7 +53,14 @@ compile-host: $(HOST_OBJECTS)
 
 $(BUILD)/host/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CLANG) $(COMMON_CFLAGS) -c $< -o $@
+	$(HOST_CC) $(COMMON_CFLAGS) -c $< -o $@
+
+$(EQUIV_DRIVER): equivalence_driver.c
+	@mkdir -p $(dir $@)
+	$(HOST_CC) $(COMMON_CFLAGS) -c $< -o $@
+
+$(EQUIV_BIN): $(HOST_OBJECTS) $(EQUIV_DRIVER)
+	$(HOST_CC) $(COMMON_CFLAGS) $^ -o $@
 
 $(BUILD)/x86/clangover_poly_frommsg_vulnerable.ll: clangover_poly_frommsg_vulnerable.c
 	@mkdir -p $(dir $@)
@@ -190,7 +205,17 @@ check-codegen: compile-host \
 	  echo "SKIP: set RISCV_GCC to test the historical GCC CVE-2026-3580 lowering"; \
 	fi
 
-verify: compile-host check-codegen regen-mlir
+check-equivalence: $(EQUIV_BIN)
+	$(EQUIV_BIN)
+	@echo "Equivalence and witness smoke checks passed"
+
+check-provenance:
+	$(PYTHON) check_harness.py provenance
+
+check-annotations:
+	$(PYTHON) check_harness.py annotations
+
+verify: compile-host check-provenance check-annotations check-equivalence check-codegen regen-mlir
 	@for f in ../mlir/*.mlir; do $(MLIR_OPT) --verify-each "$$f" -o /dev/null; done
 	@echo "C compilation, code-generation checks, and checked-in MLIR parsing succeeded"
 

@@ -1,11 +1,45 @@
 /*
- * Fixed-iteration software multiplication reduction for RV32I.
- * It has no 64-bit multiply operation and therefore does not require
- * compiler-generated __muldi3.  The loop count is public and fixed at 64.
- * Provenance: https://nvd.nist.gov/vuln/detail/CVE-2026-3579
- * Compile: clang -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32.
- * Secret input: secret_a; expected unsafe operation: call __muldi3.
- * Classification: fixed clean-room reduction.
+ * Case: wolfSSL CVE-2026-3579 RV32I fixed-iteration multiply reduction
+ *
+ * Upstream repository:
+ *   https://github.com/wolfSSL/wolfssl
+ *
+ * Original vulnerable code:
+ *   https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
+ *
+ * Original fixed code:
+ *   https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
+ *
+ * Upstream symbol:
+ *   sp_256_mul_9 and related SP arithmetic
+ *
+ * Upstream vulnerable revision:
+ *   b6fbfad945d4b98fce619b6e5b6561b3eca1205b
+ *
+ * Upstream fixed revision:
+ *   8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
+ *
+ * Reduction classification:
+ *   independently-written-equivalent-reduction
+ *
+ * Relationship to upstream:
+ *   Replaces the compiler helper with a public 64-iteration shift/mask/add
+ *   routine for the same unsigned multiplication result.
+ *
+ * Secret inputs:
+ *   secret_a and secret_b
+ *
+ * Public inputs:
+ *   fixed loop count 64 and target profile
+ *
+ * Expected confidentiality issue:
+ *   The fixed reduction should not call __muldi3 or branch on secret bits.
+ *
+ * Canonical compiler command:
+ *   clang -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -S wolfssl_3579_mul_fixed.c
+ *
+ * License note:
+ *   This independently written reduction contains no copied wolfSSL source.
  */
 typedef unsigned long long uint64_t;
 
