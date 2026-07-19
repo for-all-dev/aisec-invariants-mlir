@@ -11,7 +11,7 @@
  *   https://github.com/vllm-project/vllm/issues/16016
  *
  * Original fixed code:
- *   none -- this harness models public maximum-size padding
+ *   none -- the paired fixture writes constant public count outputs
  *
  * Upstream symbol:
  *   none
@@ -26,17 +26,21 @@
  *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models only the observable allocation and work counts associated with a
- *   private sequence length. It does not reproduce vLLM scheduling.
+ *   Models two public count outputs associated with a private sequence
+ *   length. It contains no allocation, dynamic shape, loop, or scheduler
+ *   event; mapping the fields to those real effects is an L4 obligation.
  *
  * Secret inputs:
- *   secret_length
+ *   secret_length and private_result; private_result is returned only through
+ *   the private result channel
  *
  * Public inputs:
- *   private_result and public observation addresses
+ *   public count-output addresses; the returned private_result is outside the
+ *   modeled public observation boundary
  *
  * Expected confidentiality issue:
- *   Allocation size and iteration count directly reveal secret_length.
+ *   Both public count outputs directly reveal secret_length in the reduced
+ *   model.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Wpedantic -c dynamic_kv_length_bad.c

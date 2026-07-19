@@ -19,9 +19,8 @@ clangover: \
 	$(BUILD)/x86/clangover_poly_frommsg_vulnerable.s \
 	$(BUILD)/x86/clangover_poly_frommsg_fixed.s \
 	$(BUILD)/mlir/clangover_poly_frommsg.source.mlir \
-	$(BUILD)/mlir/clangover_poly_frommsg.lowered_bad.mlir \
-	$(BUILD)/mlir/clangover_poly_frommsg.lowered_fixed.mlir
-	@echo "Clangover C, assembly, LLVM IR, and imported MLIR are ready"
+	$(BUILD)/mlir/clangover_poly_frommsg.fixed_source.mlir
+	@echo "Clangover C, assembly, LLVM IR, and source-level MLIR imports are ready"
 
 clangover-models:
 	./generate_clangover_mlir.sh
@@ -30,17 +29,15 @@ wolfssl-3580: \
 	$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.s \
 	$(BUILD)/rv32/wolfssl_3580_mask_fixed.s \
 	$(BUILD)/mlir/wolfssl_3580_mask.source.mlir \
-	$(BUILD)/mlir/wolfssl_3580_mask.target_bad.mlir \
-	$(BUILD)/mlir/wolfssl_3580_mask.target_fixed.mlir
-	@echo "wolfSSL 3580 C, RV32I assembly, LLVM IR, and MLIR model are ready"
+	$(BUILD)/mlir/wolfssl_3580_mask.fixed_source.mlir
+	@echo "wolfSSL 3580 C, RV32I assembly, LLVM IR, and source-level MLIR imports are ready"
 
 wolfssl-3579: \
 	$(BUILD)/rv32/wolfssl_3579_mul_vulnerable.s \
 	$(BUILD)/rv32/wolfssl_3579_mul_fixed.s \
 	$(BUILD)/mlir/wolfssl_3579_mul.source.mlir \
-	$(BUILD)/mlir/wolfssl_3579_mul.target_bad.mlir \
-	$(BUILD)/mlir/wolfssl_3579_mul.target_fixed.mlir
-	@echo "wolfSSL 3579 C, RV32I assembly, LLVM IR, and MLIR model are ready"
+	$(BUILD)/mlir/wolfssl_3579_mul.fixed_source.mlir
+	@echo "wolfSSL 3579 C, RV32I assembly, LLVM IR, and source-level MLIR imports are ready"
 
 kyberslash: \
 	$(BUILD)/mlir/kyberslash1_poly_tomsg.bad.mlir \
@@ -134,37 +131,28 @@ endef
 
 regen-mlir: \
 	$(BUILD)/mlir/clangover_poly_frommsg.source.mlir \
-	$(BUILD)/mlir/clangover_poly_frommsg.lowered_bad.mlir \
-	$(BUILD)/mlir/clangover_poly_frommsg.lowered_fixed.mlir \
+	$(BUILD)/mlir/clangover_poly_frommsg.fixed_source.mlir \
 	$(BUILD)/mlir/wolfssl_3580_mask.source.mlir \
-	$(BUILD)/mlir/wolfssl_3580_mask.target_bad.mlir \
-	$(BUILD)/mlir/wolfssl_3580_mask.target_fixed.mlir \
+	$(BUILD)/mlir/wolfssl_3580_mask.fixed_source.mlir \
 	$(BUILD)/mlir/wolfssl_3579_mul.source.mlir \
-	$(BUILD)/mlir/wolfssl_3579_mul.target_bad.mlir \
-	$(BUILD)/mlir/wolfssl_3579_mul.target_fixed.mlir \
+	$(BUILD)/mlir/wolfssl_3579_mul.fixed_source.mlir \
 	$(BUILD)/mlir/kyberslash1_poly_tomsg.bad.mlir \
 	$(BUILD)/mlir/kyberslash1_poly_tomsg.fixed.mlir \
 	$(BUILD)/mlir/kyberslash2_compress.bad.mlir \
 	$(BUILD)/mlir/kyberslash2_compress.fixed.mlir
-	@echo "Generated standard MLIR snapshots under $(BUILD)/mlir"
+	@echo "Generated source-level standard MLIR imports under $(BUILD)/mlir"
 
 $(BUILD)/mlir/clangover_poly_frommsg.source.mlir: $(BUILD)/x86/clangover_poly_frommsg_vulnerable.ll
 	$(IMPORT_MLIR)
-$(BUILD)/mlir/clangover_poly_frommsg.lowered_bad.mlir: $(BUILD)/x86/clangover_poly_frommsg_vulnerable.ll
-	$(IMPORT_MLIR)
-$(BUILD)/mlir/clangover_poly_frommsg.lowered_fixed.mlir: $(BUILD)/x86/clangover_poly_frommsg_fixed.ll
+$(BUILD)/mlir/clangover_poly_frommsg.fixed_source.mlir: $(BUILD)/x86/clangover_poly_frommsg_fixed.ll
 	$(IMPORT_MLIR)
 $(BUILD)/mlir/wolfssl_3580_mask.source.mlir: $(BUILD)/rv32/wolfssl_3580_mask_vulnerable.ll
 	$(IMPORT_MLIR)
-$(BUILD)/mlir/wolfssl_3580_mask.target_bad.mlir: $(BUILD)/rv32/wolfssl_3580_mask_vulnerable.ll
-	$(IMPORT_MLIR)
-$(BUILD)/mlir/wolfssl_3580_mask.target_fixed.mlir: $(BUILD)/rv32/wolfssl_3580_mask_fixed.ll
+$(BUILD)/mlir/wolfssl_3580_mask.fixed_source.mlir: $(BUILD)/rv32/wolfssl_3580_mask_fixed.ll
 	$(IMPORT_MLIR)
 $(BUILD)/mlir/wolfssl_3579_mul.source.mlir: $(BUILD)/rv32/wolfssl_3579_mul_vulnerable.ll
 	$(IMPORT_MLIR)
-$(BUILD)/mlir/wolfssl_3579_mul.target_bad.mlir: $(BUILD)/rv32/wolfssl_3579_mul_vulnerable.ll
-	$(IMPORT_MLIR)
-$(BUILD)/mlir/wolfssl_3579_mul.target_fixed.mlir: $(BUILD)/rv32/wolfssl_3579_mul_fixed.ll
+$(BUILD)/mlir/wolfssl_3579_mul.fixed_source.mlir: $(BUILD)/rv32/wolfssl_3579_mul_fixed.ll
 	$(IMPORT_MLIR)
 $(BUILD)/mlir/kyberslash1_poly_tomsg.bad.mlir: $(BUILD)/aarch64/kyberslash1_poly_tomsg_vulnerable.ll
 	$(IMPORT_MLIR)

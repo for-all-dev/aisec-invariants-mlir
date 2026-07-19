@@ -11,7 +11,7 @@
  *   https://github.com/nealharris/BREACH/tree/71a9fcbe261b50486be88664046c478956dac857
  *
  * Original fixed code:
- *   none -- this harness uses deterministic public-length padding
+ *   none -- the paired reduced fixture writes a constant public length
  *
  * Upstream symbol:
  *   none
@@ -26,17 +26,19 @@
  *   reduced-runtime-model
  *
  * Relationship to upstream:
- *   Models padding every response to the same public wire length. It is not
- *   a compressor or proof of a production BREACH mitigation.
+ *   Writes the same public length for every secret and guess. It contains no
+ *   compressor, padding, or transport event, so production mitigation remains
+ *   an L4 obligation.
  *
  * Secret inputs:
  *   secret_byte
  *
  * Public inputs:
- *   public_guess, encrypted_body, public_wire_length address, and fixed length
+ *   public_guess, encrypted_body, public_wire_length address, and the public
+ *   constant fixed length 32
  *
  * Expected confidentiality repair:
- *   Public wire length is 32 for every secret and guess.
+ *   The reduced model writes public length 32 for every secret and guess.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Werror -c breach_compressed_length_fixed.c

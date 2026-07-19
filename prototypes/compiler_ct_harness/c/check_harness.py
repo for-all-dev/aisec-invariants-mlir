@@ -53,6 +53,81 @@ REPAIR_BLOCK = re.compile(
 )
 
 
+# These snippets pin the distinctions that previously made several fixtures
+# misleading. They are structural regression checks, not an IFC proof.
+FIXTURE_CONTRACT_SNIPPETS: dict[str, tuple[str, ...]] = {
+    "explicit_error_oracle.bad.mlir": (
+        "// expected verdict: unsafe",
+        "// SANCTIONED RELEASE:",
+        '"sps.release_policy" = "padding_validity_v1"',
+        "llvm.store %status, %public_status",
+        "llvm.store %padding_error_detail, %public_error_detail",
+    ),
+    "explicit_error_oracle.fixed.mlir": (
+        "// expected verdict: verified",
+        "// SANCTIONED RELEASE:",
+        '"sps.release_policy" = "padding_validity_v1"',
+        "llvm.store %status, %public_status",
+        "llvm.store %zero, %public_error_detail",
+    ),
+    "ckks_unsafe_release.bad.mlir": (
+        "// private result:",
+        "// expected verdict: unsafe",
+        "llvm.store %raw_approximate_plaintext, %public_release",
+    ),
+    "ckks_unsafe_release.fixed.mlir": (
+        "// private result:",
+        "// expected verdict: conditional",
+        '"sps.contract_kind" = "sanitizer"',
+        '"sps.contract_status" = "requires_l4_evidence"',
+        '"sps.release_function" = "(raw & public_mask) & certificate_mask"',
+        '"sps.required_integrity" = "public_sanitizer_mask:trusted,certificate_ok:trusted"',
+        "%masked_plaintext = llvm.and %raw_approximate_plaintext, %public_sanitizer_mask",
+        "llvm.call @ckks_sanitize_model",
+        '"sps.release_policy" = "ckks_masked_release_v1"',
+        "llvm.store %sanitized, %public_release",
+    ),
+    "dynamic_kv_length.bad.mlir": (
+        "// expected verdict: unsafe for the reduced public-count-output model",
+        "// L4 extrapolation: no allocation, dynamic shape, loop, or scheduler event is encoded here",
+    ),
+    "dynamic_kv_length.fixed.mlir": (
+        "// expected verdict: verified for the reduced public-count-output model",
+        "// L4 extrapolation: actual fixed allocation and fixed work are not encoded here",
+    ),
+    "breach_compressed_length.bad.mlir": (
+        "// expected verdict: unsafe for the reduced public-wire-length-output model",
+        "// L4 extrapolation: the match-to-length relation is already inlined; no compressor is encoded",
+    ),
+    "breach_compressed_length.fixed.mlir": (
+        "// expected verdict: verified for the reduced public-wire-length-output model",
+        "// L4 extrapolation: no compressor, padding, or transport event is encoded here",
+    ),
+    "wolfssl_3579_mul.target_bad.mlir": (
+        "// expected verdict: model-relative unsafe under affected-rv32i-muldi3-v1; unknown without any helper summary",
+        '"sps.contract_status" = "assumed_l0_target_fact"',
+        '"sps.helper_latency" = "operand_dependent"',
+        '"sps.real_target_applicability" = "requires_l4_evidence"',
+        '"sps.relevant_operands" = array<i32: 0, 1>',
+    ),
+}
+
+ORDERED_FIXTURE_SNIPPETS: dict[str, tuple[str, ...]] = {
+    "explicit_error_oracle.bad.mlir": (
+        "llvm.store %status, %public_status",
+        "llvm.store %padding_error_detail, %public_error_detail",
+    ),
+    "explicit_error_oracle.fixed.mlir": (
+        "llvm.store %status, %public_status",
+        "llvm.store %zero, %public_error_detail",
+    ),
+    "ckks_unsafe_release.fixed.mlir": (
+        "llvm.call @ckks_sanitize_model",
+        "llvm.store %sanitized, %public_release",
+    ),
+}
+
+
 def fail(errors: list[str], path: Path, message: str) -> None:
     errors.append(f"{path.relative_to(ROOT)}: {message}")
 
@@ -140,6 +215,16 @@ def check_annotations() -> list[str]:
                 fail(errors, path, "fixed fixture contains a confidentiality error")
             if not REPAIR_BLOCK.search(text):
                 fail(errors, path, "lacks a complete repair block adjacent to an MLIR op")
+
+        for snippet in FIXTURE_CONTRACT_SNIPPETS.get(path.name, ()):
+            if snippet not in text:
+                fail(errors, path, f"missing fixture-contract snippet {snippet!r}")
+
+        ordered = ORDERED_FIXTURE_SNIPPETS.get(path.name, ())
+        if ordered and all(snippet in text for snippet in ordered):
+            positions = [text.index(snippet) for snippet in ordered]
+            if positions != sorted(positions):
+                fail(errors, path, "fixture-contract operations are out of order")
 
     return errors
 

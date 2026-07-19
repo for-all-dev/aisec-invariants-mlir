@@ -4,26 +4,49 @@
 // upstream GitHub source: https://github.com/microsoft/SEAL
 // upstream revision: none -- this is a policy model, not a Microsoft SEAL defect
 // secret: %raw_approximate_plaintext
-// public: certified value, certificate flag, and public release address
-// expected verdict: pass structurally; unresolved L4 certificate obligation
-// exact incident boundary: L1 ordering/policy; real noise sufficiency remains L4
+// public: trusted-integrity sanitizer mask and certificate flag, plus the public-release stored value
+// input invariant: %certificate_ok is a well-formed Boolean in {0, 1}
+// private result: the function return is not in the public observer projection
+// expected verdict: conditional on real sanitizer, certificate, and trusted-policy obligations
+// exact incident boundary: L1 sanitizer-before-release structure; L4 discharges production sufficiency
 module {
-  llvm.func @ckks_unsafe_release_fixed(
+  llvm.func @ckks_sanitize_model(
       %raw_approximate_plaintext: i32,
-      %certified_public_value: i32,
-      %certificate_ok: i32,
-      %public_release: !llvm.ptr) -> i32 {
+      %public_sanitizer_mask: i32,
+      %certificate_ok: i32) -> i32 attributes {
+    "sps.contract_kind" = "sanitizer",
+    "sps.contract_status" = "requires_l4_evidence",
+    "sps.release_function" = "(raw & public_mask) & certificate_mask",
+    "sps.release_policy" = "ckks_masked_release_v1",
+    "sps.required_integrity" = "public_sanitizer_mask:trusted,certificate_ok:trusted"
+  } {
     %one = llvm.mlir.constant(1 : i32) : i32
     %zero = llvm.mlir.constant(0 : i32) : i32
     %valid = llvm.and %certificate_ok, %one : i32
-    %mask = llvm.sub %zero, %valid : i32
-    %approved_public_value = llvm.and %certified_public_value, %mask : i32
-    // CONFIDENTIALITY REPAIR: release only a certificate-gated public input
-    // secret source: %raw_approximate_plaintext is absent from %approved_public_value
-    // removed observable: the sink no longer receives unsanitized plaintext
-    // reason: the released value depends only on declared public inputs
-    // detection boundary: L1 structure passes; L4 must discharge real sanitizer sufficiency
-    llvm.store %approved_public_value, %public_release : i32, !llvm.ptr
+    %certificate_mask = llvm.sub %zero, %valid : i32
+    %masked_plaintext = llvm.and %raw_approximate_plaintext, %public_sanitizer_mask : i32
+    %sanitized = llvm.and %masked_plaintext, %certificate_mask : i32
+    llvm.return %sanitized : i32
+  }
+
+  llvm.func @ckks_unsafe_release_fixed(
+      %raw_approximate_plaintext: i32,
+      %public_sanitizer_mask: i32,
+      %certificate_ok: i32,
+      %public_release: !llvm.ptr) -> i32 {
+    %sanitized = llvm.call @ckks_sanitize_model(
+      %raw_approximate_plaintext,
+      %public_sanitizer_mask,
+      %certificate_ok) : (i32, i32, i32) -> i32
+    // CONFIDENTIALITY REPAIR: release exactly the named sanitizer's policy function
+    // secret source: %raw_approximate_plaintext enters the declared sanitizer boundary
+    // removed observable: the sink receives no raw detail beyond ckks_masked_release_v1
+    // reason: this policy-tagged store consumes %sanitized, not the raw plaintext
+    // detection boundary: L1 checks ordering, L2 checks R equality, and L4 proves sufficiency
+    llvm.store %sanitized, %public_release {
+      "sps.release_guard" = "public_sanitizer_mask:trusted,certificate_ok:trusted",
+      "sps.release_policy" = "ckks_masked_release_v1"
+    } : i32, !llvm.ptr
     llvm.return %raw_approximate_plaintext : i32
   }
 }

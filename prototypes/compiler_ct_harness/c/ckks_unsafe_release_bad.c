@@ -11,7 +11,7 @@
  *   https://github.com/microsoft/SEAL
  *
  * Original fixed code:
- *   none -- the paired file models a certified public release
+ *   none -- the paired file models a certified masked release
  *
  * Upstream symbol:
  *   none
@@ -26,17 +26,26 @@
  *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models only release ordering. It does not implement CKKS or establish a
- *   circuit-privacy/noise theorem.
+ *   Models only the public release boundary. It does not implement CKKS or
+ *   establish a circuit-privacy/noise theorem. The function return is a
+ *   private result and is outside this fixture's public observer projection.
  *
  * Secret inputs:
  *   raw_approximate_plaintext
  *
  * Public inputs:
- *   certified_public_value, certificate_ok, and public release address
+ *   trusted-integrity public_sanitizer_mask and certificate_ok, plus the
+ *   public release address
+ *
+ * Input invariant:
+ *   certificate_ok is a well-formed Boolean in {0, 1}
+ *
+ * Public observations:
+ *   the value written through public_release; the function return is private
  *
  * Expected confidentiality issue:
- *   Raw approximate plaintext reaches the public sink before validation.
+ *   Raw approximate plaintext reaches the public sink without an approved
+ *   sanitizer result or certificate check.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Wpedantic -c ckks_unsafe_release_bad.c
@@ -48,10 +57,10 @@
 #include <stdint.h>
 
 uint32_t ckks_unsafe_release_bad(uint32_t raw_approximate_plaintext,
-                                 uint32_t certified_public_value,
+                                 uint32_t public_sanitizer_mask,
                                  uint32_t certificate_ok,
                                  uint32_t *public_release) {
-  (void)certified_public_value;
+  (void)public_sanitizer_mask;
   (void)certificate_ok;
   *public_release = raw_approximate_plaintext;
   return raw_approximate_plaintext;

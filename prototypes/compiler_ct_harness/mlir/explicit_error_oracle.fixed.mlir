@@ -3,22 +3,32 @@
 // c source: ../c/explicit_error_oracle_fixed.c
 // upstream GitHub source: https://github.com/openssl/openssl/blob/7fc67e0a33102aa47bbaa56533eeecb98c0450f7/crypto/rsa/rsa_pk1.c#L321-L418
 // upstream revision: 7fc67e0a33102aa47bbaa56533eeecb98c0450f7
-// secret: %padding_is_valid
-// public: %authorized_plaintext_length and uniform public status
-// expected verdict: pass for the status-channel reduction
-// exact incident boundary: L1 here; real synthetic-plaintext indistinguishability is an L4 mechanism obligation
+// secret: %padding_is_valid and %padding_error_detail
+// input invariant: %padding_is_valid is a well-formed Boolean in {0, 1}
+// public: %authorized_plaintext_length, public status, and uniform public error detail
+// expected verdict: verified for this reduced release-relative model when the declared validity release is authorized
+// exact incident boundary: L1 suppresses the extra detail; L2 authorizes only the validity bit; real synthetic-plaintext security is L4
 module {
   llvm.func @explicit_error_oracle_fixed(
       %padding_is_valid: i32,
+      %padding_error_detail: i32,
       %authorized_plaintext_length: i32,
-      %public_status: !llvm.ptr) -> i32 {
+      %public_status: !llvm.ptr,
+      %public_error_detail: !llvm.ptr) -> i32 {
+    %one = llvm.mlir.constant(1 : i32) : i32
     %zero = llvm.mlir.constant(0 : i32) : i32
-    // CONFIDENTIALITY REPAIR: publish a uniform status
-    // secret source: %padding_is_valid is deliberately absent from the status
-    // safe effect: a caller observes success 0 for both validity inputs
-    // reason: %zero has no data dependence on secret padding validity
-    // detection boundary: direct L1 error-event check passes for this reduction
-    llvm.store %zero, %public_status : i32, !llvm.ptr
+    %valid_bit = llvm.and %padding_is_valid, %one : i32
+    %status = llvm.xor %valid_bit, %one : i32
+    // SANCTIONED RELEASE: preserve exactly the authorized valid/invalid bit.
+    llvm.store %status, %public_status {
+      "sps.release_policy" = "padding_validity_v1"
+    } : i32, !llvm.ptr
+    // CONFIDENTIALITY REPAIR: replace the unauthorized padding detail with a constant
+    // secret source: %padding_error_detail is deliberately absent from the released value
+    // safe effect: callers observe error detail 0 for every secret padding failure
+    // reason: %zero has no data dependence on %padding_error_detail
+    // detection boundary: L1 finds no detail flow; L2 permits the separate %status release
+    llvm.store %zero, %public_error_detail : i32, !llvm.ptr
     llvm.return %authorized_plaintext_length : i32
   }
 }

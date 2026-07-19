@@ -11,7 +11,7 @@
  *   https://github.com/vllm-project/vllm/issues/16016
  *
  * Original fixed code:
- *   none -- this is a public-bound padding model
+ *   none -- the paired fixture writes constant public count outputs
  *
  * Upstream symbol:
  *   none
@@ -26,17 +26,21 @@
  *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models a fixed public capacity and fixed amount of externally visible
- *   work while preserving the private logical result.
+ *   Models two constant public count outputs while preserving the private
+ *   logical result. It contains no allocation, dynamic shape, loop, or
+ *   scheduler event; mapping the fields to those real effects is L4.
  *
  * Secret inputs:
- *   secret_length
+ *   secret_length and private_result; private_result is returned only through
+ *   the private result channel
  *
  * Public inputs:
- *   private_result, public maximum 64, and observation addresses
+ *   public count-output addresses and the public constant 64; the returned
+ *   private_result is outside the modeled public observation boundary
  *
  * Expected confidentiality repair:
- *   Allocation and iteration observations are always the public maximum 64.
+ *   Both public count outputs are always the public constant 64 in the
+ *   reduced model.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Wpedantic -c dynamic_kv_length_fixed.c
