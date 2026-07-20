@@ -30,3 +30,8 @@ secrets/
 #   uv.lock  — pins the exact dependency set, i.e. the config point a verdict is
 #              scoped to (PRINCIPLES §2, §4: "pin determinism ... note the
 #              machine/versions").
+
+# Overnight sweep per-run artifacts (regenerated each run; the progress/job
+# logs and the rolling report are machine- and time-specific, not evidence).
+sweep_logs/
+SWEEP_REPORT.md
