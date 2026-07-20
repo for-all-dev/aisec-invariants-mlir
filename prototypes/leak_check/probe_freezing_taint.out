@@ -1,0 +1,74 @@
+Freezing weight-fold: instruction-/data-level escalation of the codegen-diff finding
+torch 2.13.0+cu130
+
+==============================================================================
+[2] FUNCTIONAL DEPENDENCE  (deterministic; single-element perturbation)
+==============================================================================
+  base weight |.|<=0.9; element [0,0] set to v (the new max); surface=quant_scale
+  expected folded literal = v/127 (float32). Recover it from the frozen kernel.
+
+      v (max|w|)      expected v/127     recovered literal       abs err  match
+               1     0.0078740157187       0.0078740157187             0  True
+      1.00097656     0.0078817056492       0.0078817056492             0  True
+             1.5      0.011811023578        0.011811023578             0  True
+               2     0.0157480314374       0.0157480314374             0  True
+               5     0.0393700785935       0.0393700785935             0  True
+              42      0.330708652735        0.330708652735             0  True
+             100      0.787401556969        0.787401556969             0  True
+
+  all literals equal v/127 to float32 precision: True
+  fitted slope d(literal)/d(v) = 0.007874015562  (1/127 = 0.007874015748)
+  RESULT[functional-dependence]:
+    VERDICT: MEASURED SECRET->LITERAL MAP. The emitted constant is an
+             exact function of the secret: perturbing one weight element
+             by dv moves the baked-in literal by exactly dv/127.
+
+==============================================================================
+[1] COMPILE-TIME TAINT  (memcheck --track-origins on the compile step)
+==============================================================================
+  secret class maxabs1: max|w|=1  ->  fold max|w|/127 = 0.00787401572
+  positive arm: FROZEN compile with weight bytes UNDEFINED
+  negative arm: NON-FROZEN compile, same source, same taint (control)
+  the escalation looks for an in-region report at the literal-EMIT site (the
+  Python float formatter that writes the constant into the generated C++);
+  present frozen, absent non-frozen => the tainted value reaches the emitted
+  code and freezing is the cause. Whether --track-origins can further NAME
+  the weight buffer (client-request origin) is the open channel question.
+
+  running frozen arm under memcheck (slow) ...
+  --- frozen ---
+    taint-region markers in log: 2 (2 = begin+end bracket the compile)
+    in-region 'uninitialised' reports: 1000
+      at the literal-EMIT (float format) site : 184
+      with origin traced to the weight buffer : 0 (client request)
+      sample emit-site report [Conditional jump or move depends on uninitialised value(s)]:
+         err: at 0x1AB0DCC: format_float_internal.llvm.3443565418809939196 (in <home>/.local/share/uv/python/cpython-3.14.0-linux-x86_64-gnu/bin/python3.14)
+         err: by 0x1AB0D24: _PyFloat_FormatAdvancedWriter (in <home>/.local/share/uv/python/cpython-3.14.0-linux-x86_64-gnu/bin/python3.14)
+         err: by 0x1AB0C4D: float___format__ (in <home>/.local/share/uv/python/cpython-3.14.0-linux-x86_64-gnu/bin/python3.14)
+         Uninitialised value was created by a stack allocation
+         org: at 0x9DBF03B0: c10::impl::make_boxed_from_unboxed_functor<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<c10::Scalar (c10::DispatchKeySet, at::Tensor const&), &torch::autograd::VariableType::(anonymous namespace)::_local_scalar_dense>, c10::Scalar, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&> >, false>::call(c10::OperatorKernel*, c10::OperatorHandle const&, c10::DispatchKeySet, std::vector<c10::IValue, std::allocator<c10::IValue> >*) (in <repo>/prototypes/leak_check/.venv/lib/python3.14/site-packages/torch/lib/libtorch_cpu.so)
+
+  running nonfrozen arm under memcheck (slow) ...
+  --- nonfrozen ---
+    taint-region markers in log: 2 (2 = begin+end bracket the compile)
+    in-region 'uninitialised' reports: 4
+      at the literal-EMIT (float format) site : 0
+      with origin traced to the weight buffer : 0 (client request)
+
+  RESULT[compile-time-taint]:
+    frozen emit-site reports    : 184
+    non-frozen emit-site reports: 0  (control must be 0)
+    frozen emit report NAMES the weight buffer (client-request origin): False
+    VERDICT: INSTRUCTION-LEVEL SIGNAL, isolated to freezing -- memcheck
+             fires at the literal-emit site (float formatter) only under
+             freezing; the value serialized into the generated C++ is
+             UNDEFINED (secret-derived). --track-origins does NOT name the
+             weight buffer: it severs at the aten reduction's c10::Scalar,
+             one hop from the weight. So the fold-reaches-code step is
+             proven at the instruction level; the byte-exact origin is not.
+
+==============================================================================
+SUMMARY
+==============================================================================
+  functional-dependence : PROVEN (literal == max|w|/127 exactly)
+  compile-time taint    : INSTRUCTION-LEVEL SIGNAL at the literal-emit site, isolated to freezing
