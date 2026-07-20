@@ -1,0 +1,131 @@
+Freezing constant-fold probe (Inductor) | detector: output_code diff, normalized
+
+torch 2.13.0+cu130
+
+==============================================================================
+SURFACE: quant_scale   classes: maxabs1 vs maxabs100  (same-class control: maxabs1_ctl)
+  expected folded statistic:  maxabs1=0.00787401572   maxabs100=0.787401557
+==============================================================================
+  RESULT surface=quant_scale mode=frozen secret=quant_scale_maxabs1.npy out[0]=-0.00886488053948 expected_stat=0.0078740157187
+  RESULT surface=quant_scale mode=frozen secret=quant_scale_maxabs100.npy out[0]=-0.88648802042 expected_stat=0.787401556969
+  RESULT surface=quant_scale mode=frozen secret=quant_scale_maxabs1_ctl.npy out[0]=-0.00886488053948 expected_stat=0.0078740157187
+  RESULT surface=quant_scale mode=nonfrozen secret=quant_scale_maxabs1.npy out[0]=-0.00886488053948 expected_stat=0.0078740157187
+  RESULT surface=quant_scale mode=nonfrozen secret=quant_scale_maxabs100.npy out[0]=-0.88648802042 expected_stat=0.787401556969
+
+2x2  (codegen(A) vs codegen(B)):
+  non-frozen : IDENTICAL -> oblivious
+  frozen     : DIFFERS -> leak
+  same-class control (frozen maxabs1 vs maxabs1_ctl): IDENTICAL (ok)
+
+  frozen codegen DIFFERS -- 7 diff lines:
+    --- maxabs1
+    +++ maxabs100
+    @@ -40,3 +40,3 @@
+                         auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x0), static_cast<int64_t>(16));
+    -                    auto tmp1 = static_cast<float>(0.007874015718698502);
+    +                    auto tmp1 = static_cast<float>(0.787401556968689);
+                         auto tmp2 = at::vec::Vectorized<float>(tmp1);
+
+  recovered literal vs expected folded statistic:
+    maxabs1: recovered=0.00787401572  expected=0.00787401572  match=True
+    maxabs100: recovered=0.787401557  expected=0.787401557  match=True
+
+  VERDICT[quant_scale]: COMPILER-INTRODUCED LEAK
+
+==============================================================================
+SURFACE: wmax   classes: max3 vs max100  (same-class control: max3_ctl)
+  expected folded statistic:  max3=3   max100=100
+==============================================================================
+  RESULT surface=wmax mode=frozen secret=wmax_max3.npy out[0]=-3.37751960754 expected_stat=3
+  RESULT surface=wmax mode=frozen secret=wmax_max100.npy out[0]=-112.583984375 expected_stat=100
+  RESULT surface=wmax mode=frozen secret=wmax_max3_ctl.npy out[0]=-3.37751960754 expected_stat=3
+  RESULT surface=wmax mode=nonfrozen secret=wmax_max3.npy out[0]=-3.37751960754 expected_stat=3
+  RESULT surface=wmax mode=nonfrozen secret=wmax_max100.npy out[0]=-112.583984375 expected_stat=100
+
+2x2  (codegen(A) vs codegen(B)):
+  non-frozen : IDENTICAL -> oblivious
+  frozen     : DIFFERS -> leak
+  same-class control (frozen max3 vs max3_ctl): IDENTICAL (ok)
+
+  frozen codegen DIFFERS -- 7 diff lines:
+    --- max3
+    +++ max100
+    @@ -40,3 +40,3 @@
+                         auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x0), static_cast<int64_t>(16));
+    -                    auto tmp1 = static_cast<float>(3.0);
+    +                    auto tmp1 = static_cast<float>(100.0);
+                         auto tmp2 = at::vec::Vectorized<float>(tmp1);
+
+  recovered literal vs expected folded statistic:
+    max3: recovered=3  expected=3  match=True
+    max100: recovered=100  expected=100  match=True
+
+  VERDICT[wmax]: COMPILER-INTRODUCED LEAK
+
+==============================================================================
+SURFACE: wsum   classes: sum7 vs sum100  (same-class control: sum7_ctl)
+  expected folded statistic:  sum7=7.00005722   sum100=99.9999695
+==============================================================================
+  RESULT surface=wsum mode=frozen secret=wsum_sum7.npy out[0]=-7.88094234467 expected_stat=7.00005722046
+  RESULT surface=wsum mode=frozen secret=wsum_sum100.npy out[0]=-112.583953857 expected_stat=99.9999694824
+  RESULT surface=wsum mode=frozen secret=wsum_sum7_ctl.npy out[0]=-7.88086366653 expected_stat=6.99997329712
+  RESULT surface=wsum mode=nonfrozen secret=wsum_sum7.npy out[0]=-7.88090658188 expected_stat=7.00005722046
+  RESULT surface=wsum mode=nonfrozen secret=wsum_sum100.npy out[0]=-112.583999634 expected_stat=99.9999694824
+
+2x2  (codegen(A) vs codegen(B)):
+  non-frozen : IDENTICAL -> oblivious
+  frozen     : DIFFERS -> leak
+  same-class control (frozen sum7 vs sum7_ctl): DIFFERS (DETECTOR BROKEN)
+
+  frozen codegen DIFFERS -- 7 diff lines:
+    --- sum7
+    +++ sum100
+    @@ -40,3 +40,3 @@
+                         auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x0), static_cast<int64_t>(16));
+    -                    auto tmp1 = static_cast<float>(7.000056266784668);
+    +                    auto tmp1 = static_cast<float>(99.9999771118164);
+                         auto tmp2 = at::vec::Vectorized<float>(tmp1);
+
+  recovered literal vs expected folded statistic:
+    sum7: recovered=7.00005627  expected=7.00005722  match=True
+    sum100: recovered=99.9999771  expected=99.9999695  match=True
+
+  VERDICT[wsum]: inconclusive
+
+==============================================================================
+SURFACE: wnorm   classes: norm2 vs norm100  (same-class control: norm2_ctl)
+  expected folded statistic:  norm2=0.5   norm100=0.00999999978
+==============================================================================
+  RESULT surface=wnorm mode=frozen secret=wnorm_norm2.npy out[0]=-0.562919914722 expected_stat=0.5
+  RESULT surface=wnorm mode=frozen secret=wnorm_norm100.npy out[0]=-0.011258399114 expected_stat=0.00999999977648
+  RESULT surface=wnorm mode=frozen secret=wnorm_norm2_ctl.npy out[0]=-0.562919914722 expected_stat=0.5
+  RESULT surface=wnorm mode=nonfrozen secret=wnorm_norm2.npy out[0]=-0.562919974327 expected_stat=0.5
+  RESULT surface=wnorm mode=nonfrozen secret=wnorm_norm100.npy out[0]=-0.011258399114 expected_stat=0.00999999977648
+
+2x2  (codegen(A) vs codegen(B)):
+  non-frozen : IDENTICAL -> oblivious
+  frozen     : DIFFERS -> leak
+  same-class control (frozen norm2 vs norm2_ctl): IDENTICAL (ok)
+
+  frozen codegen DIFFERS -- 7 diff lines:
+    --- norm2
+    +++ norm100
+    @@ -40,3 +40,3 @@
+                         auto tmp0 = at::vec::Vectorized<float>::loadu(in_ptr0 + static_cast<int64_t>(x0), static_cast<int64_t>(16));
+    -                    auto tmp1 = static_cast<float>(0.5);
+    +                    auto tmp1 = static_cast<float>(0.010000000707805157);
+                         auto tmp2 = at::vec::Vectorized<float>(tmp1);
+
+  recovered literal vs expected folded statistic:
+    norm2: recovered=0.5  expected=0.5  match=True
+    norm100: recovered=0.0100000007  expected=0.00999999978  match=True
+
+  VERDICT[wnorm]: COMPILER-INTRODUCED LEAK
+
+==============================================================================
+SUMMARY  (non-frozen A=B? / frozen A!=B? / control ok? / literal recovered? -> verdict)
+==============================================================================
+  quant_scale  oblivious=Y  frozen-diff=Y  control=Y  literal=Y  -> GUN
+  wmax         oblivious=Y  frozen-diff=Y  control=Y  literal=Y  -> GUN
+  wsum         oblivious=Y  frozen-diff=Y  control=n  literal=Y  -> no
+  wnorm        oblivious=Y  frozen-diff=Y  control=Y  literal=Y  -> GUN
