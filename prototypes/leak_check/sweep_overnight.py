@@ -140,6 +140,14 @@ JOBS = [
     # Tier 3 -- timing. Heaviest and noisiest; must run alone (the serialization
     # above guarantees it). Catches cycle-count leaks Tier 0-2 are blind to.
     Job(
+        "freezing-taint",
+        3,
+        "probe_freezing_taint.py",
+        timeout=14400,
+        cost="~30min-h",
+        note="compile under memcheck: undefined weights reach the emitted literal (freezing only)",
+    ),
+    Job(
         "denormal-timing",
         3,
         "denormal_probe.py",
@@ -176,23 +184,63 @@ def config_point():
     return {"torch": torch_v, "valgrind": vg, "git": sha, "uname": uname}
 
 
+def _stamp():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def progress(ts, msg):
+    """
+    Append one timestamped line to the run's heartbeat log AND stdout, flushed
+    to disk immediately.
+
+    An unattended overnight run is only as useful as what you can see mid-flight.
+    This line hits `{ts}_progress.log` with an fsync, so `tail -f` shows the run
+    advancing even if the box is later inspected over a flaky link or the driver
+    is killed. Per-job detail streams to each job's own log (child stdout is run
+    unbuffered); this file is the one-line-per-event spine across all jobs.
+    """
+    line = f"{_stamp()}  {msg}"
+    print(line, flush=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
+    with open(os.path.join(LOG_DIR, f"{ts}_progress.log"), "a") as f:
+        f.write(line + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def run_job(job, ts):
     log_path = os.path.join(LOG_DIR, f"{ts}_tier{job.tier}_{job.name}.log")
-    print(f"  [tier {job.tier}] {job.name:<18} ({job.cost}) ... ", end="", flush=True)
+    rel = os.path.relpath(log_path, HERE)
     if not job.present:
-        print("SKIP (script absent)")
-        return {"job": job, "status": "absent", "log": None, "hits": [], "suspects": []}
+        progress(ts, f"[tier {job.tier}] {job.name:<18} SKIP (script absent)")
+        return {
+            "job": job,
+            "status": "absent",
+            "log": None,
+            "hits": [],
+            "suspects": [],
+            "elapsed": "0:00:00",
+        }
 
+    progress(
+        ts, f"[tier {job.tier}] {job.name:<18} START ({job.cost}, timeout {job.timeout}s) -> {rel}"
+    )
+    start = datetime.datetime.now()
+    # PYTHONUNBUFFERED so the child streams into its log line-by-line instead of
+    # holding stdout in a block buffer for the whole (possibly multi-hour) run --
+    # without this, a long job's log looks empty until the moment it exits.
+    env = dict(os.environ, PYTHONUNBUFFERED="1")
     with open(log_path, "w") as fh:
-        fh.write(f"# {job.name}: {' '.join(job.cmd)}\n\n")
+        fh.write(f"# {job.name}: {' '.join(job.cmd)}\n# started {_stamp()}\n\n")
         fh.flush()
         try:
             proc = subprocess.run(
-                job.cmd, cwd=HERE, stdout=fh, stderr=subprocess.STDOUT, timeout=job.timeout
+                job.cmd, cwd=HERE, env=env, stdout=fh, stderr=subprocess.STDOUT, timeout=job.timeout
             )
             status = "ok" if proc.returncode == 0 else f"exit {proc.returncode}"
         except subprocess.TimeoutExpired:
             status = "TIMEOUT"
+    elapsed = str(datetime.datetime.now() - start).split(".")[0]
 
     hits, suspects = [], []
     with open(log_path, errors="replace") as fh:
@@ -202,8 +250,19 @@ def run_job(job, ts):
             if SUSPECT_PAT.search(line):
                 suspects.append(line.strip())
     flag = "GUN?" if hits else ("suspect" if suspects else "clean")
-    print(f"{status:<10} {flag}")
-    return {"job": job, "status": status, "log": log_path, "hits": hits, "suspects": suspects}
+    progress(
+        ts,
+        f"[tier {job.tier}] {job.name:<18} DONE  {status:<10} {flag}  "
+        f"({elapsed}, {len(hits)} hit / {len(suspects)} suspect)",
+    )
+    return {
+        "job": job,
+        "status": status,
+        "log": log_path,
+        "hits": hits,
+        "suspects": suspects,
+        "elapsed": elapsed,
+    }
 
 
 def write_report(cfg, results, ts):
@@ -306,13 +365,23 @@ def main():
 
     os.makedirs(LOG_DIR, exist_ok=True)
     cfg = config_point()
-    print("config point: " + " | ".join(f"{k}={v}" for k, v in cfg.items()) + "\n")
+    progress(ts, "SWEEP START | " + " | ".join(f"{k}={v}" for k, v in cfg.items()))
+    progress(ts, f"plan: {len(plan)} jobs, tiers {sorted(tiers)}, serialized cheapest-first")
 
-    results = [run_job(j, ts) for j in plan]
+    results = []
+    for j in plan:
+        results.append(run_job(j, ts))
+        # Rewrite the report after every job, so SWEEP_REPORT.md is always a
+        # current snapshot -- a hang or crash still leaves the finished jobs'
+        # verdicts on disk instead of nothing-until-the-end.
+        write_report(cfg, results, ts)
+
     path, guns = write_report(cfg, results, ts)
-    print(
-        f"\nReport: {os.path.relpath(path, HERE)}  "
-        f"({len(guns)} candidate gun(s), {sum(1 for r in results if r['status'] not in ('ok', 'absent'))} non-clean exits)"
+    nonclean = sum(1 for r in results if r["status"] not in ("ok", "absent"))
+    progress(
+        ts,
+        f"SWEEP COMPLETE | {len(guns)} candidate gun(s), {nonclean} non-clean "
+        f"exit(s) | report: {os.path.relpath(path, HERE)}",
     )
     # Non-zero exit if anything flagged, so an overnight `&&` chain can gate on it.
     sys.exit(1 if guns else 0)
