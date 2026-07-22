@@ -1,0 +1,27 @@
+# REQUIRES: clang, aarch64-target
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=aarch64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/kyberslash1_poly_tomsg_vulnerable.c -o %t.ks1.bad.ll
+# RUN: %FileCheck %s --check-prefix=KS1-BAD --input-file=%t.ks1.bad.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=aarch64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/kyberslash1_poly_tomsg_fixed.c -o %t.ks1.fixed.ll
+# RUN: %FileCheck %s --check-prefix=KS1-FIXED --implicit-check-not='udiv i32' --input-file=%t.ks1.fixed.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=aarch64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/kyberslash2_compress_vulnerable.c -o %t.ks2.bad.ll
+# RUN: %FileCheck %s --check-prefix=KS2-BAD --input-file=%t.ks2.bad.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=aarch64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/kyberslash2_compress_fixed.c -o %t.ks2.fixed.ll
+# RUN: %FileCheck %s --check-prefix=KS2-FIXED --implicit-check-not='udiv i32' --input-file=%t.ks2.fixed.ll
+
+# KS1-BAD-LABEL: define{{.*}} @kyberslash1_poly_tomsg_vulnerable(
+# KS1-BAD: udiv i32
+# KS1-FIXED-LABEL: define{{.*}} @kyberslash1_poly_tomsg_fixed(
+# KS1-FIXED-NOT: udiv
+# KS1-FIXED: mul i32 {{.*}}, 80635
+# KS1-FIXED: lshr i32 {{.*}}, 28
+# KS1-FIXED-NOT: udiv
+# KS1-FIXED: ret i8
+
+# KS2-BAD-LABEL: define{{.*}} @kyberslash2_compress_vulnerable(
+# KS2-BAD: udiv i32
+# KS2-FIXED-LABEL: define{{.*}} @kyberslash2_compress_fixed(
+# KS2-FIXED-NOT: udiv
+# KS2-FIXED: mul i32 {{.*}}, 80635
+# KS2-FIXED: lshr i32 {{.*}}, 28
+# KS2-FIXED-NOT: udiv
+# KS2-FIXED: ret i8

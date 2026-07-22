@@ -1,0 +1,29 @@
+# REQUIRES: clang, x86-target
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %harness/c/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
+# RUN: %FileCheck %s --check-prefix=BAD --input-file=%t.bad.s
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %harness/c/clangover_poly_frommsg_fixed.c -o %t.fixed.s
+# RUN: %FileCheck %s --check-prefix=FIXED --input-file=%t.fixed.s
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %harness/c/clangover_ct_cmov.c -o %t.helper.s
+# RUN: %FileCheck %s --check-prefix=HELPER --implicit-check-not='j{{[a-z]+}}' --input-file=%t.helper.s
+
+# BAD-LABEL: clangover_poly_frommsg_vulnerable:
+# BAD: btl
+# BAD-NEXT: jae
+
+# FIXED-LABEL: clangover_poly_frommsg_fixed:
+# FIXED-NOT: jae
+# FIXED: btl
+# FIXED-NEXT: setb
+# FIXED-NOT: j
+# FIXED: callq clangover_ct_cmov@PLT
+# FIXED-NOT: jae
+# FIXED: .size clangover_poly_frommsg_fixed
+
+# HELPER-LABEL: clangover_ct_cmov:
+# HELPER-NOT: j
+# HELPER: negl
+# HELPER: andl
+# HELPER: andl
+# HELPER: orl
+# HELPER-NOT: j
+# HELPER: retq

@@ -1,0 +1,4 @@
+# REQUIRES: make, host-execution
+# RUN: %make -B -C %harness/c BUILD=%t.build HOST_CC=%host-cc check-equivalence | %FileCheck %s
+
+# CHECK: Equivalence and witness smoke checks passed
