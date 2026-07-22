@@ -1,0 +1,3 @@
+--- !FileInfo:
+  filepath: "/home/hp/apart-projects/staging-ni/include/stagingNI/Passes.td"
+  includes: "/home/hp/apart-projects/staging-ni;/home/hp/apart-projects/staging-ni/include;/home/hp/llvm-projects/llvm-project/mlir/include;/home/hp/llvm-projects/llvm-build-release/tools/mlir/include;/home/hp/llvm-projects/llvm-project/llvm/include;/home/hp/llvm-projects/llvm-build-release/include;/../mlir/include;/home/hp/apart-projects/staging-ni/include"
