@@ -1,0 +1,19 @@
+# REQUIRES: riscv32-gcc
+# RUN: %riscv32-gcc -O3 -march=rv32i -mabi=ilp32 -S %harness/c/wolfssl_3580_mask_vulnerable.c -o %t.bad.s
+# RUN: %FileCheck %s --check-prefix=BAD --input-file=%t.bad.s
+# RUN: %riscv32-gcc -O3 -march=rv32i -mabi=ilp32 -S %harness/c/wolfssl_3580_mask_fixed.c -o %t.fixed.s
+# RUN: %FileCheck %s --check-prefix=FIXED --input-file=%t.fixed.s
+
+# BAD-LABEL: wolfssl_3580_mask_vulnerable:
+# BAD: bne
+
+# FIXED-LABEL: ct_eq_mask{{.*}}:
+# FIXED-NOT: beq
+# FIXED-NOT: bne
+# FIXED-NOT: blt
+# FIXED-NOT: bge
+# FIXED: ret
+# FIXED-LABEL: wolfssl_3580_mask_fixed:
+# FIXED-NOT: bne
+# FIXED-NOT: beq
+# FIXED: ret

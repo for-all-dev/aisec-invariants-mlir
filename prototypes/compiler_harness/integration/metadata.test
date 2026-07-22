@@ -1,0 +1,3 @@
+# RUN: %python %harness/c/check_harness.py all | %FileCheck %s
+
+# CHECK: all checks passed

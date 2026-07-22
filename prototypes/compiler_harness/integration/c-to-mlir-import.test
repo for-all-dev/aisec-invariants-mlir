@@ -1,0 +1,12 @@
+# REQUIRES: clang, mlir-translate
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -S -emit-llvm %harness/c/dynamic_kv_length_bad.c -o %t.source.ll
+# RUN: %mlir-translate --import-llvm %t.source.ll -o %t.source.mlir
+# RUN: %mlir-opt --verify-each %t.source.mlir | %FileCheck %s --check-prefix=BAD
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -S -emit-llvm %harness/c/dynamic_kv_length_fixed.c -o %t.fixed_source.ll
+# RUN: %mlir-translate --import-llvm %t.fixed_source.ll -o %t.fixed_source.mlir
+# RUN: %mlir-opt --verify-each %t.fixed_source.mlir | %FileCheck %s --check-prefix=FIXED
+
+# BAD-LABEL: llvm.func @dynamic_kv_length_bad
+# BAD: llvm.store
+# FIXED-LABEL: llvm.func @dynamic_kv_length_fixed
+# FIXED: llvm.store

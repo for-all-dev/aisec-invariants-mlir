@@ -1,0 +1,14 @@
+# REQUIRES: clang, riscv32-target
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %harness/c/wolfssl_3579_mul_vulnerable.c -o %t.bad.s
+# RUN: %FileCheck %s --check-prefix=BAD --input-file=%t.bad.s
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %harness/c/wolfssl_3579_mul_fixed.c -o %t.fixed.s
+# RUN: %FileCheck %s --check-prefix=FIXED --input-file=%t.fixed.s
+
+# BAD-LABEL: wolfssl_3579_mul_vulnerable:
+# BAD: call __muldi3@plt
+
+# FIXED-LABEL: wolfssl_3579_mul_fixed:
+# FIXED-NOT: __muldi3
+# FIXED: bnez
+# FIXED-NOT: __muldi3
+# FIXED: .size wolfssl_3579_mul_fixed
