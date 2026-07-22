@@ -1,7 +1,0 @@
-# ninja log v5
-2	13	1784725681691670643	Passes.h.inc	bda670c49fb014de
-2	13	1784725681691670643	/home/hp/apart-projects/staging-ni/build/Passes.h.inc	bda670c49fb014de
-14	3798	1784725685479724923	tools/CMakeFiles/staging-ni-opt.dir/staging-ni-opt.cpp.o	881bef4f9c8866c6
-13	3963	1784725685647727349	lib/CMakeFiles/obj.StagingNITransforms.dir/VerifyStagingNonInterference.cpp.o	6b9256390c2e8aa0
-3963	3998	1784725685679727811	lib/libStagingNITransforms.a	f4176a7cb2e98578
-3998	4434	1784725686111734054	tools/staging-ni-opt	afc41b5c24589750
