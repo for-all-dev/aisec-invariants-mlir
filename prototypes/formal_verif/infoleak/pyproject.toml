@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "infoleak"
+version = "0.1.0"
+description = "Information-theoretic timing-leak estimation for binaries (layers C+D): I(secret;timing) in bits + dudect t-test"
+requires-python = ">=3.10"
+# NumPy for the histogram MI + permutation null; the stats (Welch t, MI,
+# permutation p) are implemented here rather than pulled from scipy, so the
+# dependency footprint stays small and matches ctverify's light install.
+dependencies = ["numpy>=1.24"]
+
+[project.scripts]
+infoleak = "infoleak.cli:main"
+
+[dependency-groups]
+# Dev tooling per the monorepo convention (README: ruff/ty/pytest/hypothesis).
+dev = [
+  "ruff>=0.6",
+  "ty>=0.0.1a1",
+  "pytest>=8",
+  "hypothesis>=6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

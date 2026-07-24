@@ -1,7 +1,5 @@
 # Formal verification of compiler-preserved security (per-program)
 
-Branch: `formal-verification-pipeline`. AI-drafted plan; owner reviews.
-
 ## Goal
 
 Take a compiler + a program P, and decide **per program** whether P is secure
@@ -54,9 +52,15 @@ are worked-example corpora that drive it.
   against a contract; verify hardware against the same contract (LeaVe for
   open-source RTL). Trust gap = contract vs silicon.
 - **C — validate the model against real silicon.** Revizor / Scam-V: relational
-  testing that the CPU does not leak beyond the contract.
+  testing that the CPU does not leak beyond the contract. Implemented as an
+  information estimate in [`silicon_c/`](silicon_c/) (over [`infoleak/`](infoleak/)):
+  measure the kernel on this CPU and compare the measured bits to what the A/B
+  contract allows — a `secure` contract that the silicon leaks past is a
+  quantified **contract violation**.
 - **D — final wall-clock net.** dudect / ct-fuzz: statistical timing measurement.
-  Detection, never proof.
+  Detection, never proof. Implemented in [`timing_d/`](timing_d/) as an
+  **information estimate** — mutual information `I(secret; timing)` in bits,
+  debiased against a permutation null, plus the dudect/TVLA t-test.
 
 Verdict logic (per program, per property): run at `-O0` and `-O2`.
 `PASS/PASS` → compiler preserved it. `PASS/FAIL` → compiler INTRODUCED the issue
@@ -149,16 +153,36 @@ DOIT/DIT for fixed latency of the rest. **Implemented: [`timing_a/`](timing_a/).
   Trust gap = contract vs silicon. (Out of scope — separate RTL tool.)
 
 ### C — validate the model against real silicon
-- [ ] **Revizor** / Scam-V: relational testing that the target CPU does not leak
-  beyond the assumed contract. Closes B's trust gap for black-box CPUs.
+**Implemented: [`silicon_c/`](silicon_c/)** (engine: [`infoleak/`](infoleak/)).
+- [x] Validate the contract on the actual chip *through an information estimate*
+  (the Revizor / Scam-V role: does the CPU leak beyond the contract?). Measure
+  the kernel on this silicon and compare measured `I(secret;timing)` to the
+  contract's allowance: a `secure` contract allows 0 bits, so any measured
+  channel **refutes** it. Headline result on the Xeon 8168: `d_denormal` is
+  `secure` under A/B (binsec sees no leak) yet leaks **~0.99 bits/query** →
+  `contract-violated`. Controls: `d_ct_baseline` → `consistent`,
+  `d_branch_earlyexit` → `confirmed`. **No binsec / no -m32** (C tests silicon).
+- [ ] Full **Revizor** speculation-contract fuzzing (test-case *generation*) for
+  black-box CPUs — the heavier version; `silicon_c/` covers the fixed-corpus,
+  contract-vs-measurement half.
 
 ### D — final wall-clock net (detection, not proof)
-- [ ] **dudect** / **ct-fuzz** on the same kernels: statistical timing test that
-  catches analog leaks (denormals, div latency, cache) invisible to A/B.
+**Implemented: [`timing_d/`](timing_d/)** (engine: [`infoleak/`](infoleak/)).
+- [x] **dudect**-style measurement on the native binary, reported as an
+  **information estimate** — `I(secret;timing)` in bits, debiased against a
+  label-permutation null, plus the dudect/TVLA t-test. Catches the analog leaks
+  invisible to A/B: `d_denormal` (subnormal-float assist, ~39× on this CPU,
+  ~0.99 bits) while the `d_ct_baseline` control stays at 0.000 bits. This is the
+  ~25× denormal channel `leak_check/` measured, now inside the formal pipeline.
+- [ ] **ct-fuzz** (input generation to *maximise* the timing gap) as a stronger
+  driver than the fixed two-class corpus.
 
 Composition target: A (formal, software) + B (formal vs contract) + hardware
 DOIT/DIT, with C validating the contract and D as the measured safety net —
 today's practical maximum for wall-clock, since no solver proves physical time.
+**A/B are formal proofs inside a machine model; C/D are measured, per-CPU
+detection** that quantifies, in bits, what escapes that model — together the
+full A+B+C+D coverage the roadmap set out.
 
 ## Documented references for compiler-introduced CT leaks
 - Oscar Reparaz, "Compilers and constant-time code" — https://www.reparaz.net/oscar/misc/cmov
