@@ -1,0 +1,6 @@
+# uv-managed environment (uv.lock IS committed)
+.venv/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+__pycache__/

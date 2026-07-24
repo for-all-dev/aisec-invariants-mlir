@@ -40,7 +40,18 @@ CC=gcc bash contract_b/run.sh
 rule "LEAKAGE CONTRACT B — cache-line granularity (clang)"
 CC=clang bash contract_b/run.sh
 
+# Layers C/D need NO binsec and NO -m32: they measure the native binary on the
+# real silicon. They run even where the formal A/B tools are unavailable.
+rule "TIMING LAYER D — wall-clock net as an information estimate (bits leaked)"
+CC=gcc bash timing_d/run.sh
+
+rule "TIMING LAYER C — validate the [ct] contract against real silicon"
+CC=gcc bash silicon_c/run.sh
+
 rule "ctverify UNIT TESTS  (parser + contract math; no binsec needed)"
 ( cd ctverify && uv run pytest )
+
+rule "infoleak UNIT TESTS  (MI estimator calibration + layer-C logic; no CPU tuning needed)"
+( cd infoleak && uv run pytest )
 
 rule "DONE"
