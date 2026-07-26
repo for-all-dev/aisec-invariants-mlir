@@ -1,4 +1,15 @@
 // RUN: %staging-ni-opt --verify-staging-ni --verify-diagnostics --split-input-file %s
+//
+// Drift guard. The function below is a hand-adapted COPY of
+// ../../mlir_leak/dynshape.mlir, and the whole point of the copy is that it
+// still represents what mlir_leak actually measures. Nothing enforced that,
+// so an edit upstream would silently leave this file asserting agreement
+// with a kernel that no longer exists in that shape. These RUN lines fail
+// the test if the upstream pattern this one mirrors -- a secret extent
+// index_cast into an scf.for bound and a secret-sized alloc -- is gone.
+// RUN: grep -q "arith.index_cast" %S/../../mlir_leak/dynshape.mlir
+// RUN: grep -q "memref.alloc(%%k)" %S/../../mlir_leak/dynshape.mlir
+// RUN: grep -q "scf.for .* to %%k step" %S/../../mlir_leak/dynshape.mlir
 
 // Cross-check against ../mlir_leak/dynshape.mlir: the secret there is a
 // buffer extent `k`, loaded from a protected memref and cast to `index`,
