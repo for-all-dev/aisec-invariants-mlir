@@ -8,6 +8,8 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
 using namespace mlir;
@@ -188,10 +190,21 @@ void seedRuntimeTaint(func::FuncOp func) {
 
     visitGenericRuntimePropagation(op);
 
-    visitArithmeticStagingPropagation(op);
+    visitGenericStagingPropagation(op);
 
     if (auto cast = dyn_cast<arith::IndexCastOp>(op))
         visitRuntimeToStagingCast(cast);
+
+    // Memory writes: taint the destination buffer (see visitStore).
+    if (auto st = dyn_cast<memref::StoreOp>(op))
+        visitStore(op, st.getValueToStore(), st.getMemRef());
+
+    if (auto st = dyn_cast<affine::AffineStoreOp>(op))
+        visitStore(op, st.getValueToStore(), st.getMemRef());
+
+    // Constructs whose taint behaviour this analysis does not model.
+    visitUnmodeledAliasing(op);
+    visitCall(op);
 
     if (auto loop = dyn_cast<affine::AffineForOp>(op))
         visitAffineFor(loop);
@@ -213,6 +226,14 @@ void seedRuntimeTaint(func::FuncOp func) {
 
     if (auto cond = dyn_cast<scf::ConditionOp>(op))
         visitScfCondition(cond);
+
+    // cf.cond_br is what scf.if/scf.for BECOME after --convert-scf-to-cf.
+    // Checking only the scf forms meant the analysis went blind on exactly
+    // the same program one standard lowering step later -- and silently, so
+    // a before/after comparison would have read that blindness as the leak
+    // having been removed.
+    if (auto br = dyn_cast<cf::CondBranchOp>(op))
+        visitCondBranch(br);
 }
 
 //------------------------------------------------------------
@@ -305,34 +326,24 @@ void visitGenericRuntimePropagation(Operation *op) {
 // Generic staging propagation
 //------------------------------------------------------------
 
-void visitArithmeticStagingPropagation(Operation *op) {
-
-  //--------------------------------------------------------
-  // Only propagate through supported arithmetic operations
-  //--------------------------------------------------------
-
-  // arith.cmpi is included so a staging-tainted index can reach an i1 used
-  // as an scf.if/scf.while condition: without it, visitScfIf/
-  // visitScfCondition can only ever fire on a condition that is ALREADY i1
-  // and ALREADY tainted, which nothing upstream can ever produce (every
-  // realistic condition is built from a comparison over index-typed data).
-  if (!isa<
-          arith::AddIOp,
-          arith::SubIOp,
-          arith::MulIOp,
-          arith::DivSIOp,
-          arith::DivUIOp,
-          arith::RemSIOp,
-          arith::RemUIOp,
-          arith::IndexCastOp,
-          arith::MaxSIOp,
-          arith::MinSIOp,
-          arith::CmpIOp>(op))
-    return;
-
-  //--------------------------------------------------------
-  // Does any operand carry staging taint?
-  //--------------------------------------------------------
+// Propagates through ANY operation, exactly like runtime taint above.
+//
+// This used to be gated on a whitelist of arith ops (addi/subi/muli/divs/
+// divu/rems/remu/index_cast/maxsi/minsi/cmpi). A whitelist is a silent-safe
+// construct by design: an operation NOT on it that consumed a
+// staging-tainted value produced an untainted result, so the taint vanished
+// with no diagnostic -- arith.shli, affine.apply, arith.select, index.add,
+// any dialect the whitelist had not enumerated. Every op added to MLIR was
+// a new hole, and the analysis reported "no violation" for all of them.
+//
+// Over-approximating instead is the direction this project already takes
+// elsewhere (prototypes/initial's VerifyNonInterference: "if ANY operand of
+// an op is tainted, ALL of its results become tainted -- imprecise but
+// sound"). Results of any type are marked: the sinks below only ever
+// consult index/i1 operands, so tainting e.g. an f32 costs nothing in
+// precision there, while dropping it would reopen the hole for a value that
+// is later cast back to index.
+void visitGenericStagingPropagation(Operation *op) {
 
   bool hasStagingInput = false;
 
@@ -346,15 +357,7 @@ void visitArithmeticStagingPropagation(Operation *op) {
   if (!hasStagingInput)
     return;
 
-  //--------------------------------------------------------
-  // Propagate to index results (loop bounds/addresses) and i1 results
-  // (arith.cmpi, feeding an scf.if/scf.while condition)
-  //--------------------------------------------------------
-
   for (Value result : op->getResults()) {
-
-    if (!result.getType().isIndex() && !result.getType().isInteger(1))
-      continue;
 
     if (stagingTainted.insert(result).second) {
 
@@ -367,6 +370,46 @@ void visitArithmeticStagingPropagation(Operation *op) {
       llvm::errs() << "\n";
     }
   }
+}
+
+//------------------------------------------------------------
+// Memory: a store of tainted data taints the destination buffer
+//------------------------------------------------------------
+
+// Without this the analysis loses taint completely across a memory
+// round-trip -- `memref.store %secret, %slot[...]` then `memref.load
+// %slot[...]` produced a clean value, and the leak downstream of it was
+// reported as no violation AND no UNKNOWN. Verified silent before this
+// change; test/memory-roundtrip.mlir pins it.
+//
+// A store has no results, so generic propagation cannot see it: the buffer
+// is an OPERAND. Taint the buffer value itself, and generic propagation
+// then carries it to any load's result (the load's memref operand is
+// tainted).
+//
+// Deliberately coarse -- whole-buffer, no indices, no alias analysis. A
+// tainted store anywhere in a memref makes every later load from that SSA
+// value tainted, including loads of untouched slots. That over-approximates
+// (false positives) rather than under-approximating (silent misses), which
+// is the only acceptable direction here. True aliasing (two SSA values for
+// one allocation, via memref.cast/subview/function arguments) is NOT
+// modeled and is reported as UNKNOWN by visitUnmodeledAliasing below.
+void visitStore(Operation *op, Value stored, Value dest) {
+
+  if (!isTainted(stored))
+    return;
+
+  bool newRuntime = isRuntimeTainted(stored) && runtimeTainted.insert(dest).second;
+  bool newStaging = isStagingTainted(stored) && stagingTainted.insert(dest).second;
+
+  if (!newRuntime && !newStaging)
+    return;
+
+  llvm::errs() << "\n[Taint -> Memory]\n";
+  llvm::errs() << "Operation : " << op->getName().getStringRef() << "\n";
+  llvm::errs() << "Buffer : ";
+  dest.print(llvm::errs());
+  llvm::errs() << "\n";
 }
   //------------------------------------------------------------
 // Taint queries
@@ -552,6 +595,69 @@ void visitScfCondition(scf::ConditionOp cond) {
         cond.getCondition(),
         "scf.while condition depends on protected runtime data "
         "(staging-time control flow)");
+}
+
+// cf.cond_br: the lowered form of every staging-time branch. Same finding
+// as visitScfIf, one dialect down.
+void visitCondBranch(cf::CondBranchOp br) {
+
+  if (isStagingTainted(br.getCondition()))
+    reportViolation(
+        br,
+        br.getCondition(),
+        "branch condition depends on protected runtime data "
+        "(staging-time control flow)");
+}
+
+//------------------------------------------------------------
+// Unmodeled: aliasing and interprocedural flow -> UNKNOWN
+//------------------------------------------------------------
+
+// The memory model above is per-SSA-value: it taints the buffer VALUE a
+// store targets. Any op that produces a second SSA handle onto the same
+// underlying allocation (cast/subview/view/reinterpret_cast/collapse/expand)
+// therefore breaks it -- a store through one handle is invisible to a load
+// through the other. Generic propagation covers the case where the tainted
+// handle is the one being re-derived; what it cannot cover is the reverse
+// order (derive handle B from clean A, store through A, load through B).
+// Rather than pretend either way, report UNKNOWN whenever a tainted memref
+// is re-handled at all.
+void visitUnmodeledAliasing(Operation *op) {
+
+  if (!isa<memref::CastOp, memref::SubViewOp, memref::ViewOp,
+           memref::ReinterpretCastOp, memref::CollapseShapeOp,
+           memref::ExpandShapeOp>(op))
+    return;
+
+  for (Value operand : op->getOperands()) {
+    if (!isTainted(operand))
+      continue;
+    reportUnknown(
+        op,
+        "a second handle onto a tainted buffer is created here; this "
+        "analysis tracks taint per SSA value and models no aliasing, so "
+        "stores through one handle are not seen through the other");
+    return;
+  }
+}
+
+// Interprocedural flow is not modeled (readme's "interprocedural analysis"
+// limitation). A tainted argument crossing a call boundary previously just
+// produced clean results, i.e. a call laundered the secret silently.
+void visitCall(Operation *op) {
+
+  if (!isa<func::CallOp, func::CallIndirectOp>(op))
+    return;
+
+  for (Value operand : op->getOperands()) {
+    if (!isTainted(operand))
+      continue;
+    reportUnknown(
+        op,
+        "a tainted value crosses a call boundary; this analysis is "
+        "intraprocedural, so what the callee does with it is not modeled");
+    return;
+  }
 }
 
 // scf.while's "before" region computes the condition (via scf.condition,

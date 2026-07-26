@@ -13,6 +13,8 @@ add_mlir_library(StagingNITransforms
     MLIRFuncDialect
     MLIRAffineDialect
     MLIRSCFDialect
+    MLIRMemRefDialect
+    MLIRControlFlowDialect
     MLIRTensorDialect
     MLIRArithDialect
 

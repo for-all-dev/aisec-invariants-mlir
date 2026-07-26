@@ -24,7 +24,13 @@ _staging_ni_opt_dir = os.path.join(_project_root, "build", "tools")
 _filecheck = shutil.which("FileCheck-18") or shutil.which("FileCheck")
 _filecheck_dir = os.path.dirname(_filecheck) if _filecheck else None
 
-path_dirs = [d for d in (_staging_ni_opt_dir, _filecheck_dir) if d and os.path.isdir(d)]
+# LLVM's own bin dir supplies `not` (and FileCheck), which Debian/Ubuntu do
+# not put on PATH under a versioned name the way they do for mlir-opt-18.
+_llvm_bin = "/usr/lib/llvm-18/bin"
+
+path_dirs = [
+    d for d in (_staging_ni_opt_dir, _filecheck_dir, _llvm_bin) if d and os.path.isdir(d)
+]
 config.environment["PATH"] = os.pathsep.join([*path_dirs, config.environment.get("PATH", "")])
 
 config.substitutions.append(("%staging-ni-opt", "staging-ni-opt"))

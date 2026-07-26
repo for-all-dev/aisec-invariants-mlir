@@ -13,6 +13,7 @@ target_link_libraries(staging-ni-opt
     MLIRTensorDialect
     MLIRMemRefDialect
     MLIRSCFDialect
+    MLIRControlFlowDialect
     MLIRFuncDialect
 
     MLIROptLib

@@ -2,6 +2,7 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -22,7 +23,8 @@ int main(int argc, char **argv) {
       tensor::TensorDialect,
       arith::ArithDialect,
       memref::MemRefDialect,
-      scf::SCFDialect>();
+      scf::SCFDialect,
+      cf::ControlFlowDialect>();
 
   // Register your pass
   stagingni::registerPasses();
