@@ -68,6 +68,33 @@ class ScenarioContract:
 # silently change what a regression fixture claims. Classification, evidence
 # level, and provenance are validated separately below.
 EXPECTED_SCENARIOS: dict[str, ScenarioContract] = {
+    # Metatheory countermodel encodings. Each refutes one invalid proof or
+    # reporting principle the metatheory names as a required negative result.
+    # MT-CM5: unproved ABI alias separation may not be assumed. Unknown rather
+    # than unsafe, because no witness replayed by the exact semantics exists.
+    "abi_alias_unproved.unknown.mlir": ScenarioContract(
+        "unknown",
+        "public-sink-value",
+        "alias-binding-mismatch",
+        ("proved-disjoint-clause",),
+    ),
+    # Allocation-size acceptance pair. The refusal and its twin differ only in the
+    # label and binding on the size operand, so neither can be satisfied by
+    # inspecting the allocation shape alone.
+    "alloca_size_high_count.unknown.mlir": ScenarioContract(
+        "unknown",
+        "allocation-size-trace",
+        "alloca-size-not-world-structural",
+        ("world-structural-size-expression",),
+    ),
+    "alloca_size_public.control.mlir": ScenarioContract(
+        "verified", "allocation-size-trace", "world-structural-alloca-size"
+    ),
+    # MT-CM2: bounded-run filtering is not a sound proof domain. First loop
+    # fixture in the corpus. loop-remainder must never denote an engine cap.
+    "bound_exhausted_loop.unknown.mlir": ScenarioContract(
+        "unknown", "operation-count-trace", "loop-remainder", ("bound-adequacy",)
+    ),
     "breach_compressed_length.bad.mlir": ScenarioContract(
         "unsafe", "reduced-public-wire-length-output", "secret-to-public-sink"
     ),
@@ -127,6 +154,39 @@ EXPECTED_SCENARIOS: dict[str, ScenarioContract] = {
         "verified",
         "reduced-sequential-cross-tenant-output",
         "cross-domain-state-reinitialized",
+    ),
+    # Diagnostic-precision negative controls. Each is release-relative
+    # noninterferent, so a reported violation is imprecision, not a finding.
+    # Section 10 gives the diagnostic analysis no proof-authoritative strong
+    # update, no summaries, and no slice selection, so each site below is
+    # RelationalRequired at L1 and is decided by the exact product at L2.
+    # These carry no diagnostic RUN: the required disposition is
+    # RelationalRequired, not silence, and coercing them to silence invites the
+    # StaticallyDischarged shortcut that section 10 forbids.
+    "precision_identical_successor.control.mlir": ScenarioContract(
+        "verified",
+        "source-control-location-trace",
+        "identical-successor-control-location",
+    ),
+    "precision_offset_disjoint.control.mlir": ScenarioContract(
+        "verified", "public-sink-value", "offset-disjoint-public-reload"
+    ),
+    "precision_overwritten_slot.control.mlir": ScenarioContract(
+        "verified", "public-sink-value", "public-overwrite-before-observation"
+    ),
+    "precision_xor_cancellation.control.mlir": ScenarioContract(
+        "verified", "public-sink-value", "lane-equal-value-after-cancellation"
+    ),
+    # Anti-control for precision_identical_successor: same single-successor
+    # branch shape, differing only in block-argument operands. Satisfying that
+    # control by the rule "identical successors imply no control leak" silently
+    # accepts this counterexample.
+    "predecessor_choice_blockarg.bad.mlir": ScenarioContract(
+        "unsafe", "public-sink-value", "secret-selected-block-argument"
+    ),
+    # MT-CM3: a future release may not condition an earlier observation.
+    "prefix_causal_release.bad.mlir": ScenarioContract(
+        "unsafe", "release-relative-public-channel", "pre-release-observation"
     ),
     "redis_pool_reuse.bad.mlir": ScenarioContract(
         "unsafe", "reduced-sequential-cross-actor-response", "cross-domain-stale-state"

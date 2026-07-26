@@ -18,7 +18,7 @@ There is no key-recovery code and no full cryptographic implementation here.
 ## Layout
 
 ```text
-prototypes/compiler_ct_harness/
+prototypes/compiler_harness/
 ├── Makefile                 # public test entry points
 ├── lit.cfg.py               # standalone llvm-lit configuration
 ├── README.md
@@ -30,7 +30,7 @@ prototypes/compiler_ct_harness/
 ├── mlir/
 │   ├── README.md
 │   ├── L0_L1_L2_PIPELINE.md
-│   └── *.mlir               # 35 checked-in regression fixtures
+│   └── *.mlir               # 45 checked-in regression fixtures
 └── integration/             # integration .test files
 ```
 
@@ -98,9 +98,36 @@ runnable.
 Bad confidentiality fixtures remain valid compiler input. Each now has both a
 successful verifier/shape RUN and an active `--verify-diagnostics` RUN with an
 `expected-error` at every decisive operation. Because no final-LLVM SPS pass
-emits those diagnostics yet, the 15 bad fixtures intentionally fail. They are
+emits those diagnostics yet, the 17 bad fixtures intentionally fail. They are
 bring-up gates, not `XFAIL` tests: implementing the pass and adding it to the
 diagnostic RUN is what turns them green.
+
+## Precision controls and paired anti-controls
+
+A corpus of leaky programs is satisfied by an analysis that reports every
+program as unsafe. The `*.control.mlir` fixtures are the guard against that:
+each is release-relative noninterferent, so a reported violation there is
+imprecision rather than a finding.
+
+Their required first-layer disposition is `RelationalRequired`, **not** silence.
+The single `Low/High` diagnostic analysis has no proof-authoritative strong
+update, no summaries, and no slice selection, so it is expected to lose
+precision at these sites and to leave them for the exact product. Coercing a
+control to literal silence invites exactly the `StaticallyDischarged` and
+`NotObservable` shortcuts that cannot establish a proof. Controls therefore
+carry no `--verify-diagnostics` RUN; they pin IR shape and stability only.
+
+Every control ships with an anti-control that must retain the opposite outcome,
+because the cheapest way to quiet a control is usually an unsound repair:
+
+| Control | Paired anti-control | Unsound repair it blocks |
+| --- | --- | --- |
+| `precision_identical_successor.control` | `predecessor_choice_blockarg.bad` | "identical successors imply no control leak" — both are one-successor branches differing only in block-argument operands |
+| `precision_overwritten_slot.control` | the same fixture's `RelationalRequired` disposition | adding a strong update to the diagnostic layer |
+| `precision_offset_disjoint.control` | offsets are nonzero and byte-exact | coarsening offsets to a cache line, which is a refusal and never a proof |
+| `alloca_size_public.control` | `alloca_size_high_count.unknown` | refusing every dynamic allocation, or treating an equal public cap as an equal size |
+
+Never satisfy one member of a pair by weakening the other.
 
 ## Scenario contract
 
@@ -119,6 +146,12 @@ name the facts still needed.
 | CKKS | Bad is `unsafe` because it performs an unauthorized release; fixed is `conditional` on sanitizer sufficiency, certificate soundness, and release-policy integrity. |
 | KyberSlash 1 and 2 | Bad is `unsafe` due to secret-dependent variable-latency division; fixed is `verified` under the source-operation timing model. |
 | Clangover | Source is `verified`; lowered bad is `unsafe` due to a secret-dependent branch; lowered fixed is `verified` for its in-module model. L3 is required for the compiler-regression attribution. |
+| Precision controls | Four `verified` controls whose sites are `RelationalRequired` at L1: identical successor, value cancellation, public overwrite, offset-disjoint reload. |
+| MT-CM6 predecessor choice | Bad is `unsafe` because a secret selects the merge block argument while no secret flows through any SSA operand. Reason is `secret-selected-block-argument`, not a differing control location. |
+| MT-CM3 prefix-causal release | Bad is `unsafe` because the secret reaches a public channel before its authorized release. A whole-run release-equality encoding misses it. |
+| MT-CM5 alias separation | `unknown` with `proved-disjoint-clause` open: unproved separation yields neither safety nor a replayable counterexample. |
+| MT-CM2 bound filtering | `unknown` with `bound-adequacy` open. First loop fixture; `loop-remainder` must never denote an engine-cap shortfall. |
+| Allocation size | High-dependent size is `unknown` with `world-structural-size-expression` open; the public, world-structural twin is `verified`. |
 | wolfSSL 3580 | Source is `verified`; target bad is `unsafe` due to a secret-dependent branch; target fixed is `verified` for the modeled target. |
 | wolfSSL 3579 | Source is `unknown` without target timing; a target call with no summary is `unknown`; the affected helper profile is `unsafe`; a constant-latency test profile is `verified`; the fixed-loop target model is `conditional` on base-operation latency and backend-trace preservation. |
 

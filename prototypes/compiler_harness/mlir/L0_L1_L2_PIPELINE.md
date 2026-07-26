@@ -44,12 +44,22 @@ different L0 knowledge, not two outcomes attached to one file.
 
 ## Exact fixture map
 
-The following 35 outcomes are enforced by `c/check_harness.py`. Reason IDs and
+The following 45 outcomes are enforced by `c/check_harness.py`. Reason IDs and
 obligation IDs are stable machine-facing identifiers; explanatory scope stays
 in the observer/model and evidence-boundary fields.
 
 | Fixture | Outcome | Reason ID | Outstanding obligations |
 | --- | --- | --- | --- |
+| `abi_alias_unproved.unknown.mlir` | `unknown` | `alias-binding-mismatch` | `proved-disjoint-clause` |
+| `alloca_size_high_count.unknown.mlir` | `unknown` | `alloca-size-not-world-structural` | `world-structural-size-expression` |
+| `alloca_size_public.control.mlir` | `verified` | `world-structural-alloca-size` | `none` |
+| `bound_exhausted_loop.unknown.mlir` | `unknown` | `loop-remainder` | `bound-adequacy` |
+| `precision_identical_successor.control.mlir` | `verified` | `identical-successor-control-location` | `none` |
+| `precision_offset_disjoint.control.mlir` | `verified` | `offset-disjoint-public-reload` | `none` |
+| `precision_overwritten_slot.control.mlir` | `verified` | `public-overwrite-before-observation` | `none` |
+| `precision_xor_cancellation.control.mlir` | `verified` | `lane-equal-value-after-cancellation` | `none` |
+| `predecessor_choice_blockarg.bad.mlir` | `unsafe` | `secret-selected-block-argument` | `none` |
+| `prefix_causal_release.bad.mlir` | `unsafe` | `pre-release-observation` | `none` |
 | `breach_compressed_length.bad.mlir` | `unsafe` | `secret-to-public-sink` | `none` |
 | `breach_compressed_length.fixed.mlir` | `verified` | `public-sink-isolation` | `none` |
 | `ckks_unsafe_release.bad.mlir` | `unsafe` | `unauthorized-release` | `none` |
@@ -85,6 +95,40 @@ in the observer/model and evidence-boundary fields.
 | `wrong_host_fhe_reveal.fixed.mlir` | `verified` | `authorized-sink-isolation` | `none` |
 | `wrong_party_plaintext.bad.mlir` | `unsafe` | `wrong-audience-or-host` | `none` |
 | `wrong_party_plaintext.fixed.mlir` | `verified` | `authorized-sink-isolation` | `none` |
+
+### Precision controls and countermodel encodings
+
+Ten of the rows above were added to close two structural gaps: the corpus could
+not express "this artifact is safe and the analysis must not claim otherwise",
+and it had no encoding of the metatheory's required negative results.
+
+- The four `*.control.mlir` fixtures are release-relative noninterferent. Their
+  required L1 disposition is `RelationalRequired`, not silence, because the
+  single `Low/High` diagnostic has no proof-authoritative strong update, no
+  summaries, and no slice selection. They carry no `--verify-diagnostics` RUN.
+- `predecessor_choice_blockarg.bad` encodes MT-CM6: an ordinary SSA slice is not
+  closed around a phi. In the LLVM dialect a phi is a block argument, so a
+  dependence relation built over operand edges misses the gating fact entirely.
+  It is checked in already-canonical and is the paired anti-control for
+  `precision_identical_successor.control`; the two differ only in whether the
+  edges carry differing block-argument operands.
+- `prefix_causal_release.bad` encodes MT-CM3: the release ledger is prefix-causal,
+  so a later authorized release cannot excuse an earlier observation. An
+  implementation that installs release equality as a whole-run initial constraint
+  reports this artifact safe.
+- `abi_alias_unproved.unknown` encodes MT-CM5: unproved separation is neither
+  safety nor a counterexample. Two distinct pointer arguments do not license a
+  disjointness assumption.
+- `bound_exhausted_loop.unknown` encodes MT-CM2: an execution that exhausts a
+  bound is retained, never deleted. Bound adequacy is a universal obligation, not
+  a pair filter.
+
+Three metatheory countermodels remain unencoded and are tracked as future work:
+MT-CM1 (unary P4 refinement), MT-CM4 (global trace order and multiplicity), and
+MT-CM7 (vacuous admission and empty pair domain). MT-CM7 in particular is the
+anti-control for the precision controls: a vacuous fixture is quiet for a wholly
+different reason and is indistinguishable from a genuine control until the record
+can report a vacuity refusal.
 
 Interpretation boundaries remain important:
 
