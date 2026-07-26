@@ -19,6 +19,26 @@ no Bazel), and reuses `../leak_check`'s Valgrind instruments unchanged.
   differential (class A vs B) corroborates. Taint is primary.
 - Run: `python3 run_mlir.py` (MLIR axis) / `--pipelines P0 --opt O2` (LLVM -O axis).
 
+### Fixed: `run_mlir.py` was unrunnable since 2026-07-16
+
+`run_mlir.py` imported `_disjoint` from `../leak_check/noninterference.py` and
+compared counts sampled at a **fixed** secret path. Commit `d0d3232` in
+`leak_check` ("the count channel is confounded by measurement context")
+replaced that criterion with a context-varying floor+stability guard and
+removed `_disjoint` in the process; this file was never updated, so every run
+since raised `ImportError`. Fixed by reusing `noninterference.py`'s
+context-varying method directly (via the new `leak_check/differential.py`,
+which factors that method out for reuse instead of re-deriving a weaker one)
+— see `analyze()`'s docstring. Re-validated: every number in **Results**
+below was reproduced exactly (`dIr`/`dBc`/`dDw` byte-for-byte, all verdicts
+unchanged) under the fixed engine before this note was added. `run_mlir.py`
+now also prints a verdict per cell (`leak-present-in-baseline` /
+`introduced-relative-to-baseline` / `removed-relative-to-baseline` /
+`oblivious`, from `differential.verdict_relative_to_baseline` — the same
+quadrant `noninterference.py`'s authored/compiler-introduced/
+compiler-removed/oblivious generalizes to an N-build axis) instead of
+requiring the matrix to be read by eye.
+
 ### Note: the taint parser was broadened here
 `instruments.memcheck_taint` matches only the control-flow message
 (`"... depends on uninitialised value"`). An **address** leak (gather) prints

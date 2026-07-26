@@ -12,26 +12,39 @@ source-oblivious kernel = a lowering-introduced leak.
     python3 run_mlir.py --pipelines P0 --opt O3          # LLVM backend axis
     python3 run_mlir.py --kernels idx_gather --pipelines P0 P3
 
-Reuses leak_check/instruments.py for the callgrind COUNT channel and the
-count-hygiene helper `_disjoint`. The TAINT channel is parsed locally (below)
+Reuses leak_check/instruments.py for the callgrind COUNT channel, and reuses
+leak_check/noninterference.py's context-varying floor+stability method (via
+leak_check/differential.py) for the COUNT-hygiene decision, instead of a
+fixed-path interleaved sample. The TAINT channel is parsed locally (below)
 with a broadened pattern: instruments.memcheck_taint only matches the
 control-flow message ("... depends on uninitialised value"), but an ADDRESS leak
 (e.g. gather) prints "Use of uninitialised value of size N" -- so we classify
 both here. Taint is primary; counts corroborate.
+
+NOTE: this used to import `_disjoint` from noninterference.py and compare
+interleaved counts sampled at a FIXED secret path. `_disjoint` was removed by
+noninterference.py's own floor/stability rewrite (commit d0d3232, "the count
+channel is confounded by measurement context") -- every run of this file
+since then raised ImportError, and a fixed-path sample is exactly the
+confound that rewrite exists to catch (valgrind disables ASLR, so two secret
+classes at the same fixed path can differ only by what's baked into the
+path/layout, not just the secret). Fixed here by reusing the context-varying
+method directly instead of re-deriving a weaker one.
 """
-import os
-import re
-import sys
-import array
-import random
 import argparse
-import tempfile
+import array
+import os
+import random
+import re
 import subprocess
+import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(HERE, "..", "leak_check")))
+import differential as D
 import instruments as I
-from noninterference import _disjoint
+import noninterference as NI
 
 BUILD = os.path.join(HERE, "build")
 SEC = os.path.join(HERE, "secrets")
@@ -163,31 +176,41 @@ def taint_check(binp, kernel, secret):
         except OSError: pass
 
 
-def _cg(binp, kernel, secret):
-    r = I.callgrind_count_cmd([binp, kernel, secret, "count"], cwd=HERE, cache_sim=True)
-    return r["Ir"], r["Bc"], r["Dw"]
+_DECISION_KEYS = ("Ir", "Bc", "Dw")
+
+
+def _sample_fn(binp, kernel):
+    def sample(secret_path):
+        return I.callgrind_count_cmd(
+            [binp, kernel, secret_path, "count"], cwd=HERE, cache_sim=True
+        )
+
+    return sample
 
 
 def analyze(binp, kernel, pa, pb, reps=5):
-    """Interleaved + warmup-dropped count sampling (cross-process-drift hygiene) +
-    broadened taint. Count distinguishable = A/B ranges disjoint on Ir or Bc.
-    leak = count-distinguishable OR taint."""
-    ir_z, ir_r, bc_z, bc_r, dw_z, dw_r = [], [], [], [], [], []
-    for step in range(reps + 1):
-        if step % 2 == 0:
-            z = _cg(binp, kernel, pa); r = _cg(binp, kernel, pb)
-        else:
-            r = _cg(binp, kernel, pb); z = _cg(binp, kernel, pa)
-        if step == 0:
-            continue  # drop cold warmup round
-        ir_z.append(z[0]); ir_r.append(r[0]); bc_z.append(z[1])
-        bc_r.append(r[1]); dw_z.append(z[2]); dw_r.append(r[2])
+    """
+    Context-varying paired counts on Ir/Bc/Dw, with noninterference.py's
+    floor+stability guard (reused via differential.py, not re-derived) +
+    broadened taint (cf/addr). leak = count-distinguishable OR taint.
+    """
+    sample = _sample_fn(binp, kernel)
+    with NI.context_dir() as d:
+        rows_zero = D.sample_over_contexts(sample, pa, reps, d, NI._context)
+        rows_rand = D.sample_over_contexts(sample, pb, reps, d, NI._context)
     kind = taint_check(binp, kernel, pb)
-    ir_sep, bc_sep, dw_sep = _disjoint(ir_z, ir_r), _disjoint(bc_z, bc_r), _disjoint(dw_z, dw_r)
-    med = lambda xs: sorted(xs)[len(xs) // 2]
-    return dict(leak=(ir_sep or bc_sep or bool(kind)), taint=kind,
-                ir_sep=ir_sep, bc_sep=bc_sep, dw_sep=dw_sep,
-                dIr=med(ir_r) - med(ir_z), dBc=med(bc_r) - med(bc_z), dDw=med(dw_r) - med(dw_z))
+    taint = {"leak": bool(kind), "kind": kind}
+    v = D.compute_verdict_from_rows(rows_zero, rows_rand, _DECISION_KEYS, _DECISION_KEYS, taint)
+    return dict(
+        leak=v["distinguishable"],
+        taint=kind,
+        ir_sep=v["stables"]["Ir"] and abs(v["diffs"]["Ir"]) > v["floors"]["Ir"],
+        bc_sep=v["stables"]["Bc"] and abs(v["diffs"]["Bc"]) > v["floors"]["Bc"],
+        dw_sep=v["stables"]["Dw"] and abs(v["diffs"]["Dw"]) > v["floors"]["Dw"],
+        dIr=v["diffs"]["Ir"],
+        dBc=v["diffs"]["Bc"],
+        dDw=v["diffs"]["Dw"],
+    )
 
 
 def main():
@@ -207,7 +230,8 @@ def main():
 
     print("\nLEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  "
           f"[opt={args.opt}]")
-    print("[compiler-introduced = P0 oblivious -> some P_k distinguishable]\n")
+    print(f"[verdict per cell is relative to baseline pipeline {args.pipelines[0]!r}; "
+          "see DETAIL below]\n")
     print(f"{'kernel':<14} " + "  ".join(f"{p:>4}" for p in args.pipelines))
     details = []
     for k in args.kernels:
@@ -222,6 +246,14 @@ def main():
             details.append((k, p, r))
         print(f"{k:<14} " + "  ".join(f"{c:>4}" for c in cells))
 
+    # Automatic verdict relative to the first pipeline given (default P0),
+    # replacing "read the matrix by eye and infer compiler-introduced" with
+    # a computed field -- same quadrant differential.verdict_relative_to_baseline
+    # generalizes from noninterference.py's authored/compiler-introduced/
+    # compiler-removed/oblivious.
+    baseline_pipeline = args.pipelines[0]
+    baseline_leak = {k: r["leak"] for k, p, r in details if p == baseline_pipeline}
+
     print("\nDETAIL (taint: cf=control-flow, addr=address; counts corroborate)")
     for k, p, r in details:
         chan = []
@@ -229,7 +261,9 @@ def main():
         if r["ir_sep"]: chan.append(f"Ir(dIr={r['dIr']:+d})")
         if r["bc_sep"]: chan.append(f"Bc(dBc={r['dBc']:+d})")
         if r["dw_sep"]: chan.append(f"Dw(dDw={r['dDw']:+d})")
-        print(f"  {k:<14} {p:<4} {'LEAK ' if r['leak'] else 'obliv'}  {' '.join(chan) or 'clean'}")
+        verdict = D.verdict_relative_to_baseline(baseline_leak.get(k, r["leak"]), r["leak"])
+        print(f"  {k:<14} {p:<4} {'LEAK ' if r['leak'] else 'obliv'}  {verdict:<28} "
+              f"{' '.join(chan) or 'clean'}")
 
 
 if __name__ == "__main__":
