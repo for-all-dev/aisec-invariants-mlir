@@ -43,14 +43,44 @@ an *optimizing* pass.
 ## Reproduce
 
 ```sh
-mlir-opt-18 scatter.mlir "--sparsifier=enable-runtime-library=false" -o scatter.lld.mlir
-mlir-translate-18 --mlir-to-llvmir scatter.lld.mlir -o scatter.ll
-clang-18 -O0 -c scatter.ll -o scatter.o
-clang-18 -O0 -I/usr/include -o scatter_bin sparse_driver.c scatter.o
-python3 -c "import array; array.array('q',[0,1,2,3,4,5,6,7]).tofile(open('crd_A.bin','wb')); \
-            array.array('q',[3,29,61,97,130,168,201,240]).tofile(open('crd_B.bin','wb'))"
-valgrind --tool=memcheck --track-origins=yes ./scatter_bin crd_B.bin taint   # -> Use of uninitialised value (addr)
+python3 run_sparse.py
 ```
+
+Builds both lowerings, measures each against the same two secret classes on
+the shared engine (`../../leak_check`: `instruments.py` for both valgrind
+channels, `differential.py` for the context-varying floor+stability guard),
+and prints a computed verdict:
+
+```
+  LOWERING   ADDR   VERDICT (addr channel)             CHANNELS
+  dense      no     baseline-cell                      taint:cf
+  sparse     yes    introduced-relative-to-baseline    taint:addr
+```
+
+### Why the verdict is per-channel, and what the baseline is
+
+The claim is that *the pass* introduces the channel, so the sparsified build
+needs an oblivious reference to be judged against. That reference cannot be
+another pipeline over the same file: mlir-18 will not legalize
+`sparse_tensor.convert` off the sparsification path (`--sparse-tensor-conversion`
+rejects it), so "the same IR lowered densely" does not exist. `scatter_dense.mlir`
+is that reference instead — same signature and same result, computed by
+visiting every dense position, with the secret never used as an address. It
+deliberately avoids `arith.select`, because this study's own core sweep found
+`-O0` lowers a select on a secret into a conditional *branch* (`mask_select`),
+which would make the baseline leak for a reason unrelated to sparsity.
+
+Even so, the dense reference reports `taint:cf`: memcheck's control-flow
+message covers a conditional jump **or move**, so merely *comparing* the
+secret coordinate against each position trips it, however branchlessly it
+compiles. A leak/no-leak bit therefore cannot separate the two builds — but
+the **address** channel does, and that is exactly what `--sparsification`
+adds. Hence the verdict is taken on `addr`.
+
+This ran as a hand-copied shell recipe until now, which made the strongest
+finding in this prototype the only one that never went through the shared
+instruments, never got the floor/stability guard, and could not be
+re-validated by running anything.
 
 ## Caveats
 
