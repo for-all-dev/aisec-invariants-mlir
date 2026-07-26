@@ -79,7 +79,7 @@ _CTX_DIR = os.path.join(HERE, "secrets", "_ctx")
 
 
 @contextlib.contextmanager
-def context_dir():
+def context_dir(root=None):
     """
     A private directory for one build's contexts.
 
@@ -91,9 +91,16 @@ def context_dir():
     mkdtemp's suffix is a fixed width, so the directory name's LENGTH is the
     same every session even though its content is not. That matters: path
     length is the nuisance variable below, so it must not drift on its own.
+
+    `root` overrides where those directories live. It defaults to this
+    package's own secrets/_ctx, which is what leak_check wants but means an
+    out-of-tree caller (prototypes/mlir_leak) would otherwise scatter its
+    temporaries through a sibling prototype's tree. Callers should pass
+    their own; keep the name a FIXED WIDTH under it, for the reason above.
     """
-    os.makedirs(_CTX_DIR, exist_ok=True)
-    d = tempfile.mkdtemp(prefix="ctx", dir=_CTX_DIR)
+    ctx_root = root or _CTX_DIR
+    os.makedirs(ctx_root, exist_ok=True)
+    d = tempfile.mkdtemp(prefix="ctx", dir=ctx_root)
     try:
         yield d
     finally:
