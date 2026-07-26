@@ -11,6 +11,7 @@ target_link_libraries(staging-ni-opt
     MLIRAffineDialect
     MLIRArithDialect
     MLIRTensorDialect
+    MLIRMemRefDialect
     MLIRSCFDialect
     MLIRFuncDialect
 

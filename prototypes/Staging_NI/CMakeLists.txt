@@ -15,6 +15,7 @@ include(AddMLIR)
 
 include_directories(
   include
+  ${CMAKE_CURRENT_BINARY_DIR}
   ${MLIR_INCLUDE_DIRS}
   ${LLVM_INCLUDE_DIRS}
   ${LLVM_MAIN_SRC_DIR}/../mlir/include
@@ -28,9 +29,9 @@ include_directories(include)
 
 set(LLVM_TARGET_DEFINITIONS include/stagingNI/Passes.td)
 
-set(LLVM_TARGET_DEFINITIONS include/stagingNI/Passes.td)
-
-mlir_tablegen(Passes.h.inc -gen-pass-decls)
+# Output path mirrors the public "stagingNI/Passes.h.inc" the sources
+# #include, under CMAKE_CURRENT_BINARY_DIR (on the include path above).
+mlir_tablegen(stagingNI/Passes.h.inc -gen-pass-decls)
 add_public_tablegen_target(MLIRPassIncGen)
 
 # -------------------------------------------------------

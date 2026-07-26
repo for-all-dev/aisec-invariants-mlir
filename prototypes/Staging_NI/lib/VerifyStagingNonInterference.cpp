@@ -6,6 +6,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
@@ -13,22 +14,17 @@ using namespace mlir;
 
 namespace mlir {
 namespace stagingni {
+
+#define GEN_PASS_DEF_VERIFYSTAGINGNONINTERFERENCE
+#include "stagingNI/Passes.h.inc"
+
+namespace {
 class VerifyStagingNonInterferencePass
-    : public PassWrapper<
-          VerifyStagingNonInterferencePass,
-          OperationPass<func::FuncOp>> {
+    : public impl::VerifyStagingNonInterferenceBase<
+          VerifyStagingNonInterferencePass> {
 
 public:
-  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(
-      VerifyStagingNonInterferencePass)
-
-  StringRef getArgument() const final {
-    return "verify-staging-ni";
-  }
-
-  StringRef getDescription() const final {
-    return "Verify staging-time non-interference";
-  }
+  using VerifyStagingNonInterferenceBase::VerifyStagingNonInterferenceBase;
 
   void runOnOperation() override {
 
@@ -36,14 +32,35 @@ public:
 
     runtimeTainted.clear();
     stagingTainted.clear();
+    sawViolation = false;
+    sawUnknown = false;
 
     seedRuntimeTaint(func);
 
-    func.walk([&](Operation *op) {
+    // Pre-order: a loop's bound/iter_args are seeded onto its induction
+    // var/region args by visiting the loop OP itself (visitAffineFor/
+    // visitScfFor), and that seeded taint must be visible to uses INSIDE
+    // the loop body. walk()'s default is post-order (children before
+    // parent) -- under that order every such nested use is checked before
+    // the parent loop op seeds it, silently missing it. Pre-order visits
+    // the loop op first, then its body, which is the order this analysis
+    // actually depends on.
+    func.walk<WalkOrder::PreOrder>([&](Operation *op) {
       visitOperation(op);
     });
 
     printSummary();
+
+    // Violations are collected across the whole function before we decide
+    // pass/fail (see reportViolation) -- one bad site should not hide the
+    // rest. UNKNOWN sites are surfaced (emitRemark, see reportUnknown) but do
+    // not fail the pass: they mean "not modeled", not "confirmed bad", and
+    // this analysis is known-incomplete by design (see readme's Current
+    // Limitations) -- failing the build on every unmodeled construct would
+    // make the checker useless long before it's complete. A confirmed
+    // VIOLATION does fail it, so a real pipeline can gate on this pass.
+    if (sawViolation)
+      signalPassFailure();
   }
 
 private:
@@ -54,6 +71,8 @@ private:
 
   llvm::DenseSet<Value> runtimeTainted;
   llvm::DenseSet<Value> stagingTainted;
+  bool sawViolation = false;
+  bool sawUnknown = false;
 
   //------------------------------------------------------------
   // Seed runtime taint
@@ -111,6 +130,44 @@ void seedRuntimeTaint(func::FuncOp func) {
         << "\n";
   }
 
+  //------------------------------------------------------------
+  // arith.index_cast of RUNTIME-tainted data: a second Runtime -> Staging
+  // conversion point alongside tensor.dim.
+  //------------------------------------------------------------
+
+  // Casting protected data to `index` is precisely how it becomes eligible
+  // to drive a loop bound or address -- tensor.dim is one such cast
+  // (tensor rank/extent -> index); a scalar loaded from a protected
+  // memref/buffer and cast to index is another (e.g. mlir_leak's
+  // `dynshape.mlir`: a secret extent `k` loaded from a memref, then
+  // `arith.index_cast`'d and used as a `memref.alloc`/`scf.for` bound).
+  // Without this, runtime taint propagated generically through the load
+  // and the cast (visitGenericRuntimePropagation marks the cast's result
+  // runtime-tainted), but nothing ever promoted it to STAGING taint, so
+  // every bound/address check below silently saw an untainted value --
+  // this analysis could not catch the one case mlir_leak already measured
+  // and confirmed leaks on every lowering pipeline and every -O level.
+  void visitRuntimeToStagingCast(arith::IndexCastOp cast) {
+
+    Value in = cast.getIn();
+
+    if (!runtimeTainted.count(in))
+      return;
+
+    Value result = cast.getResult();
+
+    if (!stagingTainted.insert(result).second)
+      return;
+
+    llvm::errs()
+        << "\n[Runtime -> Staging via index_cast]\n";
+    llvm::errs() << "source : ";
+    in.print(llvm::errs());
+    llvm::errs() << "\nindex  : ";
+    result.print(llvm::errs());
+    llvm::errs() << "\n";
+  }
+
  void visitOperation(Operation *op) {
 
     if (auto dim = dyn_cast<tensor::DimOp>(op)) {
@@ -118,9 +175,23 @@ void seedRuntimeTaint(func::FuncOp func) {
         return;
     }
 
+    // secret.generic is not in this project's dialect registry (linking
+    // HEIR's Secret dialect would pull in a second, Bazel-built subproject),
+    // so it can't be dyn_cast'd here. Matched by name instead: its region
+    // body could re-taint, launder, or leak a tainted operand in ways this
+    // walker does not model, so it must be surfaced as UNKNOWN rather than
+    // silently treated as a taint barrier.
+    if (op->getName().getStringRef() == "secret.generic") {
+        visitSecretGeneric(op);
+        return;
+    }
+
     visitGenericRuntimePropagation(op);
 
     visitArithmeticStagingPropagation(op);
+
+    if (auto cast = dyn_cast<arith::IndexCastOp>(op))
+        visitRuntimeToStagingCast(cast);
 
     if (auto loop = dyn_cast<affine::AffineForOp>(op))
         visitAffineFor(loop);
@@ -133,6 +204,15 @@ void seedRuntimeTaint(func::FuncOp func) {
 
     if (auto store = dyn_cast<affine::AffineStoreOp>(op))
         visitAffineStore(store);
+
+    if (auto ifOp = dyn_cast<scf::IfOp>(op))
+        visitScfIf(ifOp);
+
+    if (auto whileOp = dyn_cast<scf::WhileOp>(op))
+        visitScfWhile(whileOp);
+
+    if (auto cond = dyn_cast<scf::ConditionOp>(op))
+        visitScfCondition(cond);
 }
 
 //------------------------------------------------------------
@@ -231,6 +311,11 @@ void visitArithmeticStagingPropagation(Operation *op) {
   // Only propagate through supported arithmetic operations
   //--------------------------------------------------------
 
+  // arith.cmpi is included so a staging-tainted index can reach an i1 used
+  // as an scf.if/scf.while condition: without it, visitScfIf/
+  // visitScfCondition can only ever fire on a condition that is ALREADY i1
+  // and ALREADY tainted, which nothing upstream can ever produce (every
+  // realistic condition is built from a comparison over index-typed data).
   if (!isa<
           arith::AddIOp,
           arith::SubIOp,
@@ -241,7 +326,8 @@ void visitArithmeticStagingPropagation(Operation *op) {
           arith::RemUIOp,
           arith::IndexCastOp,
           arith::MaxSIOp,
-          arith::MinSIOp>(op))
+          arith::MinSIOp,
+          arith::CmpIOp>(op))
     return;
 
   //--------------------------------------------------------
@@ -261,12 +347,13 @@ void visitArithmeticStagingPropagation(Operation *op) {
     return;
 
   //--------------------------------------------------------
-  // Propagate to index results
+  // Propagate to index results (loop bounds/addresses) and i1 results
+  // (arith.cmpi, feeding an scf.if/scf.while condition)
   //--------------------------------------------------------
 
   for (Value result : op->getResults()) {
 
-    if (!result.getType().isIndex())
+    if (!result.getType().isIndex() && !result.getType().isInteger(1))
       continue;
 
     if (stagingTainted.insert(result).second) {
@@ -282,7 +369,7 @@ void visitArithmeticStagingPropagation(Operation *op) {
   }
 }
   //------------------------------------------------------------
-// Is this value staging tainted?
+// Taint queries
 //------------------------------------------------------------
 
 bool isStagingTainted(Value value) const {
@@ -290,13 +377,25 @@ bool isStagingTainted(Value value) const {
   return stagingTainted.count(value);
 }
 
+bool isRuntimeTainted(Value value) const {
+
+  return runtimeTainted.count(value);
+}
+
+bool isTainted(Value value) const {
+
+  return isStagingTainted(value) || isRuntimeTainted(value);
+}
+
 //------------------------------------------------------------
-// Report violation
+// Report violation / unknown
 //------------------------------------------------------------
 
 void reportViolation(Operation *op,
                      Value offendingValue,
                      StringRef reason) {
+
+  sawViolation = true;
 
   op->emitError()
       << "Staging Non-Interference violation: "
@@ -316,28 +415,69 @@ void reportViolation(Operation *op,
   llvm::errs() << "\n";
 }
 
+// UNKNOWN means "this analysis cannot model what happens here", which is
+// weaker than SAFE, not stronger: the earlier design silently treated every
+// unmodeled construct as a taint barrier (safe by omission). That is
+// unsound -- it is the same mistake as reading a formal tool's "unknown" as
+// "secure" instead of "silent" (see the project's own formal_verif/infoleak
+// FTZ layer, which exists specifically because binsec is silent -- not
+// secure -- on FP kernels). A remark, not an error: "cannot verify" should
+// be visible, not fatal, or the checker becomes useless before it's complete.
+void reportUnknown(Operation *op, StringRef reason) {
+
+  sawUnknown = true;
+
+  op->emitRemark()
+      << "Staging Non-Interference: UNKNOWN - " << reason
+      << " (unmodeled construct; not provably safe)";
+
+  llvm::errs() << "\n========== UNKNOWN ==========\n";
+
+  llvm::errs()
+      << reason
+      << "\n";
+}
+
 //------------------------------------------------------------
 // affine.for
 //------------------------------------------------------------
 
 void visitAffineFor(affine::AffineForOp loop) {
 
+  bool boundTainted = false;
+
   for (Value v : loop.getLowerBoundOperands()) {
 
-    if (isStagingTainted(v))
+    if (isStagingTainted(v)) {
       reportViolation(
           loop,
           v,
           "loop lower bound depends on protected runtime data");
+      boundTainted = true;
+    }
   }
 
   for (Value v : loop.getUpperBoundOperands()) {
 
-    if (isStagingTainted(v))
+    if (isStagingTainted(v)) {
       reportViolation(
           loop,
           v,
           "loop upper bound depends on protected runtime data");
+      boundTainted = true;
+    }
+  }
+
+  // The induction variable (and any iter_args) range over a tainted bound,
+  // so any downstream use of it -- e.g. as an affine.load/store index -- is
+  // staging-tainted too. Not seeding this was a silent false negative: only
+  // the loop op itself was ever flagged, never derived uses of the
+  // induction variable in the body (readme's "block argument propagation"
+  // gap, for the one case -- loop induction vars -- this walker can resolve
+  // outright instead of reporting UNKNOWN).
+  if (boundTainted) {
+    for (Value iv : loop.getBody()->getArguments())
+      stagingTainted.insert(iv);
   }
 }
 
@@ -347,23 +487,113 @@ void visitAffineFor(affine::AffineForOp loop) {
 
 void visitScfFor(scf::ForOp loop) {
 
-  if (isStagingTainted(loop.getLowerBound()))
+  bool boundTainted = false;
+
+  if (isStagingTainted(loop.getLowerBound())) {
     reportViolation(
         loop,
         loop.getLowerBound(),
         "loop lower bound depends on protected runtime data");
+    boundTainted = true;
+  }
 
-  if (isStagingTainted(loop.getUpperBound()))
+  if (isStagingTainted(loop.getUpperBound())) {
     reportViolation(
         loop,
         loop.getUpperBound(),
         "loop upper bound depends on protected runtime data");
+    boundTainted = true;
+  }
 
-  if (isStagingTainted(loop.getStep()))
+  if (isStagingTainted(loop.getStep())) {
     reportViolation(
         loop,
         loop.getStep(),
         "loop step depends on protected runtime data");
+    boundTainted = true;
+  }
+
+  if (boundTainted)
+    stagingTainted.insert(loop.getInductionVar());
+
+  // iter_args: a tainted init value flows into the corresponding region
+  // block argument on every iteration (and back in via scf.yield). Not
+  // propagating this was a silent false negative -- readme's explicitly
+  // documented "scf.for iter_args propagation" gap -- and it is a real,
+  // resolvable dataflow edge, not an unmodeled one.
+  for (auto [init, arg] :
+       llvm::zip(loop.getInitArgs(), loop.getRegionIterArgs())) {
+    if (isRuntimeTainted(init))
+      runtimeTainted.insert(arg);
+    if (isStagingTainted(init))
+      stagingTainted.insert(arg);
+  }
+}
+
+//------------------------------------------------------------
+// scf.if / scf.while: staging-time control flow
+//------------------------------------------------------------
+
+void visitScfIf(scf::IfOp ifOp) {
+
+  if (isStagingTainted(ifOp.getCondition()))
+    reportViolation(
+        ifOp,
+        ifOp.getCondition(),
+        "branch condition depends on protected runtime data "
+        "(staging-time control flow)");
+}
+
+void visitScfCondition(scf::ConditionOp cond) {
+
+  if (isStagingTainted(cond.getCondition()))
+    reportViolation(
+        cond,
+        cond.getCondition(),
+        "scf.while condition depends on protected runtime data "
+        "(staging-time control flow)");
+}
+
+// scf.while's "before" region computes the condition (via scf.condition,
+// above) from its own block arguments, which are seeded from the init
+// operands on entry -- the same init-value -> region-block-arg edge as
+// scf.for's iter_args, so it gets the same fix: propagate taint across it
+// instead of silently dropping it at the region boundary.
+void visitScfWhile(scf::WhileOp whileOp) {
+
+  Block &before = whileOp.getBefore().front();
+
+  for (auto [init, arg] :
+       llvm::zip(whileOp.getInits(), before.getArguments())) {
+    if (isRuntimeTainted(init))
+      runtimeTainted.insert(arg);
+    if (isStagingTainted(init))
+      stagingTainted.insert(arg);
+  }
+}
+
+//------------------------------------------------------------
+// secret.generic: unmodeled region -- UNKNOWN, not silently safe
+//------------------------------------------------------------
+
+void visitSecretGeneric(Operation *op) {
+
+  bool anyTainted = false;
+
+  for (Value operand : op->getOperands()) {
+    if (isTainted(operand)) {
+      anyTainted = true;
+      break;
+    }
+  }
+
+  if (!anyTainted)
+    return;
+
+  reportUnknown(
+      op,
+      "secret.generic region body is not modeled by this analysis; a "
+      "tainted operand may be relaundered or re-leaked inside it");
 }
 
   //------------------------------------------------------------
@@ -386,16 +616,18 @@ void visitScfFor(scf::ForOp loop) {
         << "\n";
 
     llvm::errs()
+        << "Violations reported    : "
+        << (sawViolation ? "yes" : "no")
+        << "\n";
+
+    llvm::errs()
+        << "Unknown (unmodeled)    : "
+        << (sawUnknown ? "yes" : "no")
+        << "\n";
+
+    llvm::errs()
         << "==============================\n";
   }
 };
-
-  std::unique_ptr<Pass>
-createVerifyStagingNonInterferencePass() {
-    return std::make_unique<VerifyStagingNonInterferencePass>();
-}
-
-void registerPasses() {
-    PassRegistration<VerifyStagingNonInterferencePass>();
-}
+} // namespace
 }}

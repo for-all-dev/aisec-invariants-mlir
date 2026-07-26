@@ -4,8 +4,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// #ifndef STAGINGNI_PASSES
-// #define STAGINGNI_PASSES
+#ifndef STAGINGNI_PASSES
+#define STAGINGNI_PASSES
 
 include "mlir/Pass/PassBase.td"
 
@@ -33,13 +33,20 @@ def VerifyStagingNonInterference
       * scf.for loop bounds
       * affine.load addresses
       * affine.store addresses
+      * scf.if / scf.while branch conditions (staging-time control flow)
 
-    Runtime secret flows are still checked through secret.reveal.
+    A construct this analysis does not model (block arguments other than
+    loop induction vars/iter_args, secret.generic region bodies, ...) is
+    reported as UNKNOWN rather than silently treated as safe.
   }];
 
-  let constructor =
-      "mlir::stagingni::createVerifyStagingNonInterferencePass()";
-
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "mlir::func::FuncDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+  ];
 }
 
-//#endif
+#endif // STAGINGNI_PASSES

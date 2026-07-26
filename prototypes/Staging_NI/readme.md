@@ -280,6 +280,51 @@ Checks
 
 ---
 
+### Staging-time control flow
+
+```
+scf.if
+scf.while
+```
+
+Checks
+
+* `scf.if`'s branch condition
+* `scf.while`'s condition (the operand of the `scf.condition` terminator in
+  its "before" region)
+
+A staging-tainted condition means the generated program's control-flow
+*structure* itself depends on protected data — not just an address or a
+loop trip count.
+
+---
+
+### Unmodeled constructs — UNKNOWN, not silently SAFE
+
+A construct this analysis cannot correctly reason about is reported as
+**UNKNOWN** (an `emitRemark`, not an error) whenever a tainted value reaches
+it, instead of being silently treated as a taint barrier. Currently this
+applies to:
+
+* `secret.generic` region bodies (the HEIR Secret dialect is not in this
+  project's dialect registry, so its ops can't be modeled; matched by
+  operation name instead of being invisible to the walk).
+
+Treating "cannot verify" as a distinct outcome from "verified safe" matters:
+silently downgrading an unmodeled construct to SAFE is the same mistake as
+reading a formal tool's "unknown" result as "secure" — see this monorepo's
+`formal_verif/infoleak` FTZ layer, which exists specifically because
+`binsec` is *silent*, not *secure*, on floating-point kernels.
+
+Block arguments from loop induction variables and `scf.for`/`scf.while`
+carried values (`iter_args` / the "before" region's arguments) are **not**
+in this UNKNOWN list: those are resolvable, ordinary dataflow edges (a
+tainted bound taints the induction variable it ranges over; a tainted
+init value taints the corresponding region argument), and are propagated
+outright rather than punted to UNKNOWN.
+
+---
+
 # Example
 
 Input
@@ -349,8 +394,6 @@ loop upper bound depends on protected runtime data
 
 # Internal Architecture
 
-The pass consists of five logical components.
-
 ```
 runOnOperation()
 
@@ -360,38 +403,32 @@ runOnOperation()
 
 │
 
-├── walk(Operation*)
-
+├── walk<PreOrder>(Operation*)         // see Design Decisions: pre-order,
+│       │                              // not the walk() default, is load-bearing
+│       ├── visitTensorDim()                    // Runtime -> Staging (1)
 │       │
-
-│       ├── visitTensorDim()
-
-│       │
-
+│       ├── visitRuntimeToStagingCast()          // Runtime -> Staging (2):
+│       │                                        // arith.index_cast of tainted data
 │       ├── visitGenericRuntimePropagation()
-
 │       │
-
-│       ├── visitGenericStagingPropagation()
-
+│       ├── visitArithmeticStagingPropagation()
 │       │
-
-│       ├── visitAffineFor()
-
+│       ├── visitAffineFor()            // + seeds induction var on tainted bound
 │       │
-
-│       ├── visitScfFor()
-
+│       ├── visitScfFor()               // + seeds induction var + iter_args
 │       │
-
+│       ├── visitScfWhile()             // + seeds "before" region args from inits
+│       │
 │       ├── visitAffineLoad()
-
 │       │
-
-│       └── visitAffineStore()
-
+│       ├── visitAffineStore()
+│       │
+│       ├── visitScfIf()                // staging-time control flow
+│       │
+│       ├── visitScfCondition()         // scf.while's condition
+│       │
+│       └── visitSecretGeneric()        // UNKNOWN, not silently SAFE
 │
-
 └── printSummary()
 ```
 
@@ -411,27 +448,69 @@ Reasons include
 
 The analysis instead performs a manual forward traversal over SSA operations using `func.walk()`.
 
+**The walk is explicitly pre-order** (`func.walk<WalkOrder::PreOrder>(...)`),
+not `func.walk()`'s default (post-order — children visited before their
+parent). Loop-bound-derived taint is seeded onto the induction
+variable/`iter_args` by visiting the loop *op itself* (`visitAffineFor`/
+`visitScfFor`/`visitScfWhile`); under the default post-order, every use of
+those values *inside* the loop body would be checked before the loop op
+seeds them, silently missing all of them. Pre-order visits the loop op
+first, then its body, which is the order this analysis actually depends on.
+
 ---
 
 # Current Limitations
 
 This implementation is a **prototype** intended to demonstrate the core analysis algorithm.
 
-The following features are intentionally not implemented.
+The following features are intentionally not implemented, and any tainted
+value reaching one of them is reported as **UNKNOWN** rather than silently
+treated as safe (see "Unmodeled constructs" above) wherever this analysis
+can detect that it happened:
 
 * MLIR DataFlow Framework
 * lattice-based analysis
 * fixpoint iteration
 * interprocedural analysis
-* region-aware propagation
-* `secret.generic` support
-* block argument propagation
-* `scf.for` `iter_args` propagation
+* `secret.generic` region bodies (reported as UNKNOWN when a tainted operand
+  reaches one — not modeled beyond that)
 * alias analysis
 * memory dependence analysis
-* control-flow-sensitive propagation
+* propagation of taint from a region's yielded values back onto its owning
+  op's *results* (e.g. an `scf.if` whose *result* is a tainted value
+  computed inside one branch is not currently tracked past the `scf.if` —
+  only its branch *condition* is checked)
+
+Resolved (previously silently missed as false negatives, not merely
+undocumented):
+
+* block argument propagation for loop induction variables and
+  `scf.for`/`scf.while` carried values (`iter_args` / "before"-region args)
+  — these are ordinary resolvable dataflow edges, not unmodeled constructs
+* `scf.for` `iter_args` propagation
+* `scf.if`/`scf.while` condition checks (staging-time control flow) —
+  previously not checked as a sink at all
 
 Consequently, this pass should be viewed as a demonstration of staging-time taint analysis over MLIR SSA rather than a production-quality security verifier.
+
+---
+
+# Relationship to `mlir_leak`
+
+`../mlir_leak` measures the *same* leak class this pass targets — a
+protected value's shape/extent driving a compile-time decision — but
+dynamically: it lowers a kernel through several real MLIR pipelines and
+LLVM `-O` levels, links it, and measures actual secret-dependence under
+Valgrind. Where the two overlap (`mlir_leak/dynshape.mlir`'s buffer-extent
+pattern, adapted here as `test/dynshape-cross-check.mlir`), this pass's
+static prediction and `mlir_leak`'s measured result agree: both flag the
+loop bound as leaking, on every lowering pipeline and every `-O` level
+`mlir_leak` tried. This pass is the fast, no-compile, no-Valgrind
+*predictor*; `mlir_leak` is the *ground truth* for the one property both
+can express, and the only one of the two that can attribute a leak to a
+*specific* lowering or optimization pass having introduced or removed it —
+this pass has no lowering pipeline of its own to compare before/after, so
+it cannot answer that question at all, only "does this IR, as given, leak."
 
 ---
 
