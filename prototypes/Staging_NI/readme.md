@@ -186,20 +186,28 @@ remaining runtime tainted.
 
 ## Phase 4 — Staging Propagation
 
-Staging taint propagates through arithmetic operations on index values.
+Staging taint propagates through **any** operation: if an operand carries it,
+every result does.
 
-Currently supported operations include
+This used to be gated on a whitelist of ten `arith` ops. A whitelist is a
+silent-safe construct by design — an operation not on it consumed a tainted
+value and produced a clean one, with no diagnostic, so `arith.shli`,
+`affine.apply`, `arith.select` and every op in every dialect the list did not
+enumerate were holes. Over-approximating instead follows the rule
+`prototypes/initial`'s `VerifyNonInterference` already states: *if ANY operand
+is tainted, ALL results become tainted — imprecise but sound.*
 
-* arith.addi
-* arith.subi
-* arith.muli
-* arith.divsi
-* arith.divui
-* arith.remsi
-* arith.remui
-* arith.index_cast
-* arith.maxsi
-* arith.minsi
+Taint also crosses the edges a purely operand→result rule cannot see:
+
+* **memory** — a store of tainted data taints the destination buffer, so a
+  later load from it is tainted (whole-buffer, index-insensitive);
+* **regions** — a yielded value reaches the parent op's results and the
+  loop-carried arguments it re-binds;
+* **blocks** — branch successor operands reach the successor's block
+  arguments (this is what keeps the analysis alive after `--convert-scf-to-cf`).
+
+Because those edges run backwards as well as forwards, propagation **iterates
+to a fixpoint** rather than relying on one walk order being correct.
 
 Example
 
@@ -258,33 +266,28 @@ Checks
 
 ---
 
-### Affine memory accesses
+### Memory accesses
 
 ```
-affine.load
-```
-
-Checks
-
-* address indices
-
----
-
-```
-affine.store
+affine.load    affine.store
+memref.load    memref.store
 ```
 
 Checks
 
 * address indices
+
+Both the affine and the plain `memref` forms. Checking only the affine ones
+missed `mlir_leak`'s `idx_gather` — its canonical address-channel kernel,
+measured leaking at every `-O` level — because it is written with
+`memref.load`.
 
 ---
 
 ### Staging-time control flow
 
 ```
-scf.if
-scf.while
+scf.if    scf.while    cf.cond_br
 ```
 
 Checks
@@ -292,6 +295,10 @@ Checks
 * `scf.if`'s branch condition
 * `scf.while`'s condition (the operand of the `scf.condition` terminator in
   its "before" region)
+* `cf.cond_br`'s condition — what the two above BECOME under the standard
+  `--convert-scf-to-cf`. Checking only the `scf` forms meant going blind on
+  the same program one lowering step later, which a differential run would
+  have read as the leak having been removed.
 
 A staging-tainted condition means the generated program's control-flow
 *structure* itself depends on protected data — not just an address or a
@@ -308,7 +315,13 @@ applies to:
 
 * `secret.generic` region bodies (the HEIR Secret dialect is not in this
   project's dialect registry, so its ops can't be modeled; matched by
-  operation name instead of being invisible to the walk).
+  operation name instead of being invisible to the walk);
+* a **second handle onto a tainted buffer** (`memref.cast`/`subview`/`view`/
+  `reinterpret_cast`/`collapse_shape`/`expand_shape`) — the memory model is
+  per-SSA-value and models no aliasing, so a store through one handle is not
+  seen through the other;
+* a tainted value crossing a **call boundary** (`func.call`,
+  `func.call_indirect`) — the analysis is intraprocedural.
 
 Treating "cannot verify" as a distinct outcome from "verified safe" matters:
 silently downgrading an unmodeled construct to SAFE is the same mistake as
@@ -398,41 +411,29 @@ loop upper bound depends on protected runtime data
 runOnOperation()
 
 │
-
 ├── seedRuntimeTaint()
-
 │
-
-├── walk<PreOrder>(Operation*)         // see Design Decisions: pre-order,
-│       │                              // not the walk() default, is load-bearing
-│       ├── visitTensorDim()                    // Runtime -> Staging (1)
-│       │
-│       ├── visitRuntimeToStagingCast()          // Runtime -> Staging (2):
-│       │                                        // arith.index_cast of tainted data
-│       ├── visitGenericRuntimePropagation()
-│       │
-│       ├── visitArithmeticStagingPropagation()
-│       │
-│       ├── visitAffineFor()            // + seeds induction var on tainted bound
-│       │
-│       ├── visitScfFor()               // + seeds induction var + iter_args
-│       │
-│       ├── visitScfWhile()             // + seeds "before" region args from inits
-│       │
-│       ├── visitAffineLoad()
-│       │
-│       ├── visitAffineStore()
-│       │
-│       ├── visitScfIf()                // staging-time control flow
-│       │
-│       ├── visitScfCondition()         // scf.while's condition
-│       │
-│       └── visitSecretGeneric()        // UNKNOWN, not silently SAFE
+├── propagate to FIXPOINT   (repeat until the taint sets stop growing;
+│   │                        diagnostics suppressed during these rounds)
+│   └── walk<PreOrder>(Operation*)
+│           ├── visitTensorDim()                 // Runtime -> Staging (1)
+│           ├── visitRuntimeToStagingCast()      // Runtime -> Staging (2)
+│           ├── visitGenericRuntimePropagation()
+│           ├── visitGenericStagingPropagation() // any op, no whitelist
+│           ├── visitStore()                     // taint -> buffer
+│           ├── visitRegionTerminator()          // yield -> results / iter_args
+│           ├── visitBranchOperands()            // br args -> block args
+│           ├── visitAffineFor() / visitScfFor() / visitScfWhile()
+│           ├── visitUnmodeledAliasing()         // UNKNOWN
+│           └── visitCall()                      // UNKNOWN
 │
-└── printSummary()
+├── final walk, reporting = true   (emit each finding exactly once)
+│       ├── visitAffineLoad/Store, visitAddressIndices   // address sinks
+│       ├── visitScfIf / visitScfCondition / visitCondBranch  // control flow
+│       └── visitSecretGeneric()                 // UNKNOWN
+│
+└── printSummary()   -> signalPassFailure() iff a VIOLATION was confirmed
 ```
-
----
 
 # Design Decisions
 
@@ -448,14 +449,17 @@ Reasons include
 
 The analysis instead performs a manual forward traversal over SSA operations using `func.walk()`.
 
-**The walk is explicitly pre-order** (`func.walk<WalkOrder::PreOrder>(...)`),
-not `func.walk()`'s default (post-order — children visited before their
-parent). Loop-bound-derived taint is seeded onto the induction
-variable/`iter_args` by visiting the loop *op itself* (`visitAffineFor`/
-`visitScfFor`/`visitScfWhile`); under the default post-order, every use of
-those values *inside* the loop body would be checked before the loop op
-seeds them, silently missing all of them. Pre-order visits the loop op
-first, then its body, which is the order this analysis actually depends on.
+It does, however, **iterate to a fixpoint**. Taint does not only flow
+forward along SSA: it runs backwards around a loop's back edge (`scf.yield`
+re-binds the `iter_args`) and outward from a region terminator onto the
+parent op's results. No single traversal order is correct for all of those,
+so the propagation rounds repeat until the taint sets stop growing, and
+diagnostics are emitted only on a final walk once they are stable. The sets
+only grow and are bounded by the number of SSA values, so this terminates.
+
+The walk is pre-order because it converges in fewer rounds (a loop op seeds
+its induction variable before its body is walked), not because correctness
+depends on it.
 
 ---
 
@@ -470,16 +474,15 @@ can detect that it happened:
 
 * MLIR DataFlow Framework
 * lattice-based analysis
-* fixpoint iteration
-* interprocedural analysis
+* interprocedural analysis (a tainted value crossing a call is UNKNOWN)
 * `secret.generic` region bodies (reported as UNKNOWN when a tainted operand
   reaches one — not modeled beyond that)
 * alias analysis
 * memory dependence analysis
-* propagation of taint from a region's yielded values back onto its owning
-  op's *results* (e.g. an `scf.if` whose *result* is a tainted value
-  computed inside one branch is not currently tracked past the `scf.if` —
-  only its branch *condition* is checked)
+* anything below the MLIR boundary: instruction selection and the LLVM
+  backend's own transformations are invisible here, so a `clean` verdict is
+  not a statement about the binary (see the `mask_select` row in
+  "Cross-validation against measured ground truth")
 
 Resolved (previously silently missed as false negatives, not merely
 undocumented):
@@ -490,10 +493,92 @@ undocumented):
 * `scf.for` `iter_args` propagation
 * `scf.if`/`scf.while` condition checks (staging-time control flow) —
   previously not checked as a sink at all
+* `cf.cond_br` conditions and branch-argument passing — the lowered forms of
+  the above; without them the analysis went blind one standard pass later
+* taint out of a region: yielded values now reach the parent op's results
+  and loop-carried arguments, via **fixpoint iteration** (the propagation
+  rounds repeat until the taint sets stop growing, so no single walk order
+  has to be the right one)
+* taint through memory (`memref`/`affine` store then load), and address
+  sinks on the plain `memref.load`/`memref.store` forms, not just affine
+* propagation through **any** operation, replacing a whitelist of ten
+  `arith` ops that silently dropped taint everywhere else
 
 Consequently, this pass should be viewed as a demonstration of staging-time taint analysis over MLIR SSA rather than a production-quality security verifier.
 
 ---
+
+# Differential axis: `staging_ni_diff.py`
+
+The checker answers "does this IR, as given, leak". On its own that cannot
+attribute anything to a compilation step, which is the question
+`../mlir_leak` exists to answer. `staging_ni_diff.py` asks it here too:
+run the checker, lower with `mlir-opt`, run it again, compare.
+
+```sh
+python3 staging_ni_diff.py test/dynshape-cross-check.mlir
+python3 staging_ni_diff.py ../mlir_leak/gather.mlir --protect 0 --pipelines P0 P1
+```
+
+Verdicts come from `../leak_check/differential.py` —
+`verdict_two_builds`, the same quadrant `noninterference.py` uses — renamed
+for this axis: `authored-and-survives`, `lowering-introduced`,
+`lowering-removed`, `oblivious`. The pipeline table is imported from
+`mlir_leak`'s `PIPELINES` rather than copied, so both prototypes sweep the
+same compiler axis by construction.
+
+**UNKNOWN is never folded into "no leak".** If the checker cannot model the
+lowered form it reports `unknown-after`, not `lowering-removed`. The
+distinction is the whole point of a differential: "the leak went away" and
+"the analysis stopped being able to see it" produce the same `clean` reading
+otherwise. That failure mode is not hypothetical — it happened twice while
+building this, both times caught only by cross-checking against measured
+results (see below), and both times the fix was a missing taint edge
+(`cf.cond_br` conditions, then branch-argument passing) rather than a real
+change in the program.
+
+## Cross-validation against measured ground truth
+
+`mlir_leak` compiles its kernels and measures them under Valgrind. Running
+this checker over those same kernels is the only honest way to find out
+whether its verdicts mean anything:
+
+| kernel | `mlir_leak` measured @ -O0 | this checker | |
+|---|---|---|---|
+| `matvec` | oblivious | `oblivious` | agree |
+| `cond_reduce` | LEAK (`taint:cf`) | `authored-and-survives` | agree |
+| `idx_gather` | LEAK (`taint:addr`) | `authored-and-survives` | agree |
+| `dynshape` | LEAK (`taint:cf`, `Dw`) | `authored-and-survives` | agree |
+| `mask_select` | LEAK (`taint:cf`) | `oblivious` | **disagree** |
+
+Reproduce:
+
+```sh
+python3 staging_ni_diff.py ../mlir_leak/{matvec,cond,gather,select,dynshape}.mlir \
+        --protect 0 --pipelines P0 P1 P2
+```
+
+### The disagreement is a real blind spot, not a bug
+
+`mask_select` is a branchless `arith.select` on a secret mask. At the MLIR
+level it has no branch and no secret-derived address, so `oblivious` is the
+correct answer *about the IR*. It leaks anyway, because the **LLVM `-O0`
+instruction selector** lowers that select into a conditional branch
+(`jne`) — a decision taken after MLIR is gone, which this checker cannot
+observe even in principle. `mlir_leak`'s finding 1 documents the same thing
+from the other side, including that `-O2/-O3` turn it branchless again.
+
+So: **a `clean` verdict here is not a statement about the binary.** It means
+no MLIR-level flow was found, under an over-approximating analysis, for the
+constructs it models. Everything below MLIR — instruction selection,
+register allocation, the backend's own transformations — is outside its
+reach, and that region is exactly what `mlir_leak` measures. Neither tool
+subsumes the other:
+
+- this one covers **all inputs** structurally; a measurement covers only the
+  two secret classes it actually runs;
+- a measurement covers the **whole toolchain** down to the executed
+  instructions; this one stops at the MLIR boundary.
 
 # Relationship to `mlir_leak`
 

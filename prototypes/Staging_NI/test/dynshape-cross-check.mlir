@@ -41,6 +41,13 @@ func.func @dynshape(
   %buf = memref.alloc(%k) : memref<?xf32>
   // expected-error @+1 {{loop upper bound depends on protected runtime data}}
   %s = scf.for %j = %c0 to %k step %c1 iter_args(%acc = %z) -> (f32) {
+    // The induction variable ranges over a secret-derived bound, so the
+    // addresses written depend on the secret too -- the MEMORY channel,
+    // separate from the control-flow one on the bound above. mlir_leak
+    // measures exactly this on the same kernel (dDw=+20493 at -O0, and it
+    // is the channel whose survival at -O2 depends on buffer liveness --
+    // README finding 7).
+    // expected-error @+1 {{memref.store address depends on protected runtime data}}
     memref.store %one, %buf[%j] : memref<?xf32>
     %a = arith.addf %acc, %one : f32
     scf.yield %a : f32

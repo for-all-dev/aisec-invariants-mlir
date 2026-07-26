@@ -11,6 +11,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
 
 using namespace mlir;
 
@@ -39,17 +40,43 @@ public:
 
     seedRuntimeTaint(func);
 
-    // Pre-order: a loop's bound/iter_args are seeded onto its induction
-    // var/region args by visiting the loop OP itself (visitAffineFor/
-    // visitScfFor), and that seeded taint must be visible to uses INSIDE
-    // the loop body. walk()'s default is post-order (children before
-    // parent) -- under that order every such nested use is checked before
-    // the parent loop op seeds it, silently missing it. Pre-order visits
-    // the loop op first, then its body, which is the order this analysis
-    // actually depends on.
-    func.walk<WalkOrder::PreOrder>([&](Operation *op) {
-      visitOperation(op);
-    });
+    // Propagate to a FIXPOINT before reporting anything.
+    //
+    // A single pass is order-dependent, and no single order is correct:
+    // taint flows forward along SSA (parent op before its region), but also
+    // BACKWARD around a loop's back edge (scf.yield re-binds the iter_args
+    // for the next iteration) and outward from a region terminator onto the
+    // parent op's results. A one-shot walk therefore missed anything whose
+    // taint became known only after the point it was needed -- e.g.
+    // mlir_leak's cond_reduce, where the secret is reduced inside an
+    // scf.for and only the loop's RESULT feeds the branch: measured
+    // leaking, reported oblivious here.
+    //
+    // Iterating until the taint sets stop growing removes the ordering
+    // question entirely. The sets only ever grow and are bounded by the
+    // number of SSA values, so this terminates.
+    //
+    // Pre-order is kept because it converges in fewer rounds (a loop op
+    // seeds its induction var before its body is walked), not because
+    // correctness depends on it any more.
+    reporting = false;
+    for (unsigned round = 0;; ++round) {
+      size_t before = runtimeTainted.size() + stagingTainted.size();
+      func.walk<WalkOrder::PreOrder>([&](Operation *op) { visitOperation(op); });
+      if (runtimeTainted.size() + stagingTainted.size() == before)
+        break;
+      if (round > kMaxRounds) {
+        func.emitWarning()
+            << "staging-ni: taint propagation did not converge in "
+            << kMaxRounds << " rounds; results may be incomplete";
+        break;
+      }
+    }
+
+    // One final walk, now that the taint sets are stable, to emit
+    // diagnostics exactly once each.
+    reporting = true;
+    func.walk<WalkOrder::PreOrder>([&](Operation *op) { visitOperation(op); });
 
     printSummary();
 
@@ -75,6 +102,11 @@ private:
   llvm::DenseSet<Value> stagingTainted;
   bool sawViolation = false;
   bool sawUnknown = false;
+  // Diagnostics are emitted only on the final walk, after the taint sets
+  // have converged; the propagation rounds before it would otherwise report
+  // the same site once per round.
+  bool reporting = true;
+  static constexpr unsigned kMaxRounds = 64;
 
   //------------------------------------------------------------
   // Seed runtime taint
@@ -206,6 +238,11 @@ void seedRuntimeTaint(func::FuncOp func) {
     visitUnmodeledAliasing(op);
     visitCall(op);
 
+    if (op->hasTrait<OpTrait::IsTerminator>())
+        visitRegionTerminator(op);
+
+    visitBranchOperands(op);
+
     if (auto loop = dyn_cast<affine::AffineForOp>(op))
         visitAffineFor(loop);
 
@@ -217,6 +254,17 @@ void seedRuntimeTaint(func::FuncOp func) {
 
     if (auto store = dyn_cast<affine::AffineStoreOp>(op))
         visitAffineStore(store);
+
+    // memref.load/store, not just their affine counterparts. Address sinks
+    // that only covered the affine forms missed the plain-memref one
+    // entirely -- mlir_leak's idx_gather (`table[secret_idx]`, its canonical
+    // ADDRESS-channel kernel, measured leaking at every -O level) is written
+    // with memref.load and was reported oblivious.
+    if (auto load = dyn_cast<memref::LoadOp>(op))
+        visitAddressIndices(op, load.getIndices(), "memref.load");
+
+    if (auto store = dyn_cast<memref::StoreOp>(op))
+        visitAddressIndices(op, store.getIndices(), "memref.store");
 
     if (auto ifOp = dyn_cast<scf::IfOp>(op))
         visitScfIf(ifOp);
@@ -244,7 +292,7 @@ void visitAffineLoad(affine::AffineLoadOp load) {
 
     for (Value index : load.getIndices()) {
 
-        if (!isStagingTainted(index))
+        if (!isTainted(index))
             continue;
 
         reportViolation(
@@ -262,7 +310,7 @@ void visitAffineStore(affine::AffineStoreOp store) {
 
     for (Value index : store.getIndices()) {
 
-        if (!isStagingTainted(index))
+        if (!isTainted(index))
             continue;
 
         reportViolation(
@@ -270,6 +318,106 @@ void visitAffineStore(affine::AffineStoreOp store) {
             index,
             "affine.store address depends on protected runtime data");
     }
+}
+
+//------------------------------------------------------------
+// Region terminators: carry taint OUT of a region
+//------------------------------------------------------------
+
+// A value computed inside a region and yielded from it becomes (a) the
+// parent op's corresponding RESULT and (b), around a loop's back edge, the
+// corresponding iter_arg on the next iteration. Neither edge existed, so
+// taint entered a region and never came back out: mlir_leak's cond_reduce
+// reduces the secret inside an scf.for and branches on the loop's result,
+// which this analysis called oblivious while the measurement called it a
+// leak.
+//
+// Terminator-agnostic (any op with IsTerminator, matched positionally),
+// so scf.yield/affine.yield/scf.condition and any other dialect's region
+// terminator all work without enumerating them -- an enumeration here would
+// be the same silent-safe whitelist that was removed from the propagation
+// rule.
+void carryTaint(Value from, Value to) {
+  if (isRuntimeTainted(from))
+    runtimeTainted.insert(to);
+  if (isStagingTainted(from))
+    stagingTainted.insert(to);
+}
+
+// Branch successor operands -> successor BLOCK ARGUMENTS.
+//
+// This is the cf-dialect twin of the region-terminator edge below, and it
+// is what keeps the analysis alive after --convert-scf-to-cf: that pass
+// turns loop-carried values and scf.if results into block arguments passed
+// by cf.br/cf.cond_br. Without this edge taint died at every block
+// boundary, so a lowered program looked clean -- and a before/after
+// comparison read that blindness as `lowering-removed`. Caught by
+// cross-checking against mlir_leak's cond_reduce, which is measured leaking
+// on every pipeline but was reported "removed" here.
+//
+// Via BranchOpInterface rather than naming cf ops, so any dialect's
+// branch-like op participates.
+void visitBranchOperands(Operation *op) {
+
+  auto branch = dyn_cast<BranchOpInterface>(op);
+  if (!branch)
+    return;
+
+  for (unsigned s = 0, e = op->getNumSuccessors(); s < e; ++s) {
+    SuccessorOperands succOps = branch.getSuccessorOperands(s);
+    Block *dest = op->getSuccessor(s);
+    for (unsigned i = succOps.getProducedOperandCount(), n = succOps.size();
+         i < n; ++i) {
+      if (i >= dest->getNumArguments())
+        break;
+      if (Value from = succOps[i])
+        carryTaint(from, dest->getArgument(i));
+    }
+  }
+}
+
+void visitRegionTerminator(Operation *term) {
+
+  Operation *parent = term->getParentOp();
+  if (!parent)
+    return;
+
+  auto carry = [&](Value from, Value to) { carryTaint(from, to); };
+
+  // yielded value i -> parent result i
+  for (auto [operand, result] :
+       llvm::zip(term->getOperands(), parent->getResults()))
+    carry(operand, result);
+
+  // yielded value i -> the region argument it re-binds (loop back edge).
+  // Offset because a loop body's first argument is the induction variable,
+  // which is not carried; zip over the TAIL that matches the yield's arity.
+  Region *region = term->getParentRegion();
+  if (!region || region->empty())
+    return;
+  Block &entry = region->front();
+  unsigned nYield = term->getNumOperands();
+  unsigned nArgs = entry.getNumArguments();
+  if (nYield && nArgs >= nYield)
+    for (unsigned i = 0; i < nYield; ++i)
+      carry(term->getOperand(i), entry.getArgument(nArgs - nYield + i));
+}
+
+//------------------------------------------------------------
+// Address indices (shared by the affine and memref forms)
+//------------------------------------------------------------
+
+void visitAddressIndices(Operation *op, ValueRange indices, StringRef what) {
+
+  for (Value index : indices) {
+
+    if (!isTainted(index))
+      continue;
+
+    reportViolation(
+        op, index,
+        (what + " address depends on protected runtime data").str());
+  }
 }
 
 //------------------------------------------------------------
@@ -440,6 +588,9 @@ void reportViolation(Operation *op,
 
   sawViolation = true;
 
+  if (!reporting)
+    return;
+
   op->emitError()
       << "Staging Non-Interference violation: "
       << reason;
@@ -470,6 +621,9 @@ void reportUnknown(Operation *op, StringRef reason) {
 
   sawUnknown = true;
 
+  if (!reporting)
+    return;
+
   op->emitRemark()
       << "Staging Non-Interference: UNKNOWN - " << reason
       << " (unmodeled construct; not provably safe)";
@@ -491,7 +645,7 @@ void visitAffineFor(affine::AffineForOp loop) {
 
   for (Value v : loop.getLowerBoundOperands()) {
 
-    if (isStagingTainted(v)) {
+    if (isTainted(v)) {
       reportViolation(
           loop,
           v,
@@ -502,7 +656,7 @@ void visitAffineFor(affine::AffineForOp loop) {
 
   for (Value v : loop.getUpperBoundOperands()) {
 
-    if (isStagingTainted(v)) {
+    if (isTainted(v)) {
       reportViolation(
           loop,
           v,
@@ -532,7 +686,7 @@ void visitScfFor(scf::ForOp loop) {
 
   bool boundTainted = false;
 
-  if (isStagingTainted(loop.getLowerBound())) {
+  if (isTainted(loop.getLowerBound())) {
     reportViolation(
         loop,
         loop.getLowerBound(),
@@ -540,7 +694,7 @@ void visitScfFor(scf::ForOp loop) {
     boundTainted = true;
   }
 
-  if (isStagingTainted(loop.getUpperBound())) {
+  if (isTainted(loop.getUpperBound())) {
     reportViolation(
         loop,
         loop.getUpperBound(),
@@ -548,7 +702,7 @@ void visitScfFor(scf::ForOp loop) {
     boundTainted = true;
   }
 
-  if (isStagingTainted(loop.getStep())) {
+  if (isTainted(loop.getStep())) {
     reportViolation(
         loop,
         loop.getStep(),
@@ -579,7 +733,7 @@ void visitScfFor(scf::ForOp loop) {
 
 void visitScfIf(scf::IfOp ifOp) {
 
-  if (isStagingTainted(ifOp.getCondition()))
+  if (isTainted(ifOp.getCondition()))
     reportViolation(
         ifOp,
         ifOp.getCondition(),
@@ -589,7 +743,7 @@ void visitScfIf(scf::IfOp ifOp) {
 
 void visitScfCondition(scf::ConditionOp cond) {
 
-  if (isStagingTainted(cond.getCondition()))
+  if (isTainted(cond.getCondition()))
     reportViolation(
         cond,
         cond.getCondition(),
@@ -601,7 +755,7 @@ void visitScfCondition(scf::ConditionOp cond) {
 // as visitScfIf, one dialect down.
 void visitCondBranch(cf::CondBranchOp br) {
 
-  if (isStagingTainted(br.getCondition()))
+  if (isTainted(br.getCondition()))
     reportViolation(
         br,
         br.getCondition(),
