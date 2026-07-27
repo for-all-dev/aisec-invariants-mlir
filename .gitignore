@@ -25,6 +25,8 @@ Thumbs.db
 
 # Claude
 /.claude/worktrees/
+# Local, machine-specific: notes-dir pointer for the better-than-fish skill
+/CLAUDE.md
 
 # CMake / ctest build trees (e.g. prototypes/proofs_l2_seabmc/build)
 build/
