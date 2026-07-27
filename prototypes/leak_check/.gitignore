@@ -35,3 +35,4 @@ secrets/
 # logs and the rolling report are machine- and time-specific, not evidence).
 sweep_logs/
 SWEEP_REPORT.md
+vgcore.*
