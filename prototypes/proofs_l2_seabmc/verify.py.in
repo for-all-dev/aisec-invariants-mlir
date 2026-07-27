@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Run one L2 self-composition unit proof and check its verdict.
+
+Configured by CMake; do not edit the generated copy in the build directory.
+
+Exit codes
+  0  the verdict matched --expect
+  1  the verdict did not match, or the proof was VACUOUS
+  2  sea could not be run / produced no verdict
+
+Interface mirrors verify-c-common's verify.py: --expect plus a VERIFY_FLAGS
+environment variable appended to every invocation.
+
+Reading the verdict is inverted from the usual intuition:
+  unsat = the property holds on all inputs = NO leak
+  sat   = counterexample = the leak witness
+
+Vacuity is checked, not assumed. A proof whose assertion the front end has
+already discharged reports "no assertion was found" and would otherwise be
+recorded as a clean unsat -- indistinguishable from "verified, no leak". That
+happened twice while these proofs were being written, so it is a hard failure
+here rather than a warning.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+
+SEA = "@SEA_EXE@"
+SUBCOMMAND = "@SEA_SUBCOMMAND@"
+BASE_FLAGS = "@SEA_BASE_FLAGS_STR@".split()
+LD_LIBRARY_PATH = "@SEA_LD_LIBRARY_PATH@"
+
+VACUOUS_MARKERS = (
+    "no assertion was found",
+    # an unimplemented intrinsic yields no register, the assertion is havoced,
+    # and the run reports a `sat` that witnesses nothing
+    "Failed to get register",
+)
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--expect", choices=["sat", "unsat"], required=True)
+    ap.add_argument("--sea", default=SEA, help="path to the sea driver")
+    ap.add_argument("--subcommand", default=SUBCOMMAND)
+    ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("input_file")
+    ap.add_argument("extra", nargs=argparse.REMAINDER,
+                    help="extra flags passed through to sea")
+    args = ap.parse_args(argv)
+
+    flags = list(BASE_FLAGS)
+    flags += [a for a in args.extra if a != "--"]
+    flags += os.environ.get("VERIFY_FLAGS", "").split()
+
+    cmd = [args.sea, args.subcommand] + flags + [args.input_file]
+
+    env = dict(os.environ)
+    if LD_LIBRARY_PATH:
+        env["LD_LIBRARY_PATH"] = (
+            LD_LIBRARY_PATH + os.pathsep + env.get("LD_LIBRARY_PATH", "")
+        ).rstrip(os.pathsep)
+
+    if args.verbose:
+        print(" ".join(cmd), flush=True)
+
+    try:
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                              timeout=args.timeout)
+    except FileNotFoundError:
+        print(f"error: cannot run {args.sea!r} -- is SeaHorn built and "
+              f"SEAHORN_ROOT set?", file=sys.stderr)
+        return 2
+    except subprocess.TimeoutExpired:
+        print(f"error: timed out after {args.timeout}s", file=sys.stderr)
+        return 2
+
+    out = proc.stdout + proc.stderr
+    if args.verbose:
+        print(out, flush=True)
+
+    for marker in VACUOUS_MARKERS:
+        if marker in out:
+            print(f"VACUOUS: sea reported {marker!r}; the verdict is "
+                  f"meaningless regardless of whether it matches --expect",
+                  file=sys.stderr)
+            print(out, file=sys.stderr)
+            return 1
+
+    verdict = None
+    for line in out.splitlines():
+        s = line.strip()
+        if s in ("sat", "unsat"):
+            verdict = s
+
+    if verdict is None:
+        print("error: sea produced no sat/unsat verdict", file=sys.stderr)
+        print(out, file=sys.stderr)
+        return 2
+
+    if verdict != args.expect:
+        print(f"FAIL: expected {args.expect}, got {verdict}", file=sys.stderr)
+        if not args.verbose:
+            print(out, file=sys.stderr)
+        return 1
+
+    print(f"{os.path.basename(args.input_file)}: {verdict} (as expected)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
