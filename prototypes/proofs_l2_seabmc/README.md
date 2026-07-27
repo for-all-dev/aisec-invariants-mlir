@@ -95,16 +95,26 @@ Create `jobs/<name>/unit_proof/<name>_{bad,fixed}_harness.c`, each `#include`ing
 its fixture from `../../../../compiler_harness/c/`, then a `CMakeLists.txt`:
 
 ```cmake
-add_l2_proof(NAME <name>_bad   SOURCE unit_proof/<name>_bad_harness.c   EXPECT sat)
-add_l2_proof(NAME <name>_fixed SOURCE unit_proof/<name>_fixed_harness.c EXPECT unsat)
+add_l2_job(NAME  <name>
+           BAD   unit_proof/<name>_bad_harness.c      # must be sat
+           FIXED unit_proof/<name>_fixed_harness.c    # must be unsat
+           FLAGS ${SEA_READ_CHANNEL_FLAGS})           # only if Obs is an address
 ```
 
-and `add_subdirectory(jobs/<name>)` at the top level. Add
-`FLAGS ${SEA_READ_CHANNEL_FLAGS}` only if the observation is an address.
+and `add_subdirectory(jobs/<name>)` at the top level.
 
-Register **both** directions. `EXPECT` is part of the specification, not a
-convenience: a lone `unsat` is also what a degenerate observation produces, so a
-job means nothing without its counterpart.
+**Pairing is enforced at configure time, not by convention.** Omitting `BAD` or
+`FIXED` is a hard CMake error, because an `unsat` on its own is
+indistinguishable from a proof that checks nothing — a degenerate observation,
+or one aimed at the wrong thing, yields `unsat` too. Only the leaky fixture's
+`sat` shows the observation can see the leak at all, which is what makes the
+repaired fixture's `unsat` informative. A missing harness file is also a
+configure error rather than a confusing failure at test time.
+
+If a counterpart genuinely does not exist — some fixtures are `unknown` for want
+of an L0 contract rather than repaired — pass
+`UNPAIRED_JUSTIFICATION "<why>"`. That configures, but warns loudly, so the
+exception is deliberate and visible in the build log.
 
 ## Validating a job before trusting its verdict
 

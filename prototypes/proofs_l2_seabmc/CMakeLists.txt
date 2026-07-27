@@ -82,24 +82,61 @@ string(REPLACE ";" " " SEA_BASE_FLAGS_STR "${SEA_BASE_FLAGS}")
 configure_file(verify.py.in verify.py @ONLY)
 set(VERIFY_PY "${CMAKE_CURRENT_BINARY_DIR}/verify.py")
 
-# --- registering a proof ------------------------------------------------------
-# add_l2_proof(NAME <test> SOURCE <harness.c> EXPECT sat|unsat [FLAGS ...])
-#
-# EXPECT is part of the specification, not a convenience: a job is only
-# meaningful as a CALIBRATED PAIR -- the leaky fixture must yield sat and the
-# repaired one unsat. A single verdict proves nothing, because a degenerate
-# observation also produces unsat.
-function(add_l2_proof)
-  cmake_parse_arguments(P "" "NAME;SOURCE;EXPECT" "FLAGS" ${ARGN})
-  if(NOT P_NAME OR NOT P_SOURCE OR NOT P_EXPECT)
-    message(FATAL_ERROR "add_l2_proof: NAME, SOURCE and EXPECT are required")
+# --- registering a job --------------------------------------------------------
+# Internal: register one direction.
+function(_add_l2_proof NAME SOURCE EXPECT FLAGS)
+  set(_abs "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}")
+  if(NOT EXISTS "${_abs}")
+    message(FATAL_ERROR "add_l2_job(${NAME}): no such harness: ${_abs}")
   endif()
-  add_test(NAME "${P_NAME}_${P_EXPECT}_test"
+  add_test(NAME "${NAME}_${EXPECT}_test"
            COMMAND "${Python3_EXECUTABLE}" "${VERIFY_PY}"
-                   --expect=${P_EXPECT}
-                   "${CMAKE_CURRENT_SOURCE_DIR}/${P_SOURCE}"
-                   ${P_FLAGS})
-  set_tests_properties("${P_NAME}_${P_EXPECT}_test" PROPERTIES TIMEOUT 1800)
+                   --expect=${EXPECT} "${_abs}" ${FLAGS})
+  set_tests_properties("${NAME}_${EXPECT}_test" PROPERTIES TIMEOUT 1800)
+endfunction()
+
+# add_l2_job(NAME <job> BAD <harness.c> FIXED <harness.c> [FLAGS ...])
+#
+# Registers a job as a CALIBRATED PAIR and refuses to register half of one.
+# This is enforced here rather than left to convention because an `unsat` alone
+# is indistinguishable from a proof that checks nothing: a degenerate
+# observation, or one aimed at the wrong thing, also yields `unsat`. Only the
+# leaky fixture's `sat` establishes that the setup can detect the leak it is
+# supposed to detect, which is what makes the repaired fixture's `unsat`
+# informative. Both directions therefore ship together or not at all.
+#
+# If a counterpart genuinely does not exist -- some fixtures are `unknown` for
+# want of an L0 contract rather than repaired -- pass
+# UNPAIRED_JUSTIFICATION "<why>". That still configures, but prints a warning
+# at configure time, so the exception is visible and deliberate.
+function(add_l2_job)
+  cmake_parse_arguments(J "" "NAME;BAD;FIXED;UNPAIRED_JUSTIFICATION" "FLAGS" ${ARGN})
+  if(NOT J_NAME)
+    message(FATAL_ERROR "add_l2_job: NAME is required")
+  endif()
+
+  if(NOT J_BAD OR NOT J_FIXED)
+    if(J_UNPAIRED_JUSTIFICATION)
+      message(WARNING
+        "add_l2_job(${J_NAME}): registered UNPAIRED -- "
+        "${J_UNPAIRED_JUSTIFICATION}")
+    else()
+      message(FATAL_ERROR
+        "add_l2_job(${J_NAME}): both BAD and FIXED are required.\n"
+        "  A lone `unsat` is also what a degenerate observation produces, so "
+        "the repaired fixture's `unsat` means nothing without the leaky "
+        "fixture's `sat` to show the observation can see the leak at all.\n"
+        "  If a counterpart genuinely does not exist, pass "
+        "UNPAIRED_JUSTIFICATION \"<why>\".")
+    endif()
+  endif()
+
+  if(J_BAD)
+    _add_l2_proof("${J_NAME}_bad" "${J_BAD}" sat "${J_FLAGS}")
+  endif()
+  if(J_FIXED)
+    _add_l2_proof("${J_NAME}_fixed" "${J_FIXED}" unsat "${J_FLAGS}")
+  endif()
 endfunction()
 
 add_subdirectory(jobs/secret_embedding_index)
