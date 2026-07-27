@@ -1,4 +1,4 @@
-# seabmc_l2 — self-composition unit proofs over the compiler_harness fixtures
+# proofs_l2_seabmc — self-composition unit proofs over the compiler_harness fixtures
 
 Discharging the **L2** level of `prototypes/compiler_harness/mlir/L0_L1_L2_PIPELINE.md`
 ("a relational witness: equal public inputs and authorized releases, different
@@ -29,37 +29,86 @@ correctness reasons, not just cost.
 
 ## Running
 
+### Quick start
+
 ```sh
+cd prototypes/proofs_l2_seabmc
 cmake -S . -B build -DSEAHORN_ROOT=<seahorn>/build/run   # dir containing bin/sea
 ctest --test-dir build --output-on-failure
 ```
 
-Nothing is compiled by this project: each proof is one C file that `#include`s
-its fixture, and `sea` drives clang itself, so the CMake project is
-`LANGUAGES NONE` and only registers tests. Four tests, a couple of seconds.
+`SEAHORN_ROOT` is the directory holding `bin/sea` — for a source build that is
+`<seahorn>/build-rel/run`, **not** the repository root. Expect four tests in
+about a second. A successful configure prints the paths it resolved:
 
-`SEAHORN_ROOT` may also be set in the environment. CMake locates z3 and yices
-next to the install and bakes them into the generated `verify.py`, so no
-`LD_LIBRARY_PATH` is needed — a missing libz3 otherwise surfaces as an
-unhelpful "error while loading shared libraries" from `seapp` mid-pipeline.
-Override with `-DSEA_LD_LIBRARY_PATH=...` if the guess is wrong.
+```
+-- sea: /path/to/seahorn/build-rel/run/bin/sea
+-- sea runtime libs: /path/to/seahorn/deps/yices-2.6.1/lib:/path/to/seahorn/deps/z3-4.8.9/lib
+```
 
-Extra flags for every proof, as in verify-c-common:
-`VERIFY_FLAGS="--horn-bmc-coi=false" ctest --test-dir build`.
-
-Run a single proof directly, with the command echoed:
+### Command reference
 
 ```sh
+# configure (SEAHORN_ROOT may come from the environment instead of -D)
+cmake -S . -B build -DSEAHORN_ROOT=<seahorn>/build/run
+SEAHORN_ROOT=<seahorn>/build/run cmake -S . -B build
+
+# run
+ctest --test-dir build                       # all four
+ctest --test-dir build --output-on-failure   # show sea's output on failure
+ctest --test-dir build -N                    # list tests, run nothing
+ctest --test-dir build -R secret_embedding   # one job (regex on test name)
+ctest --test-dir build -R _sat_test          # only the leak-witness direction
+ctest --test-dir build -V                    # verbose
+
+# extra sea flags for every proof (as in verify-c-common)
+VERIFY_FLAGS="--horn-bmc-coi=false" ctest --test-dir build
+
+# one proof directly, echoing the sea command it runs
 python3 build/verify.py --expect=sat -v \
   jobs/explicit_error_oracle/unit_proof/explicit_error_oracle_bad_harness.c
+
+# after adding or editing a job's CMakeLists.txt
+cmake -S . -B build          # re-runs configure; ctest alone will not pick it up
+
+# start over
+rm -rf build
 ```
+
+`build/` is gitignored. Building out of tree also works: `cmake -S . -B /tmp/l2`.
+
+### Configure options
+
+| variable | meaning | default |
+|---|---|---|
+| `SEAHORN_ROOT` | directory containing `bin/sea` | `$ENV{SEAHORN_ROOT}`, else search `PATH` |
+| `SEA_LD_LIBRARY_PATH` | where z3/yices live | auto-detected next to the install |
+| `SEA_SUBCOMMAND` | sea subcommand | `bpf` |
+| `SEA_BASE_FLAGS` | opsem flags common to every proof | see `CMakeLists.txt` |
+| `SEA_READ_CHANNEL_FLAGS` | extra flags for address-observing jobs | `--horn-bv2-tracking-mem --horn-shadow-mem-load-is-def` |
+
+CMake bakes the solver paths into the generated `build/verify.py`, so **no
+`LD_LIBRARY_PATH` is needed**. Without that, a missing libz3 surfaces as an
+unhelpful "error while loading shared libraries" from `seapp` mid-pipeline, far
+from the actual cause. Override with `-DSEA_LD_LIBRARY_PATH=...` if the guess
+is wrong.
+
+Nothing is compiled by this project: each proof is one C file that `#include`s
+its fixture, and `sea` drives clang itself, so the CMake project is
+`LANGUAGES NONE` and only registers tests.
+
+### Reading a result
+
+`unsat` = the property holds on all inputs = **no leak**.
+`sat` = counterexample = **the leak witness**. So the `_bad` tests expect `sat`
+and the `_fixed` tests expect `unsat`; both are pass conditions.
 
 **`verify.py` fails a proof it cannot trust, not just one that mismatches.** If
 sea reports `no assertion was found` (the front end discharged the assertion) or
 `Failed to get register` (an unimplemented intrinsic havocs the assertion), the
-test fails as `VACUOUS` whatever the verdict was. Both of those produced
-convincing false greens while these proofs were being written. Exit codes: `0`
-matched, `1` mismatched or vacuous, `2` sea could not run.
+test fails as `VACUOUS` whatever the verdict was. Both produced convincing false
+greens while these proofs were being written. Exit codes: `0` matched, `1`
+mismatched or vacuous, `2` sea could not run.
 
 ### Requirements
 
