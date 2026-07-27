@@ -1,0 +1,4 @@
+# Out-of-tree CMake build output. Contains a compiled binary and a CMakeCache
+# full of absolute paths; regenerate with:
+#   cmake -S . -B build -DMLIR_DIR=$(brew --prefix llvm)/lib/cmake/mlir && cmake --build build
+build/
