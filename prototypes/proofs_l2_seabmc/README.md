@@ -27,20 +27,84 @@ Requires the SeaHorn branch `feat/opsem-read-metadata` (seahorn + sea-dsa) and
 `docs`/the journal note before using it on anything else** — it is opt-in for
 correctness reasons, not just cost.
 
+## Running
+
+```sh
+cmake -S . -B build -DSEAHORN_ROOT=<seahorn>/build/run   # dir containing bin/sea
+ctest --test-dir build --output-on-failure
+```
+
+Nothing is compiled by this project: each proof is one C file that `#include`s
+its fixture, and `sea` drives clang itself, so the CMake project is
+`LANGUAGES NONE` and only registers tests. Four tests, a couple of seconds.
+
+`SEAHORN_ROOT` may also be set in the environment. CMake locates z3 and yices
+next to the install and bakes them into the generated `verify.py`, so no
+`LD_LIBRARY_PATH` is needed — a missing libz3 otherwise surfaces as an
+unhelpful "error while loading shared libraries" from `seapp` mid-pipeline.
+Override with `-DSEA_LD_LIBRARY_PATH=...` if the guess is wrong.
+
+Extra flags for every proof, as in verify-c-common:
+`VERIFY_FLAGS="--horn-bmc-coi=false" ctest --test-dir build`.
+
+Run a single proof directly, with the command echoed:
+
+```sh
+python3 build/verify.py --expect=sat -v \
+  jobs/explicit_error_oracle/unit_proof/explicit_error_oracle_bad_harness.c
+```
+
+**`verify.py` fails a proof it cannot trust, not just one that mismatches.** If
+sea reports `no assertion was found` (the front end discharged the assertion) or
+`Failed to get register` (an unimplemented intrinsic havocs the assertion), the
+test fails as `VACUOUS` whatever the verdict was. Both of those produced
+convincing false greens while these proofs were being written. Exit codes: `0`
+matched, `1` mismatched or vacuous, `2` sea could not run.
+
+### Requirements
+
+`secret_embedding_index` needs a SeaHorn with the **read-metadata channel** —
+`sea_is_read` / `sea_reset_read` implemented and `--horn-shadow-mem-load-is-def`
+available (seahorn + sea-dsa branch `feat/opsem-read-metadata`). On a stock
+SeaHorn the flag is unrecognised and `sea_is_read` is an unimplemented stub that
+havocs the assertion, which `verify.py` reports as VACUOUS rather than passing.
+`explicit_error_oracle` needs no such support and runs on a stock build.
+
 ## Layout
 
 Follows the unit-proof layout used in `priyasiddharth/verify-mbedtls`
 (`jobs/<name>/{unit_proof,env}/`):
 
 ```
+CMakeLists.txt        locates sea, defines the flag sets, registers the jobs
+verify.py.in          the test driver (configured into build/verify.py)
 jobs/secret_embedding_index/
-  env/observation.h                              Obs_Theta: per-element read footprint
+  CMakeLists.txt                                   registers the pair
+  env/observation.h                                Obs_Theta: per-element read footprint
   unit_proof/secret_embedding_index_bad_harness.c    expect sat   (leak witness)
   unit_proof/secret_embedding_index_fixed_harness.c  expect unsat (calibration)
 jobs/explicit_error_oracle/
+  CMakeLists.txt
   unit_proof/explicit_error_oracle_bad_harness.c     expect sat   (leak witness)
   unit_proof/explicit_error_oracle_fixed_harness.c   expect unsat (calibration)
 ```
+
+### Adding a job
+
+Create `jobs/<name>/unit_proof/<name>_{bad,fixed}_harness.c`, each `#include`ing
+its fixture from `../../../../compiler_harness/c/`, then a `CMakeLists.txt`:
+
+```cmake
+add_l2_proof(NAME <name>_bad   SOURCE unit_proof/<name>_bad_harness.c   EXPECT sat)
+add_l2_proof(NAME <name>_fixed SOURCE unit_proof/<name>_fixed_harness.c EXPECT unsat)
+```
+
+and `add_subdirectory(jobs/<name>)` at the top level. Add
+`FLAGS ${SEA_READ_CHANNEL_FLAGS}` only if the observation is an address.
+
+Register **both** directions. `EXPECT` is part of the specification, not a
+convenience: a lone `unsat` is also what a degenerate observation produces, so a
+job means nothing without its counterpart.
 
 ## Validating a job before trusting its verdict
 
