@@ -18,10 +18,13 @@
 // Countermodel MT-CM2, which refutes the invalid principle "bounded-run
 // filtering is a sound proof domain".
 //
-// FIRST LOOP FIXTURE IN THIS CORPUS. Before it, all 35 fixtures were
-// straight-line or single-branch, so nothing exercised a backedge join, fixpoint
-// termination, or bound adequacy. The stored value is a public constant: the
-// channel here is purely the number of executed operations.
+// FIRST SECRET-DEPENDENT TRIP COUNT IN THIS CORPUS. Two earlier fixtures already
+// contain loops with loop-carried block arguments -- secret_embedding_index.fixed
+// (a 16-iteration public-induction table scan) and wolfssl_3579_mul.target_fixed
+// (a 64-iteration mask/add multiply) -- so backedge joins were already exercised.
+// What was absent is a backedge whose ITERATION COUNT depends on a secret, and
+// therefore any exercise of bound adequacy at all. The stored value here is a
+// public constant: the channel is purely the number of executed operations.
 //
 // THE UNSOUND SHORTCUT THIS PINS: an implementation that DELETES the execution
 // exceeding its unrolling guard silently narrows the proof domain and reports a

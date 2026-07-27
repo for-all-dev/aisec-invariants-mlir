@@ -46,9 +46,12 @@
  *   conflation bug, and this fixture exists partly to keep them separable.
  *
  * Note on corpus coverage:
- *   Before this file the corpus had no loop at all: all 35 fixtures were
- *   straight-line or single-branch, so nothing exercised fixpoint termination,
- *   backedge joins, or bound adequacy.
+ *   Two earlier fixtures already contain loops with loop-carried block arguments
+ *   -- secret_embedding_index.fixed (a 16-iteration public-induction table scan)
+ *   and wolfssl_3579_mul.target_fixed (a 64-iteration mask/add multiply) -- so
+ *   backedge joins were already exercised. Both have a fixed, public trip count.
+ *   What was absent before this file is a backedge whose ITERATION COUNT depends
+ *   on a secret, and hence any exercise of bound adequacy.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Wpedantic -O0 -Xclang -disable-O0-optnone \

@@ -117,8 +117,11 @@ control to literal silence invites exactly the `StaticallyDischarged` and
 `NotObservable` shortcuts that cannot establish a proof. Controls therefore
 carry no `--verify-diagnostics` RUN; they pin IR shape and stability only.
 
-Every control ships with an anti-control that must retain the opposite outcome,
-because the cheapest way to quiet a control is usually an unsound repair:
+A control wants an anti-control that must retain the opposite outcome, because
+the cheapest way to quiet a control is usually an unsound repair. **Two such
+fixture pairs exist today**; the other two controls name the unsound repair they
+forbid but have no encoded partner yet, and that is an open gap rather than a
+completed discipline:
 
 | Control | Paired anti-control | Unsound repair it blocks |
 | --- | --- | --- |
