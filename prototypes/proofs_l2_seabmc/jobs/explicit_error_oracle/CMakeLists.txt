@@ -4,10 +4,6 @@
 #
 # Needs no metadata flags at all -- the leak is in a value the observer reads
 # directly, so plain output equality suffices.
-add_l2_proof(NAME   explicit_error_oracle_bad
-             SOURCE unit_proof/explicit_error_oracle_bad_harness.c
-             EXPECT sat)
-
-add_l2_proof(NAME   explicit_error_oracle_fixed
-             SOURCE unit_proof/explicit_error_oracle_fixed_harness.c
-             EXPECT unsat)
+add_l2_job(NAME  explicit_error_oracle
+           BAD   unit_proof/explicit_error_oracle_bad_harness.c
+           FIXED unit_proof/explicit_error_oracle_fixed_harness.c)
