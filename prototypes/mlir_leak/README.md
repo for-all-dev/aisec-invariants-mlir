@@ -19,12 +19,64 @@ no Bazel), and reuses `../leak_check`'s Valgrind instruments unchanged.
   differential (class A vs B) corroborates. Taint is primary.
 - Run: `python3 run_mlir.py` (MLIR axis) / `--pipelines P0 --opt O2` (LLVM -O axis).
 
-### Note: the taint parser was broadened here
+### Fixed: `run_mlir.py` was unrunnable since 2026-07-16
+
+`run_mlir.py` imported `_disjoint` from `../leak_check/noninterference.py` and
+compared counts sampled at a **fixed** secret path. Commit `d0d3232` in
+`leak_check` ("the count channel is confounded by measurement context")
+replaced that criterion with a context-varying floor+stability guard and
+removed `_disjoint` in the process; this file was never updated, so every run
+since raised `ImportError`. Fixed by reusing `noninterference.py`'s
+context-varying method directly (via `leak_check/differential.py`, which
+factors that method out for reuse instead of re-deriving a weaker one) — see
+`analyze()`'s docstring.
+
+**Re-validated under the fixed engine.** Every row of **Results** below was
+re-measured and reproduces exactly — `dIr`/`dBc`/`dDw` byte-for-byte, all
+verdicts unchanged: the core `kernel × P0..P5 @ -O0` sweep, `P0 @ -O2`, the
+`P4` bufferized variants, and all four `dynshape`/`dynshape_t` rows
+(`@ -O0`, `@ -O2`, `@ -O3`). The `sparse/` finding is now re-measured too,
+by its own runner (see below). Not re-measured: nothing.
+
+Both axes now sweep in one run (`--opt` takes several levels), and each cell
+gets a **computed** verdict relative to a baseline cell
+(`leak-present-in-baseline` / `introduced-relative-to-baseline` /
+`removed-relative-to-baseline` / `oblivious`, from
+`differential.verdict_relative_to_baseline` — the N-build generalization of
+`noninterference.py`'s authored/compiler-introduced/compiler-removed/
+oblivious quadrant). Previously the verdict spanned MLIR pipelines only, so
+findings 1/2/4 below — which are `-O0`-vs-`-O2` results — still had to be
+inferred by eye across two separate invocations. They are now computed:
+
+```
+$ python3 run_mlir.py --kernels cond_reduce mask_select idx_gather --pipelines P0 --opt O0 O2
+  cond_reduce    P0@O0  LEAK   baseline-cell                    taint:cf ...
+  cond_reduce    P0@O2  obliv  removed-relative-to-baseline     clean
+  mask_select    P0@O2  obliv  removed-relative-to-baseline     clean
+  idx_gather     P0@O2  LEAK   leak-present-in-baseline         taint:addr
+```
+
+### Note: the taint parser is broadened, in the shared instrument
 `instruments.memcheck_taint` matches only the control-flow message
 (`"... depends on uninitialised value"`). An **address** leak (gather) prints
-`"Use of uninitialised value of size N"`, which that regex misses. `run_mlir.py.taint_check`
-matches both and classifies `cf` vs `addr`. Without this, the gather leak is invisible on
-*every* channel (its instruction count is identical — `dIr=0` — only the address differs).
+`"Use of uninitialised value of size N"`, which that regex misses. Without the
+broadened match, the gather leak is invisible on *every* channel (its
+instruction count is identical — `dIr=0` — only the address differs).
+
+This used to be a private copy of the instrument here, which duplicated
+`memcheck_taint_cmd`'s whole valgrind/subprocess body just to change the
+regex. It is now a **parameter of the standard instrument** —
+`instruments.memcheck_taint_cmd(..., classify=True)` returns `kind`
+(`cf`/`addr`/`""`) and `kinds` (the full set, since a build can fire on
+both and a single label hides one behind the other). It is opt-in because
+enabling it by default would silently change what `leak_check`'s own
+recorded corpus results mean.
+
+Caveat that matters when comparing two builds: memcheck's cf message covers
+a conditional jump **or move**, so *any* comparison on a secret trips `cf`,
+even a fully branchless masked one. `cf` is therefore a weak discriminator
+between two builds that both touch the secret at all — see `sparse/`, where
+the verdict is taken on the address channel specifically.
 
 ## Results (config point: mlir-opt-18 1:18.1.3, clang-18, `-mavx2 -mno-avx512f`, Zen5, valgrind 3.22)
 
@@ -132,6 +184,15 @@ idx_gather     L    L    L     table[secret_idx]: secret-dependent load address;
    count public). This is the "compiler-introduced" quadrant firing via an optimization -- the
    known sparsity/pruning-pattern side channel -- and the one case in this study where an
    optimizing pass (not the `-O0` selector) manufactures the channel.
+   **Now a computed verdict, not a claim**: `sparse/run_sparse.py` measures the sparsified
+   build against an oblivious dense reference (`sparse/scatter_dense.mlir`) on the same
+   engine as everything else, and reports `introduced-relative-to-baseline` on the
+   **address channel**. The verdict has to be per-channel: both builds compare the secret,
+   and memcheck's cf message covers a conditional jump *or move*, so the oblivious
+   reference trips `cf` too — only the address channel separates them (dense: no address
+   channel; sparse: `taint:addr`). Previously this finding had no runner at all — a
+   copy-paste shell recipe in `sparse/README.md` — so it was the only result here that
+   never went through the shared instruments or the floor/stability guard.
 
 ## Gaps / honest caveats
 
