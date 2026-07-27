@@ -1,0 +1,62 @@
+%%% Fast-iteration driver. Turns a ~10s full build into a ~3s one.
+%%%
+%%% Usage: set PART below to the one part you are editing, then
+%%%   latexmk -pdf testbuild.tex
+%%%
+%%% The \label stubs at the bottom keep \cref from erroring when the part you
+%%% are building references a part that is stubbed out. Add to them if you add
+%%% a cross-referenced label.
+
+\input{preamble}
+\usepackage{spsnotation}
+
+\title{\textbf{testbuild} --- single-part driver}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+%% ---- choose exactly one -------------------------------------------------
+%\input{part1-orientation}
+%\input{part2-background}
+\input{part3-walkthrough}
+%\input{part4-harness}
+%\input{part5-correctness}
+%\input{part6-appendix}
+
+%% ---- stubs for labels defined in the parts not built --------------------
+%% Harmless duplicates if the owning part IS built: LaTeX warns, does not fail.
+\begingroup
+\makeatletter
+\providecommand{\stublabel}[1]{%
+  \@bsphack\protected@write\@auxout{}{\string\newlabel{#1}{{0}{0}}}\@esphack}
+\makeatother
+
+\stublabel{eq:ni}
+\stublabel{part:orientation}
+\stublabel{sec:ledgerguide}
+\stublabel{sec:twosafety}
+\stublabel{fig:product}
+\stublabel{rem:danger}
+\stublabel{part:walkthrough}
+\stublabel{part:harness}
+\stublabel{sec:pairs}
+\stublabel{part:correctness}
+\stublabel{thm:core}
+\stublabel{thm:diag}
+\stublabel{part:appendix}
+\stublabel{step:statement}
+\stublabel{step:manifest}
+\stublabel{step:coalitions}
+\stublabel{step:normalform}
+\stublabel{step:vacuity}
+\stublabel{step:diag}
+\stublabel{step:product}
+\stublabel{step:verdict}
+\stublabel{step:deployment}
+\stublabel{step:close}
+\stublabel{alg:bad}
+\endgroup
+
+\end{document}

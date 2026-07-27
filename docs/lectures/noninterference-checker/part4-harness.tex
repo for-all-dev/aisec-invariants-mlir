@@ -1,0 +1,226 @@
+\section{What the harness actually establishes}
+\label{part:harness}
+
+Part~\ref{part:walkthrough} describes a checker that does not exist yet. What
+exists is a regression corpus that pins the obligations the checker will have to
+discharge. This part explains what that corpus does and --- more usefully --- what
+it does not.
+
+\subsection{Two kinds of test}
+
+The suite contains 45 IR fixtures and 7 integration tests, and they split into
+two categories that behave completely differently.
+
+\textbf{Green tests are facts locked in.} They assert something true right now
+about the IR, the metadata, or the toolchain. They catch regressions.
+
+\textbf{Red tests are executable specifications.} Seventeen fixtures fail on
+purpose. Each carries a diagnostic run with an expected diagnostic naming the
+exact stable reason a future analysis must emit at a specific operation, and each
+fails with \emph{expected error not produced}. They are bring-up gates, not
+disabled tests: implementing the analysis and inserting it into those runs is
+what turns them green. A suite where every test passes would be a suite that had
+stopped specifying anything.
+
+\subsection{Four mechanical layers}
+
+\begin{center}
+\begin{tabular}{@{}l p{0.62\linewidth}@{}}
+\toprule
+Layer & What it establishes \\
+\midrule
+IR validity     & every fixture parses and satisfies dialect invariants \\
+Shape           & the decisive operation --- store, branch, address, division,
+                  allocation, backedge --- is present and connected \\
+Shape stability & for the eight fixtures carrying a \code{--canonicalize} run
+                  --- the four precision controls, the allocation pair, the loop,
+                  and the predecessor-choice anti-control --- the decisive shape
+                  survives canonicalization, so those cannot silently decay into
+                  a different scenario. The other 37 pin shape only in the form
+                  they were written \\
+Metadata        & each fixture has exactly one of the four outcomes, one
+                  observer, a stable reason, obligations required precisely when
+                  the outcome is \Unknown{} or \Conditional{}, and real
+                  provenance \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Note what is absent. \textbf{No layer checks an information-flow result},
+because no analysis is wired in. The corpus states the specification; it does not
+yet test an implementation of it. Being clear about this is the difference between
+a useful artifact and a misleading one.
+
+\subsection{Controls, and why every control needs an anti-control}
+\label{sec:pairs}
+
+A corpus of leaky programs is satisfied by an analysis that reports every program
+as unsafe. That is not a hypothetical failure --- it is the cheapest way to pass a
+suite built only from violations, and it makes the tool worthless without making
+any test go red.
+
+The guard is a family of \emph{precision controls}: fixtures that are genuinely
+noninterferent, where a reported violation is imprecision rather than a finding.
+The four in the corpus are exactly the four examples from \cref{step:diag}:
+identical-successor branch, value cancellation, public overwrite before
+observation, and offset-disjoint reload.
+
+But controls alone are unsafe to ship, because the cheapest way to quiet a
+control is usually an unsound repair. So a control wants a paired
+\textbf{anti-control} that must retain the opposite outcome:
+
+\begin{center}
+\begin{tabular}{@{}p{0.34\linewidth} p{0.54\linewidth}@{}}
+\toprule
+Control & Unsound repair its partner blocks \\
+\midrule
+identical-successor branch
+  & ``identical successors imply no control leak'' --- the partner is the same
+    single-successor branch with differing block-argument operands \\[3pt]
+public overwrite
+  & adding a proof-authoritative strong update to the diagnostic layer \\[3pt]
+offset-disjoint reload
+  & coarsening offsets to a cache line, which is a refusal and never a proof \\[3pt]
+public world-structural allocation size
+  & refusing every dynamic allocation, or treating an equal public cap as an
+    equal size \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The rule is: \emph{never satisfy one member of a pair by weakening the other.}
+The first row is the sharpest instance, and it is not a stylistic worry. Running
+\code{mlir-opt}'s canonicalizer on an ordinary two-armed diamond produces a
+single-successor branch whose edges carry different operands --- byte-identical in
+shape to the control, differing only in the operands. An implementation repaired
+by that rule accepts a real leak, silently.
+
+\subsection{Which step each fixture guards}
+
+\begin{center}
+\begin{tabular}{@{}l p{0.58\linewidth}@{}}
+\toprule
+Step & Fixtures \\
+\midrule
+\cref{step:manifest}    & the wrong-party and wrong-host families; the actor
+                          examples for the four relations \\
+\cref{step:coalitions}  & the downward-closure example, where the leak exists
+                          only at a coalition nobody authored \\
+\cref{step:normalform}  & currently \emph{uncovered}: no fixture exercises a
+                          nonconformance refusal \\
+\cref{step:vacuity}     & currently \emph{uncovered}: the vacuity countermodel
+                          is not encoded \\
+\cref{step:diag}        & the four precision controls \\
+\cref{step:product}     & the predecessor-choice anti-control; trace order and
+                          multiplicity are \emph{not} yet encoded \\
+\cref{step:verdict}     & the unproved-alias and bound-exhaustion refusals \\
+\cref{step:deployment}  & the CKKS and wolfSSL helper-latency families, the only
+                          \Conditional{} fixtures \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{One call, four outcomes}
+
+The wolfSSL 3579 family is the most instructive group in the corpus, because it
+demonstrates that the observer model is a load-bearing \emph{input} rather than a
+label. \emph{Three} fixtures share one byte-identical body --- a wide multiply
+lowered to \fx{@\_\_muldi3} on a 32-bit target --- and differ only in the
+declared helper profile. Two more complete the family without sharing that body:
+the un-lowered source, whose whole body is a single \code{llvm.mul}, and a
+repaired constant-time replacement, which is a 64-iteration mask/add loop that
+emits no helper call at all:
+
+\begin{center}
+\begin{tabular}{@{}l l p{0.38\linewidth}@{}}
+\toprule
+Variant & Outcome & Declared knowledge \\
+\midrule
+source                   & \Unknown{}     & no target lowering, no helper contract \\
+target, no contract      & \Unknown{}     & the call exists; no latency summary \\
+target, affected profile & \Unsafe{}      & a named operand-dependent helper profile \\
+target, constant latency & \Verified{}    & a named constant-latency profile \\
+target, repaired         & \Conditional{} & repaired, pending target evidence \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three of the four outcome values --- \Unknown{}, \Unsafe{}, \Verified{} --- on
+one byte-identical body, driven entirely by declarations. The \Conditional{} row
+is different in kind: it comes from a code repair, not a declaration change, and
+saying otherwise would overstate an already strong point. That
+is the cleanest demonstration available of the point in \cref{step:manifest}:
+\Lv{0} is a contract, not proof of the contract, and the same instruction is
+\Unknown{}, \Unsafe{}, or \Verified{} according to what has been declared about
+the machine it runs on. Note also that the two \Unknown{} rows are genuinely
+different scenarios with different missing facts, not one file with an
+undecided verdict.
+
+\subsection{Countermodels as regression tests}
+
+Four of the metatheory's required negative results are encoded. These are the
+tests a \emph{re-implementation} would fail: they capture reasoning errors rather
+than coding errors, and reasoning errors are the ones that survive review.
+
+\begin{center}
+\begin{tabular}{@{}p{0.26\linewidth} l p{0.42\linewidth}@{}}
+\toprule
+Fixture & Outcome & Invalid principle refuted \\
+\midrule
+predecessor choice     & \Unsafe{}  & an SSA slice is closed around a $\phi$ \\
+prefix-causal release  & \Unsafe{}  & a future release may condition an earlier observation \\
+alias unproved         & \Unknown{} & unproved ABI separation may be assumed \\
+bound exhausted        & \Unknown{} & bounded-run filtering is a sound proof domain \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The two \Unknown{} rows deserve their outcome explained, because \Unknown{} reads
+as a weaker result than it is. Unproved aliasing yields neither safety nor a
+counterexample: with no proved disjointness clause and no declared may-alias
+realization in the product, asserting \Unsafe{} would itself be unsound, since a
+counterexample requires a witness that replays under the exact semantics.
+Likewise a reachable bound-exhausted transition that yields no replayed bad
+execution is \Unknown{} with the bound-adequacy obligation open --- promoting it
+to a counterexample is exactly what \cref{step:verdict} forbids.
+
+The bound-exhaustion fixture is the corpus's only loop with a
+\emph{secret-dependent} trip count. Two earlier fixtures already contain
+fixed-bound loops with loop-carried block arguments ---
+\fx{secret\_embedding\_index.fixed}, a 16-iteration public-induction table scan,
+and \fx{wolfssl\_3579\_mul.target\_fixed}, a 64-iteration mask/add multiply ---
+so backedge joins were exercised before it. What was absent is a backedge whose
+iteration count depends on a secret, and therefore any exercise of bound
+adequacy at all.
+
+\subsection{The honest gaps}
+
+The outcome distribution is \Verified{} 21, \Unsafe{} 17, \Unknown{} 5,
+\Conditional{} 2. For a tool whose central claim is graceful degradation, five
+refusals is thin: there is no fixture for an indirect call, recursion, inline
+assembly, a volatile or atomic access, an uninitialized read, or ambiguous
+floating-point. Each of those is a place the analysis will meet something it
+cannot model, and an untested refusal path is where a silent \Verified{} comes
+from.
+
+Three further gaps are worth naming precisely:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item About twenty of the older fixtures encode their entire safe/unsafe
+      distinction in SSA value names, which \code{mlir-opt} discards at parse.
+      After parsing, such a fixture is two indistinguishable stores to two
+      unannotated pointers --- so its bring-up gate is not merely unimplemented,
+      it is unsatisfiable in principle. The newer fixtures carry policy in
+      discardable attributes, which do survive parsing and canonicalization.
+\item The corpus is entirely scalar, with three loops, only one of which has a
+      non-constant trip count, so nothing exercises
+      fixpoint termination at scale, and nothing exercises the vector,
+      floating-point, or tensor refusals that any real workload triggers
+      immediately.
+\item The precision controls carry no diagnostic run, deliberately: their correct
+      disposition is \RelReq{}, and a zero-directive run would encode the wrong
+      requirement. So they pin shape today and become live precision gates only
+      once the record can name an expected disposition. Concretely, the suite
+      can currently catch an analysis that \emph{misses} a leak but not one that
+      \emph{invents} one.
+\end{itemize}

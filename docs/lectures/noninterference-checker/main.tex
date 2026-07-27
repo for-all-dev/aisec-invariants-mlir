@@ -1,0 +1,47 @@
+%%% A claim-ledger walkthrough of the SPS confidentiality checker.
+%%%
+%%% Build:  latexmk -pdf main.tex
+%%% Fast:   latexmk -pdf testbuild.tex   (one part at a time)
+
+\input{preamble}
+\usepackage{spsnotation}
+
+\title{\textbf{Proving a program leaks nothing}\\[2pt]
+       \large A step-by-step walkthrough of the SPS confidentiality checker,\\
+       \large its evidence pipeline, and its LLVM/MLIR test harness}
+\author{Claim-ledger lecture notes}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+This is a walkthrough of what it takes to answer one question mechanically:
+\emph{does this compiled artifact reveal a secret to an observer who is not
+entitled to it?} The answer is never a single proof. It is a chain of
+reductions, each trading one obligation for a different obligation that is
+easier to attack, and the interesting content of the system lives in the
+trades rather than in any individual step.
+
+The right margin of every step carries a \emph{claim ledger}: the obligations
+still open at that point in the argument, colour-coded by what the step just
+did to them. A reader who follows only the margin still learns the shape of
+the argument. The last step leaves the ledger empty.
+
+Part~\ref{part:harness} then maps every step onto the regression fixtures that
+guard it, and Part~\ref{part:correctness} answers the question that motivates
+all of it: how would you know the checker itself is correct, and what would a
+mechanized proof for an MLIR-based analysis actually look like?
+\end{abstract}
+
+\tableofcontents
+
+\input{part1-orientation}
+\input{part2-background}
+\input{part3-walkthrough}
+\input{part4-harness}
+\input{part5-correctness}
+\input{part6-appendix}
+
+\end{document}

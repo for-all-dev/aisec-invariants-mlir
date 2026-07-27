@@ -1,0 +1,185 @@
+\appendix
+\section{Appendix: code map, report shape, and references}
+\label{part:appendix}
+
+\subsection{Where things live}
+
+All paths below are relative to \fx{prototypes/compiler\_harness/} in the
+repository root.
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\linewidth} p{0.60\linewidth}@{}}
+\toprule
+Path & Contents \\
+\midrule
+\fx{mlir/}
+  & the 45 IR fixtures \\
+\fx{c/}
+  & C reductions and provenance, one file per fixture family \\
+\fx{c/check\_harness.py}
+  & the metadata contract: the closed fixture inventory and every structural
+    rule \\
+\fx{integration/}
+  & metadata, witness-driver, import, and code-generation tests \\
+\fx{examples/actors/}
+  & actor and ACL design examples; outside the enforced corpus \\
+\fx{mlir/L0\_L1\_L2\_} \fx{PIPELINE.md}
+  & the fixture-by-fixture outcome table \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two orientation notes for a reader opening the corpus for the first time. The
+metadata contract is the authoritative description of what a fixture is allowed
+to claim --- read it before reading fixtures. And the fixture inventory is
+\emph{closed}: a fixture with no contract entry and a contract entry with no
+fixture both fail, so fixtures and registrations necessarily land together.
+
+\subsection{Running it}
+
+\begin{center}
+\begin{tabular}{@{}p{0.42\linewidth} p{0.5\linewidth}@{}}
+\toprule
+Command & Effect \\
+\midrule
+\fx{make check}            & all IR and integration tests \\
+\fx{make check-mlir}       & verifier and shape tests only \\
+\fx{make check-integration}& metadata, witness, import, code generation \\
+\fx{make bootstrap-lit}    & create the pinned local test runner \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Seventeen failures is the correct outcome, and every one of them should be a
+fixture that the metadata contract's \fx{is\_bad()} accepts --- that is, one
+matching \fx{.bad}, \fx{\_bad}, \fx{lowered\_bad}, or \fx{target\_bad}. All four
+markers are in use; \fx{clangover\_poly\_frommsg.lowered\_bad} matches only the
+third. A failure anywhere else is a real regression, and that distinction is
+worth checking mechanically rather than by eye.
+
+\subsection{The shape of a report}
+
+The walkthrough implies a record with more structure than a single verdict token.
+Collecting what each step required:
+
+\begin{center}
+\begin{tabular}{@{}l p{0.60\linewidth}@{}}
+\toprule
+Field & Constraint that forces it \\
+\midrule
+model status
+  & \Proved{} carries no reason; a counterexample carries a witness; a refusal
+    carries an ordered blocker set (\cref{step:verdict}) \\[3pt]
+deployment status
+  & an independent axis: a model counterexample cannot be repaired by deployment
+    evidence (\cref{step:deployment}) \\[3pt]
+policy review status
+  & a third axis that by construction never changes either of the other two \\[3pt]
+diagnostic disposition
+  & per site, from the five-valued domain of \cref{step:diag}, plus a health
+    flag; never a premise for safety \\[3pt]
+row key
+  & one row per entry and coalition, over the derived closure
+    (\cref{step:coalitions}) \\[3pt]
+witness
+  & replayable, and canonical enough that the discovery route is not
+    observable in it (\cref{step:verdict}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The three-status split is the part most likely to be collapsed under time
+pressure, and \Conditional{} is precisely the projection of ``model proved,
+deployment open.'' It is a derived value rather than a primitive alongside the
+other three statuses --- which is why
+an obligation naming a target fact and one naming a backend fact should not share
+a field.
+
+\subsection{References}
+\label{sec:refs}
+
+Verified against Crossref, dblp, and author- or proceedings-hosted copies.
+Publisher pages for USENIX, IEEE, ACM, and Springer were not directly
+retrievable, so those entries rest on the registration authority rather than the
+publisher's own page.
+
+\begingroup
+\small
+\begin{description}[leftmargin=1.2em,style=unboxed,itemsep=2pt]
+
+\item[Self-composition and 2-safety.]
+G.~Barthe, P.~R. D'Argenio, T.~Rezk. \emph{Secure Information Flow by
+Self-Composition}. CSFW 2004, 100--114; extended in \emph{Math.\ Struct.\ in
+Comp.\ Sci.}\ 21(6):1207--1252, 2011.\quad
+T.~Terauchi, A.~Aiken. \emph{Secure Information Flow as a Safety Problem}. SAS
+2005, 352--367.\quad
+M.~R. Clarkson, F.~B. Schneider. \emph{Hyperproperties}. CSF 2008, 51--65;
+\emph{J.\ Computer Security} 18(6):1157--1210, 2010.\quad
+N.~Benton. \emph{Simple Relational Correctness Proofs for Static Analyses and
+Program Transformations}. POPL 2004, 14--25.
+
+\item[Information-flow type systems.]
+D.~M. Volpano, C.~E. Irvine, G.~Smith. \emph{A Sound Type System for Secure Flow
+Analysis}. \emph{J.\ Computer Security} 4(2--3):167--187, 1996.\quad
+A.~Sabelfeld, A.~C. Myers. \emph{Language-Based Information-Flow Security}.
+\emph{IEEE JSAC} 21(1):5--19, 2003.
+
+\item[Constant-time verification.]
+J.~B. Almeida, M.~Barbosa, G.~Barthe, F.~Dupressoir, M.~Emmi. \emph{Verifying
+Constant-Time Implementations}. USENIX Security 2016, 53--70. \emph{(ct-verif;
+toolchain unmaintained since 2017, benchmark corpus still current.)}\quad
+Z.~Zhang, G.~Barthe. \emph{CT-LLVM: Automatic Large-Scale Constant-Time
+Analysis}. IACR ePrint 2025/338.\quad
+L.-A. Daniel, S.~Bardin, T.~Rezk. \emph{Binsec/Rel}. IEEE S\&P 2020, 1021--1038;
+extended in \emph{ACM TOPS} 26(2), 2023.\quad
+L.~Cai, F.~Song, T.~Chen. \emph{Towards Efficient Verification of Constant-Time
+Cryptographic Implementations}. FSE 2024.
+
+\item[Compiler preservation of hyperproperties.]
+G.~Barthe, S.~Blazy, B.~Gr\'egoire, R.~Hutin, V.~Laporte, D.~Pichardie,
+A.~Trieu. \emph{Formal Verification of a Constant-Time Preserving C Compiler}.
+\emph{PACMPL} 4(POPL), Art.~7, 2020.\quad
+J.~Rosemann, S.~Hack, D.~Garg. \emph{Non-interference Preserving Optimising
+Compilation}. \emph{PACMPL} 9(OOPSLA2):1429--1454, 2025.\quad
+C.~Abate, R.~Blanco, D.~Garg, C.~Hri\c{t}cu, M.~Patrignani, J.~Thibault.
+\emph{Journey Beyond Full Abstraction}. CSF 2019, 256--271.\quad
+M.~Patrignani, A.~Ahmed, D.~Clarke. \emph{Formal Approaches to Secure
+Compilation}. \emph{ACM Computing Surveys} 51(6), 2019.
+
+\item[Mechanized LLVM and MLIR.]
+J.~Zhao, S.~Nagarakatte, M.~M.~K. Martin, S.~Zdancewic. \emph{Formalizing the
+LLVM Intermediate Representation for Verified Program Transformations}. POPL
+2012, 427--440.\quad
+Y.~Zakowski, C.~Beck, I.~Yoon, I.~Zaichuk, V.~Zaliva, S.~Zdancewic.
+\emph{Modular, Compositional, and Executable Formal Semantics for LLVM IR}.
+\emph{PACMPL} 5(ICFP), 2021. \emph{(current Vellvm.)}\quad
+L.~Silver, P.~He, E.~Cecchetti, A.~K. Hirsch, S.~Zdancewic. \emph{Semantics for
+Noninterference with Interaction Trees}. ECOOP 2023, 29:1--29:29.\quad
+N.~P. Lopes, J.~Lee, C.-K. Hur, Z.~Liu, J.~Regehr. \emph{Alive2: Bounded
+Translation Validation for LLVM}. PLDI 2021, 65--79.\quad
+M.~Fehr, Y.~Fan, H.~Pompougnac, J.~Regehr, T.~Grosser. \emph{First-Class
+Verification Dialects for MLIR}. \emph{PACMPL} 9(PLDI):1466--1490, 2025.\quad
+S.~Bhat, A.~Keizer, C.~Hughes, A.~Goens, T.~Grosser. \emph{Verifying Peephole
+Rewriting in SSA Compiler IRs}. ITP 2024, 9:1--9:20. \emph{(lean-mlir.)}
+
+\item[Constant-time by construction.]
+J.~B. Almeida et al. \emph{Jasmin: High-Assurance and High-Speed Cryptography}.
+CCS 2017, 1807--1823; \emph{The Last Mile}, IEEE S\&P 2020, 965--982.\quad
+S.~Cauligi et al. \emph{FaCT: A DSL for Timing-Sensitive Computation}. PLDI
+2019, 174--189.
+
+\end{description}
+\endgroup
+
+\subsection{Reading the arc backwards}
+
+One last framing, for a reader who wants the shortest possible summary of
+Part~\ref{part:walkthrough}.
+
+The checker never proves a program safe. It reduces ``is this program safe'' to
+``is this product unreachable,'' having first established that the question is
+well-posed: the policy is total, the artifact is in the fragment and is the one
+that shipped, and the admitted domain is non-empty. Every one of those
+preconditions is a place where a plausible shortcut yields a confident wrong
+answer, and the corpus exists because each shortcut is more tempting than it
+looks.
