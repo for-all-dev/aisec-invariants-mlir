@@ -9,17 +9,14 @@
 # arguments, so even the constant-time kernel comes back `sat`. The control
 # (`const_zero.mlir`, same value but no argument dependence) is `unsat`, which
 # pins the cause on poison rather than on our encoding. => the CT driver needs
-# its own predicate: assume non-poison inputs, compare value components only.
+# its own predicate, which is what `fcvdct` supplies.
 set -euo pipefail
 
-FCVD_DIR="${FCVD_DIR:-$HOME/third_party/xdsl-smt}"
-# shellcheck disable=SC1091
-source "$FCVD_DIR/.venv/bin/activate"
 cd "$(dirname "$0")"
 
-run() { echo "--- $1 (expect $2): $(xdsl-tv "$3" "$4" -opt | z3 -in)"; }
+run() { echo "--- $1 (expect $2): $(uv run --project .. xdsl-tv "$3" "$4" -opt | z3 -in)"; }
 
-run "leaky kernel"        "sat"   spec_zero.mlir selfcomp_leaky.mlir
+run "leaky kernel"         "sat"   spec_zero.mlir selfcomp_leaky.mlir
 run "constant-time kernel" "unsat" spec_zero.mlir selfcomp_ct.mlir
-run "poison control"      "unsat" spec_zero.mlir const_zero.mlir
-run "identity sanity"     "unsat" spec_zero.mlir spec_zero.mlir
+run "poison control"       "unsat" spec_zero.mlir const_zero.mlir
+run "identity sanity"      "unsat" spec_zero.mlir spec_zero.mlir

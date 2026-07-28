@@ -115,7 +115,8 @@ discipline already enforced in `Staging_NI`.
 
 ## 3. Phases
 
-Each phase ends with a falsifiable check and its own commit.
+Each phase ends with a falsifiable check and its own commit. P5 was pulled forward ahead of P1–P4;
+the ordering below is otherwise the dependency order.
 
 - **P0 — setup.** Clone, venv, upstream test suite, and the poison finding above. *Done, [measured].*
 - **P1 — CT driver, straight-line.** `annotate-leakage` (addresses + variable-latency ops) +
@@ -135,10 +136,44 @@ Each phase ends with a falsifiable check and its own commit.
   constant-time stops being so. This is the actual research claim of the branch: not "this program is
   CT" but "this lowering step introduced the leak", and it is the static counterpart to the
   `sparse_tensor --sparsification` address leak the dynamic harness already found.
-- **P5 — universal rewrite proofs.** Express one such rewrite in PDL and extend `verify-pdl` with a
-  CT-preservation criterion instead of value refinement, giving an "for all matching programs"
-  statement for that rewrite. Scope honestly: it covers rewrites expressible in PDL, not C++
-  conversion patterns.
+- **P5 — universal rewrite proofs. *Done* — done first, at the user's choice, since it is the only
+  part that yields a "for all programs" statement.** `prototypes/fcvd_ct/`, tool `fcvd-ct-pdl`.
+  The property proved for a rewrite S → T is
+
+      forall x, x'.  L_S(x) = L_S(x')  ==>  L_T(x) = L_T(x')
+
+  where L_X is the observation sequence of program X: *the rewrite may remove leakage, never add
+  it*. Note it needs **no secret/public labelling** — the source program's own leakage is the
+  declassification bound, which is exactly what lets the statement quantify over every program the
+  pattern matches. Encoding: each side is lowered by upstream `pdl-to-smt` with the value-refinement
+  criterion replaced by a constant `false`, which makes upstream's own assertion collapse to
+  `preconditions /\ not ub` — precisely the assumption we want — and our obligation is appended on
+  top of two independent instantiations.
+
+  Measured [measured, 2026-07-28, z3 4.15.1, whole corpus in 5 s, 9 pytest cases green,
+  ruff+ty clean]:
+
+  | pattern | rewrite | `verify-pdl` (values) | `fcvd-ct-pdl` (leakage) |
+  |---|---|---|---|
+  | `mul_to_shl` | `x * 8 → x shl 3` | sound | ct-preserving (obs 0 → 0) |
+  | `div_to_shift` | `x udiv 8 → x lshr 3` | sound | ct-preserving (obs 2 → 0) |
+  | `rem_idempotent` | `(x urem 8) urem 8 → x urem 8` | sound | ct-preserving (obs 4 → 2) |
+  | `shift_to_div` | `x lshr 3 → x udiv 8` | sound | **ct-breaking** (obs 0 → 2) |
+  | `mask_to_rem` | `x and 7 → x urem 8` | sound | **ct-breaking** (obs 0 → 2) |
+  | `div_swap_operand` | `x udiv 8 → y udiv 8` | unsound | ct-breaking (obs 2 → 2) |
+  | `unsupported_float` | `x + y → y + x` on f32 | crashes | unknown |
+
+  The result worth keeping: **two rewrites that upstream's verifier proves correct introduce a
+  timing channel**, with a concrete counterexample (for `div_swap_operand`, z3 returns x = 0 in both
+  runs and y = 0x00 vs 0xff). Controls: `div_swap_operand` rules out a checker that says "preserving"
+  whenever the source leaks at all; `unsupported_float` must say `unknown`, and does — where
+  upstream's `verify-pdl` instead dies with `ValueError: Cannot lower f32 type to SMT`.
+
+  Scope, stated plainly: this covers **rewrites expressible in PDL**. MLIR's `scf`→`cf`→`llvm`
+  lowerings are C++ conversion patterns and are not reachable this way; they need the per-program
+  checker of P1–P4. The corpus exercises the variable-latency half of the leakage model only — the
+  address rules are implemented but wait on P1, since address-shaped transformations are not what
+  PDL patterns usually express.
 - **P6 — integration.** A layer in `formal_verif/PIPELINE.md` next to A/B/C/D (this is the MLIR-level
   formal layer; binsec stays the binary-level one), a row in `run_all.sh`, and a results note.
 
