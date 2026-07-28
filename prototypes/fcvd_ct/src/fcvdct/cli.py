@@ -16,6 +16,7 @@ from xdsl.parser import Parser
 
 from .context import make_context
 from .pdl_ct import CTResult, check_pattern
+from .predication import DEFAULT_MAX_VISITS
 from .structural import LoweringResult, check_lowering
 
 _VERDICT_LINE = {
@@ -31,6 +32,8 @@ def _report(name: str, result: CTResult | LoweringResult, show_counterexample: b
         f"(observations: source {result.n_source_observations}, "
         f"target {result.n_target_observations})"
     )
+    if getattr(result, "bounded", False):
+        print("  bounded: loops were unrolled, so this covers only the unrolled iterations")
     if result.reason:
         print(f"  reason: {result.reason}")
     if result.verdict == "ct-breaking" and show_counterexample and result.counterexample:
@@ -99,6 +102,12 @@ def main_lowering() -> None:
     )
     arg_parser.add_argument("file", help="MLIR file containing @source and @target")
     arg_parser.add_argument(
+        "--unroll",
+        type=int,
+        default=DEFAULT_MAX_VISITS,
+        help="how many times a block may be re-entered on a path, i.e. the loop bound",
+    )
+    arg_parser.add_argument(
         "--counterexample",
         action="store_true",
         help="print the model z3 returns for a CT-breaking lowering",
@@ -117,11 +126,13 @@ def main_lowering() -> None:
     if args.print_smt:
         from .structural import build_query
 
-        script, _, _ = build_query(ctx, module, opt=not args.no_opt)
+        script, _, _, _ = build_query(ctx, module, opt=not args.no_opt, max_visits=args.unroll)
         print(script)
         return
 
-    result = check_lowering(ctx, module, opt=not args.no_opt, timeout=args.timeout)
+    result = check_lowering(
+        ctx, module, opt=not args.no_opt, timeout=args.timeout, max_visits=args.unroll
+    )
     _report(args.file, result, args.counterexample)
     if result.verdict == "ct-breaking":
         raise SystemExit(1)

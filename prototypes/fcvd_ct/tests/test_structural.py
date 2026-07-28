@@ -24,7 +24,11 @@ EXPECTED = {
     "select_to_cf": ("ct-breaking", 0, 1),
     "if_to_select_leaky": ("ct-breaking", 3, 2),
     "swapped_arms": ("ct-breaking", 3, 3),
-    "loop_unsupported": ("unknown", 0, 0),
+    # loops, unrolled: the correct skeleton, and the early exit that breaks it
+    "scf_for_bounded": ("ct-preserving", 9, 9),
+    "scf_for_to_cf": ("ct-preserving", 9, 8),
+    "loop_early_exit": ("ct-breaking", 9, 12),
+    "while_unsupported": ("unknown", 0, 0),
 }
 
 
@@ -44,9 +48,24 @@ def test_verdict(name: str):
     assert result.n_target_observations == n_target
 
 
-def test_loops_are_refused_by_name():
-    ctx, module = load("loop_unsupported")
-    assert "loops are not modelled" in check_lowering(ctx, module).reason
+def test_unmodelled_loops_are_refused_by_name():
+    ctx, module = load("while_unsupported")
+    assert "not modelled yet: scf.while" in check_lowering(ctx, module).reason
+
+
+def test_unrolled_verdicts_say_they_are_bounded():
+    """A verdict that only covers the unrolled iterations must announce it."""
+    ctx, module = load("scf_for_to_cf")
+    assert check_lowering(ctx, module).bounded
+    ctx, module = load("scf_if_to_cf")
+    assert not check_lowering(ctx, module).bounded
+
+
+def test_unrolling_bound_changes_the_trace_length():
+    ctx, module = load("scf_for_to_cf")
+    short = check_lowering(ctx, module, max_visits=2)
+    assert short.verdict == "ct-preserving"
+    assert short.n_source_observations < EXPECTED["scf_for_to_cf"][1]
 
 
 def test_guards_are_load_bearing(monkeypatch: pytest.MonkeyPatch):

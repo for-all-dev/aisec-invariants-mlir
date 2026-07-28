@@ -25,6 +25,7 @@ from xdsl_smt.dialects.transfer import Transfer
 from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
 
 from .dialect import FCVD
+from .index_ops import load_index_semantics
 
 
 def make_context() -> Context:
@@ -69,4 +70,5 @@ def make_context() -> Context:
         ctx.register_dialect(dialect.name, lambda d=dialect: d)  # type: ignore[misc]
 
     load_vanilla_semantics()
+    load_index_semantics()
     return ctx

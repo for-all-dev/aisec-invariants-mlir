@@ -91,7 +91,10 @@ Two things make the encoding work, and both are checked by mutation tests rather
 | `select_to_cf` | `arith.select` → `cf.cond_br` | **ct-breaking** (obs 0 → 1) |
 | `if_to_select_leaky` | branch over *leaking* code → `arith.select` | **ct-breaking** (obs 3 → 2) |
 | `swapped_arms` | `scf.if` → `cf.cond_br` with the arms exchanged | **ct-breaking** (obs 3 → 3) |
-| `loop_unsupported` | anything with `scf.for` | unknown |
+| `scf_for_to_cf` | `scf.for` → header/body/latch/exit skeleton | ct-preserving, bounded (9 → 8) |
+| `scf_for_bounded` | a loop against itself | ct-preserving, bounded (9 → 9) |
+| `loop_early_exit` | the loop skeleton plus "leave when the body finds something" | **ct-breaking** (9 → 12) |
+| `while_unsupported` | anything with `scf.while` | unknown |
 
 `select_to_cf` is the static counterpart of the `select` kernels `mlir_leak` probes by measurement.
 The `if_to_select_pure` / `if_to_select_leaky` pair is the useful one: the two templates differ only
@@ -107,9 +110,15 @@ specification — checked against llvm-project release/18.x. So the proof is abo
 trusted assumption. That assumption is far smaller than trusting the pass outright, and it is
 mechanically checkable per-program by translation validation (P1–P4).
 
-Control flow is handled by if-conversion: `scf.if` and acyclic `cf` graphs are flattened into
-guarded straight-line form, which is also how FCVD's single-block restriction is worked around.
-Loops are refused, not approximated.
+Control flow is handled by bounded path walking: every path is followed with its own guard, so
+`scf.if` and `cf` graphs flatten into guarded straight-line form (this is also how FCVD's
+single-block restriction is worked around) and **loops unroll** — a header is simply re-entered up
+to `--unroll` times. A verdict whose paths were cut by that bound is reported as *bounded*, never as
+if it held for all iterations. `scf.while` is still refused outright.
+
+`loop_early_exit` is the loop-level counterpart of `select_to_cf`: leaving a scan as soon as the
+body finds something is the standard optimisation and the standard way to make the trip count depend
+on data. The tool separates it from the honest skeleton, which is the point of having both.
 
 ## The leakage model
 

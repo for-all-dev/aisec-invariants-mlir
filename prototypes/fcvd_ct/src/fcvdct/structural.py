@@ -58,7 +58,7 @@ from xdsl_smt.traits.smt_printer import print_to_smtlib
 
 from .dialect import HoleOp, HoleSemantics, ObserveOp, ObserveSemantics, StructuralTrace
 from .leakage import LeakageRule
-from .predication import UnsupportedTemplate, flatten
+from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate, flatten
 
 Verdict = Literal["ct-preserving", "ct-breaking", "unknown"]
 
@@ -72,6 +72,9 @@ class LoweringResult:
     solver_output: str = ""
     counterexample: str = ""
     reason: str = ""
+    bounded: bool = False
+    """A path was cut by the unrolling bound, so the verdict only covers that many
+    iterations. Reported, never hidden."""
 
 
 @contextmanager
@@ -167,12 +170,14 @@ def _instantiate(
     inputs: Sequence[SSAValue],
     block_builder: Builder,
     model: dict[type[Operation], LeakageRule] | None,
-) -> StructuralTrace:
+    max_visits: int,
+) -> tuple[StructuralTrace, bool]:
     """Flatten one program, splice it in on the given inputs, and lower it to SMT."""
     # Each program starts from its own effect state: UB raised by one of the four must
     # not propagate into the others.
     state: SSAValue | None = block_builder.insert(smt.DeclareConstOp(StateType())).res
-    flat = flatten(function.clone(), model)
+    program = flatten(function.clone(), model, max_visits)
+    flat = program.block
     for argument, value in zip(list(flat.args), inputs, strict=True):
         argument.replace_by(value)
 
@@ -184,7 +189,7 @@ def _instantiate(
     with _template_semantics(trace):
         for op in body:
             state = SMTLowerer.lower_operation(op, state) or state
-    return trace
+    return trace, program.bounded
 
 
 def build_query(
@@ -192,7 +197,8 @@ def build_query(
     template: ModuleOp,
     model: dict[type[Operation], LeakageRule] | None = None,
     opt: bool = True,
-) -> tuple[str, int, int]:
+    max_visits: int = DEFAULT_MAX_VISITS,
+) -> tuple[str, int, int, bool]:
     """Build the SMTLib script asserting that the lowering *breaks* constant-time."""
     functions = {op.sym_name.data: op for op in template.body.ops if isinstance(op, FuncOp)}
     if set(functions) != {"source", "target"}:
@@ -207,6 +213,7 @@ def build_query(
     module = ModuleOp([])
     builder = Builder(InsertPoint.at_end(module.body.block))
 
+    bounded = False
     traces: list[StructuralTrace] = []
     source_traces: list[StructuralTrace] = []
     target_traces: list[StructuralTrace] = []
@@ -217,8 +224,9 @@ def build_query(
             declared.res.name_hint = f"in{index}_run{run}"
             inputs.append(declared.res)
         # Source and target of one run see the same inputs; the two runs do not.
-        source_trace = _instantiate(source, inputs, builder, model)
-        target_trace = _instantiate(target, inputs, builder, model)
+        source_trace, source_bounded = _instantiate(source, inputs, builder, model, max_visits)
+        target_trace, target_bounded = _instantiate(target, inputs, builder, model, max_visits)
+        bounded = bounded or source_bounded or target_bounded
         source_traces.append(source_trace)
         target_traces.append(target_trace)
         traces += [source_trace, target_trace]
@@ -248,6 +256,7 @@ def build_query(
         stream.getvalue(),
         len(source_traces[0].observations),
         len(target_traces[0].observations),
+        bounded,
     )
 
 
@@ -267,21 +276,28 @@ def check_lowering(
     model: dict[type[Operation], LeakageRule] | None = None,
     opt: bool = True,
     timeout: int = 60,
+    max_visits: int = DEFAULT_MAX_VISITS,
 ) -> LoweringResult:
     """Decide whether a structural lowering specification preserves constant-time."""
     try:
-        script, n_source, n_target = build_query(ctx, template, model, opt)
+        script, n_source, n_target, bounded = build_query(ctx, template, model, opt, max_visits)
     except Exception as e:
         return LoweringResult("unknown", 0, 0, "", reason=f"{type(e).__name__}: {e}")
 
     result = _run_z3(script, timeout)
     output = result.stdout.strip()
     if output.startswith("unsat"):
-        return LoweringResult("ct-preserving", n_source, n_target, script, output)
+        return LoweringResult("ct-preserving", n_source, n_target, script, output, bounded=bounded)
     if output.startswith("sat"):
         with_model = _run_z3(script + "\n(get-model)\n", timeout)
         return LoweringResult(
-            "ct-breaking", n_source, n_target, script, output, with_model.stdout.strip()
+            "ct-breaking",
+            n_source,
+            n_target,
+            script,
+            output,
+            with_model.stdout.strip(),
+            bounded=bounded,
         )
     return LoweringResult(
         "unknown",
@@ -290,4 +306,5 @@ def check_lowering(
         script,
         output,
         reason=f"solver said {output or '<nothing>'}; stderr: {result.stderr.strip()}",
+        bounded=bounded,
     )
