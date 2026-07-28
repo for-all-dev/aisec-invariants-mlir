@@ -1,4 +1,9 @@
-"""`fcvd-ct-pdl` -- does this MLIR rewrite preserve constant-time for every program?"""
+"""The two entry points.
+
+`fcvd-ct-pdl` takes PDL rewrites, `fcvd-ct-lowering` takes structural lowering
+specifications; both answer the same question -- does this transformation preserve
+constant-time for every program it applies to?
+"""
 
 from __future__ import annotations
 
@@ -11,6 +16,7 @@ from xdsl.parser import Parser
 
 from .context import make_context
 from .pdl_ct import CTResult, check_pattern
+from .structural import LoweringResult, check_lowering
 
 _VERDICT_LINE = {
     "ct-preserving": "CT-PRESERVING",
@@ -19,7 +25,7 @@ _VERDICT_LINE = {
 }
 
 
-def _report(name: str, result: CTResult, show_counterexample: bool) -> None:
+def _report(name: str, result: CTResult | LoweringResult, show_counterexample: bool) -> None:
     print(
         f"{name}: {_VERDICT_LINE[result.verdict]} "
         f"(observations: source {result.n_source_observations}, "
@@ -83,6 +89,44 @@ def main() -> None:
         print(f"{unknown} rewrite(s) could not be decided")
         raise SystemExit(3)
     print("all rewrites preserve constant-time")
+
+
+def main_lowering() -> None:
+    arg_parser = argparse.ArgumentParser(
+        description="Verify that a structural lowering specification (@source and "
+        "@target functions over holes) preserves constant-time, for every program it "
+        "can be instantiated with."
+    )
+    arg_parser.add_argument("file", help="MLIR file containing @source and @target")
+    arg_parser.add_argument(
+        "--counterexample",
+        action="store_true",
+        help="print the model z3 returns for a CT-breaking lowering",
+    )
+    arg_parser.add_argument(
+        "--print-smt", action="store_true", help="print the SMTLib query and exit"
+    )
+    arg_parser.add_argument("--timeout", type=int, default=60, help="solver timeout, s")
+    arg_parser.add_argument("--no-opt", action="store_true", help="skip SMT-level simplification")
+    args = arg_parser.parse_args()
+
+    ctx = make_context()
+    with open(args.file) as f:
+        module = Parser(ctx, f.read(), args.file).parse_module()
+
+    if args.print_smt:
+        from .structural import build_query
+
+        script, _, _ = build_query(ctx, module, opt=not args.no_opt)
+        print(script)
+        return
+
+    result = check_lowering(ctx, module, opt=not args.no_opt, timeout=args.timeout)
+    _report(args.file, result, args.counterexample)
+    if result.verdict == "ct-breaking":
+        raise SystemExit(1)
+    if result.verdict == "unknown":
+        raise SystemExit(3)
 
 
 if __name__ == "__main__":

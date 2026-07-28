@@ -7,6 +7,7 @@ dependencies = ["xdsl-smt", "xdsl==0.48.3", "z3-solver==4.15.1.0"]
 
 [project.scripts]
 fcvd-ct-pdl = "fcvdct.cli:main"
+fcvd-ct-lowering = "fcvdct.cli:main_lowering"
 
 [dependency-groups]
 dev = ["ruff>=0.14", "ty>=0.0.1a1", "pytest>=8", "hypothesis>=6"]

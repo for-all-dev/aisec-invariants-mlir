@@ -5,10 +5,12 @@ from __future__ import annotations
 from xdsl.context import Context
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.cf import Cf
 from xdsl.dialects.comb import Comb
 from xdsl.dialects.func import Func
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.pdl import PDL
+from xdsl.dialects.scf import Scf
 from xdsl.ir import Dialect
 from xdsl_smt.dialects.effects.effect import EffectDialect
 from xdsl_smt.dialects.effects.ub_effect import UBEffectDialect
@@ -21,6 +23,8 @@ from xdsl_smt.dialects.smt_dialect import SMTDialect
 from xdsl_smt.dialects.smt_utils_dialect import SMTUtilsDialect
 from xdsl_smt.dialects.transfer import Transfer
 from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
+
+from .dialect import FCVD
 
 
 def make_context() -> Context:
@@ -48,6 +52,9 @@ def make_context() -> Context:
         Builtin,
         Func,
         Arith,
+        Cf,
+        Scf,
+        FCVD,
         Comb,
         HW,
         LLVM,

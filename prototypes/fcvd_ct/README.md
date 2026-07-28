@@ -59,6 +59,58 @@ where the source already leaks and the target leaks *something else*, a checker 
 `unsupported_float` is the coverage control — no float semantics exist upstream, and the answer must
 be `unknown`, never a silent `preserving`.
 
+## `fcvd-ct-lowering` — does a *lowering step* preserve constant-time?
+
+```bash
+uv run fcvd-ct-lowering templates/select_to_cf.mlir --counterexample
+```
+
+A lowering like `scf.if` → `cf.cond_br` is not a value rewrite on a fixed program: it is a
+**structural specification** over arbitrary surrounding code. Written as one — `@source` and
+`@target` functions whose unknown parts are `fcvd.hole` operations — it is still a two-program
+object, so it takes the same property as above, with stronger quantification: a hole is an
+uninterpreted function, so a proof covers *every* program the template can be instantiated with,
+not only programs built from operations we gave semantics to.
+
+Two things make the encoding work, and both are checked by mutation tests rather than assumed:
+
+- **Guards.** If-conversion evaluates both arms, so observations carry the path condition they
+  happen under and traces are compared as `same guards ∧ (guard → same value)`. Comparing without
+  guards makes `if_to_select_leaky` come back *preserving* — a real leak, hidden
+  (`test_guards_are_load_bearing`).
+- **Hole congruence.** Instances of the same hole are tied by `equal inputs → equal outputs`.
+  Removing the axioms does not make the corpus pass, it makes the *correct* lowering fail
+  (`test_hole_congruence_is_load_bearing`).
+
+### Measured on the template corpus (2026-07-28)
+
+| template | lowering | verdict |
+|---|---|---|
+| `scf_if_to_cf` | `scf.if` → `cf.cond_br` + join block | ct-preserving (obs 3 → 3) |
+| `if_to_select_pure` | branch over pure code → `arith.select` | ct-preserving (obs 1 → 0) |
+| `select_to_cf` | `arith.select` → `cf.cond_br` | **ct-breaking** (obs 0 → 1) |
+| `if_to_select_leaky` | branch over *leaking* code → `arith.select` | **ct-breaking** (obs 3 → 2) |
+| `swapped_arms` | `scf.if` → `cf.cond_br` with the arms exchanged | **ct-breaking** (obs 3 → 3) |
+| `loop_unsupported` | anything with `scf.for` | unknown |
+
+`select_to_cf` is the static counterpart of the `select` kernels `mlir_leak` probes by measurement.
+The `if_to_select_pure` / `if_to_select_leaky` pair is the useful one: the two templates differ only
+in whether the branch arms leak, and the verdict flips — if-conversion is a hardening for pure code
+and a *new* leak for code that touches memory or divides, because the untaken arm now runs too.
+
+### What this does and does not assume
+
+Upstream's `-convert-scf-to-cf` is C++ (`IfLowering`, `ForLowering`, … in
+`SCFToControlFlow.cpp`, built on `rewriter.splitBlock`), not generated from a declarative
+specification — checked against llvm-project release/18.x. So the proof is about the
+**specification** of the lowering, with "the C++ pattern implements this template" as the named
+trusted assumption. That assumption is far smaller than trusting the pass outright, and it is
+mechanically checkable per-program by translation validation (P1–P4).
+
+Control flow is handled by if-conversion: `scf.if` and acyclic `cf` graphs are flattened into
+guarded straight-line form, which is also how FCVD's single-block restriction is worked around.
+Loops are refused, not approximated.
+
 ## The leakage model
 
 `src/fcvdct/leakage.py`, and every verdict is relative to it:
@@ -76,6 +128,9 @@ self-composition (P1), since address-shaped rewrites are not what PDL patterns t
 
 - **P0 (done)** — `poc/run.sh`: the stock refinement predicate cannot double as a CT predicate
   (poison from function arguments makes even a constant-time kernel come back `sat`).
-- **P5 (done)** — this tool: universal, per-rewrite constant-time preservation.
-- P1–P4, P6 — see the plan note. P5 covers rewrites expressible in PDL; C++ conversion patterns
-  (which is what `scf`→`cf`→`llvm` lowering is made of) need the per-program checker instead.
+- **P5 (done)** — `fcvd-ct-pdl`: universal, per-rewrite constant-time preservation.
+- **P3 (done)** — `fcvd-ct-lowering`: control flow via if-conversion, and lowering steps verified as
+  structural specifications over holes.
+- P1, P2, P4, P6 — see the plan note. Still open: per-program checking against real `mlir-opt`
+  output (which is what closes the gap between the template and the C++ pass), loops, and the
+  address rules of the leakage model.

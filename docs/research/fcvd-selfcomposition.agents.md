@@ -64,7 +64,8 @@ and memory* part exists today. Four things are missing, and they are the actual 
    argument dependence is unsat, which pins the cause. Our driver must own its predicate: assume
    inputs non-poison, then compare the value components of the leakage traces.
    Reproduction in `prototypes/fcvd_ct/poc/`.
-4. **Control flow does not exist.** `SMTLowerer` rejects any region with more than one block
+4. **Control flow does not exist** (upstream; see P3 below, which supplies it by if-conversion
+   rather than by writing semantics). `SMTLowerer` rejects any region with more than one block
    [source: `lower_to_smt/smt_lowerer.py:48`], and there are no `cf`, `scf`, `affine` or `linalg`
    semantics anywhere in the tree [measured: grep]. The paper says as much — the five dialects are
    control-flow-free. Our own corpus is the opposite: across 118 `.mlir` files the op mix is `llvm`
@@ -73,11 +74,16 @@ and memory* part exists today. Four things are missing, and they are the actual 
    largest cost item in this plan**, not a property we inherit.
 
 A fifth point is about what may honestly be claimed at the end. `verify-pdl` proves a rewrite for all
-programs; MLIR's `scf`→`cf`→`llvm` lowerings are C++ conversion patterns, not PDL rewrites. So the
-realistic deliverable is **per-program translation validation of CT preservation across a pipeline
-run**, plus **universal proofs for the subset of rewrites we can express in PDL**. "The MLIR half is
-fully verified for arbitrary code" is not something this architecture can deliver, and we should not
-write it down.
+programs; MLIR's `scf`→`cf`→`llvm` lowerings are C++ conversion patterns, not PDL rewrites.
+
+*Revised by P3:* that is true of the implementation but does not bound what is provable. A lowering
+has a **structural specification**, and the specification can be verified universally by making the
+unknown code a hole (an uninterpreted function) — see P3. What remains genuinely per-program is the
+link between the specification and the C++ pass that is supposed to implement it. So the deliverable
+is: universal proofs for PDL rewrites (P5) *and* for structural lowering specifications (P3), plus
+per-program translation validation tying real `mlir-opt` output to them (P1/P4). "The MLIR half is
+fully verified for arbitrary code" still overstates it — the trusted assumptions are the leakage
+model and the spec-implements-pass link — and we should keep saying so.
 
 ## 2. Design
 
@@ -126,11 +132,45 @@ the ordering below is otherwise the dependency order.
   (`select`, `gather`, `cond`, `matvec`) down to the supported subset; both polarities of each; lit
   tests. Check: no kernel is silently `secure` because its ops were skipped — an unsupported op must
   produce `unknown`.
-- **P3 — control flow.** `cf.cond_br` semantics (path merging over a bounded number of blocks) and
-  `scf.if`/`scf.for` with statically known bounds via unrolling, registered from our package. Check:
-  a secret-dependent `scf.if` → sat on the branch-condition observation; a public-bounded loop
-  around a CT body → unsat. This is the phase most likely to slip; if block merging turns out to need
-  upstream changes we contribute them rather than fork.
+- **P3 — control flow, and lowerings as structural specifications. *Done.*** Tool
+  `fcvd-ct-lowering`. Two corrections to what §1.4 above assumed:
+
+  1. Control flow did not need new op semantics at all. `scf.if` and acyclic `cf` graphs are
+     **if-converted** into guarded straight-line form (`predication.py`), which both models the
+     control flow and sidesteps FCVD's single-block restriction. Loops are refused, not
+     approximated.
+  2. A lowering step *can* be verified universally without being a PDL rewrite. Written as a
+     **structural specification** — `@source`/`@target` functions whose unknown parts are
+     `fcvd.hole` operations, i.e. uninterpreted functions tied across the four programs by
+     congruence axioms — a proof holds for every program the template can be instantiated with.
+     This is strictly stronger quantification than P5: no dependence on which operations have
+     semantics.
+
+  The soundness-critical part is that observations are **guarded** by their path condition, since
+  if-conversion evaluates both arms. Both mechanisms are pinned by mutation tests rather than
+  asserted: comparing traces without guards makes `if_to_select_leaky` report *preserving*
+  (a real leak hidden), and deleting the congruence axioms makes the *correct* lowering
+  `scf_if_to_cf` fail rather than making the corpus pass. [measured]
+
+  | template | lowering | verdict |
+  |---|---|---|
+  | `scf_if_to_cf` | `scf.if` → `cf.cond_br` + join block | ct-preserving (3 → 3) |
+  | `if_to_select_pure` | branch over pure code → `arith.select` | ct-preserving (1 → 0) |
+  | `select_to_cf` | `arith.select` → `cf.cond_br` | **ct-breaking** (0 → 1) |
+  | `if_to_select_leaky` | branch over *leaking* code → `arith.select` | **ct-breaking** (3 → 2) |
+  | `swapped_arms` | `scf.if` → `cf.cond_br`, arms exchanged | **ct-breaking** (3 → 3) |
+  | `loop_unsupported` | anything with `scf.for` | unknown |
+
+  `select_to_cf` is the static counterpart of the `select` kernels `mlir_leak` probes dynamically.
+  The pure/leaky pair is the result worth keeping: **if-conversion is a hardening for pure code and
+  introduces a leak for code that touches memory or divides**, because the untaken arm now executes
+  — and the tool tells the two apart from the templates alone.
+
+  Named trusted assumption: upstream's `-convert-scf-to-cf` is C++ (`IfLowering`, `ForLowering`, …
+  on `rewriter.splitBlock`), not generated from a declarative spec — checked against llvm-project
+  release/18.x [source]. So this proves the *specification* of the lowering, and "the C++ pattern
+  implements this template" is assumed. That assumption is much smaller than trusting the pass, and
+  P1/P4 discharge it per-program against real `mlir-opt` output.
 - **P4 — differential across the lowering.** Run the property at each stage of a real pipeline
   (`scf`→`cf`→`llvm` via `mlir-opt`), and report the first stage at which a kernel that *was*
   constant-time stops being so. This is the actual research claim of the branch: not "this program is
