@@ -184,6 +184,8 @@ FLATTENED_OPS = {
     "scf.if": "if-conversion (fcvdct.predication)",
     "scf.yield": "if-conversion (fcvdct.predication)",
     "scf.for": "bounded unrolling (fcvdct.predication)",
+    "affine.for": "exact unrolling, constant bounds only (fcvdct.predication)",
+    "affine.yield": "exact unrolling, constant bounds only (fcvdct.predication)",
 }
 
 

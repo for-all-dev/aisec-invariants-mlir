@@ -72,8 +72,14 @@ from .smtutil import instantiate, traces_agree
 
 Verdict = Literal["secure", "insecure", "unknown"]
 
-SECRET_ATTRIBUTES = ("fcvdct.secret", "stagingni.protected")
-"""Argument attributes that mark an input as secret. Everything else is public."""
+SECRET_ATTRIBUTES = ("fcvdct.secret", "stagingni.protected", "secret.secret")
+"""Argument attributes that mark an input as secret. Everything else is public.
+
+Three spellings, none of them ours alone: `stagingni.protected` is what
+`prototypes/Staging_NI` writes, and `secret.secret` is what HEIR's own `--secretize`
+puts on a function argument (`lib/Transforms/Secretize`), so a HEIR kernel needs no
+re-annotation to be checked here.
+"""
 
 OBLIGATIONS: tuple[str, ...] = (CONTROL, ADDRESS, LATENCY, RESOURCE, OTHER)
 

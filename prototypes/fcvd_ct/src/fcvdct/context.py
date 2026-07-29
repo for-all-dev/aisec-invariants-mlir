@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from xdsl.context import Context
+from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.cf import Cf
@@ -11,6 +12,7 @@ from xdsl.dialects.func import Func
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.scf import Scf
+from xdsl.dialects.tensor import Tensor
 from xdsl.ir import Dialect
 from xdsl_smt.dialects.effects.effect import EffectDialect
 from xdsl_smt.dialects.effects.ub_effect import UBEffectDialect
@@ -24,9 +26,11 @@ from xdsl_smt.dialects.smt_utils_dialect import SMTUtilsDialect
 from xdsl_smt.dialects.transfer import Transfer
 from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
 
+from .affine_ops import install_affine_syntax
 from .dialect import FCVD
 from .hw_ops import HWConstant, load_hw_semantics
 from .index_ops import load_index_semantics
+from .tensor_ops import load_tensor_semantics
 
 
 def make_context() -> Context:
@@ -64,6 +68,8 @@ def make_context() -> Context:
         Builtin,
         Func,
         Arith,
+        Affine,
+        Tensor,
         Cf,
         Scf,
         FCVD,
@@ -82,5 +88,7 @@ def make_context() -> Context:
 
     load_vanilla_semantics()
     load_index_semantics()
+    install_affine_syntax()
     load_hw_semantics()
+    load_tensor_semantics()
     return ctx

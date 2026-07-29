@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from xdsl.dialects import arith, memref
+from xdsl.dialects import arith, memref, tensor
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
@@ -84,6 +84,11 @@ VARIABLE_LATENCY_RULES: dict[type[Operation], LeakageRule] = {
 ADDRESS_RULES: dict[type[Operation], LeakageRule] = {
     memref.LoadOp: Rule(ADDRESS, operands_from(1)),
     memref.StoreOp: Rule(ADDRESS, operands_from(2)),
+    # A tensor is not memory yet, but it becomes memory: HEIR bufferizes before its
+    # backend, and an extraction at a secret index is exactly what its data-oblivious
+    # passes exist to remove. See `tensor_ops.py` for the assumption in full.
+    tensor.ExtractOp: Rule(ADDRESS, operands_from(1)),
+    tensor.InsertOp: Rule(ADDRESS, operands_from(2)),
 }
 
 #: The resource obligation of the plan -- "the sets of allocated and un-freed memory at

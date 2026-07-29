@@ -25,10 +25,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.dialects import arith, cf, func, scf
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr
+from xdsl.dialects import affine, arith, cf, func, scf
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
 
+from .affine_ops import constant_bound
 from .dialect import CONTROL, OTHER, HoleOp, ObserveOp
 from .leakage import DEFAULT_MODEL, LeakageRule
 
@@ -85,6 +86,9 @@ class Flattener:
             return
         if isinstance(op, scf.ForOp):
             self.run_for(op, guard, values)
+            return
+        if isinstance(op, affine.ForOp):
+            self.run_affine_for(op, guard, values)
             return
         if isinstance(op, scf.WhileOp | scf.ParallelOp):
             raise UnsupportedTemplate(f"not modelled yet: {op.name}")
@@ -162,6 +166,47 @@ class Flattener:
         for result, value in zip(op.results, carried, strict=True):
             values[result] = value
 
+    def run_affine_for(
+        self, op: affine.ForOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """Fully unroll an `affine.for` with constant bounds.
+
+        This is not the same situation as `scf.for`, and the difference is the whole
+        point of HEIR's hardening passes: the bounds here are *constants in the map*, so
+        the trip count is public. Nothing about it is observed, and because the loop is
+        unrolled completely rather than up to a budget, the verdict is exact rather than
+        bounded -- provided the trip count fits in `max_visits`, which is checked.
+        """
+        lower = None if op.lowerBoundOperands else constant_bound(op.lowerBoundMap)
+        upper = None if op.upperBoundOperands else constant_bound(op.upperBoundMap)
+        if lower is None or upper is None:
+            raise UnsupportedTemplate(
+                "affine.for with data-dependent bounds is not modelled; only constant maps are"
+            )
+        step = op.step.value.data
+        trip_count = max(0, -(-(upper - lower) // step))
+        if trip_count > self.max_visits:
+            # Refusing rather than silently cutting: a hardened loop that is only
+            # half-unrolled would be reported as exact, which it would not be.
+            raise UnsupportedTemplate(
+                f"affine.for runs {trip_count} times, over the --unroll bound of {self.max_visits}"
+            )
+
+        carried = [values.get(arg, arg) for arg in op.inits]
+        body = op.body.block
+        for iteration in range(trip_count):
+            induction = self.emit(
+                arith.ConstantOp(IntegerAttr(lower + iteration * step, IndexType()))
+            ).results[0]
+            body_values = dict(values)
+            body_values[body.args[0]] = induction
+            for arg, value in zip(body.args[1:], carried, strict=True):
+                body_values[arg] = value
+            carried = list(self.run_block(body, guard, body_values))
+
+        for result, value in zip(op.results, carried, strict=True):
+            values[result] = value
+
     # ---- blocks ---------------------------------------------------------------
 
     def run_block(
@@ -169,7 +214,7 @@ class Flattener:
     ) -> tuple[SSAValue, ...]:
         """Run a region's block; returns what its `scf.yield` yielded."""
         for op in block.ops:
-            if isinstance(op, scf.YieldOp):
+            if isinstance(op, scf.YieldOp | affine.YieldOp):
                 return tuple(values.get(operand, operand) for operand in op.operands)
             self.run_op(op, guard, values)
         return ()
