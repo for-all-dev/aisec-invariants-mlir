@@ -15,8 +15,12 @@ Plan, findings and scope limits: `../../docs/research/fcvd-selfcomposition.agent
 
 ```bash
 ./setup.sh                    # clones xdsl-smt into third_party/ (gitignored), then uv sync
-uv run pytest
+uv run pytest                 # asserts every verdict in this file
+./run_all.sh                  # prints them all, plus the coverage report
 ```
+
+The compiler descriptors additionally expect shallow checkouts of circt, heir and onnx-mlir in
+`~/third_party` (only for `fcvd-ct-coverage`; the templates and kernels need nothing).
 
 xdsl-smt ships no LICENSE file, so it is deliberately **not** vendored here — it stays an external
 checkout, pinned at `dd30235` and installed as an editable path dependency.
@@ -165,6 +169,56 @@ if it held for all iterations. `scf.while` is still refused outright.
 body finds something is the standard optimisation and the standard way to make the trip count depend
 on data. The tool separates it from the honest skeleton, which is the point of having both.
 
+## `fcvd-ct-coverage` — how much of a given compiler can be verified today?
+
+```bash
+uv run fcvd-ct-coverage            # all three descriptors in compilers/
+uv run fcvd-ct-coverage heir --top 6
+```
+
+The plan picks the first compilers to verify by "the fewest translations that are not proved", which
+is a question with a number for an answer. The tool counts it: it reads the operations occurring in a
+compiler's **own test corpus** and sorts them into the plan's forms — 0 (SMT semantics, read live
+from the registry), 1 (covered by a macro-template that still proves — re-run, not trusted), 2
+(neither). Descriptors in `compilers/*.json` carry each pipeline as the compiler's own source spells
+it, with `file:line` for every step.
+
+Measured 2026-07-29, at circt `2803829`, heir `de797a2`, onnx-mlir `de23de7`:
+
+| compiler | distinct ops | form 0 | form 2 | translatable (by mentions) | steps with a checked specification |
+|---|---|---|---|---|---|
+| heir | 117 | 34 | **83** | **53.4 %** | 2 / 11 |
+| circt | 237 | 49 | 188 | 40.1 % | 2 / 12 |
+| onnx-mlir | 302 | 14 | 288 | 33.6 % | 1 / 6 |
+
+## The three compilers
+
+Templates in `templates/<compiler>/` and kernels in `kernels/<compiler>/`, each transcribed from the
+pass that implements it, with the file and line in the header comment. Full write-up:
+`../../docs/research/compiler-choice-circt-heir-onnx.agents.md`.
+
+| compiler | step | verdict |
+|---|---|---|
+| CIRCT | `--map-arith-to-comb` (table, div/rem, min/max) | ct-preserving; div/rem 4 → 0, the channel closes |
+| CIRCT | `--convert-comb-to-arith` (arcilator's simulation path) | **ct-breaking (0 → 2)** — the simulated divider leaks what the circuit did not |
+| HEIR | `--convert-secret-extract-to-static-extract` | closes `address`, **opens `control`** — the emitted `scf.if` branches on `j == secret` |
+| HEIR | `--convert-if-to-select` | ct-preserving on a speculatable body, **ct-breaking** on the body HEIR's own pass refuses |
+| HEIR | `--mod-arith-to-arith` | **ct-breaking (0 → 2)** — `mod_arith.add` becomes `addi` + `remui` on secret data |
+| onnx-mlir | `--convert-onnx-to-krnl` (`onnx.Gather`) | **ct-breaking (0 → 3)** — private indices become addresses, and no hardening pass exists |
+
+Per-program, the same three compilers, `fcvd-ct` on kernels transcribed from each stage:
+
+| kernel | verdict |
+|---|---|
+| `circt/hw_divide` → `circt/hw_divide_simulated` | SECURE → INSECURE (`latency`) |
+| `heir/secret_extract` → `static_extract` → `static_extract_select` | INSECURE (`address`) → INSECURE (`control`) → SECURE |
+| `onnx_mlir/gather_secret_index` vs `gather_oblivious` | INSECURE (`address`) → SECURE, 18 observations proved equal |
+
+**The compilers themselves were not run** — none of circt-opt, heir-opt, onnx-mlir is built here, so
+every before/after pair is a transcription of the pass source or its lit test, cited line by line.
+These are therefore proofs about the *specification* of each step, exactly as for `-convert-scf-to-cf`
+above.
+
 ## The leakage model
 
 `src/fcvdct/leakage.py`, and every verdict is relative to it:
@@ -187,5 +241,10 @@ self-composition (P1), since address-shaped rewrites are not what PDL patterns t
   structural specifications over holes.
 - **P1/P2 (done)** — `fcvd-ct`: labelled self-composition with the four obligations, and the kernel
   corpus in `kernels/` with both polarities of each.
-- P4, P6 — see the plan note. Still open: per-program checking against real compiler output, which
-  is what closes the gap between the template and the C++ pass.
+- **P4 (partly done)** — the differential across a lowering, per compiler: the kernel chains above
+  say at which step a channel opens or closes. What is still missing is real compiler output instead
+  of transcription.
+- **The compiler layer** — `fcvd-ct-coverage`, `compilers/`, and the CIRCT/HEIR/onnx-mlir templates
+  and kernels.
+- P6, and the honest gaps: `secret.generic` (849 mentions in HEIR's corpus) is not modelled, and no
+  compiler was built here, so nothing is checked against real `circt-opt`/`heir-opt`/`onnx-mlir` output.

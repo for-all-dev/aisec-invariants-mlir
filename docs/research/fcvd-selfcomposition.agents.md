@@ -214,8 +214,23 @@ the ordering below is otherwise the dependency order.
   checker of P1–P4. The corpus exercises the variable-latency half of the leakage model only — the
   address rules are implemented but wait on P1, since address-shaped transformations are not what
   PDL patterns usually express.
+- **P1/P2 — CT driver and corpus. *Done.*** `fcvd-ct`: the labelled self-composition of §2, with the
+  three obligations of the plan's step 4 proved *separately* (plus `latency` for variable-latency
+  instructions), so a verdict names the channel. Public inputs and the initial memory are shared SSA
+  values rather than an assumption. Corpus `kernels/`, both polarities of each obligation; an
+  unlabelled kernel is `unknown`, never `secure`. [measured, 2026-07-29]
+- **P4 — differential across a lowering. *Partly done.*** Done per compiler and per stage, in
+  `compiler-choice-circt-heir-onnx.agents.md`: for each of CIRCT, HEIR and onnx-mlir a chain of
+  kernels transcribed from the pass source, with the verdict changing at the step that changes it —
+  e.g. HEIR's `--convert-secret-extract-to-static-extract` closes `address` and opens `control`.
+  Still missing: the IR should come from running the compiler, not from transcription.
+- **The compiler layer — *done*, and the answer to "which compiler first".** `fcvd-ct-coverage`
+  counts, for a compiler's own test corpus, how many operations are in form 0 / 1 / 2. HEIR 53.4 % of
+  mentions translatable and 83 unproved operations, CIRCT 40.1 % and 188, onnx-mlir 33.6 % and 288.
+  Findings and full scope in `compiler-choice-circt-heir-onnx.agents.md`.
 - **P6 — integration.** A layer in `formal_verif/PIPELINE.md` next to A/B/C/D (this is the MLIR-level
   formal layer; binsec stays the binary-level one), a row in `run_all.sh`, and a results note.
+  `prototypes/fcvd_ct/run_all.sh` exists; the `formal_verif` cross-link does not yet.
 
 ## 4. What this does and does not buy us for the Jasmin question
 
