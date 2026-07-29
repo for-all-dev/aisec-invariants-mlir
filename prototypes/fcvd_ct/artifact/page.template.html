@@ -1,4 +1,4 @@
-<title>MLIR translation map: where a compiler breaks constant-time, and what checking it costs</title>
+<title>MLIR compiler verification: the threat model, the translation map, and what closing it costs</title>
 <style>
 :root{
   color-scheme: light;
@@ -179,6 +179,91 @@ ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-fam
 @media (prefers-reduced-motion: no-preference){
   .edge,.node rect{transition:opacity .18s ease, stroke-width .18s ease}
 }
+
+:root{
+  --ring0:#eef4fd; --ring1:#dfeafb; --ring2:#cde2fb; --ring3:#b7d3f6;
+  --ring4:#9ec5f4; --ring5:#86b6ef; --ring6:#6da7ec; --ring7:#5598e7;
+  --core:#12233a; --core-ink:#fcfdfe;
+  --covered:#2a78d6; --partial:#86b6ef; --bridge:#d03b3b; --nothing:#898781;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    --ring0:#141a22; --ring1:#16202c; --ring2:#182636; --ring3:#1a2c41;
+    --ring4:#1d334c; --ring5:#1f3a57; --ring6:#224163; --ring7:#25486e;
+    --core:#cfe0f7; --core-ink:#0b0e12;
+    --covered:#3987e5; --partial:#2a5f9e; --bridge:#d03b3b; --nothing:#898781;
+  }
+}
+:root[data-theme="dark"]{
+  --ring0:#141a22; --ring1:#16202c; --ring2:#182636; --ring3:#1a2c41;
+  --ring4:#1d334c; --ring5:#1f3a57; --ring6:#224163; --ring7:#25486e;
+  --core:#cfe0f7; --core-ink:#0b0e12;
+  --covered:#3987e5; --partial:#2a5f9e; --bridge:#d03b3b; --nothing:#898781;
+}
+
+.split{display:grid;gap:26px;grid-template-columns:minmax(320px,420px) 1fr;align-items:start;margin-top:26px}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+
+.onionbox{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px;
+  box-shadow:var(--shadow)}
+svg.onion{display:block;width:100%;height:auto}
+.onion circle.ring{cursor:pointer;stroke:var(--surface);stroke-width:1}
+.onion circle.ring:hover{stroke:var(--accent);stroke-width:2}
+.onion circle.ring.on{stroke:var(--accent);stroke-width:2.5}
+.onion text.olab{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.02em;
+  fill:var(--ink);text-anchor:middle;pointer-events:none}
+.onion text.core{font-family:var(--mono);font-size:11px;letter-spacing:.06em;fill:var(--core-ink);
+  text-anchor:middle;text-transform:uppercase;pointer-events:none}
+.rings{list-style:none;margin:14px 0 2px;padding:0;display:grid;gap:2px}
+.rings li{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:baseline;padding:4px 6px;
+  border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink-2)}
+.rings li:hover{background:var(--surface-2)}
+.rings li.on{background:var(--surface-2);color:var(--ink)}
+.rings li b{font-family:var(--mono);font-size:12px;font-weight:620;color:var(--ink)}
+.rings li span{line-height:1.35}
+
+.matrix{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:18px 18px 14px;
+  box-shadow:var(--shadow);overflow-x:auto}
+table.grid{border-collapse:separate;border-spacing:3px;width:100%;min-width:560px;table-layout:fixed}
+table.grid col.rowcol{width:190px}
+table.grid th{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:500;padding:0 0 6px;
+  text-align:center;background:none;position:static}
+table.grid th.rowh{text-align:left;font-size:12.5px;color:var(--ink);padding-right:12px;white-space:nowrap;
+  font-family:var(--sans);font-weight:560}
+table.grid th.col{cursor:pointer}
+table.grid th.col.on{color:var(--accent-ink)}
+table.grid td{padding:0}
+.cell{width:100%;height:30px;border-radius:6px;border:1px solid var(--rule);background:var(--surface-2);
+  cursor:default;display:block;position:relative}
+.cell.has{cursor:pointer}
+.cell.covered{background:var(--covered);border-color:var(--covered)}
+.cell.partial{background:var(--partial);border-color:var(--partial)}
+.cell.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
+  border-color:var(--nothing)}
+.cell.unreachable{background:none;border-color:var(--rule)}
+.cell.moot{background:var(--sunken);border-color:var(--rule-strong)}
+.cell.on{outline:2px solid var(--accent);outline-offset:2px}
+.cell:hover.has{outline:2px solid var(--accent);outline-offset:2px}
+.cell .mark{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
+  font-size:11px;font-weight:700;color:var(--surface)}
+.cell.gap .mark{color:var(--muted)}
+
+.mlegend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;padding:0;list-style:none;font-size:12.5px;
+  color:var(--ink-2)}
+.mlegend li{display:flex;align-items:center;gap:7px}
+.mlegend i{width:15px;height:15px;border-radius:4px;border:1px solid var(--rule);display:block}
+.mlegend i.covered{background:var(--covered);border-color:var(--covered)}
+.mlegend i.partial{background:var(--partial);border-color:var(--partial)}
+.mlegend i.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
+  border-color:var(--nothing)}
+.mlegend i.unreachable{border-color:var(--rule)}
+.mlegend i.moot{background:var(--sunken);border-color:var(--rule-strong)}
+
+.claim{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--covered);
+  border-radius:10px;padding:20px 22px;box-shadow:var(--shadow);margin-top:24px}
+.claim h3{margin-bottom:10px}
+.claim ol{margin:12px 0 0;padding-left:20px;color:var(--ink-2)}
+.claim ol li{margin-bottom:8px}
 </style>
 
 
@@ -207,6 +292,54 @@ ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-fam
       <p style="margin-top:1.2em">Every proof is therefore produced by the same algorithm, and bringing a
         new compiler into the fold is a matter of following it.</p>
     </div>
+  </div>
+</section>
+
+<section id="profile">
+  <div class="wrap">
+    <p class="eyebrow">Attacker profile</p>
+    <h2>What the proofs are against</h2>
+    <p class="lede">Before any of the compilers below, the question of who is being kept out. Two axes:
+      <b>what leaks</b> — the kind of secret-dependent thing the program did, and that list closes at
+      four — and <b>who is watching</b>, how directly the observer reaches secret state. Every
+      intersection carries a verdict, because a blank cell is an opinion nobody stated.</p>
+    <p class="lede">The rings are ordered strictly by directness of access, which puts every observer
+      who <i>infers</i> outside every observer who <i>reads</i>: a probe on the power line sits closer
+      to the switching activity than a cache does, but further from the secret than a debugger holding
+      the memory. Sketches of this onion usually draw the physical observer innermost, and then the
+      order stops matching what the picture says it shows.</p>
+    <p class="lede">The blue block is what the MLIR pipeline closes. Timing is proved at O2 and carried
+      outward, but only as far as the carry is sound: a weaker observer inherits the result when its
+      observation is a function of the O2 trace, which holds for end-to-end latency and stops at the
+      first observer whose clock resolves what the model leaves out. At O6 and inward the classes stop
+      being the binding constraint altogether — an observer holding process memory has nothing left to
+      infer. One cell breaks the pattern, and it is worth the click.</p>
+
+    <div class="split">
+      <div class="onionbox">
+        <svg class="onion" id="onion" viewBox="0 0 400 400" role="img"
+          aria-label="Observer layers, from public transcript outside to secret state at the core"></svg>
+        <ul class="rings" id="rings"></ul>
+      </div>
+
+      <div class="matrix">
+        <table class="grid" id="grid">
+          <colgroup id="gridcols"></colgroup>
+          <thead><tr id="gridhead"></tr></thead>
+          <tbody id="gridbody"></tbody>
+        </table>
+        <ul class="mlegend">
+          <li><i class="covered"></i> proved</li>
+          <li><i class="partial"></i> partly, under a stated assumption</li>
+          <li><i class="gap"></i> visible here, we cover none of it</li>
+          <li><i class="unreachable"></i> not observable from this ring</li>
+          <li><i class="moot"></i> observer already reads secret state</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="detail" id="pdetail" style="margin-top:18px"><p class="hint">Click a cell, a column
+      header, a class, or a ring of the onion.</p></div>
   </div>
 </section>
 
@@ -329,8 +462,10 @@ ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-fam
 
 
 <script type="application/json" id="artifact-data">__DATA__</script>
+<script type="application/json" id="profile-data">__PROFILE__</script>
 
 <script>
+(() => {
 const DATA = JSON.parse(document.getElementById("artifact-data").textContent);
 const NBSP = " ";
 const fmt = n => n.toLocaleString("en-US");
@@ -660,4 +795,122 @@ document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
   }).join("");
 
 render(); applyView(); drawSteps();
+})();
+
+(() => {
+const D = JSON.parse(document.getElementById("profile-data").textContent);
+const cellOf = {};
+D.cells.forEach(c => (cellOf[c.cls + "/" + c.obs] = c));
+const state = {sel: null, col: null, row: null};
+const MARK = {covered: "✓", partial: "~", nothing: "", unreachable: "", moot: "·"};
+const STATE_LABEL = {covered: "proved", partial: "partly, under a stated assumption",
+  nothing: "visible from here, and we cover none of it",
+  unreachable: "not observable from this ring",
+  moot: "the observer already reads secret state directly"};
+
+/* ---------- the onion ---------- */
+const onion = document.getElementById("onion");
+const CX = 200, CY = 200, R0 = 188, STEP = 20;
+function drawOnion() {
+  let out = "";
+  D.observers.forEach((o, i) => {
+    out += `<circle class="ring${state.col === o.id ? " on" : ""}" data-obs="${o.id}"
+      cx="${CX}" cy="${CY}" r="${R0 - i * STEP}" fill="var(--ring${i})" tabindex="0" role="button"
+      aria-label="${o.id} ${o.name}"><title>${o.id} · ${o.name} — ${o.what}</title></circle>`;
+  });
+  out += `<circle cx="${CX}" cy="${CY}" r="${R0 - 8 * STEP}" fill="var(--core)"></circle>`;
+  D.observers.forEach((o, i) => {
+    out += `<text class="olab" x="${CX}" y="${CY - (R0 - i * STEP) + 14}">${o.id}</text>`;
+  });
+  out += `<text class="core" x="${CX}" y="${CY + 4}">secret state</text>`;
+  onion.innerHTML = out;
+
+  document.getElementById("rings").innerHTML = D.observers.map(o =>
+    `<li class="${state.col === o.id ? "on" : ""}" data-obs="${o.id}" tabindex="0" role="button">
+      <b>${o.id}</b><span>${o.name}</span></li>`).join("");
+}
+function ringClick(ev) {
+  const target = ev.target.closest("[data-obs]");
+  if (target) selectColumn(target.dataset.obs);
+}
+onion.addEventListener("click", ringClick);
+document.getElementById("rings").addEventListener("click", ringClick);
+[onion, document.getElementById("rings")].forEach(el => el.addEventListener("keydown", ev => {
+  if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true})); }
+}));
+
+/* ---------- the grid ---------- */
+document.getElementById("gridcols").innerHTML =
+  '<col class="rowcol">' + D.observers.map(() => "<col>").join("");
+function drawGrid() {
+  document.getElementById("gridhead").innerHTML = '<th class="rowh"></th>' +
+    D.observers.map(o => `<th class="col${state.col === o.id ? " on" : ""}" data-obs="${o.id}"
+      tabindex="0" role="button" title="${o.name}: ${o.what}">${o.id}</th>`).join("");
+  document.getElementById("gridbody").innerHTML = D.classes.map(c => `<tr>
+    <th class="rowh${state.row === c.id ? " on" : ""}" data-cls="${c.id}" tabindex="0" role="button"
+      title="${c.what}">${c.name}</th>
+    ${D.observers.map(o => {
+      const cell = cellOf[c.id + "/" + o.id] || {state: "unreachable", note: ""};
+      const kind = cell.state.replace("nothing", "gap");
+      const on = state.sel && state.sel.cls === c.id && state.sel.obs === o.id;
+      return `<td><span class="cell ${kind} has${on ? " on" : ""}"
+        data-cls="${c.id}" data-obs="${o.id}" tabindex="0" role="button"
+        aria-label="${c.name} at ${o.id}: ${STATE_LABEL[cell.state]}">
+        <span class="mark">${MARK[cell.state]}</span></span></td>`;
+    }).join("")}</tr>`).join("");
+}
+const grid = document.getElementById("grid");
+grid.addEventListener("click", ev => {
+  const cell = ev.target.closest("[data-cls][data-obs]");
+  if (cell) return select(cell.dataset.cls, cell.dataset.obs);
+  const col = ev.target.closest("th.col");
+  if (col) return selectColumn(col.dataset.obs);
+  const row = ev.target.closest("th.rowh[data-cls]");
+  if (row) return selectRow(row.dataset.cls);
+});
+grid.addEventListener("keydown", ev => {
+  if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true})); }
+});
+
+/* ---------- detail ---------- */
+const detail = document.getElementById("pdetail");
+function select(clsId, obsId) {
+  state.sel = {cls: clsId, obs: obsId}; state.col = obsId; state.row = clsId;
+  const c = D.classes.find(x => x.id === clsId), o = D.observers.find(x => x.id === obsId);
+  const cell = cellOf[clsId + "/" + obsId];
+  detail.innerHTML = `<h3>${c.name} <span class="tag">${o.id} · ${o.name}</span>
+    <span class="tag ${cell.state === "covered" ? "proved" : ""}">
+    ${STATE_LABEL[cell.state]}</span></h3>
+    <dl class="kv">
+      <dt>what leaks</dt><dd>${c.what}</dd>
+      <dt>who sees it</dt><dd>${o.what}</dd>
+      <dt>where we stand</dt><dd>${cell.note}</dd>
+    </dl>`;
+  redraw();
+}
+function selectColumn(obsId) {
+  state.col = obsId; state.sel = null; state.row = null;
+  const o = D.observers.find(x => x.id === obsId);
+  const here = D.classes.map(c => ({c, cell: cellOf[c.id + "/" + obsId]})).filter(x => x.cell);
+  detail.innerHTML = `<h3>${o.id} · ${o.name}</h3>
+    <dl class="kv"><dt>sees</dt><dd>${o.what}</dd>
+      <dt>classes here</dt><dd>${here.length
+        ? here.map(x => `${x.c.name} — ${STATE_LABEL[x.cell.state]}`).join("<br>")
+        : "no class of leak is visible from this ring alone"}</dd></dl>`;
+  redraw();
+}
+function selectRow(clsId) {
+  state.row = clsId; state.sel = null; state.col = null;
+  const c = D.classes.find(x => x.id === clsId);
+  const cells = D.cells.filter(x => x.cls === clsId);
+  detail.innerHTML = `<h3>${c.name}</h3>
+    <dl class="kv"><dt>what leaks</dt><dd>${c.what}</dd>
+      <dt>visible from</dt><dd>${cells.length
+        ? cells.map(x => `<b>${x.obs}</b> — ${STATE_LABEL[x.state]}`).join("<br>")
+        : "—"}</dd></dl>`;
+  redraw();
+}
+function redraw() { drawOnion(); drawGrid(); }
+redraw();
+})();
 </script>

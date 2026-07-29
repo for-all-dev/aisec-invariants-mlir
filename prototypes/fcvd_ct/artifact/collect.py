@@ -1,4 +1,4 @@
-"""Rebuild the translation-map artifact from live data.
+"""Rebuild the artifact from live data.
 
     uv run python artifact/collect.py > artifact/translation-map.html
 
@@ -12,6 +12,7 @@ import json
 import time
 from pathlib import Path
 
+from attacker_profile import profile_data
 from xdsl.parser import Parser
 
 from fcvdct.context import make_context
@@ -160,7 +161,7 @@ for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
 data["dialects"] = sorted(data["dialects"].values(), key=lambda e: (e["layer"], -e["mentions"]))
 template = Path(__file__).parent / "page.template.html"
 print(
-    template.read_text().replace(
-        "__DATA__", json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    )
+    template.read_text()
+    .replace("__DATA__", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
+    .replace("__PROFILE__", json.dumps(profile_data(), ensure_ascii=False, separators=(",", ":")))
 )

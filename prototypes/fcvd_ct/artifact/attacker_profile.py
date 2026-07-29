@@ -1,20 +1,14 @@
-"""Build the attacker-profile artifact: leak class x observer layer.
-
-    uv run python artifact/attacker_profile.py > artifact/attacker-profile.html
+"""The threat model half of the artifact: leak class x observer layer.
 
 Two axes. What leaks -- four classes, and the list closes. Who is watching -- the
 observer onion, ordered by how direct the access to secret state is. The grid is
-their product, and the block the MLIR pipeline closes is functional x timing out
-to O2.
+their product, and the block the MLIR pipeline closes is functional and timing.
 
-The content here is a judgement rather than a measurement, so it is written out
-rather than derived.
+This content is a judgement rather than a measurement, so it is written out here
+rather than derived. `collect.py` imports it and builds the page.
 """
 
 from __future__ import annotations
-
-import json
-from pathlib import Path
 
 # ---------------------------------------------------------------- the two axes
 
@@ -229,19 +223,12 @@ CELLS = {
 NOT_APPLICABLE_NOTE = "no meaningful leak of this class at this observer"
 
 
-def main() -> None:
-    data = {
+def profile_data() -> dict[str, object]:
+    """The threat-model half of the page's data."""
+    return {
         "observers": [{"id": o, "name": n, "what": w} for o, n, w in OBSERVERS],
         "classes": [{"id": i, "name": n, "what": w} for i, n, w in CLASSES],
         "cells": [
-            {"cls": c, "obs": o, "state": s, "note": note} for (c, o), (s, note) in CELLS.items()
+            {"cls": c, "obs": o, "state": st, "note": note} for (c, o), (st, note) in CELLS.items()
         ],
-        # the block the MLIR pipeline closes: functional and timing, out to O2
-        "closed": {"classes": ["functional", "timing"], "upto": "O2"},
     }
-    template = Path(__file__).parent / "attacker.template.html"
-    print(template.read_text().replace("__DATA__", json.dumps(data, ensure_ascii=False)))
-
-
-if __name__ == "__main__":
-    main()
