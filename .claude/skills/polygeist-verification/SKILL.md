@@ -68,10 +68,16 @@ that is what the restart is for.
    If the control does not break, your encoding is wrong — fix it, do not
    record the pass.
 5. **Run it**: `cd prototypes/fcvd_ct && uv run fcvd-ct-lowering templates/polygeist/<name>.mlir`.
+   It prints **two** verdicts, because safe means two things: the leakage half
+   (`CT-PRESERVING` / `CT-BREAKING`) and the equivalence half (`EQUIVALENT` /
+   `NOT-EQUIVALENT`, i.e. does the target still compute the same thing).
+   `VERIFIED` needs both. Record both, always.
 6. **Register it** in `compilers/polygeist.json` with `verifies`, `expect`, and
    `covers` (only for preserving templates), then re-run
    `uv run fcvd-ct-coverage polygeist` — a template counts only while the
-   checker still agrees with what the descriptor documents.
+   checker still agrees with what the descriptor documents, and only while both
+   halves hold. `expect` documents the leakage half only; the equivalence half is
+   not a matter of documentation.
 7. **Add a test** in `tests/test_polygeist.py` pinning the verdict, and keep
    `uv run pytest`, `ruff check`, `ruff format --check`, `ty check src` green.
 
@@ -83,7 +89,16 @@ that is what the restart is for.
   lowering rule as the source states it. If you cannot find the lines, say so
   and pick another target — do not reconstruct a pass from its name.
 - **A control that does not break means the encoding is broken.** Never record
-  a preserving verdict whose twin also came back preserving.
+  a preserving verdict whose twin also came back preserving. One exception, and
+  it is why the second half exists: a mutation that reads a *stale value* adds no
+  observation, so the leakage half passes it correctly and the equivalence half
+  is what refutes it. If the twin survives, check which half you expected to
+  break before concluding the encoding is at fault —
+  `templates/polygeist/canonicalize_for_propagate_moved_value.mlir` is the worked
+  example.
+- **A preserving verdict whose equivalence half is refuted is not a
+  specification.** The rewrite changes what the program computes; record it as a
+  finding and do not give it `covers`.
 - **A breaking verdict is a finding, not a failure** — record it with
   `expect: ct-breaking`, and name the operations it accuses in `breaks_ops`
   only when the lowering it describes is one Polygeist actually performs.
@@ -101,9 +116,10 @@ Append one block to `docs/research/polygeist-verification.agents.md`:
 ```
 ## iter <UTC> — target: <step or operation>
 Source: <file:line in ~/third_party/Polygeist, and the lit test if one exists>
-Expected: <the verdict you predicted, written before running>
-Measured: <the verdict the tool printed, with observation counts> | blocked: <why>
-Control: <the twin and its verdict> | n/a
+Expected: <both verdicts you predicted, written before running>
+Measured: <both verdicts the tool printed, with observation counts and what the
+equivalence half compared> | blocked: <why>
+Control: <the twin, both its verdicts, and which half broke> | n/a
 Outcome: specified | shown-breaking | translation-written | dead-end | blocked
 Coverage now: <steps with a specification>/8, <n> unproved ops
 Why: <the precise reason, including why measured != expected if so>
