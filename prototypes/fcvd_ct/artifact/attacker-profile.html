@@ -1,0 +1,413 @@
+<title>Attacker profile: leak class against observer layer</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f3f5f8; --surface:#fcfdfe; --surface-2:#eef1f5; --sunken:#e7ebf1;
+  --ink:#0e1319; --ink-2:#4d5560; --muted:#828b96;
+  --rule:#dde3ea; --rule-strong:#c6cfda;
+  --spec:#2a78d6; --breaking:#d03b3b; --translatable:#2a78d6; --absent:#898781;
+  --accent:#2a78d6; --accent-ink:#1c5cab;
+  --shadow:0 1px 2px rgba(14,19,25,.05), 0 8px 24px -16px rgba(14,19,25,.25);
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+    --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+    --rule:#242c36; --rule-strong:#333d49;
+    --spec:#3987e5; --breaking:#d03b3b; --translatable:#3987e5; --absent:#898781;
+    --accent:#3987e5; --accent-ink:#86b6ef;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+  --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+  --rule:#242c36; --rule-strong:#333d49;
+  --spec:#3987e5; --breaking:#d03b3b; --translatable:#3987e5; --absent:#898781;
+  --accent:#3987e5; --accent-ink:#86b6ef;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+     font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.prose{max-width:68ch}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.02em;line-height:1.18;margin:0}
+h1{font-size:clamp(30px,4.4vw,50px);font-weight:660}
+h2{font-size:clamp(21px,2.4vw,27px);font-weight:640}
+h3{font-size:17px;font-weight:640;letter-spacing:-.01em}
+p{margin:0 0 1em}
+a{color:var(--accent-ink);text-underline-offset:.18em;text-decoration-thickness:1px}
+code,.mono{font-family:var(--mono);font-size:.9em;font-variant-ligatures:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--muted);margin:0 0 14px}
+
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none;padding-bottom:76px}
+section:first-of-type{padding-top:44px}
+section > .wrap > .eyebrow{margin-bottom:10px}
+.lede{color:var(--ink-2);max-width:68ch;margin-top:14px}
+
+.note{border-left:2px solid var(--rule-strong);padding:2px 0 2px 18px;margin:22px 0;
+      color:var(--ink-2);max-width:66ch}
+.note b{color:var(--ink)}
+
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));margin-top:26px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:18px 18px 16px;
+      box-shadow:var(--shadow)}
+.card h3{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:15px}
+.card .commit{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.card .figure{font-size:34px;font-weight:660;letter-spacing:-.03em;margin:12px 0 2px;line-height:1}
+.card .figure small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.card .sub{font-size:13px;color:var(--ink-2);margin:0}
+.card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent), var(--shadow)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;padding:0;list-style:none;
+        font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:7px}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:26px 0 6px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+      background:var(--surface);border:1px solid var(--rule-strong);color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+
+svg.graph.panning{cursor:grabbing}
+
+.detail{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+        padding:20px 20px 22px;box-shadow:var(--shadow);min-height:180px}
+.detail .hint{color:var(--muted);font-size:14px;margin:0}
+.detail h3{font-family:var(--mono);font-size:16px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.tag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--rule-strong);
+     color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+.tag.proved{color:var(--spec);border-color:var(--spec)}
+.tag.breaking{color:var(--breaking);border-color:var(--breaking)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:14px 0 0;font-size:14px}
+.kv dt{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.kv dd{margin:0;color:var(--ink-2)}
+
+.tablewrap{overflow-x:auto;margin-top:18px;border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+           box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+   font-weight:500;position:sticky;top:0;background:var(--surface);z-index:1}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td.mono{font-family:var(--mono)}
+
+
+ul.plain{padding-left:1.1em;margin:0 0 1em}
+ul.plain li{margin-bottom:.45em;color:var(--ink-2)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:20px 0 0;max-width:68ch}
+ol.steps li{counter-increment:s;position:relative;padding-left:38px;margin-bottom:14px;color:var(--ink-2)}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);border:1px solid var(--rule-strong);border-radius:50%;width:22px;height:22px;
+  display:grid;place-items:center}
+@media (prefers-reduced-motion: no-preference){
+  .edge,.node rect{transition:opacity .18s ease, stroke-width .18s ease}
+}
+
+:root{
+  --ring0:#eef4fd; --ring1:#dfeafb; --ring2:#cde2fb; --ring3:#b7d3f6;
+  --ring4:#9ec5f4; --ring5:#86b6ef; --ring6:#6da7ec; --ring7:#5598e7;
+  --core:#12233a; --core-ink:#fcfdfe;
+  --covered:#2a78d6; --partial:#86b6ef; --bridge:#d03b3b; --nothing:#898781;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    --ring0:#141a22; --ring1:#16202c; --ring2:#182636; --ring3:#1a2c41;
+    --ring4:#1d334c; --ring5:#1f3a57; --ring6:#224163; --ring7:#25486e;
+    --core:#cfe0f7; --core-ink:#0b0e12; --core-ink:#0b0e12;
+    --covered:#3987e5; --partial:#2a5f9e; --bridge:#d03b3b; --nothing:#898781;
+  }
+}
+:root[data-theme="dark"]{
+  --ring0:#141a22; --ring1:#16202c; --ring2:#182636; --ring3:#1a2c41;
+  --ring4:#1d334c; --ring5:#1f3a57; --ring6:#224163; --ring7:#25486e;
+  --core:#cfe0f7; --core-ink:#0b0e12;
+  --covered:#3987e5; --partial:#2a5f9e; --bridge:#d03b3b; --nothing:#898781;
+}
+
+.split{display:grid;gap:26px;grid-template-columns:minmax(320px,420px) 1fr;align-items:start;margin-top:26px}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+
+.onionbox{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px;
+  box-shadow:var(--shadow)}
+svg.onion{display:block;width:100%;height:auto}
+.onion circle.ring{cursor:pointer;stroke:var(--surface);stroke-width:1}
+.onion circle.ring:hover{stroke:var(--accent);stroke-width:2}
+.onion circle.ring.on{stroke:var(--accent);stroke-width:2.5}
+.onion text.olab{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;fill:var(--ink-2);
+  text-anchor:middle;pointer-events:none;text-transform:uppercase}
+.onion text.olab.deep{fill:var(--surface)}
+.onion text.core{font-family:var(--mono);font-size:10px;letter-spacing:.08em;fill:var(--core-ink);
+  text-anchor:middle;text-transform:uppercase;pointer-events:none}
+
+.matrix{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:18px 18px 14px;
+  box-shadow:var(--shadow);overflow-x:auto}
+table.grid{border-collapse:separate;border-spacing:3px;width:100%;min-width:520px}
+table.grid th{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:500;padding:0 0 6px;
+  text-align:center;background:none;position:static}
+table.grid th.rowh{text-align:left;font-size:12.5px;color:var(--ink);padding-right:12px;white-space:nowrap;
+  font-family:var(--sans);font-weight:560}
+table.grid th.col{cursor:pointer}
+table.grid th.col.on{color:var(--accent-ink)}
+table.grid td{padding:0}
+.cell{width:100%;height:30px;border-radius:6px;border:1px solid var(--rule);background:var(--surface-2);
+  cursor:default;display:block;position:relative}
+.cell.has{cursor:pointer}
+.cell.covered{background:var(--covered);border-color:var(--covered)}
+.cell.partial{background:var(--partial);border-color:var(--partial)}
+.cell.bridge{background:var(--bridge);border-color:var(--bridge)}
+.cell.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
+  border-color:var(--nothing)}
+.cell.scoped{background:none;border-style:dashed;border-color:var(--rule-strong)}
+.cell.na{background:none;border-color:transparent}
+.cell.on{outline:2px solid var(--accent);outline-offset:2px}
+.cell:hover.has{outline:2px solid var(--accent);outline-offset:2px}
+.cell .mark{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
+  font-size:11px;font-weight:700;color:var(--surface)}
+.cell.scoped .mark,.cell.gap .mark{color:var(--muted)}
+
+.mlegend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;padding:0;list-style:none;font-size:12.5px;
+  color:var(--ink-2)}
+.mlegend li{display:flex;align-items:center;gap:7px}
+.mlegend i{width:15px;height:15px;border-radius:4px;border:1px solid var(--rule);display:block}
+.mlegend i.covered{background:var(--covered);border-color:var(--covered)}
+.mlegend i.partial{background:var(--partial);border-color:var(--partial)}
+.mlegend i.bridge{background:var(--bridge);border-color:var(--bridge)}
+.mlegend i.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
+  border-color:var(--nothing)}
+.mlegend i.scoped{border-style:dashed;border-color:var(--rule-strong)}
+
+.claim{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--covered);
+  border-radius:10px;padding:20px 22px;box-shadow:var(--shadow);margin-top:24px}
+.claim h3{margin-bottom:10px}
+.claim ol{margin:12px 0 0;padding-left:20px;color:var(--ink-2)}
+.claim ol li{margin-bottom:8px}
+</style>
+
+<main>
+
+<section id="axes">
+  <div class="wrap">
+    <p class="eyebrow">Attacker profile</p>
+    <h2>Leak class against observer layer</h2>
+    <div class="prose">
+      <p class="lede">Two questions decide what a compiler-level proof is worth, and they are usually
+        run together into one. <b>What leaks</b> — the kind of secret-dependent thing the program did.
+        <b>Who is watching</b> — how close the observer sits to the secret state. Neither answers the
+        other, and a threat model needs both.</p>
+      <p>Along the first axis the list is short and closes. Along the second it is ordered: each ring
+        inward means more direct access. Crossing them gives the grid below, and the grid is mostly
+        empty — a class of leak only becomes visible from some ring inward, so the attack surface is a
+        staircase rather than a rectangle.</p>
+    </div>
+
+    <div class="split">
+      <div class="onionbox">
+        <svg class="onion" id="onion" viewBox="0 0 420 420" role="img"
+          aria-label="Observer layers, from public transcript outside to secret state at the core"></svg>
+      </div>
+
+      <div class="matrix">
+        <table class="grid" id="grid">
+          <thead><tr id="gridhead"></tr></thead>
+          <tbody id="gridbody"></tbody>
+        </table>
+        <ul class="mlegend">
+          <li><i class="covered"></i> proved here</li>
+          <li><i class="partial"></i> partly, under a stated assumption</li>
+          <li><i class="gap"></i> nothing</li>
+          <li><i class="bridge"></i> gap that undermines a scope decision</li>
+          <li><i class="scoped"></i> out of scope by decision</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="detail" id="detail" style="margin-top:18px"><p class="hint">Click a cell, a column
+      header or a ring of the onion.</p></div>
+  </div>
+</section>
+
+<section id="claim">
+  <div class="wrap">
+    <p class="eyebrow">The honest version</p>
+    <h2>What the MLIR pipeline actually closes</h2>
+    <div class="claim">
+      <h3>One cell, not two classes: <span class="mono">timing × O2</span></h3>
+      <p style="color:var(--ink-2);margin:0">O2 is a restatement of our leakage model almost word for
+        word — branches, address classes, latency classes, nothing about operands — which is why the
+        pipeline fits it exactly. The claim comes with three qualifiers, and none of them is small:</p>
+      <ol>
+        <li><b>Only the operations we can translate.</b> Between 17% and 62% of operation mentions per
+          compiler; the rest cannot be pushed through a proof at all.</li>
+        <li><b>Only the steps with a checked specification.</b> Three compilers have any; the other
+          three have none.</li>
+        <li><b>For the specification of a step, not for the compiler.</b> No compiler was built here;
+          every before/after pair is transcribed from the pass source with a citation.</li>
+      </ol>
+      <p style="color:var(--ink-2);margin:14px 0 0"><b>And functional equivalence is not ours today.</b>
+        FCVD can prove it — upstream <code>verify-pdl</code> does, for PDL rewrites, and we report its
+        verdict beside our own — but our own checker deliberately replaces the refinement criterion
+        with <code>false</code> so that what it proves is about leakage. The functional column is
+        therefore borrowed, not earned.</p>
+    </div>
+    <div class="tablewrap"><table id="cov">
+      <thead><tr><th>Compiler</th><th class="num">translatable mentions</th>
+        <th class="num">pipeline steps</th><th class="num">with a specification</th>
+        <th class="num">proved preserving</th><th class="num">proved breaking</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <p class="eyebrow">Two things the onion cannot say</p>
+    <h2>Where the picture stops working</h2>
+    <div class="prose">
+      <p><b>Active attacks have no ring.</b> Glitching, lasers and Rowhammer do not observe — they
+        change the computation and read the wreckage. A program can be perfectly constant-time and
+        hand over the key after one induced fault. That needs a second axis, passive against active,
+        not a ninth circle.</p>
+      <p><b>The circles are not nested in strength.</b> They are ordered by directness of access, which
+        is not the same thing. A remote observer at O1 with a million queries beats a physical observer
+        at O6 with one trace, because averaging wins. And a probe at O6 cannot see the cache state of a
+        neighbouring process, though it is drawn inside O3. Useful as a vocabulary; wrong as a lattice.</p>
+      <p><b>O5 is a boundary, not a level.</b> A TEE or an HSM does not sit between O4 and O6 in
+        strength — it declares part of the state unreachable and moves the question to whether the
+        declaration holds.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script type="application/json" id="profile-data">{"observers": [{"id": "O0", "name": "Public transcript", "what": "Keys, ciphertexts, signatures, outputs, public errors."}, {"id": "O1", "name": "Remote timing", "what": "End-to-end latency, timeouts, repeated-query statistics."}, {"id": "O2", "name": "Constant-time trace", "what": "Branches, opcode classes, address and latency classes — not operands, registers or memory values."}, {"id": "O3", "name": "Local microarchitecture", "what": "Cache sets and lines, pages, predictors, contention."}, {"id": "O4", "name": "Host / debugger", "what": "Process memory, stopped registers, logs, files, core dumps."}, {"id": "O5", "name": "TEE / HSM boundary", "what": "Not a strength level: a declared boundary. Interface and leakage only, while isolation holds."}, {"id": "O6", "name": "Physical observer", "what": "Power, EM, acoustic, thermal, frequency behaviour."}, {"id": "O7", "name": "Invasive observer", "what": "Internal buses, memories, registers, chip probes."}], "classes": [{"id": "functional", "name": "Functional", "what": "The answer itself, or anything derived from it: wrong results, padding oracles, error text, response length, compression ratio."}, {"id": "timing", "name": "Timing", "what": "How long the program itself ran: variable-latency instructions, trip counts, branch depth."}, {"id": "uarch", "name": "Microarchitectural", "what": "State the program left in shared hardware, which somebody else then measures — cache, TLB, branch predictor, execution ports, prefetchers, speculation."}, {"id": "power", "name": "Power and emanations", "what": "Switching activity as seen from outside: power, EM, acoustic, thermal. One physical phenomenon, several receivers."}, {"id": "residual", "name": "Residual data", "what": "Where the secret was left afterwards: memory, swap, core dumps, spilled registers. Nothing is measured during the run — the attacker arrives later and reads."}, {"id": "active", "name": "Active (fault)", "what": "Not an observation at all: voltage and clock glitching, lasers, Rowhammer. A second axis, not a ring of the onion."}], "cells": [{"cls": "functional", "obs": "O0", "state": "partial", "note": "Value correctness of a PDL rewrite is proved by upstream verify-pdl and reported next to our own verdict. Nothing checks it for the structural templates or per program — fcvd-ct-pdl deliberately replaces the refinement criterion with false, so what it proves is about leakage, not about values."}, {"cls": "timing", "obs": "O1", "state": "partial", "note": "The property is equality of an observation trace, not of a cycle count. It implies equal running time only under the assumption that every operation outside the model has data-independent latency — which is the leakage model, stated in leakage.py and never derived."}, {"cls": "timing", "obs": "O2", "state": "covered", "note": "This cell is the one the pipeline is built for. O2 is a restatement of our leakage model almost word for word: branches, address classes, latency classes, and nothing about operands. Four obligations — control, address, latency, resource — are proved separately, so a verdict names the channel."}, {"cls": "uarch", "obs": "O2", "state": "partial", "note": "Addresses are in the trace at full granularity, which is stronger than a cache-line contract. But an address trace is not a cache model."}, {"cls": "uarch", "obs": "O3", "state": "partial", "note": "The binary layer proves a [cache-line] contract (prototypes/formal_verif/contract_b). Nothing models eviction, set conflicts, TLB, branch predictor, port contention or speculation."}, {"cls": "power", "obs": "O1", "state": "gap", "note": "Not empty, and this is the uncomfortable one: DVFS makes power consumption change frequency, and frequency changes wall-clock time (Hertzbleed). A power channel can surface as remote timing, so declaring power out of scope does not fully hold."}, {"cls": "power", "obs": "O6", "state": "scoped-out", "note": "Out of scope by decision, not by omission."}, {"cls": "residual", "obs": "O4", "state": "partial", "note": "The resource obligation compares allocation sizes and which pointer reaches dealloc, so a secret-dependent allocation set is caught. Not checked: dead-store elimination removing a memset of a secret, and registers spilled to the stack — both are leaks the compiler itself creates."}, {"cls": "uarch", "obs": "O4", "state": "gap", "note": "Page-fault and controlled-channel observation of an enclave. Nothing here addresses it."}, {"cls": "power", "obs": "O7", "state": "scoped-out", "note": "Out of scope."}, {"cls": "functional", "obs": "O4", "state": "gap", "note": "A core dump or a log carrying the answer is a functional leak at a host-level observer. Out of the compiler's reach, in the deployment's."}, {"cls": "active", "obs": "O5", "state": "scoped-out", "note": "The whole row is outside the observer model: the attacker changes the computation instead of watching it. Constant-time proofs say nothing here."}], "coverage": [{"name": "circt", "share": 40.1, "steps": 12, "specified": 2, "proved": 1, "breaks": 1}, {"name": "heir", "share": 53.4, "steps": 12, "specified": 3, "proved": 3, "breaks": 3}, {"name": "onnx-mlir", "share": 33.6, "steps": 6, "specified": 1, "proved": 0, "breaks": 1}, {"name": "polygeist", "share": 61.9, "steps": 8, "specified": 0, "proved": 0, "breaks": 0}, {"name": "torch-mlir", "share": 17.3, "steps": 8, "specified": 0, "proved": 0, "breaks": 0}, {"name": "triton", "share": 21.0, "steps": 9, "specified": 0, "proved": 0, "breaks": 0}]}</script>
+
+<script>
+const D = JSON.parse(document.getElementById("profile-data").textContent);
+const cellOf = {};
+D.cells.forEach(c => (cellOf[c.cls + "/" + c.obs] = c));
+const state = {sel: null, col: null};
+const MARK = {covered: "✓", partial: "~", gap: "", bridge: "!", scoped: "—"};
+
+/* ---------- the onion ---------- */
+const onion = document.getElementById("onion");
+const CX = 210, CY = 210, R0 = 198, STEP = 21;
+function drawOnion() {
+  let out = "";
+  D.observers.forEach((o, i) => {
+    const r = R0 - i * STEP;
+    out += `<circle class="ring${state.col === o.id ? " on" : ""}" data-obs="${o.id}"
+      cx="${CX}" cy="${CY}" r="${r}" fill="var(--ring${i})" tabindex="0" role="button"
+      aria-label="${o.id} ${o.name}"><title>${o.id} · ${o.name}</title></circle>`;
+  });
+  out += `<circle cx="${CX}" cy="${CY}" r="${R0 - 8 * STEP}" fill="var(--core)"></circle>`;
+  D.observers.forEach((o, i) => {
+    const r = R0 - i * STEP;
+    out += `<text class="olab${i >= 5 ? " deep" : ""}" x="${CX}" y="${CY - r + 13}">${o.id} · ${o.name}</text>`;
+  });
+  out += `<text class="core" x="${CX}" y="${CY + 3}">secret state</text>`;
+  onion.innerHTML = out;
+}
+onion.addEventListener("click", ev => {
+  const ring = ev.target.closest("[data-obs]");
+  if (ring) selectColumn(ring.dataset.obs);
+});
+onion.addEventListener("keydown", ev => {
+  if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true})); }
+});
+
+/* ---------- the grid ---------- */
+function drawGrid() {
+  document.getElementById("gridhead").innerHTML = '<th class="rowh"></th>' +
+    D.observers.map(o => `<th class="col${state.col === o.id ? " on" : ""}" data-obs="${o.id}"
+      tabindex="0" role="button" title="${o.name}: ${o.what}">${o.id}</th>`).join("");
+  document.getElementById("gridbody").innerHTML = D.classes.map(c => `<tr>
+    <th class="rowh" data-cls="${c.id}" title="${c.what}">${c.name}</th>
+    ${D.observers.map(o => {
+      const cell = cellOf[c.id + "/" + o.id];
+      const kind = cell ? cell.state : "na";
+      const on = state.sel && state.sel.cls === c.id && state.sel.obs === o.id;
+      return `<td><span class="cell ${kind}${cell ? " has" : ""}${on ? " on" : ""}"
+        ${cell ? `data-cls="${c.id}" data-obs="${o.id}" tabindex="0" role="button"
+        aria-label="${c.name} at ${o.id}: ${kind}"` : 'aria-hidden="true"'}>
+        <span class="mark">${cell ? MARK[cell.state] : ""}</span></span></td>`;
+    }).join("")}</tr>`).join("");
+}
+document.getElementById("grid").addEventListener("click", ev => {
+  const cell = ev.target.closest("[data-cls][data-obs]");
+  if (cell) return select(cell.dataset.cls, cell.dataset.obs);
+  const col = ev.target.closest("th.col");
+  if (col) return selectColumn(col.dataset.obs);
+  const row = ev.target.closest("th.rowh[data-cls]");
+  if (row) return selectRow(row.dataset.cls);
+});
+document.getElementById("grid").addEventListener("keydown", ev => {
+  if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true})); }
+});
+
+/* ---------- detail ---------- */
+const detail = document.getElementById("detail");
+const STATE_LABEL = {covered: "proved here", partial: "partly, under a stated assumption",
+  gap: "nothing", bridge: "a gap that undermines a scope decision", scoped: "out of scope by decision"};
+
+function select(clsId, obsId) {
+  state.sel = {cls: clsId, obs: obsId}; state.col = obsId;
+  const c = D.classes.find(x => x.id === clsId), o = D.observers.find(x => x.id === obsId);
+  const cell = cellOf[clsId + "/" + obsId];
+  detail.innerHTML = `<h3>${c.name} <span class="tag">${o.id} · ${o.name}</span>
+    <span class="tag ${cell.state === "covered" ? "proved" : cell.state === "bridge" ? "breaking" : ""}">
+    ${STATE_LABEL[cell.state]}</span></h3>
+    <dl class="kv">
+      <dt>what leaks</dt><dd>${c.what}</dd>
+      <dt>who sees it</dt><dd>${o.what}</dd>
+      <dt>where we stand</dt><dd>${cell.note}</dd>
+    </dl>`;
+  redraw();
+}
+function selectColumn(obsId) {
+  state.col = obsId; state.sel = null;
+  const o = D.observers.find(x => x.id === obsId);
+  const rows = D.classes.map(c => ({c, cell: cellOf[c.id + "/" + obsId]})).filter(x => x.cell);
+  detail.innerHTML = `<h3>${o.id} · ${o.name}</h3>
+    <dl class="kv"><dt>sees</dt><dd>${o.what}</dd>
+      <dt>classes here</dt><dd>${rows.length
+        ? rows.map(x => `${x.c.name} — ${STATE_LABEL[x.cell.state]}`).join("<br>")
+        : "no class of leak is visible from this ring alone"}</dd></dl>`;
+  redraw();
+}
+function selectRow(clsId) {
+  state.sel = null; state.col = null;
+  const c = D.classes.find(x => x.id === clsId);
+  const cells = D.cells.filter(x => x.cls === clsId);
+  detail.innerHTML = `<h3>${c.name}</h3>
+    <dl class="kv"><dt>what leaks</dt><dd>${c.what}</dd>
+      <dt>visible from</dt><dd>${cells.length
+        ? cells.map(x => `<b>${x.obs}</b> — ${STATE_LABEL[x.state]}`).join("<br>")
+        : "—"}</dd></dl>`;
+  redraw();
+}
+function redraw() { drawOnion(); drawGrid(); }
+
+/* ---------- the numbers behind the qualifiers ---------- */
+document.querySelector("#cov tbody").innerHTML = D.coverage.map(c => `<tr>
+  <td class="mono">${c.name}</td><td class="num">${c.share}%</td><td class="num">${c.steps}</td>
+  <td class="num"${c.specified ? "" : ' style="color:var(--muted)"'}>${c.specified}</td>
+  <td class="num">${c.proved}</td>
+  <td class="num"${c.breaks ? ' style="color:var(--breaking)"' : ""}>${c.breaks}</td></tr>`).join("");
+
+redraw();
+</script>
+
