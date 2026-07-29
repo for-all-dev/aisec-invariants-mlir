@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.pdl import PatternOp
 from xdsl.parser import Parser
 
 from .context import make_context
+from .coverage import COMPILERS, Compiler, report
 from .pdl_ct import CTResult, check_pattern
 from .predication import DEFAULT_MAX_VISITS
 from .selfcomp import check_module, separating_secrets
@@ -217,3 +219,79 @@ def main_lowering() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def main_coverage() -> None:
+    arg_parser = argparse.ArgumentParser(
+        description="How many of a compiler's operations can be verified today: with "
+        "SMT semantics (form 0), by a proved macro-template (form 1), or not at all "
+        "(form 2)."
+    )
+    arg_parser.add_argument(
+        "compiler",
+        nargs="*",
+        help="which descriptors in compilers/ to report on; default is all of them",
+    )
+    arg_parser.add_argument(
+        "--checkout", help="override the compiler checkout the descriptor names"
+    )
+    arg_parser.add_argument(
+        "--no-prove",
+        action="store_true",
+        help="trust the descriptor's template claims instead of re-proving them",
+    )
+    arg_parser.add_argument(
+        "--top", type=int, default=12, help="how many unproved operations to list"
+    )
+    arg_parser.add_argument("--timeout", type=int, default=120, help="solver timeout, s")
+    args = arg_parser.parse_args()
+
+    paths = sorted(COMPILERS.glob("*.json"))
+    if args.compiler:
+        wanted = set(args.compiler)
+        paths = [p for p in paths if p.stem in wanted or Path(p).name in wanted]
+        if not paths:
+            print(f"no descriptor matches {args.compiler}", file=sys.stderr)
+            raise SystemExit(2)
+
+    for path in paths:
+        compiler = Compiler.load(path, Path(args.checkout) if args.checkout else None)
+        if not compiler.checkout.exists():
+            print(f"{compiler.name}: no checkout at {compiler.checkout}, skipped")
+            continue
+        result = report(compiler, prove=not args.no_prove, timeout=args.timeout)
+        total = sum(op.occurrences for op in result.operations)
+        print(
+            f"\n{result.compiler} @ {result.commit} "
+            f"({result.files_scanned} test files, {len(result.operations)} distinct "
+            f"operations, {total} mentions)"
+        )
+        for form, label in (
+            (0, "form 0  SMT semantics    "),
+            (1, "form 1  proved template  "),
+            (2, "form 2  UNPROVED         "),
+        ):
+            ops = result.by_form(form)
+            mentions = sum(op.occurrences for op in ops)
+            share = 100 * mentions / total if total else 0.0
+            print(f"  {label} {len(ops):>4} operations  {mentions:>6} mentions  {share:5.1f}%")
+        if result.failed_templates:
+            for failure in result.failed_templates:
+                print(f"  template did not prove, so it covers nothing: {failure}")
+        ready = [stage for stage in result.stages if stage.ready]
+        print(
+            f"  pipeline: {len(ready)}/{len(result.stages)} lowering steps have every "
+            f"source operation translatable"
+        )
+        for stage in result.stages:
+            mark = "ok     " if stage.ready else "blocked"
+            print(
+                f"    {mark} {stage.stage.pass_name:<44} "
+                f"form0 {stage.forms[0]:>3}  form1 {stage.forms[1]:>3}  "
+                f"form2 {stage.forms[2]:>3}   [{stage.stage.cited}]"
+            )
+        top = result.by_form(2)[: args.top]
+        if top:
+            print("  most-used unproved operations:")
+            for op in top:
+                print(f"    {op.occurrences:>6}  {op.name}")

@@ -1,0 +1,23 @@
+{
+  "name": "circt",
+  "repo": "https://github.com/llvm/circt",
+  "commit": "2803829",
+  "checkout": "~/third_party/circt",
+  "note": "Software-to-hardware path as `hlstool` builds it. Read from tools/hlstool/hlstool.cpp; pass names from include/circt/{Conversion,Transforms}/Passes.td.",
+  "dialects": ["comb", "hw", "seq", "sv", "calyx", "handshake", "dc", "fsm", "arith", "scf", "cf", "memref", "func"],
+  "test_globs": ["test/Conversion/**/*.mlir", "test/Dialect/Comb/**/*.mlir", "test/Dialect/HW/**/*.mlir", "test/Dialect/Seq/**/*.mlir"],
+  "pipeline": [
+    {"pass": "--flatten-memref", "from": ["memref"], "to": ["memref"], "cited": "tools/hlstool/hlstool.cpp:250"},
+    {"pass": "--lower-affine", "from": ["affine"], "to": ["scf"], "cited": "tools/hlstool/hlstool.cpp:336"},
+    {"pass": "--convert-scf-to-cf", "from": ["scf"], "to": ["cf"], "cited": "tools/hlstool/hlstool.cpp:253"},
+    {"pass": "--lower-cf-to-handshake", "from": ["cf", "arith"], "to": ["handshake"], "cited": "tools/hlstool/hlstool.cpp:257"},
+    {"pass": "--handshake-to-dc", "from": ["handshake"], "to": ["dc"], "cited": "tools/hlstool/hlstool.cpp:349"},
+    {"pass": "--lower-dc-to-hw", "from": ["dc"], "to": ["hw", "comb", "seq"], "cited": "tools/hlstool/hlstool.cpp:356"},
+    {"pass": "--map-arith-to-comb", "from": ["arith"], "to": ["comb", "hw"], "cited": "tools/hlstool/hlstool.cpp:358"},
+    {"pass": "--lower-scf-to-calyx", "from": ["scf", "arith", "memref"], "to": ["calyx"], "cited": "tools/hlstool/hlstool.cpp:425"},
+    {"pass": "--lower-calyx-to-hw", "from": ["calyx"], "to": ["hw", "comb", "seq"], "cited": "tools/hlstool/hlstool.cpp:453"},
+    {"pass": "--lower-seq-to-sv", "from": ["seq"], "to": ["sv"], "cited": "tools/hlstool/hlstool.cpp:293"},
+    {"pass": "ExportVerilog", "from": ["hw", "comb", "sv"], "to": ["verilog"], "cited": "tools/hlstool/hlstool.cpp:375"}
+  ],
+  "templates": []
+}

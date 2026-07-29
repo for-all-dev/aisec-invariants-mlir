@@ -1,0 +1,23 @@
+{
+  "name": "heir",
+  "repo": "https://github.com/google/heir",
+  "commit": "de797a2",
+  "checkout": "~/third_party/heir",
+  "note": "Two pipelines: `--convert-to-data-oblivious` (the constant-time hardening family) and the plaintext backend `--polynomial-to-llvm`. Read from lib/Pipelines/PipelineRegistration.cpp and tools/heir-opt.cpp.",
+  "dialects": ["secret", "mod_arith", "polynomial", "tensor_ext", "rns", "lwe", "bgv", "ckks", "cggi", "arith", "affine", "scf", "cf", "tensor", "memref", "func"],
+  "test_globs": ["tests/Transforms/**/*.mlir", "tests/Dialect/Secret/**/*.mlir", "tests/Dialect/ModArith/**/*.mlir"],
+  "pipeline": [
+    {"pass": "--convert-secret-extract-to-static-extract", "from": ["secret", "tensor"], "to": ["affine", "scf", "tensor"], "cited": "lib/Pipelines/PipelineRegistration.cpp:155"},
+    {"pass": "--convert-secret-insert-to-static-insert", "from": ["secret", "tensor"], "to": ["affine", "scf", "tensor"], "cited": "lib/Pipelines/PipelineRegistration.cpp:156"},
+    {"pass": "--convert-secret-while-to-static-for", "from": ["secret", "scf"], "to": ["affine", "scf"], "cited": "lib/Pipelines/PipelineRegistration.cpp:159"},
+    {"pass": "--convert-secret-for-to-static-for", "from": ["secret", "scf"], "to": ["affine", "scf"], "cited": "lib/Pipelines/PipelineRegistration.cpp:160"},
+    {"pass": "--convert-if-to-select", "from": ["secret", "scf"], "to": ["arith"], "cited": "lib/Pipelines/PipelineRegistration.cpp:163"},
+    {"pass": "--elementwise-to-affine", "from": ["tensor"], "to": ["affine"], "cited": "lib/Pipelines/PipelineRegistration.cpp:84"},
+    {"pass": "--polynomial-to-mod-arith", "from": ["polynomial"], "to": ["mod_arith"], "cited": "lib/Pipelines/PipelineRegistration.cpp:85"},
+    {"pass": "--mod-arith-to-arith", "from": ["mod_arith"], "to": ["arith"], "cited": "lib/Pipelines/PipelineRegistration.cpp:87"},
+    {"pass": "--lower-affine", "from": ["affine"], "to": ["scf"], "cited": "lib/Pipelines/PipelineRegistration.cpp:97"},
+    {"pass": "--convert-scf-to-cf", "from": ["scf"], "to": ["cf"], "cited": "lib/Pipelines/PipelineRegistration.cpp:108"},
+    {"pass": "--convert-to-llvm", "from": ["cf", "arith", "memref", "func"], "to": ["llvm"], "cited": "lib/Pipelines/PipelineRegistration.cpp:115"}
+  ],
+  "templates": []
+}
