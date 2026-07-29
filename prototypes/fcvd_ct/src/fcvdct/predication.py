@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAtt
 from xdsl.ir import Block, Operation, SSAValue
 
 from .affine_ops import constant_bound
-from .dialect import CONTROL, OTHER, HoleOp, ObserveOp
+from .dialect import CONTROL, OTHER, HoleOp, ObserveOp, ResultOp
 from .leakage import DEFAULT_MODEL, LeakageRule
 
 I1 = IntegerType(1)
@@ -76,6 +76,9 @@ class Flattener:
                 attributes={"kind": StringAttr(kind)},
             )
         )
+
+    def record_result(self, guard: SSAValue, values: Sequence[SSAValue]) -> None:
+        self.emit(ResultOp(operands=[guard, list(values)], result_types=[]))
 
     # ---- operations -----------------------------------------------------------
 
@@ -261,7 +264,11 @@ class Flattener:
                 )
                 return
             if isinstance(op, func.ReturnOp):
-                return  # results are irrelevant: the property is about observations
+                # Recorded, not dropped: the leakage property never reads these, but the
+                # equivalence gate compares them, and only the walk knows the guard that
+                # leads here.
+                self.record_result(guard, [values.get(a, a) for a in op.operands])
+                return
             if isinstance(op, cf.SwitchOp | cf.AssertOp):
                 raise UnsupportedTemplate(f"not modelled yet: {op.name}")
             self.run_op(op, guard, values)

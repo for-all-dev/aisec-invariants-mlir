@@ -1,4 +1,4 @@
-"""The two operations a structural lowering specification is written with.
+"""The operations a structural lowering specification is written with.
 
 A lowering like `scf.if` -> `cf.cond_br` is a *template*: it says nothing about the
 code inside the branches, and it has to be correct whatever that code is. Two ops are
@@ -10,8 +10,14 @@ enough to write such a template down and hand it to a solver:
 - `fcvd.observe` marks one observation: a value the attacker learns, and the guard
   under which the program actually reaches it.
 
-Both get SMT semantics here, so they lower through FCVD's own machinery like any other
-operation.
+A third one is not written by hand. `fcvd.result` is emitted by the flattener wherever
+it walks a `func.return`, and it records what the program returns on that path. The
+leakage property never looks at it; the equivalence gate does, and both need the values
+*after* they have been lowered to SMT, which is why this is an operation with semantics
+rather than a list built while flattening.
+
+All three get SMT semantics here, so they lower through FCVD's own machinery like any
+other operation.
 """
 
 from __future__ import annotations
@@ -85,7 +91,23 @@ class ObserveOp(IRDLOperation):
     kind = opt_attr_def(StringAttr)
 
 
-FCVD = Dialect("fcvd", [HoleOp, ObserveOp])
+@irdl_op_definition
+class ResultOp(IRDLOperation):
+    """What the program returns on one path, and the guard under which it goes there.
+
+    A flattened program has one of these per `func.return` the walk reached, so a
+    program with branches has several and a program whose paths were all cut by the
+    unrolling bound has none. It emits no SMT: like `fcvd.observe` it only records, so
+    adding it to a program cannot move a leakage verdict.
+    """
+
+    name = "fcvd.result"
+
+    guard = operand_def()
+    values = var_operand_def()
+
+
+FCVD = Dialect("fcvd", [HoleOp, ObserveOp, ResultOp])
 
 
 @dataclass
@@ -105,11 +127,20 @@ class Observation:
 
 
 @dataclass
+class ResultSite:
+    """One `func.return` the flattener reached, with the guard that leads to it."""
+
+    guard: SSAValue
+    values: tuple[SSAValue, ...]
+
+
+@dataclass
 class StructuralTrace:
-    """What one program of one run computed: its observations and its holes."""
+    """What one program of one run computed: observations, holes, and what it returned."""
 
     observations: list[Observation] = field(default_factory=list[Observation])
     holes: list[HoleInstance] = field(default_factory=list[HoleInstance])
+    results: list[ResultSite] = field(default_factory=list[ResultSite])
 
 
 @dataclass
@@ -162,9 +193,26 @@ class ObserveSemantics(OperationSemantics):
         return (), effect_state
 
 
+@dataclass
+class ResultSemantics(OperationSemantics):
+    trace: StructuralTrace
+
+    def get_semantics(
+        self,
+        operands: Sequence[SSAValue],
+        results: Sequence[Attribute],
+        attributes: Mapping[str, Attribute | SSAValue],
+        effect_state: SSAValue | None,
+        rewriter: PatternRewriter,
+    ) -> tuple[Sequence[SSAValue], SSAValue | None]:
+        guard, *values = operands
+        self.trace.results.append(ResultSite(guard, tuple(values)))
+        return (), effect_state
+
+
 @contextmanager
 def template_semantics(trace: StructuralTrace) -> Iterator[None]:
-    """Give `fcvd.hole` and `fcvd.observe` semantics for the duration of one lowering.
+    """Give the `fcvd` operations semantics for the duration of one lowering.
 
     `SMTLowerer.op_semantics` is global state upstream, so it is saved and restored
     rather than mutated in place.
@@ -174,6 +222,7 @@ def template_semantics(trace: StructuralTrace) -> Iterator[None]:
         **saved,
         HoleOp: HoleSemantics(trace),
         ObserveOp: ObserveSemantics(trace),
+        ResultOp: ResultSemantics(trace),
     }
     try:
         yield
