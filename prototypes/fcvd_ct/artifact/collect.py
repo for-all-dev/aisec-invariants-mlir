@@ -65,7 +65,10 @@ for path in sorted(COMPILERS.glob("*.json")):
         # the same operation can be seen by several compilers; keep the max count
         prev = entry["ops"].get(op.name)
         if prev is None or op.occurrences > prev["n"]:
-            entry["ops"][op.name] = {"n": op.occurrences, "form": op.form, "by": op.covered_by}
+            entry["ops"][op.name] = {
+                "n": op.occurrences, "form": op.form, "by": op.covered_by,
+                "broken": list(op.broken_by),
+            }
     for s in r.stages:
         data["steps"].append({
             "compiler": c.name, "pass": s.stage.pass_name,

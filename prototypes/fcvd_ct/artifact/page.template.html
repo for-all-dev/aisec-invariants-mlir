@@ -1,4 +1,4 @@
-<title>Карта трансляций MLIR: где компилятор ломает constant-time и чем платить за проверку</title>
+<title>MLIR translation map: where a compiler breaks constant-time, and what checking it costs</title>
 <style>
 :root{
   color-scheme: light;
@@ -50,6 +50,7 @@ code,.mono{font-family:var(--mono);font-size:.9em;font-variant-ligatures:none}
          color:var(--muted);margin:0 0 14px}
 
 section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none;padding-bottom:76px}
 section:first-of-type{padding-top:44px}
 section > .wrap > .eyebrow{margin-bottom:10px}
 .lede{color:var(--ink-2);max-width:68ch;margin-top:14px}
@@ -158,6 +159,7 @@ td.mono{font-family:var(--mono)}
 .op .dot.f2{background:repeating-linear-gradient(135deg,var(--absent) 0 2px,transparent 2px 4px);
             border:1px solid var(--absent)}
 .op .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.op .danger{color:var(--breaking);font-weight:700;margin-left:2px}
 .op .nm{overflow:hidden;text-overflow:ellipsis}
 
 .knobs{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin:22px 0 4px;
@@ -174,7 +176,6 @@ ol.steps li{counter-increment:s;position:relative;padding-left:38px;margin-botto
 ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;
   color:var(--muted);border:1px solid var(--rule-strong);border-radius:50%;width:22px;height:22px;
   display:grid;place-items:center}
-footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
 @media (prefers-reduced-motion: no-preference){
   .edge,.node rect{transition:opacity .18s ease, stroke-width .18s ease}
 }
@@ -185,159 +186,154 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
 
 <section id="method">
   <div class="wrap">
-    <p class="eyebrow">Метод</p>
-    <h2>Полуавтоматический верификатор компилятора</h2>
+    <p class="eyebrow">Method</p>
+    <h2>A semi-automatic compiler verifier</h2>
     <div class="prose">
-      <p class="lede">Доказывает, что шаги понижения MLIR от исходного кода до LLVM не превращают
-        безопасный код в небезопасный. Под компилятором имеется в виду любой MLIR-компилятор.</p>
-      <p>Под безопасностью понимается функциональная эквивалентность, а также устойчивость к
-        тайминг-атакам. Иные формы уязвимости — кэш, энергопотребление — здесь не рассматриваются.</p>
-      <p>В качестве основного метода выбран <b>FCVD</b>: он даёт трансляцию диалектов в SMT и гарантию
-        безопасности через самокомпозицию SMT при наличии всех трансляций. Минус — для корректной работы
-        необходимо, чтобы каждая операция MLIR из трансляции имела отображение в SMT.</p>
-      <p>Полуавтоматика достигается за счёт двух вещей:</p>
+      <p class="lede">It proves that the MLIR lowering steps from source code down to LLVM do not turn
+        safe code into unsafe code. "Compiler" here means any MLIR compiler.</p>
+      <p>"Safe" means functional equivalence together with resistance to timing attacks. Other kinds of
+        vulnerability — cache, power draw — are out of scope.</p>
+      <p>The method of choice is <b>FCVD</b>: it translates dialects into SMT and, once every translation
+        is present, gives a safety guarantee through self-composition of the SMT. The catch is the "once
+        every translation is present" part: each MLIR operation on the path needs a mapping into SMT.</p>
+      <p>What makes it semi-automatic is two things:</p>
       <ol class="steps">
-        <li>трансляции между уровнями пишутся <b>только один раз</b> — с течением времени все основные
-          преобразования переиспользуются;</li>
-        <li>если отображения в SMT нет, всегда можно реализовать <b>макро-шаблоны</b> — декларативные
-          правила вида «цикл с границами [S, E, St] и телом F(x) эквивалентен скелету из четырёх блоков
-          <code>cf.br</code>», доказываемые один раз и дальше применяемые без перепроверки.</li>
+        <li>a translation between two levels is written <b>once</b> — over time every common
+          transformation is one that has already been paid for;</li>
+        <li>where no SMT mapping exists, a <b>macro-template</b> takes its place — a declarative rule of
+          the form "a loop with bounds [S, E, St] and body F(x) is equivalent to a four-block
+          <code>cf.br</code> skeleton", proved once and applied thereafter without re-proof.</li>
       </ol>
-      <p style="margin-top:1.2em">То есть все доказательства формируются единообразно единым алгоритмом:
-        при доказательстве безопасности нового компилятора алгоритм действий тривиален.</p>
+      <p style="margin-top:1.2em">Every proof is therefore produced by the same algorithm, and bringing a
+        new compiler into the fold is a matter of following it.</p>
     </div>
   </div>
 </section>
 
 <section id="compilers">
   <div class="wrap">
-    <p class="eyebrow">Шесть компиляторов</p>
-    <h2>Что из них вообще можно проверять сегодня</h2>
-    <p class="lede">Первые три выбраны потому, что в них мало «больших» типов и понижений — с них
-      начиналась работа, и только у них есть доказанные шаги. Остальные три добавлены как замер:
-      GPU-компилятор, фронтенд нейросетей и фронтенд C. Счёт ведётся по собственным тестовым корпусам
-      компиляторов — сколько разных операций встречается и какая доля <i>упоминаний</i> приходится на те,
-      что мы умеем переводить.</p>
+    <p class="eyebrow">Six compilers</p>
+    <h2>How much of each can be checked today</h2>
+    <p class="lede">The first three were picked because they carry few "large" types and lowerings; the
+      work started there, and they are the only ones with proved steps. The other three are measurements
+      rather than verifications: a GPU compiler, a neural-network front end and a C front end. The count
+      comes from each compiler's own test corpus — how many distinct operations occur, and what share of
+      the <i>mentions</i> falls on the ones we can translate.</p>
     <div class="cards" id="cards"></div>
     <ul class="legend">
-      <li><span class="swatch s0"></span> умеем переводить: семантика SMT (форма 0) или доказанный шаблон (форма 1)</li>
-      <li><span class="swatch s2"></span> перевода нет (форма 2)</li>
+      <li><span class="swatch s0"></span> translatable: SMT semantics (form 0) or a proved template (form 1)</li>
+      <li><span class="swatch s2"></span> no translation (form 2)</li>
     </ul>
   </div>
 </section>
 
 <section id="graph">
   <div class="wrap">
-    <p class="eyebrow">Граф</p>
-    <h2>Диалекты и понижения между ними</h2>
-    <p class="lede">Узел — диалект MLIR, ребро — шаг понижения из конвейера компилятора, взятый из его
-      исходников. Чем жирнее рамка узла, тем больше компиляторов через него проходят, и рядом стоит
-      «×N»: это и есть точки переиспользования, ради которых трансляция пишется один раз. Ребро в обратную
-      сторону (справа налево) рисуется дугой снизу — такие шаги действительно есть.</p>
-    <div class="controls" role="group" aria-label="Фильтр по компилятору">
-      <button class="chip" data-comp="all" aria-pressed="true">все</button>
+    <p class="eyebrow">The graph</p>
+    <h2>Dialects, and the lowerings between them</h2>
+    <p class="lede">A node is an MLIR dialect; an edge is one lowering step, read from the compiler's own
+      source. The heavier a node's outline, the more compilers pass through it, and the "×N" says how many:
+      these are the reuse points that make writing a translation once worth doing. An edge that runs
+      backwards is drawn as an arc below — such steps do exist.</p>
+    <div class="controls" role="group" aria-label="Filter by compiler">
+      <button class="chip" data-comp="all" aria-pressed="true">all</button>
     </div>
     <ul class="legend">
-      <li><span class="swatch s1"></span> ✓ шаг с доказанной спецификацией</li>
-      <li><span class="swatch sb"></span> ✕ шаг, доказанно ломающий constant-time (пунктир)</li>
-      <li><span class="swatch s2"></span> шаг не проверялся</li>
+      <li><span class="swatch s1"></span> ✓ step with a proved specification</li>
+      <li><span class="swatch sb"></span> ✕ step proved to break constant-time (dashed)</li>
+      <li><span class="swatch s2"></span> step never checked</li>
+      <li><span class="danger" style="color:var(--breaking);font-weight:700">✕</span>
+        next to an operation: its real lowering is proved to leak</li>
     </ul>
     <div class="graphbox">
       <svg class="graph" id="svg" role="img"
-        aria-label="Граф диалектов MLIR и понижений между ними"></svg>
+        aria-label="Graph of MLIR dialects and the lowerings between them"></svg>
       <div class="zoomctl">
-        <button type="button" id="zin" title="Приблизить" aria-label="Приблизить">+</button>
-        <button type="button" id="zout" title="Отдалить" aria-label="Отдалить">−</button>
-        <button type="button" id="zfit" class="fit" title="Показать целиком" aria-label="Показать целиком">fit</button>
+        <button type="button" id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" title="Zoom out" aria-label="Zoom out">−</button>
+        <button type="button" id="zfit" class="fit" title="Fit" aria-label="Fit to view">fit</button>
       </div>
-      <p class="graphhint">тянуть — двигать · ⌘/Ctrl + колесо или щипок — масштаб</p>
+      <p class="graphhint">drag to pan · ⌘/Ctrl + wheel or pinch to zoom</p>
     </div>
-    <div class="detail" id="detail"><p class="hint">Нажмите на диалект или на ребро, чтобы увидеть
-      разбор: какие операции туда входят, что из них переводится, чем доказан шаг.</p></div>
+    <div class="detail" id="detail"><p class="hint">Click a dialect or an edge for the breakdown: which operations go in,
+      which of them we can translate, and what the step has been proved to do.</p></div>
   </div>
 </section>
 
 <section id="steps">
   <div class="wrap">
-    <p class="eyebrow">Понижения по отдельности</p>
-    <h2>Стоимость каждого шага</h2>
-    <p class="lede">«Операции на входе» — это операции входных диалектов шага, встречающиеся в корпусе
-      компилятора. Именно они определяют, можно ли прогнать через шаг реальную программу. Оценка времени
-      считается из двух ручек ниже, а не из измерений: измерено только время солвера.</p>
+    <p class="eyebrow">Lowerings one by one</p>
+    <h2>What each step costs</h2>
+    <p class="lede">The form columns count the operations of the step's input dialects that occur in the
+      compiler's corpus — those are what decide whether a real program can be pushed through the step. The
+      time estimate comes from the two sliders below, not from measurement: only the solver time is
+      measured.</p>
     <div class="knobs">
       <div class="knob">
-        <label for="k1">Одна новая трансляция операции — <span class="val" id="k1v">30 мин</span></label>
+        <label for="k1">One new operation translation — <span class="val" id="k1v">30 min</span></label>
         <input type="range" id="k1" min="5" max="180" step="5" value="30">
-        <p class="why">Измерено косвенно: 4 трансляции, написанные для этой работы, — от 80 до 253 строк
-          Python. Человеко-время не инструментировалось. Считайте это порядком величины, а не замером.</p>
+        <p class="why">Measured only indirectly: the four translations written for this work run from 80
+          to 253 lines of Python. The human time was never instrumented — treat this as an order of
+          magnitude, not a measurement.</p>
       </div>
       <div class="knob">
-        <label for="k2">Один макро-шаблон — <span class="val" id="k2v">15 мин</span></label>
+        <label for="k2">One macro-template — <span class="val" id="k2v">15 min</span></label>
         <input type="range" id="k2" min="5" max="120" step="5" value="15">
-        <p class="why">Основной расход — прочитать паттерн в исходниках компилятора. Прогон солвера при
-          этом занимает 0.13 с (медиана), то есть в счёт не идёт.</p>
+        <p class="why">The cost is reading the pattern in the compiler's source. The solver run itself
+          takes 0.13 s (median), which does not enter the total.</p>
       </div>
     </div>
     <div class="tablewrap"><table id="stepstable">
       <thead><tr>
-        <th>Компилятор</th><th>Шаг понижения</th><th>Из → в</th>
-        <th class="num">форма 0</th><th class="num">форма 1</th><th class="num">форма 2</th>
-        <th>Спецификация</th><th class="num">Оценка</th>
+        <th>Compiler</th><th>Lowering step</th><th>From → to</th>
+        <th class="num">form 0</th><th class="num">form 1</th><th class="num">form 2</th>
+        <th>Specification</th><th class="num">Estimate</th>
       </tr></thead>
       <tbody></tbody>
     </table></div>
-    <p class="lede" style="margin-top:14px">Колонка «оценка» считает операции входных диалектов шага, а
-      один диалект питает несколько шагов — поэтому по столбцу складывать нельзя. Ниже сложено правильно:
-      каждая операция считается один раз на компилятор.</p>
+    <p class="lede" style="margin-top:14px">The estimate column counts a step's input operations, and one
+      dialect feeds several steps — so the column must not be summed. The cards below add it up properly:
+      each operation counted once per compiler.</p>
 
-    <h3 style="margin-top:30px">Сколько стоит компилятор целиком</h3>
-    <p class="lede" style="margin-top:6px">Здесь всегда все шесть, по возрастанию, — фильтр компилятора
-      действует только на таблицу выше.</p>
+    <h3 style="margin-top:30px">What a whole compiler costs</h3>
+    <p class="lede" style="margin-top:6px">All six are always here, cheapest first — the compiler filter
+      applies to the table above only.</p>
     <div class="cards" id="costcards"></div>
-    <p class="lede" style="margin-top:14px">Считается только то, что компилятор действительно использует:
-      операции без перевода в тех диалектах, которые встречаются в его конвейере, по его собственному
-      тестовому корпусу. Это оценка объёма, а не сложности — <code>hw.module</code> одна механическая
-      трансляция, <code>onnx.Conv</code> тоже «одна».</p>
+    <p class="lede" style="margin-top:14px">Only what the compiler actually uses is counted: operations
+      with no translation, in the dialects its own pipeline touches, from its own test corpus. This is a
+      measure of volume, not of difficulty — <code>hw.module</code> is one mechanical translation, and
+      <code>onnx.Conv</code> is also "one".</p>
   </div>
 </section>
 
 <section id="cost">
   <div class="wrap">
-    <p class="eyebrow">Что действительно измерено</p>
-    <h2>Замеры, а не оценки</h2>
-    <p class="lede">Каждый шаблон прогнан по одному разу в этом же процессе; время включает построение
-      SMT-запроса и ответ z3. Шаблоны есть пока только у CIRCT, HEIR и onnx-mlir — остальные три
-      компилятора на карте измерены, но не проверены.</p>
+    <p class="eyebrow">What is actually measured</p>
+    <h2>Measurements, not estimates</h2>
+    <p class="lede">Every template was run once in this same process; the time covers building the SMT
+      query and z3's answer. Only CIRCT, HEIR and onnx-mlir have templates so far — the other three
+      compilers on the map are measured, not checked.</p>
     <div class="tablewrap"><table id="tmpltable">
-      <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений<br>ист. → цель</th>
-        <th class="num">строк</th><th class="num">секунд</th></tr></thead>
+      <thead><tr><th>Template</th><th>Verdict</th><th class="num">observations<br>source → target</th>
+        <th class="num">lines</th><th class="num">seconds</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <div class="note"><b>Красные строки — это находки, а не поломки инструмента.</b> Шаблон,
-      документированный как ломающий constant-time, обязан ломать его и сегодня, иначе находка устарела;
-      счётчик покрытия проверяет и это.</div>
+    <div class="note"><b>The red rows are findings, not tool failures.</b> A template documented as
+      breaking constant-time has to still break it today, or the finding is stale — the coverage counter
+      checks that too.</div>
   </div>
 </section>
 
 
 </main>
 
-<footer><div class="wrap">
-  <p style="max-width:70ch;margin:0 0 10px">Компиляторы на машине не собраны: каждая пара «до / после»
-  переписана из исходника паттерна или из его lit-теста, со ссылкой на файл и строку. Доказано свойство
-  спецификации шага, а не выхода бинарника компилятора.</p>
-  Замеры: Xeon 8168, z3 4.15.1, xdsl-smt dd30235. Источник данных:
-  <code class="mono">prototypes/fcvd_ct</code>, ветка
-  <code class="mono">fcvd-mlir-noninterference</code>. Воспроизводится через <code class="mono">./run_all.sh</code>
-  и <code class="mono">uv run fcvd-ct-coverage</code>; вердикты закреплены тестами (<code class="mono">uv run pytest</code>).
-</div></footer>
 
 <script type="application/json" id="artifact-data">__DATA__</script>
 
 <script>
 const DATA = JSON.parse(document.getElementById("artifact-data").textContent);
 const NBSP = " ";
-const fmt = n => n.toLocaleString("ru-RU");
+const fmt = n => n.toLocaleString("en-US");
 const state = {comp: "all", sel: null};
 
 /* ---------- compiler cards ---------- */
@@ -347,14 +343,14 @@ cards.innerHTML = DATA.compilers.map(c => {
   const w = f => c.mentions ? (100 * f / c.mentions).toFixed(2) + "%" : "0%";
   return `<article class="card">
     <h3>${c.name} <span class="commit">${c.commit}</span></h3>
-    <div class="meter" role="img" aria-label="доля упоминаний, которые умеем переводить">
+    <div class="meter" role="img" aria-label="share of mentions we can translate">
       <span class="s0" style="width:${w(c.m0 + c.m1)}"></span>
       <span class="s2" style="width:${w(c.m2)}"></span>
     </div>
-    <p class="figure">${share.toFixed(1)}<small>${NBSP}% упоминаний переводимо</small></p>
-    <p class="sub">${fmt(c.distinct)} разных операций в ${fmt(c.files)} тестовых файлах,
-      из них <b>${c.form2}</b> без перевода. Шагов конвейера ${c.steps},
-      с проверенной спецификацией ${c.specified}.</p>
+    <p class="figure">${share.toFixed(1)}<small>${NBSP}% of mentions translatable</small></p>
+    <p class="sub">${fmt(c.distinct)} distinct operations across ${fmt(c.files)} test files,
+      <b>${c.form2}</b> of them without a translation. ${c.steps} pipeline steps,
+      ${c.specified} with a checked specification.</p>
   </article>`;
 }).join("");
 
@@ -386,8 +382,8 @@ DATA.steps.forEach((s, si) => s.from.forEach(f => s.to.forEach(t => {
 
 const svg = document.getElementById("svg");
 
-const LAYER_NAMES = {0: "предметный", 1: "промежуточный", 2: "циклы", 3: "структурный",
-  4: "плоский", 5: "планирование", 6: "железо", 7: "выход"};
+const LAYER_NAMES = {0: "front end", 1: "mid-level", 2: "structured", 3: "loops & memory",
+  4: "flat", 5: "scheduling", 6: "hardware", 7: "output"};
 
 function path(e) {
   const a = byName[e.from], b = byName[e.to];
@@ -417,7 +413,7 @@ function render() {
     const sel = state.sel && state.sel.type === "step" && state.sel.id === e.step;
     out += `<path class="edge ${e.kind}${on ? "" : " dim"}${sel ? " sel" : ""}" d="${path(e)}"
       data-edge="${i}" tabindex="0" role="button"
-      aria-label="${s.compiler} ${s.pass}: ${e.from} в ${e.to}"><title>${s.compiler} · ${s.pass}
+      aria-label="${s.compiler} ${s.pass}: ${e.from} to ${e.to}"><title>${s.compiler} · ${s.pass}
 ${e.from} → ${e.to}</title></path>`;
   });
   nodes.forEach(d => {
@@ -428,10 +424,10 @@ ${e.from} → ${e.to}</title></path>`;
     const total = d.forms[0] + d.forms[1] + d.forms[2];
     const known = d.forms[0] + d.forms[1];
     out += `<g class="node${hub}${on ? "" : " dim"}${sel ? " sel" : ""}"
-        data-node="${d.name}" tabindex="0" role="button" aria-label="диалект ${d.name}">
+        data-node="${d.name}" tabindex="0" role="button" aria-label="dialect ${d.name}">
       <rect x="${d.x}" y="${d.y}" width="${NW}" height="${NH}" rx="7"></rect>
       <text class="name" x="${d.x + 11}" y="${d.y + NH / 2 - 5}">${d.name}</text>
-      <text class="count" x="${d.x + 11}" y="${d.y + NH / 2 + 9}">${total ? known + "/" + total : "нет данных"}</text>
+      <text class="count" x="${d.x + 11}" y="${d.y + NH / 2 + 9}">${total ? known + "/" + total : "no data"}</text>
       ${reuse > 1 ? `<text class="reuse" x="${d.x + NW - 26}" y="${d.y + NH / 2 - 5}">×${reuse}</text>` : ""}
       ${total ? `<rect x="${d.x + NW - 10}" y="${d.y + 6}" width="4" height="${NH - 12}" rx="2"
         fill="var(--absent)" opacity=".35"></rect>
@@ -508,7 +504,7 @@ svg.addEventListener("keydown", ev => {
 
 /* ---------- detail panel ---------- */
 const detail = document.getElementById("detail");
-const FORM_LABEL = ["есть семантика SMT", "доказанный шаблон", "перевода нет"];
+const FORM_LABEL = ["SMT semantics", "proved template", "no translation"];
 
 function select(sel) { state.sel = sel; render(); showDetail(); detail.scrollIntoView({block: "nearest", behavior: "smooth"}); }
 
@@ -518,36 +514,44 @@ function showDetail() {
     const d = byName[state.sel.id];
     const used = DATA.steps.filter(s => s.from.includes(d.name) || s.to.includes(d.name));
     const ops = d.ops.slice().sort((a, b) => a.form - b.form || b.n - a.n);
+    const dangerous = d.ops.filter(o => (o.broken || []).length);
     detail.innerHTML = `<h3>${d.name}
       ${d.compilers.map(c => `<span class="tag">${c}</span>`).join("")}
-      ${d.compilers.length > 1 ? `<span class="tag">точка переиспользования ×${d.compilers.length}</span>` : ""}</h3>
+      ${d.compilers.length > 1 ? `<span class="tag">reuse point ×${d.compilers.length}</span>` : ""}</h3>
       <dl class="kv">
-        <dt>операций</dt><dd>${d.ops.length} разных, ${fmt(d.mentions)} упоминаний в корпусах</dd>
-        <dt>формы</dt><dd>${d.forms[0]} с семантикой · ${d.forms[1]} шаблоном · <b>${d.forms[2]} без перевода</b></dd>
-        <dt>участвует в</dt><dd>${used.length ? used.map(s => `<code>${s.pass}</code>`).join(", ") : "—"}</dd>
+        <dt>operations</dt><dd>${d.ops.length} distinct, ${fmt(d.mentions)} mentions across the corpora</dd>
+        <dt>forms</dt><dd>${d.forms[0]} with semantics · ${d.forms[1]} by template ·
+          <b>${d.forms[2]} without a translation</b>${dangerous.length
+            ? ` · <span style="color:var(--breaking)">✕ ${dangerous.length} proved unsafe when lowered</span>` : ""}</dd>
+        <dt>appears in</dt><dd>${used.length ? used.map(s => `<code>${s.pass}</code>`).join(", ") : "—"}</dd>
       </dl>
-      ${ops.length ? `<div class="opgrid">${ops.map(o => `<div class="op" title="${FORM_LABEL[o.form]}${o.by ? ": " + o.by : ""}">
-        <span class="dot f${o.form}"></span><span class="nm">${o.name}</span><span class="n">${fmt(o.n)}</span></div>`).join("")}</div>`
-      : '<p class="hint">Операции этого диалекта в просканированных тестах не встретились — он присутствует только как цель понижения.</p>'}`;
+      ${ops.length ? `<div class="opgrid">${ops.map(o => `<div class="op" title="${FORM_LABEL[o.form]}${o.by ? ": " + o.by : ""}${
+          (o.broken || []).length ? " — lowering proved to break constant-time: " + o.broken.join(", ") : ""}">
+        <span class="dot f${o.form}"></span><span class="nm">${o.name}</span>${
+          (o.broken || []).length ? '<span class="danger" title="its real lowering introduces a leak">✕</span>' : ""
+        }<span class="n">${fmt(o.n)}</span></div>`).join("")}</div>`
+      : '<p class="hint">No operation of this dialect appears in the scanned tests — it is only ever a lowering target here.</p>'}`;
   } else {
     const s = DATA.steps[state.sel.id];
     const tmpl = DATA.templates.filter(t => s.proved.includes(t.file) || s.breaks.includes(t.file));
     detail.innerHTML = `<h3><code>${s.pass}</code> <span class="tag">${s.compiler}</span>
-      ${s.proved.map(() => '<span class="tag proved">✓ доказано сохраняющим</span>').join("")}
-      ${s.breaks.map(() => '<span class="tag breaking">✕ доказанно ломает</span>').join("")}</h3>
+      ${s.proved.map(() => '<span class="tag proved">✓ proved preserving</span>').join("")}
+      ${s.breaks.map(() => '<span class="tag breaking">✕ proved breaking</span>').join("")}</h3>
       <dl class="kv">
-        <dt>из → в</dt><dd>${s.from.join(", ")} → ${s.to.join(", ")}</dd>
-        <dt>источник</dt><dd><code>${s.cited}</code></dd>
-        <dt>на входе</dt><dd>${s.forms[0]} с семантикой · ${s.forms[1]} шаблоном ·
-          <b>${s.forms[2]} без перевода</b> ${s.forms[2] ? "— по программам шаг пока не прогнать" : "— шаг готов к попрограммной проверке"}</dd>
+        <dt>from → to</dt><dd>${s.from.join(", ")} → ${s.to.join(", ")}</dd>
+        <dt>source</dt><dd><code>${s.cited}</code></dd>
+        <dt>on input</dt><dd>${s.forms[0]} with semantics · ${s.forms[1]} by template ·
+          <b>${s.forms[2]} without a translation</b> ${s.forms[2]
+            ? "— no real program can be pushed through this step yet"
+            : "— ready for per-program checking"}</dd>
       </dl>
       ${tmpl.length ? `<div class="tablewrap" style="margin-top:16px"><table>
-        <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений</th><th class="num">секунд</th></tr></thead>
+        <thead><tr><th>Template</th><th>Verdict</th><th class="num">observations</th><th class="num">seconds</th></tr></thead>
         <tbody>${tmpl.map(t => `<tr><td class="mono">${t.file}</td>
-          <td class="mono" style="color:var(--${t.verdict === "ct-preserving" ? "proved" : "breaking"})">
-          ${t.verdict === "ct-preserving" ? "✓ сохраняет" : "✕ ломает"}</td>
+          <td class="mono" style="color:var(--${t.verdict === "ct-preserving" ? "spec" : "breaking"})">
+          ${t.verdict === "ct-preserving" ? "✓ preserving" : "✕ breaking"}</td>
           <td class="num">${t.obs[0]} → ${t.obs[1]}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`).join("")}</tbody>
-      </table></div>` : '<p class="hint" style="margin-top:14px">Спецификации у этого шага пока нет — он не проверялся ни в одну сторону.</p>'}`;
+      </table></div>` : '<p class="hint" style="margin-top:14px">This step has no specification yet — it has not been checked either way.</p>'}`;
   }
 }
 
@@ -571,24 +575,24 @@ const k1 = document.getElementById("k1"), k2 = document.getElementById("k2");
 const tbody = document.querySelector("#stepstable tbody");
 
 function hours(minutes) {
-  if (minutes < 60) return minutes + " мин";
+  if (minutes < 60) return minutes + " min";
   const h = minutes / 60;
-  return h < 10 ? h.toFixed(1) + " ч" : Math.round(h) + " ч";
+  return h < 10 ? h.toFixed(1) + " h" : Math.round(h) + " h";
 }
 
 function drawSteps() {
   const perOp = +k1.value, perTmpl = +k2.value;
-  document.getElementById("k1v").textContent = perOp + " мин";
-  document.getElementById("k2v").textContent = perTmpl + " мин";
+  document.getElementById("k1v").textContent = perOp + " min";
+  document.getElementById("k2v").textContent = perTmpl + " min";
   const rows = DATA.steps.filter(s => state.comp === "all" || s.compiler === state.comp);
   let total = 0;
   tbody.innerHTML = rows.map((s, i) => {
     const idx = DATA.steps.indexOf(s);
     const cost = s.forms[2] * perOp;
     total += cost;
-    const spec = s.breaks.length ? '<span class="tag breaking">✕ ломает</span>'
-      : s.proved.length ? '<span class="tag proved">✓ сохраняет</span>'
-      : `<span class="tag">нет · ~${hours(2 * perTmpl)}</span>`;
+    const spec = s.breaks.length ? '<span class="tag breaking">✕ breaks</span>'
+      : s.proved.length ? '<span class="tag proved">✓ preserves</span>'
+      : `<span class="tag">none · ~${hours(2 * perTmpl)}</span>`;
     return `<tr class="clickable" data-step="${idx}">
       <td class="mono">${s.compiler}</td>
       <td class="mono">${s.pass}</td>
@@ -627,12 +631,12 @@ function drawCostCards(perOp, perTmpl) {
     return `<article class="card${state.comp === c.name ? " active" : ""}">
       <h3>${c.name} <span class="commit">${c.commit}</span></h3>
       <p class="figure">${hours(total)}</p>
-      <div class="bar" role="img" aria-label="доля от самого дорогого компилятора">
+      <div class="bar" role="img" aria-label="share of the most expensive compiler">
         <span style="width:${most ? (100 * total / most).toFixed(1) : 0}%"></span></div>
-      <p class="sub"><b>${hours(translate)}</b> — ${ops} операций без перевода в диалектах его
-        конвейера.<br><b>${hours(specify)}</b> — по два шаблона на каждый из ${naked} шагов без
-        спецификации.${steps.some(x => x.proved.length || x.breaks.length) ? ""
-        : "<br><span style=\"color:var(--muted)\">пока только измерен: ни один шаг не проверялся</span>"}</p>
+      <p class="sub"><b>${hours(translate)}</b> — ${ops} operations with no translation, in the dialects
+        its pipeline touches.<br><b>${hours(specify)}</b> — two templates for each of the ${naked} steps
+        with no specification.${steps.some(x => x.proved.length || x.breaks.length) ? ""
+        : "<br><span style=\"color:var(--muted)\">measured only: not one step has been checked</span>"}</p>
     </article>`;
   }).join("");
 }
@@ -646,12 +650,12 @@ k2.addEventListener("input", drawSteps);
 /* ---------- measurement tables ---------- */
 document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
   .slice().sort((a, b) => b.seconds - a.seconds).map(t => {
-    const col = t.verdict === "ct-preserving" ? "proved" : t.verdict === "ct-breaking" ? "breaking" : "absent";
-    const label = t.verdict === "ct-preserving" ? "✓ сохраняет"
-      : t.verdict === "ct-breaking" ? "✕ ломает" : "? неизвестно";
+    const col = t.verdict === "ct-preserving" ? "spec" : t.verdict === "ct-breaking" ? "breaking" : "absent";
+    const label = t.verdict === "ct-preserving" ? "✓ preserving"
+      : t.verdict === "ct-breaking" ? "✕ breaking" : "? unknown";
     return `<tr><td class="mono">${t.file}</td>
       <td class="mono" style="color:var(--${col})">${label}</td>
-      <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (огранич.)" : ""}</td>
+      <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (bounded)" : ""}</td>
       <td class="num">${t.lines}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`;
   }).join("");
 

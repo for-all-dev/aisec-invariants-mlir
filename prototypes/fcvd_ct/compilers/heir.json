@@ -181,7 +181,10 @@
       "file": "heir/mod_arith_add_to_arith.mlir",
       "verifies": "--mod-arith-to-arith",
       "expect": "ct-breaking",
-      "covers": []
+      "covers": [],
+      "breaks_ops": [
+        "mod_arith.add"
+      ]
     },
     {
       "file": "heir/mod_arith_subifge_to_arith.mlir",
@@ -207,7 +210,10 @@
       "file": "heir/tensor_ext_rotate_dynamic.mlir",
       "verifies": "--tensor-ext-to-tensor",
       "expect": "ct-breaking",
-      "covers": []
+      "covers": [],
+      "breaks_ops": [
+        "tensor_ext.rotate"
+      ]
     }
   ]
 }

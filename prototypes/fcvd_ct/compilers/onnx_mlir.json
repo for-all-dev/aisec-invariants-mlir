@@ -97,7 +97,10 @@
       "file": "onnx_mlir/gather_to_krnl.mlir",
       "verifies": "--convert-onnx-to-krnl",
       "expect": "ct-breaking",
-      "covers": []
+      "covers": [],
+      "breaks_ops": [
+        "onnx.Gather"
+      ]
     }
   ]
 }

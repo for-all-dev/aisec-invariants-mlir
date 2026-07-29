@@ -71,6 +71,12 @@ class Template:
     """Operations this template's proof accounts for."""
     verifies: str = ""
     """The pipeline step this template is a specification of."""
+    breaks_ops: tuple[str, ...] = ()
+    """Operations this template shows to be dangerous under their real lowering.
+
+    Separate from `covers`, and orthogonal to it: an operation can have SMT semantics
+    and still be one whose lowering introduces a leak. `comb.divu` is both.
+    """
     expect: str = "ct-preserving"
     """What the template is documented to come back as.
 
@@ -117,6 +123,7 @@ class Compiler:
                     t["file"],
                     tuple(t.get("covers", ())),
                     t.get("verifies", ""),
+                    tuple(t.get("breaks_ops", ())),
                     t.get("expect", "ct-preserving"),
                 )
                 for t in raw["templates"]
@@ -131,6 +138,12 @@ class OperationCoverage:
     occurrences: int
     form: int
     covered_by: str = ""
+    broken_by: tuple[str, ...] = ()
+    """Templates that show this operation's real lowering to introduce a leak.
+
+    Orthogonal to `form`: knowing how to translate an operation and knowing that its
+    lowering is unsafe are different facts, and an operation can carry both.
+    """
 
 
 @dataclass
@@ -272,6 +285,7 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
     failed: list[str] = []
     proved_steps: dict[str, list[str]] = {}
     breaking_steps: dict[str, list[str]] = {}
+    dangerous: dict[str, list[str]] = {}
     if prove:
         for outcome in prove_templates(compiler, timeout):
             template = outcome.template
@@ -286,8 +300,11 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
                     covered.setdefault(op, template.file)
                 if template.verifies:
                     proved_steps.setdefault(template.verifies, []).append(template.file)
-            elif template.verifies:
-                breaking_steps.setdefault(template.verifies, []).append(template.file)
+            elif outcome.verdict == "ct-breaking":
+                for op in template.breaks_ops:
+                    dangerous.setdefault(op, []).append(template.file)
+                if template.verifies:
+                    breaking_steps.setdefault(template.verifies, []).append(template.file)
     else:
         # Claimed, not proved: only honest to report when the caller asked to skip.
         for template in compiler.templates:
@@ -300,12 +317,13 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
 
     operations = []
     for name, occurrences in counts.most_common():
+        broken = tuple(dangerous.get(name, ()))
         if name in registry:
-            operations.append(OperationCoverage(name, occurrences, 0, registry[name]))
+            operations.append(OperationCoverage(name, occurrences, 0, registry[name], broken))
         elif name in covered:
-            operations.append(OperationCoverage(name, occurrences, 1, covered[name]))
+            operations.append(OperationCoverage(name, occurrences, 1, covered[name], broken))
         else:
-            operations.append(OperationCoverage(name, occurrences, 2))
+            operations.append(OperationCoverage(name, occurrences, 2, "", broken))
     per_dialect: dict[str, list[OperationCoverage]] = {}
     for op in operations:
         per_dialect.setdefault(op.name.split(".")[0], []).append(op)

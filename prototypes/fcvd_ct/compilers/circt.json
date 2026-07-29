@@ -198,7 +198,13 @@
       "file": "circt/comb_to_arith_div.mlir",
       "verifies": "--convert-comb-to-arith",
       "expect": "ct-breaking",
-      "covers": []
+      "covers": [],
+      "breaks_ops": [
+        "comb.divu",
+        "comb.divs",
+        "comb.modu",
+        "comb.mods"
+      ]
     }
   ]
 }
