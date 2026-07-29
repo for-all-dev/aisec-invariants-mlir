@@ -206,11 +206,16 @@ table.grid td{padding:0}
     <p class="lede">Two axes. <b>What leaks</b> — the kind of secret-dependent thing the program did,
       and that list closes at four. <b>Who is watching</b> — how directly the observer reaches secret
       state. Every intersection carries a verdict, because a blank cell is an opinion nobody stated.</p>
-    <p class="lede">The blue block is what the MLIR pipeline closes: the functional and timing classes,
-      out to O2. Timing is proved at O2 and carried outward — O2 sees strictly more than O1, so runs
-      that are indistinguishable in the constant-time trace are indistinguishable to any weaker
-      observer. Further in, the classes stop being the binding constraint: an observer holding process
-      memory does not need to infer anything.</p>
+    <p class="lede">The rings are ordered strictly by directness of access, which puts every observer
+      who <i>infers</i> outside every observer who <i>reads</i>: a probe on the power line sits closer
+      to the switching activity than a cache does, but further from the secret than a debugger holding
+      the memory. Sketches of this onion usually draw the physical observer innermost, and then the
+      order stops matching what the picture says it shows.</p>
+    <p class="lede">The blue block is what the MLIR pipeline closes. Timing is proved at O2 and carried
+      outward — O2 sees strictly more than O1, so runs indistinguishable in the constant-time trace are
+      indistinguishable to any weaker observer. At O6 and inward the classes stop being the binding
+      constraint altogether: an observer holding process memory has nothing left to infer. One cell
+      breaks the pattern, and it is worth the click.</p>
 
     <div class="split">
       <div class="onionbox">
