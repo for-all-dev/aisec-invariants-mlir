@@ -62,6 +62,8 @@ def test_the_hardened_form_is_checked_not_vacuous():
         ("if_to_select_speculative", "ct-preserving"),
         ("if_to_select_unspeculatable", "ct-breaking"),
         ("mod_arith_add_to_arith", "ct-breaking"),
+        ("mod_arith_subifge_to_arith", "ct-preserving"),
+        ("mod_arith_subifge_branchy", "ct-breaking"),
     ],
 )
 def test_templates(template: str, verdict: str):

@@ -171,6 +171,20 @@
       "verifies": "--mod-arith-to-arith",
       "expect": "ct-breaking",
       "covers": []
+    },
+    {
+      "file": "heir/mod_arith_subifge_to_arith.mlir",
+      "verifies": "--mod-arith-to-arith",
+      "expect": "ct-preserving",
+      "covers": [
+        "mod_arith.subifge"
+      ]
+    },
+    {
+      "file": "heir/mod_arith_subifge_branchy.mlir",
+      "verifies": "--mod-arith-to-arith",
+      "expect": "ct-breaking",
+      "covers": []
     }
   ]
 }
