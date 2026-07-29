@@ -29,8 +29,7 @@ does, and z3 says on which inputs.
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from collections.abc import Sequence
 from dataclasses import dataclass
 from io import StringIO
 from typing import Literal
@@ -45,10 +44,7 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
-from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
 from xdsl_smt.dialects import smt_dialect as smt
-from xdsl_smt.dialects import smt_utils_dialect as smt_utils
-from xdsl_smt.dialects.effects.effect import StateType
 from xdsl_smt.passes.dead_code_elimination import DeadCodeElimination
 from xdsl_smt.passes.lower_effects import LowerEffectPass
 from xdsl_smt.passes.lower_pairs import LowerPairs
@@ -56,9 +52,11 @@ from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 from xdsl_smt.passes.smt_expand import SMTExpand
 from xdsl_smt.traits.smt_printer import print_to_smtlib
 
-from .dialect import HoleOp, HoleSemantics, ObserveOp, ObserveSemantics, StructuralTrace
+from .dialect import StructuralTrace
 from .leakage import LeakageRule
-from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate, flatten
+from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate
+from .smtutil import conjoin as _conjoin
+from .smtutil import instantiate, traces_agree
 
 Verdict = Literal["ct-preserving", "ct-breaking", "unknown"]
 
@@ -75,63 +73,6 @@ class LoweringResult:
     bounded: bool = False
     """A path was cut by the unrolling bound, so the verdict only covers that many
     iterations. Reported, never hidden."""
-
-
-@contextmanager
-def _template_semantics(trace: StructuralTrace) -> Iterator[None]:
-    """Give the template operations semantics for the duration of one lowering."""
-    saved = SMTLowerer.op_semantics
-    SMTLowerer.op_semantics = {
-        **saved,
-        HoleOp: HoleSemantics(trace),
-        ObserveOp: ObserveSemantics(trace),
-    }
-    try:
-        yield
-    finally:
-        SMTLowerer.op_semantics = saved
-
-
-def _as_bool(builder: Builder, value: SSAValue) -> SSAValue:
-    """An `i1` guard, lowered to a bitvector pair, seen as an SMT boolean."""
-    if isinstance(value.type, smt_utils.PairType):
-        value = builder.insert(smt_utils.FirstOp(value)).res
-    if isinstance(value.type, smt.BoolType):
-        return value
-    one = builder.insert(smt_bv.ConstantOp(1, 1)).res
-    return builder.insert(smt.EqOp(value, one)).res
-
-
-def _observed_value(builder: Builder, value: SSAValue) -> SSAValue:
-    if isinstance(value.type, smt_utils.PairType):
-        return builder.insert(smt_utils.FirstOp(value)).res
-    return value
-
-
-def _conjoin(builder: Builder, terms: Sequence[SSAValue]) -> SSAValue:
-    if not terms:
-        return builder.insert(smt.ConstantBoolOp(True)).result
-    result = terms[0]
-    for term in terms[1:]:
-        result = builder.insert(smt.AndOp(result, term)).result
-    return result
-
-
-def _traces_agree(builder: Builder, left: StructuralTrace, right: StructuralTrace) -> SSAValue:
-    """Same observations, in the same order, under the same guards."""
-    terms: list[SSAValue] = []
-    for one, other in zip(left.observations, right.observations, strict=True):
-        guard_one = _as_bool(builder, one.guard)
-        guard_other = _as_bool(builder, other.guard)
-        terms.append(builder.insert(smt.EqOp(guard_one, guard_other)).res)
-        same_value = builder.insert(
-            smt.EqOp(
-                _observed_value(builder, one.value),
-                _observed_value(builder, other.value),
-            )
-        ).res
-        terms.append(builder.insert(smt.ImpliesOp(guard_one, same_value)).result)
-    return _conjoin(builder, terms)
 
 
 def _hole_congruence(builder: Builder, traces: Sequence[StructuralTrace]) -> list[SSAValue]:
@@ -172,24 +113,13 @@ def _instantiate(
     model: dict[type[Operation], LeakageRule] | None,
     max_visits: int,
 ) -> tuple[StructuralTrace, bool]:
-    """Flatten one program, splice it in on the given inputs, and lower it to SMT."""
-    # Each program starts from its own effect state: UB raised by one of the four must
-    # not propagate into the others.
-    state: SSAValue | None = block_builder.insert(smt.DeclareConstOp(StateType())).res
-    program = flatten(function.clone(), model, max_visits)
-    flat = program.block
-    for argument, value in zip(list(flat.args), inputs, strict=True):
-        argument.replace_by(value)
+    """Flatten one program and lower it to SMT from its own fresh effect state.
 
-    trace = StructuralTrace()
-    body = [op for op in flat.ops]
-    for op in body:
-        op.detach()
-        block_builder.insert(op)
-    with _template_semantics(trace):
-        for op in body:
-            state = SMTLowerer.lower_operation(op, state) or state
-    return trace, program.bounded
+    Each of the four programs starts from its own state: UB raised by one of them must
+    not propagate into the others.
+    """
+    trace, bounded, _ = instantiate(function, inputs, block_builder, model, max_visits)
+    return trace, bounded
 
 
 def build_query(
@@ -234,8 +164,12 @@ def build_query(
     for axiom in _hole_congruence(builder, traces):
         builder.insert(smt.AssertOp(axiom))
 
-    same_source = _traces_agree(builder, source_traces[0], source_traces[1])
-    same_target = _traces_agree(builder, target_traces[0], target_traces[1])
+    same_source = traces_agree(
+        builder, source_traces[0].observations, source_traces[1].observations
+    )
+    same_target = traces_agree(
+        builder, target_traces[0].observations, target_traces[1].observations
+    )
     differs = builder.insert(smt.NotOp(same_target)).result
     builder.insert(smt.AssertOp(builder.insert(smt.AndOp(same_source, differs)).result))
     builder.insert(smt.CheckSatOp())

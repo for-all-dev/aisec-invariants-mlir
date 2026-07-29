@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
 from xdsl_smt.dialects import smt_dialect as smt
 
-from fcvdct import structural
+from fcvdct import smtutil, structural
 from fcvdct.context import make_context
 from fcvdct.structural import check_lowering
 
@@ -81,18 +81,18 @@ def test_guards_are_load_bearing(monkeypatch: pytest.MonkeyPatch):
         terms = [
             builder.insert(
                 smt.EqOp(
-                    structural._observed_value(builder, one.value),
-                    structural._observed_value(builder, other.value),
+                    smtutil.observed_value(builder, one.value),
+                    smtutil.observed_value(builder, other.value),
                 )
             ).res
-            for one, other in zip(left.observations, right.observations, strict=True)
+            for one, other in zip(left, right, strict=True)
         ]
-        return structural._conjoin(builder, terms)
+        return smtutil.conjoin(builder, terms)
 
     ctx, module = load("if_to_select_leaky")
     assert check_lowering(ctx, module).verdict == "ct-breaking"
 
-    monkeypatch.setattr(structural, "_traces_agree", unguarded)
+    monkeypatch.setattr(structural, "traces_agree", unguarded)
     ctx, module = load("if_to_select_leaky")
     assert check_lowering(ctx, module).verdict == "ct-preserving"
 

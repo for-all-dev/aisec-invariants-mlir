@@ -16,7 +16,8 @@ operation.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
@@ -26,6 +27,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     var_operand_def,
     var_result_def,
 )
@@ -52,14 +54,35 @@ class HoleOp(IRDLOperation):
     leaks = attr_def(IntegerAttr)
 
 
+#: An observation belongs to one of the security obligations. The names are the ones
+#: the self-composition driver proves separately, so that a verdict says *which*
+#: channel a kernel leaks through rather than only that it does.
+CONTROL = "control"
+"""Which branch was taken, how many times a loop ran."""
+ADDRESS = "address"
+"""The address a load or store touched."""
+LATENCY = "latency"
+"""The operands of a variable-latency instruction."""
+RESOURCE = "resource"
+"""Allocation sizes and the pointers handed back to `dealloc`."""
+OTHER = "other"
+"""An observation a template declares itself, with no obligation attached."""
+
+
 @irdl_op_definition
 class ObserveOp(IRDLOperation):
-    """`guard` says whether the program reaches this observation; `value` is what leaks."""
+    """`guard` says whether the program reaches this observation; `value` is what leaks.
+
+    `kind` names the obligation the observation belongs to; templates that predate the
+    split leave it out and are treated as `other`.
+    """
 
     name = "fcvd.observe"
 
     guard = operand_def()
     value = operand_def()
+
+    kind = opt_attr_def(StringAttr)
 
 
 FCVD = Dialect("fcvd", [HoleOp, ObserveOp])
@@ -78,6 +101,7 @@ class HoleInstance:
 class Observation:
     guard: SSAValue
     value: SSAValue
+    kind: str = OTHER
 
 
 @dataclass
@@ -131,5 +155,27 @@ class ObserveSemantics(OperationSemantics):
         rewriter: PatternRewriter,
     ) -> tuple[Sequence[SSAValue], SSAValue | None]:
         guard, value = operands
-        self.trace.observations.append(Observation(guard, value))
+        kind = attributes.get("kind")
+        self.trace.observations.append(
+            Observation(guard, value, kind.data if isinstance(kind, StringAttr) else OTHER)
+        )
         return (), effect_state
+
+
+@contextmanager
+def template_semantics(trace: StructuralTrace) -> Iterator[None]:
+    """Give `fcvd.hole` and `fcvd.observe` semantics for the duration of one lowering.
+
+    `SMTLowerer.op_semantics` is global state upstream, so it is saved and restored
+    rather than mutated in place.
+    """
+    saved = SMTLowerer.op_semantics
+    SMTLowerer.op_semantics = {
+        **saved,
+        HoleOp: HoleSemantics(trace),
+        ObserveOp: ObserveSemantics(trace),
+    }
+    try:
+        yield
+    finally:
+        SMTLowerer.op_semantics = saved

@@ -21,6 +21,51 @@ uv run pytest
 xdsl-smt ships no LICENSE file, so it is deliberately **not** vendored here — it stays an external
 checkout, pinned at `dd30235` and installed as an editable path dependency.
 
+## `fcvd-ct` — is *this* labelled kernel constant-time?
+
+```bash
+uv run fcvd-ct kernels/secret_index.mlir --counterexample
+```
+
+The self-composition driver, i.e. steps 1, 2, 4 and 5 of the plan. An argument marked
+`{fcvdct.secret}` (or `{stagingni.protected}`, the marking `prototypes/Staging_NI` already uses) is
+free; everything else is *the same SMT constant in both runs*, as is the initial memory. The property
+is
+
+    forall public p, secrets s, s'.  L(p, s) = L(p, s')
+
+and it is proved **one obligation at a time**, so a verdict names the channel rather than only
+raising an alarm:
+
+| obligation | what it compares | the plan's wording |
+|---|---|---|
+| `control` | branch conditions, loop trip counts | "conditions and iteration counts are equal in both traces" |
+| `address` | `memref.load`/`store` addresses | "computed addresses agree to the bit" |
+| `latency` | operands of `div`/`rem` | variable-latency instructions |
+| `resource` | allocation sizes, freed pointers | "the sets of allocated and un-freed memory are identical" |
+
+### Measured on the kernel corpus (2026-07-29, z3 4.15.1)
+
+| kernel | verdict | obligation that fails |
+|---|---|---|
+| `ct_mask` — `(s & 7) + p` | SECURE | — (no observation of any kind) |
+| `public_index` — `t[p]` with a secret in the value | SECURE | — (1 address observation, proved equal) |
+| `secret_index` — `t[s & 3]` | INSECURE | `address` |
+| `secret_branch` — `if s > 0` | INSECURE | `control` |
+| `secret_divisor` — `p / s` | INSECURE | `latency` |
+| `secret_free` — free one of two buffers by secret | INSECURE | `resource` |
+| `unsupported_float` — `f32` | UNKNOWN | — (no float semantics upstream) |
+
+Each violated obligation comes with the two secrets z3 used to separate the traces (`secret1_run0 =
+0x3`, `secret1_run1 = 0x0` for the table lookup). A `secure` verdict is always printed with *how
+many* observations of that kind existed: zero observations means "nothing of this kind happens here",
+which is not the same statement as "checked and proved", and the two must not be read alike.
+
+Scope, stated plainly: secrets are scalar arguments. Secret *memory contents* are not modelled — the
+initial memory is shared, so a memref argument is public data — and upstream's `memref` semantics
+only handle `i8` elements and static allocation sizes, so a dynamically sized `alloc` is `unknown`
+rather than a resource verdict.
+
 ## `fcvd-ct-pdl` — does a rewrite preserve constant-time for *every* program it matches?
 
 ```bash
@@ -140,6 +185,7 @@ self-composition (P1), since address-shaped rewrites are not what PDL patterns t
 - **P5 (done)** — `fcvd-ct-pdl`: universal, per-rewrite constant-time preservation.
 - **P3 (done)** — `fcvd-ct-lowering`: control flow via if-conversion, and lowering steps verified as
   structural specifications over holes.
-- P1, P2, P4, P6 — see the plan note. Still open: per-program checking against real `mlir-opt`
-  output (which is what closes the gap between the template and the C++ pass), loops, and the
-  address rules of the leakage model.
+- **P1/P2 (done)** — `fcvd-ct`: labelled self-composition with the four obligations, and the kernel
+  corpus in `kernels/` with both polarities of each.
+- P4, P6 — see the plan note. Still open: per-program checking against real compiler output, which
+  is what closes the gap between the template and the C++ pass.

@@ -26,10 +26,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from xdsl.dialects import arith, cf, func, scf
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
 
-from .dialect import HoleOp, ObserveOp
+from .dialect import CONTROL, OTHER, HoleOp, ObserveOp
 from .leakage import DEFAULT_MODEL, LeakageRule
 
 I1 = IntegerType(1)
@@ -67,8 +67,14 @@ class Flattener:
     def conjoin(self, lhs: SSAValue, rhs: SSAValue) -> SSAValue:
         return self.emit(arith.AndIOp(lhs, rhs)).results[0]
 
-    def observe(self, guard: SSAValue, value: SSAValue) -> None:
-        self.emit(ObserveOp(operands=[guard, value], result_types=[]))
+    def observe(self, guard: SSAValue, value: SSAValue, kind: str = OTHER) -> None:
+        self.emit(
+            ObserveOp(
+                operands=[guard, value],
+                result_types=[],
+                attributes={"kind": StringAttr(kind)},
+            )
+        )
 
     # ---- operations -----------------------------------------------------------
 
@@ -96,12 +102,12 @@ class Flattener:
         rule = self.model.get(type(copy))
         if rule is not None:
             for observed in rule(copy.operands):
-                self.observe(guard, observed)
+                self.observe(guard, observed, rule.kind)
 
     def run_if(self, op: scf.IfOp, guard: SSAValue, values: dict[SSAValue, SSAValue]) -> None:
         condition = values.get(op.cond, op.cond)
         # Which arm is taken is exactly what an attacker watching control flow sees.
-        self.observe(guard, condition)
+        self.observe(guard, condition, CONTROL)
         then_values = dict(values)
         then_results = self.run_block(
             op.true_region.block, self.conjoin(guard, condition), then_values
@@ -131,7 +137,7 @@ class Flattener:
 
         for _ in range(self.max_visits):
             keep_going = self.emit(arith.CmpiOp(induction, upper, "slt")).results[0]
-            self.observe(guard, keep_going)
+            self.observe(guard, keep_going, CONTROL)
             iteration_guard = self.conjoin(guard, keep_going)
 
             body_values = dict(values)
@@ -150,7 +156,7 @@ class Flattener:
             induction = self.emit(arith.AddiOp(induction, step)).results[0]
 
         # One more comparison: if it can still be true, the loop was cut short.
-        self.observe(guard, self.emit(arith.CmpiOp(induction, upper, "slt")).results[0])
+        self.observe(guard, self.emit(arith.CmpiOp(induction, upper, "slt")).results[0], CONTROL)
         self.hit_bound = True
 
         for result, value in zip(op.results, carried, strict=True):
@@ -193,7 +199,7 @@ class Flattener:
                 return
             if isinstance(op, cf.ConditionalBranchOp):
                 condition = values.get(op.cond, op.cond)
-                self.observe(guard, condition)
+                self.observe(guard, condition, CONTROL)
                 self.enter(
                     op.then_block,
                     self.conjoin(guard, condition),

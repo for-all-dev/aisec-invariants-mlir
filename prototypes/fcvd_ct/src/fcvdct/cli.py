@@ -1,8 +1,9 @@
-"""The two entry points.
+"""The entry points.
 
-`fcvd-ct-pdl` takes PDL rewrites, `fcvd-ct-lowering` takes structural lowering
+`fcvd-ct-pdl` takes PDL rewrites and `fcvd-ct-lowering` takes structural lowering
 specifications; both answer the same question -- does this transformation preserve
-constant-time for every program it applies to?
+constant-time for every program it applies to? `fcvd-ct` asks the other one: is *this*
+labelled kernel constant-time, obligation by obligation.
 """
 
 from __future__ import annotations
@@ -17,7 +18,14 @@ from xdsl.parser import Parser
 from .context import make_context
 from .pdl_ct import CTResult, check_pattern
 from .predication import DEFAULT_MAX_VISITS
+from .selfcomp import check_module, separating_secrets
 from .structural import LoweringResult, check_lowering
+
+_SELFCOMP_LINE = {
+    "secure": "SECURE",
+    "insecure": "INSECURE",
+    "unknown": "UNKNOWN",
+}
 
 _VERDICT_LINE = {
     "ct-preserving": "CT-PRESERVING",
@@ -92,6 +100,73 @@ def main() -> None:
         print(f"{unknown} rewrite(s) could not be decided")
         raise SystemExit(3)
     print("all rewrites preserve constant-time")
+
+
+def main_selfcomp() -> None:
+    arg_parser = argparse.ArgumentParser(
+        description="Prove non-interference (constant-time) of one labelled kernel by "
+        "self-composition: public inputs equal, secrets free, observations must match."
+    )
+    arg_parser.add_argument("file", help="MLIR file containing the kernel")
+    arg_parser.add_argument("--function", help="which function to check")
+    arg_parser.add_argument(
+        "--unroll",
+        type=int,
+        default=DEFAULT_MAX_VISITS,
+        help="how many times a block may be re-entered on a path, i.e. the loop bound",
+    )
+    arg_parser.add_argument(
+        "--counterexample",
+        action="store_true",
+        help="print the two secrets z3 returns for a violated obligation",
+    )
+    arg_parser.add_argument(
+        "--full-model",
+        action="store_true",
+        help="print z3's whole model, memory arrays included, not just the secrets",
+    )
+    arg_parser.add_argument("--timeout", type=int, default=60, help="solver timeout, s")
+    arg_parser.add_argument("--no-opt", action="store_true", help="skip SMT-level simplification")
+    args = arg_parser.parse_args()
+
+    ctx = make_context()
+    with open(args.file) as f:
+        module = Parser(ctx, f.read(), args.file).parse_module()
+
+    result = check_module(
+        ctx,
+        module,
+        name=args.function,
+        opt=not args.no_opt,
+        timeout=args.timeout,
+        max_visits=args.unroll,
+    )
+    print(f"{args.file}: {_SELFCOMP_LINE[result.verdict]}")
+    if result.bounded:
+        print("  bounded: loops were unrolled, so this covers only the unrolled iterations")
+    if result.reason:
+        print(f"  reason: {result.reason}")
+    for obligation in result.obligations:
+        line = (
+            f"  {obligation.kind:<9} {_SELFCOMP_LINE[obligation.verdict]:<8} "
+            f"({obligation.n_observations} observation(s))"
+        )
+        print(line if obligation.n_observations else f"{line} - nothing of this kind happens")
+        if obligation.reason:
+            print(f"    reason: {obligation.reason}")
+        if obligation.verdict == "insecure" and args.counterexample and obligation.counterexample:
+            secrets = separating_secrets(obligation.counterexample)
+            if secrets and not args.full_model:
+                for name, value in secrets:
+                    print(f"    | {name} = {value}")
+            else:
+                for text in obligation.counterexample.splitlines():
+                    print(f"    | {text}")
+
+    if result.verdict == "insecure":
+        raise SystemExit(1)
+    if result.verdict == "unknown":
+        raise SystemExit(3)
 
 
 def main_lowering() -> None:

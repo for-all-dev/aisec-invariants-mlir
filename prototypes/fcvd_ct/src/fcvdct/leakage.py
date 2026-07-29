@@ -28,11 +28,27 @@ from xdsl.pattern_rewriter import PatternRewriter
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 from xdsl_smt.semantics.semantics import OperationSemantics
 
+from .dialect import ADDRESS, CONTROL, LATENCY, RESOURCE
+
 # A leakage rule maps the operands of an operation to the observations it emits.
-LeakageRule = Callable[[Sequence[SSAValue]], Sequence[SSAValue]]
+Selector = Callable[[Sequence[SSAValue]], Sequence[SSAValue]]
 
 
-def operands(*indices: int) -> LeakageRule:
+@dataclass(frozen=True)
+class Rule:
+    """Which operands of an operation leak, and which obligation the leak belongs to."""
+
+    kind: str
+    select: Selector
+
+    def __call__(self, values: Sequence[SSAValue]) -> Sequence[SSAValue]:
+        return self.select(values)
+
+
+LeakageRule = Rule
+
+
+def operands(*indices: int) -> Selector:
     """Observe the operands at the given positions."""
 
     def rule(values: Sequence[SSAValue]) -> Sequence[SSAValue]:
@@ -41,7 +57,7 @@ def operands(*indices: int) -> LeakageRule:
     return rule
 
 
-def operands_from(start: int) -> LeakageRule:
+def operands_from(start: int) -> Selector:
     """Observe every operand from `start` onwards (memref indices, for instance)."""
 
     def rule(values: Sequence[SSAValue]) -> Sequence[SSAValue]:
@@ -54,26 +70,41 @@ def operands_from(start: int) -> LeakageRule:
 #: targets we care about: x86 `idiv`/`div` latency depends on both operands. Shifts,
 #: multiplies and boolean ops are constant-latency and are deliberately absent.
 VARIABLE_LATENCY_RULES: dict[type[Operation], LeakageRule] = {
-    arith.DivSIOp: operands(0, 1),
-    arith.DivUIOp: operands(0, 1),
-    arith.RemSIOp: operands(0, 1),
-    arith.RemUIOp: operands(0, 1),
-    arith.CeilDivSIOp: operands(0, 1),
-    arith.CeilDivUIOp: operands(0, 1),
-    arith.FloorDivSIOp: operands(0, 1),
+    arith.DivSIOp: Rule(LATENCY, operands(0, 1)),
+    arith.DivUIOp: Rule(LATENCY, operands(0, 1)),
+    arith.RemSIOp: Rule(LATENCY, operands(0, 1)),
+    arith.RemUIOp: Rule(LATENCY, operands(0, 1)),
+    arith.CeilDivSIOp: Rule(LATENCY, operands(0, 1)),
+    arith.CeilDivUIOp: Rule(LATENCY, operands(0, 1)),
+    arith.FloorDivSIOp: Rule(LATENCY, operands(0, 1)),
 }
 
 #: A memory access leaks the address it touches, which is the cache-line channel that
 #: `mlir_leak` found empirically in the sparsifier.
 ADDRESS_RULES: dict[type[Operation], LeakageRule] = {
-    memref.LoadOp: operands_from(1),
-    memref.StoreOp: operands_from(2),
+    memref.LoadOp: Rule(ADDRESS, operands_from(1)),
+    memref.StoreOp: Rule(ADDRESS, operands_from(2)),
+}
+
+#: The resource obligation of the plan -- "the sets of allocated and un-freed memory at
+#: the end are identical". A dynamic allocation leaks its size; a `dealloc` leaks which
+#: block it releases, so a secret-dependent choice of block cannot pass unnoticed.
+RESOURCE_RULES: dict[type[Operation], LeakageRule] = {
+    memref.AllocOp: Rule(RESOURCE, operands_from(0)),
+    memref.AllocaOp: Rule(RESOURCE, operands_from(0)),
+    memref.DeallocOp: Rule(RESOURCE, operands(0)),
 }
 
 DEFAULT_MODEL: dict[type[Operation], LeakageRule] = {
     **VARIABLE_LATENCY_RULES,
     **ADDRESS_RULES,
+    **RESOURCE_RULES,
 }
+
+#: Control-flow observations are emitted by the flattener rather than by an operation
+#: rule (a branch has no operand that "is" the leak -- the condition is the leak), so
+#: this constant only records that the kind belongs to the same model.
+CONTROL_KIND = CONTROL
 
 
 @dataclass
