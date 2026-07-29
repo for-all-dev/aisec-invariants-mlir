@@ -172,15 +172,13 @@ table.grid td{padding:0}
 .cell.bridge{background:var(--bridge);border-color:var(--bridge)}
 .cell.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
   border-color:var(--nothing)}
-.cell.scoped{background:none;border-style:dashed;border-color:var(--rule-strong)}
 .cell.unreachable{background:none;border-color:var(--rule)}
 .cell.moot{background:var(--sunken);border-color:var(--rule-strong)}
-.cell.boundary{background:none;border-color:var(--rule-strong);border-style:dotted;border-width:1.5px}
 .cell.on{outline:2px solid var(--accent);outline-offset:2px}
 .cell:hover.has{outline:2px solid var(--accent);outline-offset:2px}
 .cell .mark{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
   font-size:11px;font-weight:700;color:var(--surface)}
-.cell.scoped .mark,.cell.gap .mark{color:var(--muted)}
+.cell.gap .mark{color:var(--muted)}
 
 .mlegend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;padding:0;list-style:none;font-size:12.5px;
   color:var(--ink-2)}
@@ -191,10 +189,8 @@ table.grid td{padding:0}
 .mlegend i.bridge{background:var(--bridge);border-color:var(--bridge)}
 .mlegend i.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
   border-color:var(--nothing)}
-.mlegend i.scoped{border-style:dashed;border-color:var(--rule-strong)}
 .mlegend i.unreachable{border-color:var(--rule)}
 .mlegend i.moot{background:var(--sunken);border-color:var(--rule-strong)}
-.mlegend i.boundary{border-style:dotted;border-width:1.5px;border-color:var(--rule-strong)}
 
 .claim{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--covered);
   border-radius:10px;padding:20px 22px;box-shadow:var(--shadow);margin-top:24px}
@@ -234,12 +230,10 @@ table.grid td{padding:0}
         <ul class="mlegend">
           <li><i class="covered"></i> proved</li>
           <li><i class="partial"></i> partly, under a stated assumption</li>
-          <li><i class="gap"></i> observable, not covered</li>
-          <li><i class="bridge"></i> gap that undermines an exclusion</li>
-          <li><i class="scoped"></i> out of scope by decision</li>
+          <li><i class="gap"></i> visible here, we cover none of it</li>
+          <li><i class="bridge"></i> gap that voids a claim next to it</li>
           <li><i class="unreachable"></i> not observable from this ring</li>
           <li><i class="moot"></i> observer already reads secret state</li>
-          <li><i class="boundary"></i> a declaration, not a level</li>
         </ul>
       </div>
     </div>
@@ -258,13 +252,12 @@ const D = JSON.parse(document.getElementById("profile-data").textContent);
 const cellOf = {};
 D.cells.forEach(c => (cellOf[c.cls + "/" + c.obs] = c));
 const state = {sel: null, col: null, row: null};
-const MARK = {covered: "✓", partial: "~", nothing: "", bridge: "!", "scoped-out": "—",
-  unreachable: "", moot: "·", boundary: "?"};
+const MARK = {covered: "✓", partial: "~", nothing: "", bridge: "!", unreachable: "", moot: "·"};
 const STATE_LABEL = {covered: "proved", partial: "partly, under a stated assumption",
-  nothing: "observable from here, not covered", bridge: "a gap that undermines an exclusion",
-  "scoped-out": "out of scope by decision", unreachable: "not observable from this ring",
-  moot: "the observer already reads secret state directly",
-  boundary: "a declared boundary, not a level of strength"};
+  nothing: "visible from here, and we cover none of it",
+  bridge: "a gap that voids a claim made next to it",
+  unreachable: "not observable from this ring",
+  moot: "the observer already reads secret state directly"};
 
 /* ---------- the onion ---------- */
 const onion = document.getElementById("onion");
@@ -309,7 +302,7 @@ function drawGrid() {
       title="${c.what}">${c.name}</th>
     ${D.observers.map(o => {
       const cell = cellOf[c.id + "/" + o.id] || {state: "unreachable", note: ""};
-      const kind = cell.state.replace("scoped-out", "scoped").replace("nothing", "gap");
+      const kind = cell.state.replace("nothing", "gap");
       const on = state.sel && state.sel.cls === c.id && state.sel.obs === o.id;
       return `<td><span class="cell ${kind} has${on ? " on" : ""}"
         data-cls="${c.id}" data-obs="${o.id}" tabindex="0" role="button"

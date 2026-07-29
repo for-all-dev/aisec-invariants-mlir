@@ -70,11 +70,9 @@ CLASSES = [
 #   covered      proved; either here or carried outward from a stronger observer
 #   partial      partly, under an assumption that is written down
 #   nothing      observable from here, and we cover none of it
-#   scoped-out   deliberately excluded
-#   bridge       a gap that undermines one of those exclusions
+#   bridge       a gap that voids a claim made in a neighbouring cell
 #   moot         the observer already reads secret state directly, so a leakage
 #                proof of this class no longer decides the outcome
-#   boundary     O5 is not a strength level but a declaration
 CELLS = {
     # ---- functional: the values themselves. The property is observer-independent,
     # which is why this row runs blue until the observer stops needing to infer.
@@ -105,9 +103,9 @@ CELLS = {
         "compiler did. Value equivalence still holds; it is no longer what decides the outcome.",
     ),
     ("functional", "O5"): (
-        "boundary",
-        "The interface is the declared transcript, so this is O0 "
-        "again — for as long as the isolation claim holds.",
+        "covered",
+        "What this observer is handed is the declared interface — the transcript again, and the "
+        "same proof applies to it.",
     ),
     ("functional", "O6"): (
         "covered",
@@ -144,9 +142,9 @@ CELLS = {
         "An observer who can stop the process and read its registers has no use for a stopwatch.",
     ),
     ("timing", "O5"): (
-        "boundary",
-        "Timing of the enclave interface is O1/O2 again, measured from "
-        "outside; the boundary changes who measures, not what leaks.",
+        "covered",
+        "The host times the enclave from outside, which is O1 measurement of an O2-proved trace. "
+        "Being on the other side of a boundary changes who holds the clock, not what leaks.",
     ),
     ("timing", "O6"): (
         "covered",
@@ -174,9 +172,9 @@ CELLS = {
     ),
     ("uarch", "O4"): ("moot", "Reading the memory outright beats inferring it from the cache."),
     ("uarch", "O5"): (
-        "boundary",
-        "The sharp case at this boundary is the controlled channel — the "
-        "host steals page faults from the enclave. Nothing here addresses it.",
+        "nothing",
+        "The sharp case: a host that controls paging steals the enclave's page-fault sequence and "
+        "reads its access pattern that way. Nothing here addresses it.",
     ),
     ("uarch", "O6"): (
         "nothing",
@@ -188,9 +186,10 @@ CELLS = {
     ("power", "O0"): ("unreachable", "No physical quantity reaches a transcript."),
     ("power", "O1"): (
         "bridge",
-        "The uncomfortable cell. DVFS makes consumption change frequency, "
-        "and frequency changes wall-clock time (Hertzbleed) — so a power channel surfaces as remote "
-        "timing, and declaring power out of scope does not fully hold.",
+        "The uncomfortable cell, and it points at the row above. DVFS makes consumption change "
+        "frequency, and frequency changes wall-clock time (Hertzbleed) — so a power channel "
+        "surfaces as remote timing. Equal observation traces are then no longer equal running "
+        "times, which is exactly the assumption the timing row rests on.",
     ),
     ("power", "O2"): (
         "unreachable",
@@ -206,13 +205,13 @@ CELLS = {
         "inside the host's reach, without any physical access. Not addressed.",
     ),
     ("power", "O5"): (
-        "boundary",
-        "Same counters, same question about whether the declaration holds.",
+        "nothing",
+        "The host keeps its energy counters while the enclave runs on the same package.",
     ),
     ("power", "O6"): (
-        "scoped-out",
-        "Out of scope by decision, not by omission: this is the observer "
-        "the class is named for, and the project does not aim at it.",
+        "nothing",
+        "The observer this class is named for. Nothing in the pipeline speaks about energy per "
+        "operation, and an IR-level leakage model is the wrong place to start.",
     ),
     ("power", "O7"): ("moot", "A probe does not need the emanation."),
 }
