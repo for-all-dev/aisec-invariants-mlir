@@ -1,0 +1,21 @@
+{
+  "name": "triton",
+  "repo": "https://github.com/triton-lang/triton",
+  "commit": "0890ea9",
+  "checkout": "~/third_party/triton",
+  "note": "The NVIDIA backend as third_party/nvidia/backend/compiler.py assembles it: tt -> ttg -> LLVM. Pass names from include/triton/Conversion/**/Passes.td and third_party/nvidia/include/**/Passes.td.",
+  "dialects": ["tt", "ttg", "ttng", "tti", "gluon", "arith", "scf", "cf", "math", "memref", "func", "llvm", "nvvm"],
+  "test_globs": ["test/Conversion/**/*.mlir", "test/TritonGPU/**/*.mlir", "test/Triton/**/*.mlir"],
+  "pipeline": [
+    {"pass": "--triton-combine (make_ttir)", "from": ["tt"], "to": ["tt"], "cited": "third_party/nvidia/backend/compiler.py:253"},
+    {"pass": "--triton-loop-unroll", "from": ["tt", "scf"], "to": ["tt", "scf"], "cited": "third_party/nvidia/backend/compiler.py:257"},
+    {"pass": "--convert-triton-to-tritongpu", "from": ["tt"], "to": ["ttg"], "cited": "third_party/nvidia/backend/compiler.py:270"},
+    {"pass": "--tritongpu-coalesce", "from": ["ttg"], "to": ["ttg"], "cited": "third_party/nvidia/backend/compiler.py:272"},
+    {"pass": "--tritongpu-accelerate-matmul", "from": ["ttg"], "to": ["ttg", "ttng"], "cited": "third_party/nvidia/backend/compiler.py:278"},
+    {"pass": "--tritongpu-pipeline", "from": ["ttg", "scf"], "to": ["ttg", "scf"], "cited": "third_party/nvidia/backend/compiler.py:292"},
+    {"pass": "--convert-scf-to-cf", "from": ["scf"], "to": ["cf"], "cited": "third_party/nvidia/backend/compiler.py:383"},
+    {"pass": "--convert-triton-gpu-to-llvm", "from": ["ttg", "ttng", "arith", "cf"], "to": ["llvm", "nvvm"], "cited": "third_party/nvidia/backend/compiler.py:395"},
+    {"pass": "--convert-nv-gpu-to-llvm", "from": ["ttng"], "to": ["llvm", "nvvm"], "cited": "third_party/nvidia/backend/compiler.py:399"}
+  ],
+  "templates": []
+}

@@ -17,17 +17,23 @@ from xdsl.parser import Parser
 # Layers are assigned by hand: they encode how far a dialect is from the source
 # language, which is a judgement about MLIR, not something the data knows.
 LAYER = {
-    "onnx": 0, "secret": 0, "tensor_ext": 0, "polynomial": 0,
-    "krnl": 1, "tensor": 1, "mod_arith": 1,
-    "affine": 2,
+    # front ends: the language or domain the compiler starts from
+    "onnx": 0, "torch": 0, "tt": 0, "secret": 0, "tensor_ext": 0, "polynomial": 0, "gluon": 0,
+    # the compiler's own mid-level vocabulary
+    "krnl": 1, "ttg": 1, "ttng": 1, "tti": 1, "mod_arith": 1, "tm_tensor": 1,
+    "tosa": 1, "stablehlo": 1, "chlo": 1, "torch_c": 1, "polygeist": 1,
+    # structured computation
+    "linalg": 2, "tensor": 2, "affine": 2,
     "scf": 3, "memref": 3,
-    "cf": 4, "arith": 4, "vector": 4, "func": 4,
+    "cf": 4, "arith": 4, "func": 4, "vector": 4, "math": 4, "omp": 4,
+    # hardware scheduling and hardware
     "handshake": 5, "calyx": 5, "dc": 5,
     "hw": 6, "comb": 6, "seq": 6,
-    "llvm": 7, "sv": 7, "verilog": 7,
+    # what leaves the compiler
+    "llvm": 7, "nvvm": 7, "sv": 7, "verilog": 7,
 }
 
-data = {"compilers": [], "dialects": {}, "steps": [], "templates": [], "modules": []}
+data = {"compilers": [], "dialects": {}, "steps": [], "templates": []}
 ctx = make_context()
 
 for path in sorted(COMPILERS.glob("*.json")):
@@ -93,22 +99,6 @@ for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
         "bounded": res.bounded, "seconds": round(time.perf_counter() - start, 3),
         "lines": len(f.read_text().splitlines()),
     })
-
-# measured: the size of every translation we had to write ourselves
-for name, what in [
-    ("hw_ops.py", "hw.constant: syntax + semantics"),
-    ("tensor_ops.py", "tensor.extract/insert + the tensor type, on SMT arrays"),
-    ("affine_ops.py", "affine.for/yield syntax"),
-    ("index_ops.py", "arith on index, arith.index_cast"),
-    ("predication.py", "control flow by if-conversion and unrolling"),
-    ("leakage.py", "the leakage model itself"),
-    ("selfcomp.py", "self-composition driver, four obligations"),
-    ("structural.py", "macro-template checker"),
-    ("pdl_ct.py", "PDL rewrite checker"),
-    ("coverage.py", "the coverage counter"),
-]:
-    p = Path("src/fcvdct") / name
-    data["modules"].append({"file": name, "what": what, "lines": len(p.read_text().splitlines())})
 
 data["dialects"] = sorted(data["dialects"].values(), key=lambda e: (e["layer"], -e["mentions"]))
 template = Path(__file__).parent / "page.template.html"

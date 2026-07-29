@@ -108,7 +108,9 @@ svg.graph.panning{cursor:grabbing}
   font-family:var(--mono);pointer-events:none;background:var(--surface);padding:2px 7px;border-radius:6px;
   border:1px solid var(--rule)}
 .node rect{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1}
-.node.hub rect{stroke:var(--ink);stroke-width:1.6}
+.node.hub2 rect{stroke:var(--ink-2);stroke-width:1.8}
+.node.hub3 rect{stroke:var(--ink);stroke-width:2.6}
+.node text.reuse{font-family:var(--mono);font-size:10px;fill:var(--ink-2);dominant-baseline:middle}
 .node text.name{font-family:var(--mono);font-size:12.5px;fill:var(--ink);dominant-baseline:middle}
 .node text.count{font-family:var(--mono);font-size:10px;fill:var(--muted);dominant-baseline:middle}
 .node{cursor:pointer}
@@ -185,7 +187,7 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
     <p class="eyebrow">Исследовательская заметка · 29 июля 2026 · prototypes/fcvd_ct</p>
     <h1>Карта трансляций MLIR</h1>
     <p class="standfirst">Где понижение компилятора превращает безопасный код в небезопасный, какие
-      диалекты стоят на пути у проверки сразу трёх компиляторов — и во сколько обходится закрыть
+      диалекты стоят на пути у проверки сразу шести компиляторов — и во сколько обходится закрыть
       каждый пробел.</p>
     <div class="checkouts">
       <span class="checkout"><b>circt</b> 2803829</span>
@@ -228,11 +230,13 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
 
 <section id="compilers">
   <div class="wrap">
-    <p class="eyebrow">Три компилятора</p>
+    <p class="eyebrow">Шесть компиляторов</p>
     <h2>Что из них вообще можно проверять сегодня</h2>
-    <p class="lede">Эти три выбраны потому, что в них мало «больших» типов и понижений. Счёт ведётся по
-      собственным тестовым корпусам компиляторов: сколько разных операций встречается и какая доля
-      <i>упоминаний</i> приходится на те, что мы умеем переводить.</p>
+    <p class="lede">Первые три выбраны потому, что в них мало «больших» типов и понижений — с них
+      начиналась работа, и только у них есть доказанные шаги. Остальные три добавлены как замер:
+      GPU-компилятор, фронтенд нейросетей и фронтенд C. Счёт ведётся по собственным тестовым корпусам
+      компиляторов — сколько разных операций встречается и какая доля <i>упоминаний</i> приходится на те,
+      что мы умеем переводить.</p>
     <div class="cards" id="cards"></div>
     <ul class="legend">
       <li><span class="swatch s0"></span> умеем переводить: семантика SMT (форма 0) или доказанный шаблон (форма 1)</li>
@@ -246,13 +250,11 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
     <p class="eyebrow">Граф</p>
     <h2>Диалекты и понижения между ними</h2>
     <p class="lede">Узел — диалект MLIR, ребро — шаг понижения из конвейера компилятора, взятый из его
-      исходников. Узел с жирной рамкой используется больше чем одним компилятором: это и есть точки
-      переиспользования, ради которых трансляция пишется один раз.</p>
+      исходников. Чем жирнее рамка узла, тем больше компиляторов через него проходят, и рядом стоит
+      «×N»: это и есть точки переиспользования, ради которых трансляция пишется один раз. Ребро в обратную
+      сторону (справа налево) рисуется дугой снизу — такие шаги действительно есть.</p>
     <div class="controls" role="group" aria-label="Фильтр по компилятору">
-      <button class="chip" data-comp="all" aria-pressed="true">все три</button>
-      <button class="chip" data-comp="circt" aria-pressed="false">circt</button>
-      <button class="chip" data-comp="heir" aria-pressed="false">heir</button>
-      <button class="chip" data-comp="onnx-mlir" aria-pressed="false">onnx-mlir</button>
+      <button class="chip" data-comp="all" aria-pressed="true">все</button>
     </div>
     <ul class="legend">
       <li><span class="swatch s1"></span> ✓ шаг с доказанной спецификацией</li>
@@ -321,7 +323,8 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
     <p class="eyebrow">Что действительно измерено</p>
     <h2>Замеры, а не оценки</h2>
     <p class="lede">Каждый шаблон прогнан по одному разу в этом же процессе; время включает построение
-      SMT-запроса и ответ z3.</p>
+      SMT-запроса и ответ z3. Шаблоны есть пока только у CIRCT, HEIR и onnx-mlir — остальные три
+      компилятора на карте измерены, но не проверены.</p>
     <div class="tablewrap"><table id="tmpltable">
       <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений<br>ист. → цель</th>
         <th class="num">строк</th><th class="num">секунд</th></tr></thead>
@@ -330,11 +333,6 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
     <div class="note"><b>Красные строки — это находки, а не поломки инструмента.</b> Шаблон,
       документированный как ломающий constant-time, обязан ломать его и сегодня, иначе находка устарела;
       счётчик покрытия проверяет и это.</div>
-    <h3 style="margin-top:34px">Трансляции, которые пришлось написать</h3>
-    <div class="tablewrap"><table id="modtable">
-      <thead><tr><th>Модуль</th><th>Что переводит</th><th class="num">строк</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
   </div>
 </section>
 
@@ -441,14 +439,16 @@ ${e.from} → ${e.to}</title></path>`;
   nodes.forEach(d => {
     const on = liveNodes.has(d.name);
     const sel = state.sel && state.sel.type === "dialect" && state.sel.id === d.name;
-    const hub = d.compilers.length > 1;
+    const reuse = d.compilers.length;
+    const hub = reuse > 2 ? " hub3" : reuse > 1 ? " hub2" : "";
     const total = d.forms[0] + d.forms[1] + d.forms[2];
     const known = d.forms[0] + d.forms[1];
-    out += `<g class="node${hub ? " hub" : ""}${on ? "" : " dim"}${sel ? " sel" : ""}"
+    out += `<g class="node${hub}${on ? "" : " dim"}${sel ? " sel" : ""}"
         data-node="${d.name}" tabindex="0" role="button" aria-label="диалект ${d.name}">
       <rect x="${d.x}" y="${d.y}" width="${NW}" height="${NH}" rx="7"></rect>
       <text class="name" x="${d.x + 11}" y="${d.y + NH / 2 - 5}">${d.name}</text>
       <text class="count" x="${d.x + 11}" y="${d.y + NH / 2 + 9}">${total ? known + "/" + total : "нет данных"}</text>
+      ${reuse > 1 ? `<text class="reuse" x="${d.x + NW - 26}" y="${d.y + NH / 2 - 5}">×${reuse}</text>` : ""}
       ${total ? `<rect x="${d.x + NW - 10}" y="${d.y + 6}" width="4" height="${NH - 12}" rx="2"
         fill="var(--absent)" opacity=".35"></rect>
         <rect x="${d.x + NW - 10}" y="${d.y + 6 + (NH - 12) * (1 - known / total)}" width="4"
@@ -536,7 +536,7 @@ function showDetail() {
     const ops = d.ops.slice().sort((a, b) => a.form - b.form || b.n - a.n);
     detail.innerHTML = `<h3>${d.name}
       ${d.compilers.map(c => `<span class="tag">${c}</span>`).join("")}
-      ${d.compilers.length > 1 ? '<span class="tag">точка переиспользования</span>' : ""}</h3>
+      ${d.compilers.length > 1 ? `<span class="tag">точка переиспользования ×${d.compilers.length}</span>` : ""}</h3>
       <dl class="kv">
         <dt>операций</dt><dd>${d.ops.length} разных, ${fmt(d.mentions)} упоминаний в корпусах</dd>
         <dt>формы</dt><dd>${d.forms[0]} с семантикой · ${d.forms[1]} шаблоном · <b>${d.forms[2]} без перевода</b></dd>
@@ -568,6 +568,14 @@ function showDetail() {
 }
 
 /* ---------- filters ---------- */
+const chipRow = document.querySelector(".controls");
+DATA.compilers.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.dataset.comp = c.name; b.type = "button";
+  b.setAttribute("aria-pressed", "false");
+  b.textContent = c.name;
+  chipRow.appendChild(b);
+});
 document.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => {
   state.comp = chip.dataset.comp;
   document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c === chip)));
@@ -632,6 +640,8 @@ function drawCostCards(perOp, perTmpl) {
         <span class="s2" style="width:${(100 - share).toFixed(1)}%"></span>
       </div>
       <p class="figure">${hours(translate + specify)}</p>
+      ${steps.some(x => x.proved.length || x.breaks.length) ? ""
+        : '<p class="sub" style="color:var(--muted)">пока только измерен: ни один шаг не проверялся</p>'}
       <p class="sub"><b>${hours(translate)}</b> — ${ops} операций без перевода в ${touched.size} диалектах
         конвейера.<br><b>${hours(specify)}</b> — по два шаблона на каждый из ${naked} шагов без
         спецификации.</p>
@@ -656,9 +666,6 @@ document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
       <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (огранич.)" : ""}</td>
       <td class="num">${t.lines}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`;
   }).join("");
-
-document.querySelector("#modtable tbody").innerHTML = DATA.modules
-  .map(m => `<tr><td class="mono">${m.file}</td><td>${m.what}</td><td class="num">${m.lines}</td></tr>`).join("");
 
 render(); applyView(); drawSteps();
 </script>
