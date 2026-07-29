@@ -1,6 +1,10 @@
 """Rebuild the artifact from live data.
 
     uv run python artifact/collect.py > artifact/translation-map.html
+    uv run python artifact/collect.py --standalone > docs/index.html
+
+The first form is the body the Artifact runtime wraps for itself. The second wraps
+it here instead, for anywhere that serves plain files -- GitHub Pages among them.
 
 Everything the page shows is produced here: the dialect graph is the union of the
 pipeline steps in `compilers/*.json`, the operation tables come from the same corpus
@@ -9,6 +13,7 @@ page is typed in by hand except the prose and the layer assignment below.
 """
 
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -160,8 +165,32 @@ for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
 
 data["dialects"] = sorted(data["dialects"].values(), key=lambda e: (e["layer"], -e["mentions"]))
 template = Path(__file__).parent / "page.template.html"
-print(
+page = (
     template.read_text()
     .replace("__DATA__", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
     .replace("__PROFILE__", json.dumps(profile_data(), ensure_ascii=False, separators=(",", ":")))
 )
+
+#: The document the Artifact runtime supplies for us, and a static host does not.
+#: `data-theme` is that viewer's own theme toggle; outside it the page follows the
+#: operating system through prefers-color-scheme, which the tokens already handle.
+STANDALONE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Where MLIR lowerings break constant-time, across six \
+compilers, and what closing each gap costs. Generated from prototypes/fcvd_ct.">
+__HEAD__
+</head>
+<body>
+__BODY__
+</body>
+</html>
+"""
+
+if "--standalone" in sys.argv:
+    head, body = page.split("</style>", 1)
+    print(STANDALONE.replace("__HEAD__", head + "</style>").replace("__BODY__", body))
+else:
+    print(page)
