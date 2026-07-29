@@ -75,34 +75,37 @@ CELLS = {
     # ---- functional: the values themselves. Observer-independent, so the row runs
     # blue until the observer stops needing to infer at all.
     ("functional", "O0"): (
-        "covered",
+        "partial",
         "The transcript is exactly what this observer gets, and value "
-        "equivalence is the other half of what FCVD gives: the refinement criterion relates what "
-        "two programs compute. Upstream verify-pdl proves it per rewrite, and every pattern in the "
-        "corpus carries that verdict beside ours.",
+        "equivalence is the other half of what FCVD gives: the refinement criterion relates what two "
+        "programs compute. Both halves are now proved, by different things, and neither is complete. "
+        "Per rewrite it is upstream verify-pdl, sound for the seven PDL patterns but run by hand, not "
+        "from the test suite. Per lowering step it is our own equivalence query over holes, machine-"
+        "checked beside the leakage one — but most templates return nothing, so for them the value "
+        "clause rests on the memory they leave behind rather than on a returned result.",
     ),
     ("functional", "O1"): (
-        "covered",
-        "Same proof. A clock adds nothing to what the answer reveals.",
+        "partial",
+        "Same proof, same two gaps. A clock adds nothing to what the answer reveals.",
     ),
     ("functional", "O2"): (
-        "covered",
-        "Same proof. The constant-time trace carries no values by "
+        "partial",
+        "Same proof, same two gaps. The constant-time trace carries no values by "
         "construction — operands are outside the model.",
     ),
     ("functional", "O3"): (
-        "covered",
-        "Same proof. What a cache observer recovers is addresses, "
+        "partial",
+        "Same proof, same two gaps. What a cache observer recovers is addresses, "
         "which is the microarchitectural row, not this one.",
     ),
     ("functional", "O4"): (
-        "covered",
-        "Same proof. Power reveals activity, not the returned value.",
+        "partial",
+        "Same proof, same two gaps. Power reveals activity, not the returned value.",
     ),
     ("functional", "O5"): (
-        "covered",
+        "partial",
         "What this observer is handed is the declared interface — the "
-        "transcript again, and the same proof applies to it.",
+        "transcript again, and the same proof, with the same two gaps, applies to it.",
     ),
     ("functional", "O6"): (
         "moot",

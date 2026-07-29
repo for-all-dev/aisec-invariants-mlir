@@ -9,6 +9,12 @@ of *leakage*, so a security property cannot be stated in it as it stands. This p
 missing pieces — an explicit **leakage model** (what an attacker observes) and **self-composition**
 (two runs that must stay indistinguishable) — and turns constant-time into one SMT query.
 
+"Safe" here means **functional equivalence together with resistance to timing attacks**, and the two
+are independent: a rewrite that returns a stale value adds no observation, and a rewrite that
+branches on a secret computes exactly the right answer. `fcvd-ct-lowering` therefore proves both and
+reports both. For PDL rewrites the value half is upstream's `verify-pdl`, run beside `fcvd-ct-pdl`
+(and, honestly, still run by hand — the table below is transcribed, not re-derived by `pytest`).
+
 Plan, findings and scope limits: `../../docs/research/fcvd-selfcomposition.agents.md`.
 
 ## Setup
@@ -108,7 +114,7 @@ where the source already leaks and the target leaks *something else*, a checker 
 `unsupported_float` is the coverage control — no float semantics exist upstream, and the answer must
 be `unknown`, never a silent `preserving`.
 
-## `fcvd-ct-lowering` — does a *lowering step* preserve constant-time?
+## `fcvd-ct-lowering` — is a *lowering step* safe? (both halves)
 
 ```bash
 uv run fcvd-ct-lowering templates/select_to_cf.mlir --counterexample
@@ -121,7 +127,22 @@ object, so it takes the same property as above, with stronger quantification: a 
 uninterpreted function, so a proof covers *every* program the template can be instantiated with,
 not only programs built from operations we gave semantics to.
 
-Two things make the encoding work, and both are checked by mutation tests rather than assumed:
+**Safe means two things, and the tool proves them separately.** Constant-time is one half. The
+other is that the target still computes what the source computed — and the leakage property cannot
+see it: a rewrite that reads a stale value adds no observation, so it passes. So every template gets
+two queries, and `VERIFIED` requires both:
+
+| half | question | refuted by |
+|---|---|---|
+| constant-time | `L_source(x) = L_source(x') ⟹ L_target(x) = L_target(x')` | an observation the target makes and the source did not |
+| equivalence | `ub_source ∨ (¬ub_target ∧ returned values agree ∧ memory agrees)` | an input where the two compute different things |
+
+The equivalence half is upstream FCVD's own refinement criterion, UB polarity included, rebuilt over
+holes — a source that is already undefined excuses the target, which is what makes it a refinement
+and not equality. `--ct-only` asks the leakage half alone and says on stdout that the answer is
+partial.
+
+Four things make the encoding work, and all four are checked by mutation tests rather than assumed:
 
 - **Guards.** If-conversion evaluates both arms, so observations carry the path condition they
   happen under and traces are compared as `same guards ∧ (guard → same value)`. Comparing without
@@ -130,25 +151,67 @@ Two things make the encoding work, and both are checked by mutation tests rather
 - **Hole congruence.** Instances of the same hole are tied by `equal inputs → equal outputs`.
   Removing the axioms does not make the corpus pass, it makes the *correct* lowering fail
   (`test_hole_congruence_is_load_bearing`).
+- **Returned values.** Drop them from the equivalence query and the stale-value rewrite comes back
+  `equivalent`, which is exactly the blind spot the gate exists to close
+  (`test_returned_values_are_load_bearing`).
+- **Defined inputs, and exact congruence.** The equivalence query asserts its arguments are not
+  poison and relates hole outputs including their definedness. Without the first, CIRCT's guarded
+  divisor is refuted; without the second, a *correct* rewrite is refuted, because the accumulated
+  result inherits a free poison marker in one program and not the other. Both are false alarms found
+  by a control that did not break (`test_defined_inputs_are_load_bearing`,
+  `test_exact_hole_congruence_is_load_bearing`). The leakage query keeps the weak axiom and its own
+  reason for it.
 
-### Measured on the template corpus (2026-07-28)
+### Measured on the template corpus (2026-07-29)
 
-| template | lowering | verdict |
-|---|---|---|
-| `scf_if_to_cf` | `scf.if` → `cf.cond_br` + join block | ct-preserving (obs 3 → 3) |
-| `if_to_select_pure` | branch over pure code → `arith.select` | ct-preserving (obs 1 → 0) |
-| `select_to_cf` | `arith.select` → `cf.cond_br` | **ct-breaking** (obs 0 → 1) |
-| `if_to_select_leaky` | branch over *leaking* code → `arith.select` | **ct-breaking** (obs 3 → 2) |
-| `swapped_arms` | `scf.if` → `cf.cond_br` with the arms exchanged | **ct-breaking** (obs 3 → 3) |
-| `scf_for_to_cf` | `scf.for` → header/body/latch/exit skeleton | ct-preserving, bounded (9 → 8) |
-| `scf_for_bounded` | a loop against itself | ct-preserving, bounded (9 → 9) |
-| `loop_early_exit` | the loop skeleton plus "leave when the body finds something" | **ct-breaking** (9 → 12) |
-| `while_unsupported` | anything with `scf.while` | unknown |
+| template | lowering | constant-time | equivalence |
+|---|---|---|---|
+| `scf_if_to_cf` | `scf.if` → `cf.cond_br` + join block | ct-preserving (obs 3 → 3) | equivalent |
+| `if_to_select_pure` | branch over pure code → `arith.select` | ct-preserving (obs 1 → 0) | equivalent |
+| `select_to_cf` | `arith.select` → `cf.cond_br` | **ct-breaking** (obs 0 → 1) | equivalent |
+| `if_to_select_leaky` | branch over *leaking* code → `arith.select` | **ct-breaking** (obs 3 → 2) | equivalent |
+| `swapped_arms` | `scf.if` → `cf.cond_br` with the arms exchanged | **ct-breaking** (obs 3 → 3) | equivalent |
+| `scf_for_to_cf` | `scf.for` → header/body/latch/exit skeleton | ct-preserving, bounded (9 → 8) | equivalent, bounded |
+| `scf_for_bounded` | a loop against itself | ct-preserving, bounded (9 → 9) | equivalent, bounded |
+| `loop_early_exit` | the loop skeleton plus "leave when the body finds something" | **ct-breaking** (9 → 12) | equivalent |
+| `while_unsupported` | anything with `scf.while` | unknown | unknown |
+| `polygeist/canonicalize_for_propagate_value` | `PropagateInLoopBody`, body result returned | ct-preserving (9 → 9) | equivalent, bounded |
+| `polygeist/canonicalize_for_propagate_moved_value` | the same rewrite where the pass refuses it | ct-preserving (9 → 9) | **not-equivalent**, bounded |
 
 `select_to_cf` is the static counterpart of the `select` kernels `mlir_leak` probes by measurement.
 The `if_to_select_pure` / `if_to_select_leaky` pair is the useful one: the two templates differ only
 in whether the branch arms leak, and the verdict flips — if-conversion is a hardening for pure code
 and a *new* leak for code that touches memory or divides, because the untaken arm now runs too.
+
+The last two rows are the reason the gate exists, and they are a pair. Polygeist's
+`--canonicalize-for` replaces uses of a loop's iteration argument by its init value, and only when
+the loop yields that argument back unchanged
+(`lib/polygeist/Passes/CanonicalizeFor.cpp:45`). Apply it where that side condition fails and the
+body reads a stale value: **the leakage half still says preserving — correctly, since a wrong answer
+leaks no more than a right one — and only the equivalence half refutes it.** That blind spot was
+recorded in `docs/research/polygeist-verification.agents.md` as a limit of the instrument; it is now
+a verdict the tool prints.
+
+### What the equivalence half compares, and what it does not
+
+- **Returned values**, pairwise across return sites: wherever a source path and a target path are
+  both taken, their results must agree. Pairing by index would be wrong — after unrolling, the
+  target's return sites need not line up with the source's.
+- **The memory left behind**, compared whole. This is *stronger* than upstream's block-by-block
+  refinement: it also pins the unallocated part and the order blocks were allocated in, so it can
+  raise a false alarm on a lowering that reallocates, and cannot pass one that writes different
+  bytes. Strict is the safe direction for a gate; the asymmetry is stated rather than assumed away.
+- **A template that returns nothing** has only the memory clause behind its `equivalent`, and the
+  tool prints which of the two it was. Most of the corpus is in that position — the templates were
+  written for the leakage question — so `equivalent` there is a real but thin statement, exactly as
+  `secure` with zero observations is. Giving a template results to return is what makes the value
+  half bite, and the `canonicalize_for_propagate_value` pair is what that looks like.
+- **A hole does not touch memory** (`HoleSemantics` threads the effect state through unchanged), so a
+  template whose source models memory-touching code as a hole cannot be checked for equivalence at
+  all. `onnx_mlir/gather_to_krnl` is that case: its `@source` is `onnx.Gather` as a pure hole while
+  its `@target` stores into `%out`, so the gate reports **not-equivalent**, and the honest reading is
+  "this template does not state what is computed", not "onnx-mlir changes the meaning of a gather".
+  Checking that one needs real `onnx.Gather` semantics, i.e. a form-2 translation.
 
 ### What this does and does not assume
 
@@ -252,6 +315,11 @@ self-composition (P1), since address-shaped rewrites are not what PDL patterns t
 - **P5 (done)** — `fcvd-ct-pdl`: universal, per-rewrite constant-time preservation.
 - **P3 (done)** — `fcvd-ct-lowering`: control flow via if-conversion, and lowering steps verified as
   structural specifications over holes.
+- **P7 (done)** — the equivalence half of the gate, over the same holes: `check_equivalence` and
+  `check_template`, so `VERIFIED` means the step preserves constant-time *and* computes the same
+  thing. `fcvd-ct-coverage` will not count a macro-template towards form 1 unless both hold. Still
+  open: most templates return nothing, so the value clause is thin for them, and the PDL corpus's
+  value column is upstream's `verify-pdl` run by hand rather than from `pytest`.
 - **P1/P2 (done)** — `fcvd-ct`: labelled self-composition with the four obligations, and the kernel
   corpus in `kernels/` with both polarities of each.
 - **P4 (partly done)** — the differential across a lowering, per compiler: the kernel chains above

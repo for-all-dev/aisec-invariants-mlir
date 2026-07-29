@@ -22,7 +22,7 @@ from xdsl.parser import Parser
 
 from fcvdct.context import make_context
 from fcvdct.coverage import COMPILERS, TEMPLATES, Compiler, report
-from fcvdct.structural import check_lowering
+from fcvdct.structural import check_template
 
 # Layers are assigned by hand: they encode how far a dialect is from the source
 # language, which is a judgement about MLIR, not something the data knows.
@@ -147,17 +147,20 @@ for d, entry in data["dialects"].items():
     entry["mentions"] = sum(o["n"] for o in entry["ops"])
     entry["layer"] = LAYER.get(d, 4)
 
-# measured: one timed run per template
+# measured: one timed run per template, both halves of the gate
 for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
     module = Parser(ctx, f.read_text(), str(f)).parse_module()
     start = time.perf_counter()
-    res = check_lowering(ctx, module, timeout=120)
+    gate = check_template(ctx, module, timeout=120)
+    res = gate.constant_time
     data["templates"].append(
         {
             "file": str(f.relative_to(TEMPLATES)),
             "verdict": res.verdict,
+            "equivalence": gate.equivalence.verdict,
+            "returned": gate.equivalence.n_compared,
             "obs": [res.n_source_observations, res.n_target_observations],
-            "bounded": res.bounded,
+            "bounded": res.bounded or gate.equivalence.bounded,
             "seconds": round(time.perf_counter() - start, 3),
             "lines": len(f.read_text().splitlines()),
         }

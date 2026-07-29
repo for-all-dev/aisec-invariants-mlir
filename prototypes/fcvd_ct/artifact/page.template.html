@@ -447,11 +447,14 @@ table.grid td{padding:0}
   <div class="wrap">
     <p class="eyebrow">What is actually measured</p>
     <h2>Measurements, not estimates</h2>
-    <p class="lede">Every template was run once in this same process; the time covers building the SMT
-      query and z3's answer. Only CIRCT, HEIR and onnx-mlir have templates so far — the other three
-      compilers on the map are measured, not checked.</p>
+    <p class="lede">Every template was run once in this same process; the time covers building both SMT
+      queries and z3's answers. A step is verified only if it preserves constant-time <b>and</b> still
+      computes the same thing — the two are independent, and the second column is the half a leakage
+      property cannot see. Only CIRCT, HEIR, onnx-mlir and Polygeist have templates so far — the other
+      two compilers on the map are measured, not checked.</p>
     <div class="tablewrap"><table id="tmpltable">
-      <thead><tr><th>Template</th><th>Verdict</th><th class="num">observations<br>source → target</th>
+      <thead><tr><th>Template</th><th>Constant-time</th><th>Equivalence</th>
+        <th class="num">observations<br>source → target</th>
         <th class="num">lines</th><th class="num">seconds</th></tr></thead>
       <tbody></tbody>
     </table></div>
@@ -792,8 +795,16 @@ document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
     const col = t.verdict === "ct-preserving" ? "spec" : t.verdict === "ct-breaking" ? "breaking" : "absent";
     const label = t.verdict === "ct-preserving" ? "✓ preserving"
       : t.verdict === "ct-breaking" ? "✕ breaking" : "? unknown";
+    /* The other half: a template that returns nothing has only the memory clause behind
+       its "equivalent", which is a weaker statement and says so. */
+    const ecol = t.equivalence === "equivalent" ? (t.returned ? "spec" : "absent")
+      : t.equivalence === "not-equivalent" ? "breaking" : "absent";
+    const elabel = t.equivalence === "equivalent"
+        ? (t.returned ? `✓ equivalent (${t.returned} returned)` : "✓ memory only, nothing returned")
+      : t.equivalence === "not-equivalent" ? "✕ not equivalent" : "? unknown";
     return `<tr><td class="mono">${t.file}</td>
       <td class="mono" style="color:var(--${col})">${label}</td>
+      <td class="mono" style="color:var(--${ecol})">${elabel}</td>
       <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (bounded)" : ""}</td>
       <td class="num">${t.lines}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`;
   }).join("");

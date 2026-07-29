@@ -73,7 +73,14 @@ and memory* part exists today. Four things are missing, and they are the actual 
    "every `if` becomes a path condition, every loop bound becomes a predicate" is **the single
    largest cost item in this plan**, not a property we inherit.
 
-A fifth point is about what may honestly be claimed at the end. `verify-pdl` proves a rewrite for all
+A fifth point, and the one that took longest to notice: **the two halves of "safe" are separate
+queries, and only one of them was being asked.** The leakage property cannot refute a value bug by
+construction, upstream's value criterion is deliberately switched off inside our checkers (a constant
+`false` refinement, which collapses upstream's assertion to the assumption we want), and for
+structural templates nothing supplied it — `verify-pdl` takes only PDL patterns and `xdsl-tv` cannot
+express a hole. Closed by P7 below.
+
+A sixth point is about what may honestly be claimed at the end. `verify-pdl` proves a rewrite for all
 programs; MLIR's `scf`→`cf`→`llvm` lowerings are C++ conversion patterns, not PDL rewrites.
 
 *Revised by P3:* that is true of the implementation but does not bound what is provable. A lowering
@@ -231,6 +238,51 @@ the ordering below is otherwise the dependency order.
 - **P6 — integration.** A layer in `formal_verif/PIPELINE.md` next to A/B/C/D (this is the MLIR-level
   formal layer; binsec stays the binary-level one), a row in `run_all.sh`, and a results note.
   `prototypes/fcvd_ct/run_all.sh` exists; the `formal_verif` cross-link does not yet.
+- **P7 — the equivalence half of the gate. *Done*, 2026-07-29.** "Safe" was stated from the start as
+  functional equivalence *together with* resistance to timing attacks, and only the second half was
+  being checked. For PDL rewrites the first half came from upstream `verify-pdl`, run beside ours; for
+  **structural templates there was nothing at all**, because `verify-pdl` takes only PDL patterns and
+  `xdsl-tv` cannot express a hole. The gap was not academic: the loop found it on Polygeist's
+  `--canonicalize-for`, whose side condition is about functional equivalence, and recorded that the
+  leakage property cannot falsify a value bug by construction.
+
+  `structural.check_equivalence` closes it on the same machinery — same flattening, same holes, same
+  congruence axioms — but relating what the two programs *return* and the memory they leave behind
+  instead of their observation traces, under upstream's own criterion including UB polarity
+  (`ub_source ∨ (¬ub_target ∧ agree)`). `check_template` requires both answers, `fcvd-ct-lowering`
+  prints both, and `fcvd-ct-coverage` will not count a macro-template towards form 1 unless both hold
+  (measured effect on all six descriptors: none, so nothing already claimed was resting on unchecked
+  value behaviour).
+
+  Two encoding choices, both found by a control that did *not* break, both pinned by mutation tests
+  in `tests/test_gate.py` [measured, 2026-07-29]:
+
+  1. the equivalence query asserts its **arguments are defined**. Without it a free poison bit
+     reaches the guard CIRCT's `--convert-comb-to-arith` inserts (`divisor = (b == 0) ? 1 : b`), the
+     target raises UB the source did not, and a correct pattern is refuted. Same family as the P0
+     finding in §1.3, arriving through the UB clause instead of the value one.
+  2. hole congruence relates the **whole** lowered value here, definedness included, unlike the
+     leakage query — where comparing poison was removed in `6b4cf86` for its own good reason. Same
+     code on the same input is either defined or not; leaving the outputs' markers free refuted the
+     *correct* `--canonicalize-for` rewrite.
+
+  | template | constant-time | equivalence |
+  |---|---|---|
+  | `polygeist/canonicalize_for_propagate_value` | ct-preserving (9 → 9) | equivalent, bounded |
+  | `polygeist/canonicalize_for_propagate_moved_value` | ct-preserving (9 → 9) | **not-equivalent** |
+
+  That pair is the deliverable: the mutation Polygeist refuses to perform passes the leakage half
+  (correctly — a wrong answer leaks no more than a right one) and is refuted by the value half.
+
+  Honest limits. **Most templates return nothing**, so their `equivalent` rests on the memory clause
+  alone; the tool prints which, and giving templates results to return is the obvious next corpus
+  task. **Memory is compared whole**, which is stronger than upstream's block-by-block refinement, so
+  it can raise a false alarm on a lowering that reallocates — strict is the safe direction for a gate.
+  **A hole does not touch memory**, so a template whose source models memory-touching code as a hole
+  (`onnx_mlir/gather_to_krnl`) cannot be checked for equivalence at all, and its `not-equivalent` is a
+  statement about the template, not about onnx-mlir. And the PDL corpus's value column is still
+  upstream `verify-pdl` **run by hand** — not wired into `run_all.sh` or `pytest`, so unlike ours
+  those verdicts are transcribed rather than re-derived.
 
 ## 4. What this does and does not buy us for the Jasmin question
 
