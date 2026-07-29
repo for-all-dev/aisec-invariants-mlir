@@ -48,14 +48,9 @@ code,.mono{font-family:var(--mono);font-size:.9em;font-variant-ligatures:none}
 
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
          color:var(--muted);margin:0 0 14px}
-.masthead{border-bottom:1px solid var(--rule);background:var(--surface);padding:52px 0 34px}
-.standfirst{font-size:clamp(17px,1.7vw,20px);line-height:1.5;color:var(--ink-2);max-width:62ch;margin:18px 0 0}
-.checkouts{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
-.checkout{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);
-          border:1px solid var(--rule);border-radius:999px;padding:5px 12px;white-space:nowrap}
-.checkout b{color:var(--ink);font-weight:620}
 
 section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section:first-of-type{padding-top:44px}
 section > .wrap > .eyebrow{margin-bottom:10px}
 .lede{color:var(--ink-2);max-width:68ch;margin-top:14px}
 
@@ -73,6 +68,9 @@ section > .wrap > .eyebrow{margin-bottom:10px}
 .card .sub{font-size:13px;color:var(--ink-2);margin:0}
 .meter{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:14px 0 10px;gap:2px;background:var(--sunken)}
 .meter span{display:block}
+.bar{height:6px;border-radius:4px;background:var(--sunken);overflow:hidden;margin:10px 0 12px}
+.bar span{display:block;height:100%;background:var(--translatable);border-radius:4px}
+.card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent), var(--shadow)}
 .meter .s0{background:var(--translatable)}
 .meter .s1{background:var(--spec)}
 .meter .s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
@@ -182,23 +180,6 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
 }
 </style>
 
-<header class="masthead">
-  <div class="wrap">
-    <p class="eyebrow">Исследовательская заметка · 29 июля 2026 · prototypes/fcvd_ct</p>
-    <h1>Карта трансляций MLIR</h1>
-    <p class="standfirst">Где понижение компилятора превращает безопасный код в небезопасный, какие
-      диалекты стоят на пути у проверки сразу шести компиляторов — и во сколько обходится закрыть
-      каждый пробел.</p>
-    <div class="checkouts">
-      <span class="checkout"><b>circt</b> 2803829</span>
-      <span class="checkout"><b>heir</b> de797a2</span>
-      <span class="checkout"><b>onnx-mlir</b> de23de7</span>
-      <span class="checkout">xdsl-smt <b>dd30235</b></span>
-      <span class="checkout">z3 <b>4.15.1</b></span>
-      <span class="checkout">Xeon 8168</span>
-    </div>
-  </div>
-</header>
 
 <main>
 
@@ -310,6 +291,8 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
       каждая операция считается один раз на компилятор.</p>
 
     <h3 style="margin-top:30px">Сколько стоит компилятор целиком</h3>
+    <p class="lede" style="margin-top:6px">Здесь всегда все шесть, по возрастанию, — фильтр компилятора
+      действует только на таблицу выше.</p>
     <div class="cards" id="costcards"></div>
     <p class="lede" style="margin-top:14px">Считается только то, что компилятор действительно использует:
       операции без перевода в тех диалектах, которые встречаются в его конвейере, по его собственному
@@ -343,7 +326,8 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
   <p style="max-width:70ch;margin:0 0 10px">Компиляторы на машине не собраны: каждая пара «до / после»
   переписана из исходника паттерна или из его lit-теста, со ссылкой на файл и строку. Доказано свойство
   спецификации шага, а не выхода бинарника компилятора.</p>
-  Источник данных: <code class="mono">prototypes/fcvd_ct</code>, ветка
+  Замеры: Xeon 8168, z3 4.15.1, xdsl-smt dd30235. Источник данных:
+  <code class="mono">prototypes/fcvd_ct</code>, ветка
   <code class="mono">fcvd-mlir-noninterference</code>. Воспроизводится через <code class="mono">./run_all.sh</code>
   и <code class="mono">uv run fcvd-ct-coverage</code>; вердикты закреплены тестами (<code class="mono">uv run pytest</code>).
 </div></footer>
@@ -618,8 +602,9 @@ function drawSteps() {
 }
 
 function drawCostCards(perOp, perTmpl) {
-  const shown = DATA.compilers.filter(c => state.comp === "all" || c.name === state.comp);
-  document.getElementById("costcards").innerHTML = shown.map(c => {
+  // Always every compiler: this section exists to compare them, so it must not
+  // quietly follow the filter that lives in the graph section far above.
+  const rows = DATA.compilers.map(c => {
     const touched = new Set();
     DATA.steps.filter(s => s.compiler === c.name)
       .forEach(s => { s.from.forEach(d => touched.add(d)); s.to.forEach(d => touched.add(d)); });
@@ -633,18 +618,21 @@ function drawCostCards(perOp, perTmpl) {
     const naked = steps.filter(s => !s.proved.length && !s.breaks.length).length;
     const translate = ops * perOp, specify = naked * 2 * perTmpl;
     const share = ops + known ? 100 * known / (ops + known) : 0;
-    return `<article class="card">
-      <h3>${c.name}</h3>
-      <div class="meter" role="img" aria-label="доля операций, которые умеем переводить">
-        <span class="s0" style="width:${share.toFixed(1)}%"></span>
-        <span class="s2" style="width:${(100 - share).toFixed(1)}%"></span>
-      </div>
-      <p class="figure">${hours(translate + specify)}</p>
-      ${steps.some(x => x.proved.length || x.breaks.length) ? ""
-        : '<p class="sub" style="color:var(--muted)">пока только измерен: ни один шаг не проверялся</p>'}
-      <p class="sub"><b>${hours(translate)}</b> — ${ops} операций без перевода в ${touched.size} диалектах
+    return {c, ops, known, share, touched, steps, naked, translate, specify,
+            total: translate + specify};
+  }).sort((a, b) => a.total - b.total);
+
+  const most = Math.max(...rows.map(r => r.total));
+  document.getElementById("costcards").innerHTML = rows.map(({c, ops, share, touched, steps, naked, translate, specify, total}) => {
+    return `<article class="card${state.comp === c.name ? " active" : ""}">
+      <h3>${c.name} <span class="commit">${c.commit}</span></h3>
+      <p class="figure">${hours(total)}</p>
+      <div class="bar" role="img" aria-label="доля от самого дорогого компилятора">
+        <span style="width:${most ? (100 * total / most).toFixed(1) : 0}%"></span></div>
+      <p class="sub"><b>${hours(translate)}</b> — ${ops} операций без перевода в диалектах его
         конвейера.<br><b>${hours(specify)}</b> — по два шаблона на каждый из ${naked} шагов без
-        спецификации.</p>
+        спецификации.${steps.some(x => x.proved.length || x.breaks.length) ? ""
+        : "<br><span style=\"color:var(--muted)\">пока только измерен: ни один шаг не проверялся</span>"}</p>
     </article>`;
   }).join("");
 }
