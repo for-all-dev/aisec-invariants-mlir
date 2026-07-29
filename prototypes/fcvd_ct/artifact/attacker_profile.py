@@ -161,9 +161,10 @@ CELLS = {
     # ---- microarchitectural: state left in shared hardware
     ("uarch", "O0"): ("unreachable", "Shared hardware state is not in the transcript."),
     ("uarch", "O1"): (
-        "unreachable",
-        "Remote measurement sees aggregate latency, not cache sets. "
-        "What does surface that way is already constrained by the timing row.",
+        "partial",
+        "Cache effects do reach a remote observer, through the clock rather than directly. That is "
+        "also the one place where we have something to say about them: the address trace is proved "
+        "equal, which removes the dominant mechanism. Contention from other tenants is not ours.",
     ),
     ("uarch", "O2"): (
         "partial",
@@ -199,14 +200,15 @@ CELLS = {
         "rests on.",
     ),
     ("power", "O2"): (
-        "unreachable",
-        "The constant-time trace has no notion of energy per "
-        "operation; nothing of this class is expressible in it.",
+        "nothing",
+        "The trace itself has no notion of energy per operation — but an observer standing here "
+        "holds everything O1 holds, the clock included, so the frequency path above is open to it "
+        "too. Visible, and uncovered.",
     ),
     ("power", "O3"): (
         "nothing",
-        "A co-resident process sees the frequency effects above without "
-        "any privilege. Not addressed.",
+        "A co-resident process reads the frequency effects above with no privilege at all, and sits "
+        "close enough to correlate them with its own activity. Not addressed.",
     ),
     ("power", "O4"): (
         "nothing",
