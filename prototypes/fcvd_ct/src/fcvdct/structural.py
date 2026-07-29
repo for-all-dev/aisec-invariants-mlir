@@ -48,7 +48,7 @@ from .dialect import StructuralTrace
 from .leakage import LeakageRule
 from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate
 from .smtutil import conjoin as _conjoin
-from .smtutil import finish_module, instantiate, traces_agree
+from .smtutil import finish_module, instantiate, observed_value, traces_agree
 
 Verdict = Literal["ct-preserving", "ct-breaking", "unknown"]
 
@@ -80,17 +80,28 @@ def _hole_congruence(builder: Builder, traces: Sequence[StructuralTrace]) -> lis
             for other_inputs, other_outputs in occurrences[index + 1 :]:
                 if len(inputs) != len(other_inputs) or len(outputs) != len(other_outputs):
                     raise UnsupportedTemplate("the same hole is used with different signatures")
+                # Compare the values, not the poison bits. `traces_agree` already made
+                # that call for observations, and a hole models code the attacker
+                # cannot see into: it can no more observe definedness than the trace
+                # can. Comparing raw pairs makes congruence fail whenever a poison
+                # marker differs -- which is what a loop does as soon as its bound is
+                # a function argument, since the unrolled `select` inherits that
+                # poison. The result was a *correct* rewrite reported as ct-breaking.
                 same_inputs = _conjoin(
                     builder,
                     [
-                        builder.insert(smt.EqOp(one, other)).res
+                        builder.insert(
+                            smt.EqOp(observed_value(builder, one), observed_value(builder, other))
+                        ).res
                         for one, other in zip(inputs, other_inputs, strict=True)
                     ],
                 )
                 same_outputs = _conjoin(
                     builder,
                     [
-                        builder.insert(smt.EqOp(one, other)).res
+                        builder.insert(
+                            smt.EqOp(observed_value(builder, one), observed_value(builder, other))
+                        ).res
                         for one, other in zip(outputs, other_outputs, strict=True)
                     ],
                 )

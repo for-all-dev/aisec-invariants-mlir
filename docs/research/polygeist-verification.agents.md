@@ -61,3 +61,45 @@ Why: the loop is being set up, not run
 Next angle: `--canonicalize-for` (driver.cc:685, pass in
 `lib/polygeist/Passes/CanonicalizeFor.cpp`) — a loop-shape rewrite, the smallest
 declarative surface of the eight, and the natural first pair with its control.
+
+## iter 2026-07-29T12:40Z — target: `--canonicalize-for`, pattern `PropagateInLoopBody`
+Source: `lib/polygeist/Passes/CanonicalizeFor.cpp:26-51` (pass at `tools/cgeist/driver.cc:685`).
+The rule fires only when an iteration argument is yielded back unchanged
+(`iterOperand == yieldOperand`), and then replaces uses of the region argument by the
+init value. No lit test for this pattern alone. [source]
+Expected: CT-PRESERVING for the pattern, CT-BREAKING for the twin that applies the same
+replacement where the body *does* modify the argument.
+Measured: both CT-PRESERVING, 17 → 17 observations, bounded. [measured]
+Control: `canonicalize_for_propagate_moved.mlir` — **did not falsify**, and after
+analysis that is the right answer, not a blind spot. Reading a stale value is a value
+bug; the property proved here is that a rewrite may remove leakage and never add it. The
+target calls the body only with `%init`, which is what the source passes on its first
+iteration, so congruence ties the target's observations to ones the source already makes
+— the target leaks a strict subset. Nothing added, nothing reported.
+Outcome: specified (weakly) + a fix to the checker, described below.
+Coverage now: 1/8 steps with a checked template, 59 unproved ops (unchanged — this
+template covers no new operation).
+Why: two things came out of this iteration, and the second matters more.
+
+1. **An encoding fault, found by the control and fixed.** The first run reported *both*
+   templates CT-BREAKING, including the one that must preserve. Cause: hole congruence
+   compared raw (value, poison) pairs, while `traces_agree` had always compared values
+   only. Unrolling a loop whose bound is a function argument builds
+   `select(keep_going, new, old)`, and `keep_going` inherits that argument's poison — so
+   the hole's inputs differed in the poison bit alone, congruence never fired, its
+   outputs were unconstrained, and a correct rewrite came back as a leak. Confirmed by
+   re-running the same template with constant bounds, which passed. `structural.py` now
+   compares values in congruence too. Every other template in the corpus keeps its
+   verdict, and the 61 tests stay green, so this unblocked loops rather than loosening
+   anything. This is the same poison-from-arguments family as the P0 finding in
+   `fcvd-selfcomposition.agents.md`.
+2. **This pass is the wrong shape for this instrument.** Its side condition is about
+   functional equivalence, and the leakage property cannot falsify a value bug by
+   construction. Checking it needs the value-refinement criterion — upstream FCVD's,
+   which our checkers deliberately switch off — not this one. A "specified" verdict here
+   is therefore real but thin: it says the rewrite adds no observation, which was never
+   in doubt.
+Next angle: `--loop-restructure` (`driver.cc:674`,
+`lib/polygeist/Passes/LoopRestructure.cpp`) — it rebuilds `cf` back-edges into `scf`
+loops, so its side condition *is* about control flow, and a wrong trip count would show
+up in the trace. That is a pass where a control can actually break, unlike this one.
