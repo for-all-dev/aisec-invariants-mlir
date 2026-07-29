@@ -17,8 +17,10 @@ The forms are the ones the plan names:
   (`SMTLowerer.op_semantics`), never from a hand-written list, so it cannot drift.
 - **form 1** -- no semantics, but the operation is covered by a **macro-template**: a
   structural specification proved once by `fcvd-ct-lowering`. Counted only if the proof
-  passes *now*: `fcvd-ct-coverage` re-runs it (unless `--no-prove`), because a template
-  that has stopped proving covers nothing.
+  passes *now*, and only if **both** halves of the gate pass: `fcvd-ct-coverage` re-runs
+  it (unless `--no-prove`), because a template that has stopped proving covers nothing,
+  and one that preserves constant-time while changing what the code computes was never
+  a translation of it in the first place.
 - **form 2** -- neither. This is the work item, and the number the choice of compiler
   should be based on.
 
@@ -41,7 +43,7 @@ from xdsl.parser import Parser
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 
 from .context import make_context
-from .structural import check_lowering
+from .structural import check_template
 
 COMPILERS = Path(__file__).parent.parent.parent / "compilers"
 TEMPLATES = Path(__file__).parent.parent.parent / "templates"
@@ -250,6 +252,10 @@ class TemplateOutcome:
     verdict: str
     as_documented: bool
     reason: str = ""
+    equivalence: str = "equivalent"
+    """The other half. A template may only stand in for a translation if it preserves
+    constant-time *and* leaves what the program computes alone, so this decides whether
+    a ct-preserving template counts towards form 1."""
 
 
 def prove_templates(compiler: Compiler, timeout: int = 120) -> list[TemplateOutcome]:
@@ -258,19 +264,25 @@ def prove_templates(compiler: Compiler, timeout: int = 120) -> list[TemplateOutc
     A template only carries weight if the checker agrees with what the descriptor says
     it does: a template that has stopped proving covers nothing, and a template
     documented as ct-breaking has to still break, or the finding it records is stale.
+
+    Both halves of the gate are run. `expect` documents the leakage half, because that
+    is what a descriptor is a claim about; the equivalence half is not a matter of
+    documentation -- a macro-template that changes the meaning of the code cannot stand
+    in for a translation, whatever the descriptor says.
     """
     ctx = make_context()
     outcomes: list[TemplateOutcome] = []
     for template in compiler.templates:
         path = TEMPLATES / template.file
         module = Parser(ctx, path.read_text(), str(path)).parse_module()
-        result = check_lowering(ctx, module, timeout=timeout)
+        gate = check_template(ctx, module, timeout=timeout)
         outcomes.append(
             TemplateOutcome(
                 template,
-                result.verdict,
-                result.verdict == template.expect,
-                result.reason,
+                gate.constant_time.verdict,
+                gate.constant_time.verdict == template.expect,
+                gate.reason,
+                gate.equivalence.verdict,
             )
         )
     return outcomes
@@ -296,6 +308,12 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
                 )
                 continue
             if outcome.verdict == "ct-preserving":
+                if outcome.equivalence != "equivalent":
+                    failed.append(
+                        f"{template.file}: preserves constant-time but the equivalence half "
+                        f"says {outcome.equivalence}, so it specifies nothing and covers nothing"
+                    )
+                    continue
                 for op in template.covers:
                     covered.setdefault(op, template.file)
                 if template.verifies:
