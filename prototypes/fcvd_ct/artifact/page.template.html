@@ -1,0 +1,589 @@
+<title>Карта трансляций MLIR: где компилятор ломает constant-time и чем платить за проверку</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f3f5f8; --surface:#fcfdfe; --surface-2:#eef1f5; --sunken:#e7ebf1;
+  --ink:#0e1319; --ink-2:#4d5560; --muted:#828b96;
+  --rule:#dde3ea; --rule-strong:#c6cfda;
+  --proved:#0ca30c; --breaking:#d03b3b; --translatable:#2a78d6; --absent:#898781;
+  --accent:#2a78d6; --accent-ink:#1c5cab;
+  --shadow:0 1px 2px rgba(14,19,25,.05), 0 8px 24px -16px rgba(14,19,25,.25);
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+    --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+    --rule:#242c36; --rule-strong:#333d49;
+    --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+    --accent:#3987e5; --accent-ink:#86b6ef;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+  --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+  --rule:#242c36; --rule-strong:#333d49;
+  --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+  --accent:#3987e5; --accent-ink:#86b6ef;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+     font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.prose{max-width:68ch}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.02em;line-height:1.18;margin:0}
+h1{font-size:clamp(30px,4.4vw,50px);font-weight:660}
+h2{font-size:clamp(21px,2.4vw,27px);font-weight:640}
+h3{font-size:17px;font-weight:640;letter-spacing:-.01em}
+p{margin:0 0 1em}
+a{color:var(--accent-ink);text-underline-offset:.18em;text-decoration-thickness:1px}
+code,.mono{font-family:var(--mono);font-size:.9em;font-variant-ligatures:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--muted);margin:0 0 14px}
+.masthead{border-bottom:1px solid var(--rule);background:var(--surface);padding:52px 0 34px}
+.standfirst{font-size:clamp(17px,1.7vw,20px);line-height:1.5;color:var(--ink-2);max-width:62ch;margin:18px 0 0}
+.checkouts{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.checkout{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);
+          border:1px solid var(--rule);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.checkout b{color:var(--ink);font-weight:620}
+
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section > .wrap > .eyebrow{margin-bottom:10px}
+.lede{color:var(--ink-2);max-width:68ch;margin-top:14px}
+
+.note{border-left:2px solid var(--rule-strong);padding:2px 0 2px 18px;margin:22px 0;
+      color:var(--ink-2);max-width:66ch}
+.note b{color:var(--ink)}
+
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));margin-top:26px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:18px 18px 16px;
+      box-shadow:var(--shadow)}
+.card h3{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:15px}
+.card .commit{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.card .figure{font-size:34px;font-weight:660;letter-spacing:-.03em;margin:12px 0 2px;line-height:1}
+.card .figure small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.card .sub{font-size:13px;color:var(--ink-2);margin:0}
+.meter{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:14px 0 10px;gap:2px;background:var(--sunken)}
+.meter span{display:block}
+.meter .s0{background:var(--translatable)}
+.meter .s1{background:var(--proved)}
+.meter .s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
+           border:1px solid var(--absent);border-radius:0 4px 4px 0}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;padding:0;list-style:none;
+        font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:7px}
+.swatch{width:13px;height:13px;border-radius:3px;flex:0 0 auto}
+.swatch.s0{background:var(--translatable)}
+.swatch.s1{background:var(--proved)}
+.swatch.s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
+           border:1px solid var(--absent)}
+.swatch.sb{background:var(--breaking)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:26px 0 6px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+      background:var(--surface);border:1px solid var(--rule-strong);color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+
+.graphbox{margin-top:18px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+          box-shadow:var(--shadow);overflow-x:auto}
+svg.graph{display:block;min-width:940px;width:100%;height:auto}
+.node rect{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1}
+.node.hub rect{stroke:var(--ink);stroke-width:1.6}
+.node text.name{font-family:var(--mono);font-size:12.5px;fill:var(--ink);dominant-baseline:middle}
+.node text.count{font-family:var(--mono);font-size:10px;fill:var(--muted);dominant-baseline:middle}
+.node{cursor:pointer}
+.node:hover rect{stroke:var(--accent)}
+.node.sel rect{stroke:var(--accent);stroke-width:2;fill:var(--surface)}
+.node.dim{opacity:.22}
+.edge{fill:none;stroke-width:1.4;cursor:pointer}
+.edge.unchecked{stroke:var(--absent);opacity:.5}
+.edge.proved{stroke:var(--proved);stroke-width:2}
+.edge.breaking{stroke:var(--breaking);stroke-width:2;stroke-dasharray:6 3.5}
+.edge.dim{opacity:.08}
+.edge.sel{stroke-width:3.2}
+.edge:hover{stroke-width:3.2}
+.edgeflag{font-family:var(--mono);font-size:11px;font-weight:700}
+.layerlab{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+          fill:var(--muted)}
+
+.detail{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+        padding:20px 20px 22px;box-shadow:var(--shadow);min-height:180px}
+.detail .hint{color:var(--muted);font-size:14px;margin:0}
+.detail h3{font-family:var(--mono);font-size:16px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.tag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--rule-strong);
+     color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+.tag.proved{color:var(--proved);border-color:var(--proved)}
+.tag.breaking{color:var(--breaking);border-color:var(--breaking)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:14px 0 0;font-size:14px}
+.kv dt{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.kv dd{margin:0;color:var(--ink-2)}
+
+.tablewrap{overflow-x:auto;margin-top:18px;border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+           box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+   font-weight:500;position:sticky;top:0;background:var(--surface);z-index:1}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td.mono{font-family:var(--mono)}
+.opgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px;margin-top:12px;
+        max-height:320px;overflow-y:auto;padding-right:6px}
+.op{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;padding:2px 0}
+.op .dot{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+.op .dot.f0{background:var(--translatable)}
+.op .dot.f1{background:var(--proved)}
+.op .dot.f2{background:repeating-linear-gradient(135deg,var(--absent) 0 2px,transparent 2px 4px);
+            border:1px solid var(--absent)}
+.op .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.op .nm{overflow:hidden;text-overflow:ellipsis}
+
+.knobs{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin:22px 0 4px;
+       background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.knob label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.knob .val{font-family:var(--mono);color:var(--ink);font-weight:620}
+.knob input[type=range]{width:100%;accent-color:var(--accent)}
+.knob .why{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.45}
+
+ul.plain{padding-left:1.1em;margin:0 0 1em}
+ul.plain li{margin-bottom:.45em;color:var(--ink-2)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:20px 0 0;max-width:68ch}
+ol.steps li{counter-increment:s;position:relative;padding-left:38px;margin-bottom:14px;color:var(--ink-2)}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);border:1px solid var(--rule-strong);border-radius:50%;width:22px;height:22px;
+  display:grid;place-items:center}
+footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion: no-preference){
+  .edge,.node rect{transition:opacity .18s ease, stroke-width .18s ease}
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Исследовательская заметка · 29 июля 2026 · prototypes/fcvd_ct</p>
+    <h1>Карта трансляций MLIR</h1>
+    <p class="standfirst">Где понижение компилятора превращает безопасный код в небезопасный, какие
+      диалекты стоят на пути у проверки сразу трёх компиляторов — и во сколько обходится закрыть
+      каждый пробел.</p>
+    <div class="checkouts">
+      <span class="checkout"><b>circt</b> 2803829</span>
+      <span class="checkout"><b>heir</b> de797a2</span>
+      <span class="checkout"><b>onnx-mlir</b> de23de7</span>
+      <span class="checkout">xdsl-smt <b>dd30235</b></span>
+      <span class="checkout">z3 <b>4.15.1</b></span>
+      <span class="checkout">Xeon 8168</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="method">
+  <div class="wrap">
+    <p class="eyebrow">Метод</p>
+    <h2>Полуавтоматический верификатор компилятора</h2>
+    <div class="prose">
+      <p class="lede">Доказывает, что шаги понижения MLIR от исходного кода до LLVM не превращают
+        безопасный код в небезопасный. Под компилятором имеется в виду любой MLIR-компилятор.</p>
+      <p>Под безопасностью понимается функциональная эквивалентность, а также устойчивость к
+        тайминг-атакам. Иные формы уязвимости — кэш, энергопотребление — здесь не рассматриваются.</p>
+      <p>В качестве основного метода выбран <b>FCVD</b>: он даёт трансляцию диалектов в SMT и гарантию
+        безопасности через самокомпозицию SMT при наличии всех трансляций. Минус — для корректной работы
+        необходимо, чтобы каждая операция MLIR из трансляции имела отображение в SMT.</p>
+      <p>Полуавтоматика достигается за счёт двух вещей:</p>
+      <ol class="steps">
+        <li>трансляции между уровнями пишутся <b>только один раз</b> — с течением времени все основные
+          преобразования переиспользуются;</li>
+        <li>если отображения в SMT нет, всегда можно реализовать <b>макро-шаблоны</b> — декларативные
+          правила вида «цикл с границами [S, E, St] и телом F(x) эквивалентен скелету из четырёх блоков
+          <code>cf.br</code>», доказываемые один раз и дальше применяемые без перепроверки.</li>
+      </ol>
+      <p style="margin-top:1.2em">То есть все доказательства формируются единообразно единым алгоритмом:
+        при доказательстве безопасности нового компилятора алгоритм действий тривиален.</p>
+      <div class="note">
+        <b>Одна поправка по факту реализации.</b> «Применяются без перепроверки» верно относительно
+        <i>программ</i>: шаблон доказан для всех программ, которыми его можно инстанцировать, и для новой
+        программы не перепроверяется. Но сам вердикт зависит ещё и от модели утечек, реестра семантик и
+        версии солвера, а они в файле шаблона не записаны — поэтому счётчик покрытия перегоняет шаблоны
+        заново при каждом запуске. Это стоит <b>0.13 с</b> на шаблон (медиана из 21 замера ниже), то есть
+        дешевле, чем доверять.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compilers">
+  <div class="wrap">
+    <p class="eyebrow">Три компилятора</p>
+    <h2>Что из них вообще можно проверять сегодня</h2>
+    <p class="lede">Эти три выбраны потому, что в них мало «больших» типов и понижений. Счёт ведётся по
+      собственным тестовым корпусам компиляторов: сколько разных операций встречается и какая доля
+      <i>упоминаний</i> приходится на те, что мы умеем переводить.</p>
+    <div class="cards" id="cards"></div>
+    <ul class="legend">
+      <li><span class="swatch s0"></span> есть семантика SMT (форма 0)</li>
+      <li><span class="swatch s1"></span> покрыто доказанным шаблоном (форма 1)</li>
+      <li><span class="swatch s2"></span> не покрыто (форма 2)</li>
+    </ul>
+  </div>
+</section>
+
+<section id="graph">
+  <div class="wrap">
+    <p class="eyebrow">Граф</p>
+    <h2>Диалекты и понижения между ними</h2>
+    <p class="lede">Узел — диалект MLIR, ребро — шаг понижения из конвейера компилятора, взятый из его
+      исходников. Узел с жирной рамкой используется больше чем одним компилятором: это и есть точки
+      переиспользования, ради которых трансляция пишется один раз.</p>
+    <div class="controls" role="group" aria-label="Фильтр по компилятору">
+      <button class="chip" data-comp="all" aria-pressed="true">все три</button>
+      <button class="chip" data-comp="circt" aria-pressed="false">circt</button>
+      <button class="chip" data-comp="heir" aria-pressed="false">heir</button>
+      <button class="chip" data-comp="onnx-mlir" aria-pressed="false">onnx-mlir</button>
+    </div>
+    <ul class="legend">
+      <li><span class="swatch s1"></span> ✓ шаг с доказанной спецификацией</li>
+      <li><span class="swatch sb"></span> ✕ шаг, доказанно ломающий constant-time</li>
+      <li><span class="swatch s2"></span> шаг не проверялся</li>
+    </ul>
+    <div class="graphbox"><svg class="graph" id="svg" role="img"
+      aria-label="Граф диалектов MLIR и понижений между ними"></svg></div>
+    <div class="detail" id="detail"><p class="hint">Нажмите на диалект или на ребро, чтобы увидеть
+      разбор: какие операции туда входят, что из них переводится, чем доказан шаг.</p></div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="wrap">
+    <p class="eyebrow">Понижения по отдельности</p>
+    <h2>Стоимость каждого шага</h2>
+    <p class="lede">«Операции на входе» — это операции входных диалектов шага, встречающиеся в корпусе
+      компилятора. Именно они определяют, можно ли прогнать через шаг реальную программу. Оценка времени
+      считается из двух ручек ниже, а не из измерений: измерено только время солвера.</p>
+    <div class="knobs">
+      <div class="knob">
+        <label for="k1">Одна новая трансляция операции — <span class="val" id="k1v">30 мин</span></label>
+        <input type="range" id="k1" min="5" max="180" step="5" value="30">
+        <p class="why">Измерено косвенно: 4 трансляции, написанные для этой работы, — от 80 до 253 строк
+          Python. Человеко-время не инструментировалось. Считайте это порядком величины, а не замером.</p>
+      </div>
+      <div class="knob">
+        <label for="k2">Один макро-шаблон — <span class="val" id="k2v">15 мин</span></label>
+        <input type="range" id="k2" min="5" max="120" step="5" value="15">
+        <p class="why">Основной расход — прочитать паттерн в исходниках компилятора. Прогон солвера при
+          этом занимает 0.13 с (медиана), то есть в счёт не идёт.</p>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="stepstable">
+      <thead><tr>
+        <th>Компилятор</th><th>Шаг понижения</th><th>Из → в</th>
+        <th class="num">форма 0</th><th class="num">форма 1</th><th class="num">форма 2</th>
+        <th>Спецификация</th><th class="num">Оценка</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p class="lede" style="margin-top:14px">Итого, чтобы сделать <b>проверяемыми по программам</b> все
+      шаги: <span class="mono" id="totalcost"></span>. Это оценка объёма, а не сложности: <code>hw.module</code>
+      — одна механическая трансляция, <code>onnx.Conv</code> — тоже «одна».</p>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <p class="eyebrow">Что действительно измерено</p>
+    <h2>Замеры, а не оценки</h2>
+    <p class="lede">Каждый шаблон прогнан по одному разу в этом же процессе; время включает построение
+      SMT-запроса и ответ z3.</p>
+    <div class="tablewrap"><table id="tmpltable">
+      <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений<br>ист. → цель</th>
+        <th class="num">строк</th><th class="num">секунд</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="note"><b>Красные строки — это находки, а не поломки инструмента.</b> Шаблон,
+      документированный как ломающий constant-time, обязан ломать его и сегодня, иначе находка устарела;
+      счётчик покрытия проверяет и это.</div>
+    <h3 style="margin-top:34px">Трансляции, которые пришлось написать</h3>
+    <div class="tablewrap"><table id="modtable">
+      <thead><tr><th>Модуль</th><th>Что переводит</th><th class="num">строк</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <p class="eyebrow">Границы утверждений</p>
+    <h2>Чего эта карта не говорит</h2>
+    <div class="prose">
+      <ul class="plain">
+        <li><b>Компиляторы не запускались.</b> Ни circt-opt, ни heir-opt, ни onnx-mlir на этой машине не
+          собраны. Каждая пара «до/после» переписана вручную из исходника паттерна или из его же
+          lit-теста, со ссылкой на файл и строку. Значит, доказано свойство <i>спецификации</i> шага, а не
+          того, что выдаёт бинарник компилятора.</li>
+        <li><b>Счёт операций — по тестовым корпусам</b> и по регулярному выражению, а не по определениям
+          диалектов. Операция, которую компилятор поддерживает, но в тестах не использует, в счёт не
+          попадёт.</li>
+        <li><b>Вердикты относительны модели утечек:</b> деление и остаток раскрывают операнды, обращение к
+          памяти раскрывает адрес, ветвление раскрывает условие, всё остальное считается постоянным по
+          времени. Для железа добавлено отдельное допущение: комбинационная арифметика фиксирована по
+          задержке.</li>
+        <li><b>Уровень MLIR ничего не говорит о бинарнике.</b> Находка «<code>mod_arith.add</code> даёт
+          <code>remui</code> над секретом» может быть закрыта бэкендом LLVM, который заменяет деление на
+          константу умножением со сдвигом. Это вопрос к слоям на бинарном уровне, не к этой карте.</li>
+        <li><b>Форма 0/1/2 отвечает на «умеем ли переводить», а не «безопасно ли».</b> У
+          <code>tensor_ext.rotate</code> одна ветка понижения доказанно безопасна, вторая доказанно
+          ломающая — клетки для такого в классификации нет, и операция осталась в форме 2.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  Источник данных: <code class="mono">prototypes/fcvd_ct</code>, ветка
+  <code class="mono">fcvd-mlir-noninterference</code>. Воспроизводится через <code class="mono">./run_all.sh</code>
+  и <code class="mono">uv run fcvd-ct-coverage</code>; вердикты закреплены тестами (<code class="mono">uv run pytest</code>).
+</div></footer>
+
+<script type="application/json" id="artifact-data">__DATA__</script>
+
+<script>
+const DATA = JSON.parse(document.getElementById("artifact-data").textContent);
+const NBSP = " ";
+const fmt = n => n.toLocaleString("ru-RU");
+const state = {comp: "all", sel: null};
+
+/* ---------- compiler cards ---------- */
+const cards = document.getElementById("cards");
+cards.innerHTML = DATA.compilers.map(c => {
+  const share = c.mentions ? (100 * (c.m0 + c.m1) / c.mentions) : 0;
+  const w = f => c.mentions ? (100 * f / c.mentions).toFixed(2) + "%" : "0%";
+  return `<article class="card">
+    <h3>${c.name} <span class="commit">${c.commit}</span></h3>
+    <div class="meter" role="img" aria-label="доля упоминаний по формам">
+      <span class="s0" style="width:${w(c.m0)}"></span>
+      <span class="s1" style="width:${w(c.m1)}"></span>
+      <span class="s2" style="width:${w(c.m2)}"></span>
+    </div>
+    <p class="figure">${share.toFixed(1)}<small>${NBSP}% упоминаний переводимо</small></p>
+    <p class="sub">${fmt(c.distinct)} разных операций в ${fmt(c.files)} тестовых файлах,
+      из них <b>${c.form2}</b> без перевода. Шагов конвейера ${c.steps},
+      с проверенной спецификацией ${c.specified}.</p>
+  </article>`;
+}).join("");
+
+/* ---------- graph ---------- */
+const stepNodes = new Set();
+DATA.steps.forEach(s => { s.from.forEach(d => stepNodes.add(d)); s.to.forEach(d => stepNodes.add(d)); });
+const nodes = DATA.dialects.filter(d => stepNodes.has(d.name));
+const byName = Object.fromEntries(nodes.map(d => [d.name, d]));
+
+const NW = 118, NH = 34, GAPX = 158, GAPY = 46, PAD_X = 26, PAD_Y = 44;
+const layers = {};
+nodes.forEach(d => (layers[d.layer] = layers[d.layer] || []).push(d));
+const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+const maxRows = Math.max(...layerKeys.map(k => layers[k].length));
+layerKeys.forEach((k, li) => {
+  const col = layers[k];
+  const offset = (maxRows - col.length) / 2;
+  col.forEach((d, i) => { d.x = PAD_X + li * GAPX; d.y = PAD_Y + (i + offset) * GAPY; });
+});
+const W = PAD_X * 2 + (layerKeys.length - 1) * GAPX + NW;
+const H = PAD_Y * 2 + maxRows * GAPY;
+
+const edges = [];
+DATA.steps.forEach((s, si) => s.from.forEach(f => s.to.forEach(t => {
+  if (!byName[f] || !byName[t] || f === t) return;
+  edges.push({step: si, from: f, to: t,
+    kind: s.breaks.length ? "breaking" : (s.proved.length ? "proved" : "unchecked")});
+})));
+
+const svg = document.getElementById("svg");
+svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+const LAYER_NAMES = {0: "предметный", 1: "промежуточный", 2: "циклы", 3: "структурный",
+  4: "плоский", 5: "планирование", 6: "железо", 7: "выход"};
+
+function path(e) {
+  const a = byName[e.from], b = byName[e.to];
+  const back = b.x <= a.x;
+  const x1 = back ? a.x : a.x + NW, y1 = a.y + NH / 2;
+  const x2 = back ? b.x + NW : b.x, y2 = b.y + NH / 2;
+  if (back) {
+    const dip = Math.max(a.y, b.y) + NH + 26;
+    return `M ${x1} ${y1} C ${x1 - 60} ${dip}, ${x2 + 60} ${dip}, ${x2} ${y2}`;
+  }
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+
+function render() {
+  const active = s => state.comp === "all" || s.compiler === state.comp;
+  const liveNodes = new Set();
+  DATA.steps.forEach(s => { if (active(s)) { s.from.forEach(d => liveNodes.add(d)); s.to.forEach(d => liveNodes.add(d)); } });
+
+  let out = "";
+  layerKeys.forEach((k, li) => {
+    out += `<text class="layerlab" x="${PAD_X + li * GAPX}" y="22">${LAYER_NAMES[k] || ""}</text>`;
+  });
+  edges.forEach((e, i) => {
+    const s = DATA.steps[e.step];
+    const on = active(s);
+    const sel = state.sel && state.sel.type === "step" && state.sel.id === e.step;
+    out += `<path class="edge ${e.kind}${on ? "" : " dim"}${sel ? " sel" : ""}" d="${path(e)}"
+      data-edge="${i}" tabindex="0" role="button"
+      aria-label="${s.compiler} ${s.pass}: ${e.from} в ${e.to}"><title>${s.compiler} · ${s.pass}
+${e.from} → ${e.to}</title></path>`;
+  });
+  nodes.forEach(d => {
+    const on = liveNodes.has(d.name);
+    const sel = state.sel && state.sel.type === "dialect" && state.sel.id === d.name;
+    const hub = d.compilers.length > 1;
+    const total = d.forms[0] + d.forms[1] + d.forms[2];
+    const known = d.forms[0] + d.forms[1];
+    out += `<g class="node${hub ? " hub" : ""}${on ? "" : " dim"}${sel ? " sel" : ""}"
+        data-node="${d.name}" tabindex="0" role="button" aria-label="диалект ${d.name}">
+      <rect x="${d.x}" y="${d.y}" width="${NW}" height="${NH}" rx="7"></rect>
+      <text class="name" x="${d.x + 11}" y="${d.y + NH / 2 - 5}">${d.name}</text>
+      <text class="count" x="${d.x + 11}" y="${d.y + NH / 2 + 9}">${total ? known + "/" + total : "нет данных"}</text>
+      ${total ? `<rect x="${d.x + NW - 10}" y="${d.y + 6}" width="4" height="${NH - 12}" rx="2"
+        fill="var(--absent)" opacity=".35"></rect>
+        <rect x="${d.x + NW - 10}" y="${d.y + 6 + (NH - 12) * (1 - known / total)}" width="4"
+        height="${(NH - 12) * known / total}" rx="2" fill="var(--translatable)"></rect>` : ""}
+    </g>`;
+  });
+  svg.innerHTML = out;
+}
+
+svg.addEventListener("click", ev => {
+  const edge = ev.target.closest("[data-edge]"), node = ev.target.closest("[data-node]");
+  if (edge) select({type: "step", id: +edge.dataset.edge >= 0 ? edges[+edge.dataset.edge].step : null});
+  else if (node) select({type: "dialect", id: node.dataset.node});
+});
+svg.addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+});
+
+/* ---------- detail panel ---------- */
+const detail = document.getElementById("detail");
+const FORM_LABEL = ["есть семантика SMT", "доказанный шаблон", "перевода нет"];
+
+function select(sel) { state.sel = sel; render(); showDetail(); detail.scrollIntoView({block: "nearest", behavior: "smooth"}); }
+
+function showDetail() {
+  if (!state.sel) return;
+  if (state.sel.type === "dialect") {
+    const d = byName[state.sel.id];
+    const used = DATA.steps.filter(s => s.from.includes(d.name) || s.to.includes(d.name));
+    const ops = d.ops.slice().sort((a, b) => a.form - b.form || b.n - a.n);
+    detail.innerHTML = `<h3>${d.name}
+      ${d.compilers.map(c => `<span class="tag">${c}</span>`).join("")}
+      ${d.compilers.length > 1 ? '<span class="tag">точка переиспользования</span>' : ""}</h3>
+      <dl class="kv">
+        <dt>операций</dt><dd>${d.ops.length} разных, ${fmt(d.mentions)} упоминаний в корпусах</dd>
+        <dt>формы</dt><dd>${d.forms[0]} с семантикой · ${d.forms[1]} шаблоном · <b>${d.forms[2]} без перевода</b></dd>
+        <dt>участвует в</dt><dd>${used.length ? used.map(s => `<code>${s.pass}</code>`).join(", ") : "—"}</dd>
+      </dl>
+      ${ops.length ? `<div class="opgrid">${ops.map(o => `<div class="op" title="${FORM_LABEL[o.form]}${o.by ? ": " + o.by : ""}">
+        <span class="dot f${o.form}"></span><span class="nm">${o.name}</span><span class="n">${fmt(o.n)}</span></div>`).join("")}</div>`
+      : '<p class="hint">Операции этого диалекта в просканированных тестах не встретились — он присутствует только как цель понижения.</p>'}`;
+  } else {
+    const s = DATA.steps[state.sel.id];
+    const tmpl = DATA.templates.filter(t => s.proved.includes(t.file) || s.breaks.includes(t.file));
+    detail.innerHTML = `<h3><code>${s.pass}</code> <span class="tag">${s.compiler}</span>
+      ${s.proved.map(() => '<span class="tag proved">✓ доказано сохраняющим</span>').join("")}
+      ${s.breaks.map(() => '<span class="tag breaking">✕ доказанно ломает</span>').join("")}</h3>
+      <dl class="kv">
+        <dt>из → в</dt><dd>${s.from.join(", ")} → ${s.to.join(", ")}</dd>
+        <dt>источник</dt><dd><code>${s.cited}</code></dd>
+        <dt>на входе</dt><dd>${s.forms[0]} с семантикой · ${s.forms[1]} шаблоном ·
+          <b>${s.forms[2]} без перевода</b> ${s.forms[2] ? "— по программам шаг пока не прогнать" : "— шаг готов к попрограммной проверке"}</dd>
+      </dl>
+      ${tmpl.length ? `<div class="tablewrap" style="margin-top:16px"><table>
+        <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений</th><th class="num">секунд</th></tr></thead>
+        <tbody>${tmpl.map(t => `<tr><td class="mono">${t.file}</td>
+          <td class="mono" style="color:var(--${t.verdict === "ct-preserving" ? "proved" : "breaking"})">
+          ${t.verdict === "ct-preserving" ? "✓ сохраняет" : "✕ ломает"}</td>
+          <td class="num">${t.obs[0]} → ${t.obs[1]}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`).join("")}</tbody>
+      </table></div>` : '<p class="hint" style="margin-top:14px">Спецификации у этого шага пока нет — он не проверялся ни в одну сторону.</p>'}`;
+  }
+}
+
+/* ---------- filters ---------- */
+document.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => {
+  state.comp = chip.dataset.comp;
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c === chip)));
+  render(); drawSteps();
+}));
+
+/* ---------- steps table with the cost estimate ---------- */
+const k1 = document.getElementById("k1"), k2 = document.getElementById("k2");
+const tbody = document.querySelector("#stepstable tbody");
+
+function hours(minutes) {
+  if (minutes < 60) return minutes + " мин";
+  const h = minutes / 60;
+  return h < 10 ? h.toFixed(1) + " ч" : Math.round(h) + " ч";
+}
+
+function drawSteps() {
+  const perOp = +k1.value, perTmpl = +k2.value;
+  document.getElementById("k1v").textContent = perOp + " мин";
+  document.getElementById("k2v").textContent = perTmpl + " мин";
+  const rows = DATA.steps.filter(s => state.comp === "all" || s.compiler === state.comp);
+  let total = 0;
+  tbody.innerHTML = rows.map((s, i) => {
+    const idx = DATA.steps.indexOf(s);
+    const cost = s.forms[2] * perOp;
+    total += cost;
+    const spec = s.breaks.length ? '<span class="tag breaking">✕ ломает</span>'
+      : s.proved.length ? '<span class="tag proved">✓ сохраняет</span>'
+      : `<span class="tag">нет · ~${hours(2 * perTmpl)}</span>`;
+    return `<tr class="clickable" data-step="${idx}">
+      <td class="mono">${s.compiler}</td>
+      <td class="mono">${s.pass}</td>
+      <td class="mono" style="color:var(--muted)">${s.from.join("+")} → ${s.to.join("+")}</td>
+      <td class="num">${s.forms[0]}</td><td class="num">${s.forms[1]}</td>
+      <td class="num"${s.forms[2] ? ' style="color:var(--breaking)"' : ""}>${s.forms[2]}</td>
+      <td>${spec}</td>
+      <td class="num">${cost ? hours(cost) : "—"}</td></tr>`;
+  }).join("");
+  document.getElementById("totalcost").textContent = hours(total)
+    + " (" + rows.reduce((a, s) => a + s.forms[2], 0) + " операций)";
+}
+tbody.addEventListener("click", ev => {
+  const tr = ev.target.closest("[data-step]");
+  if (tr) select({type: "step", id: +tr.dataset.step});
+});
+k1.addEventListener("input", drawSteps);
+k2.addEventListener("input", drawSteps);
+
+/* ---------- measurement tables ---------- */
+document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
+  .slice().sort((a, b) => b.seconds - a.seconds).map(t => {
+    const col = t.verdict === "ct-preserving" ? "proved" : t.verdict === "ct-breaking" ? "breaking" : "absent";
+    const label = t.verdict === "ct-preserving" ? "✓ сохраняет"
+      : t.verdict === "ct-breaking" ? "✕ ломает" : "? неизвестно";
+    return `<tr><td class="mono">${t.file}</td>
+      <td class="mono" style="color:var(--${col})">${label}</td>
+      <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (огранич.)" : ""}</td>
+      <td class="num">${t.lines}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`;
+  }).join("");
+
+document.querySelector("#modtable tbody").innerHTML = DATA.modules
+  .map(m => `<tr><td class="mono">${m.file}</td><td>${m.what}</td><td class="num">${m.lines}</td></tr>`).join("");
+
+render(); drawSteps();
+</script>

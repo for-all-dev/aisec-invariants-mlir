@@ -219,6 +219,19 @@ every before/after pair is a transcription of the pass source or its lit test, c
 These are therefore proofs about the *specification* of each step, exactly as for `-convert-scf-to-cf`
 above.
 
+## `artifact/` — the translation map
+
+```bash
+uv run python artifact/collect.py > artifact/translation-map.html
+```
+
+An interactive page over the same data: the dialect graph of all three compilers with the reuse points
+marked, every lowering step with the operations that block it, and a cost estimate whose two
+assumptions are sliders rather than constants. Everything on it is generated — the graph is the union
+of the pipeline steps in `compilers/*.json`, the operation tables are the corpus scan, and each
+template is re-run and timed at build time. The only hand-written parts are the prose and the layer
+assignment of dialects, which is a judgement about MLIR rather than something the data knows.
+
 ## The leakage model
 
 `src/fcvdct/leakage.py`, and every verdict is relative to it:

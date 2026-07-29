@@ -1,0 +1,590 @@
+<title>Карта трансляций MLIR: где компилятор ломает constant-time и чем платить за проверку</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f3f5f8; --surface:#fcfdfe; --surface-2:#eef1f5; --sunken:#e7ebf1;
+  --ink:#0e1319; --ink-2:#4d5560; --muted:#828b96;
+  --rule:#dde3ea; --rule-strong:#c6cfda;
+  --proved:#0ca30c; --breaking:#d03b3b; --translatable:#2a78d6; --absent:#898781;
+  --accent:#2a78d6; --accent-ink:#1c5cab;
+  --shadow:0 1px 2px rgba(14,19,25,.05), 0 8px 24px -16px rgba(14,19,25,.25);
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+    --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+    --rule:#242c36; --rule-strong:#333d49;
+    --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+    --accent:#3987e5; --accent-ink:#86b6ef;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
+  --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
+  --rule:#242c36; --rule-strong:#333d49;
+  --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+  --accent:#3987e5; --accent-ink:#86b6ef;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+     font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.prose{max-width:68ch}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.02em;line-height:1.18;margin:0}
+h1{font-size:clamp(30px,4.4vw,50px);font-weight:660}
+h2{font-size:clamp(21px,2.4vw,27px);font-weight:640}
+h3{font-size:17px;font-weight:640;letter-spacing:-.01em}
+p{margin:0 0 1em}
+a{color:var(--accent-ink);text-underline-offset:.18em;text-decoration-thickness:1px}
+code,.mono{font-family:var(--mono);font-size:.9em;font-variant-ligatures:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--muted);margin:0 0 14px}
+.masthead{border-bottom:1px solid var(--rule);background:var(--surface);padding:52px 0 34px}
+.standfirst{font-size:clamp(17px,1.7vw,20px);line-height:1.5;color:var(--ink-2);max-width:62ch;margin:18px 0 0}
+.checkouts{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.checkout{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);
+          border:1px solid var(--rule);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.checkout b{color:var(--ink);font-weight:620}
+
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+section > .wrap > .eyebrow{margin-bottom:10px}
+.lede{color:var(--ink-2);max-width:68ch;margin-top:14px}
+
+.note{border-left:2px solid var(--rule-strong);padding:2px 0 2px 18px;margin:22px 0;
+      color:var(--ink-2);max-width:66ch}
+.note b{color:var(--ink)}
+
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));margin-top:26px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:18px 18px 16px;
+      box-shadow:var(--shadow)}
+.card h3{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:15px}
+.card .commit{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.card .figure{font-size:34px;font-weight:660;letter-spacing:-.03em;margin:12px 0 2px;line-height:1}
+.card .figure small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.card .sub{font-size:13px;color:var(--ink-2);margin:0}
+.meter{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:14px 0 10px;gap:2px;background:var(--sunken)}
+.meter span{display:block}
+.meter .s0{background:var(--translatable)}
+.meter .s1{background:var(--proved)}
+.meter .s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
+           border:1px solid var(--absent);border-radius:0 4px 4px 0}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;padding:0;list-style:none;
+        font-size:12.5px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:7px}
+.swatch{width:13px;height:13px;border-radius:3px;flex:0 0 auto}
+.swatch.s0{background:var(--translatable)}
+.swatch.s1{background:var(--proved)}
+.swatch.s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
+           border:1px solid var(--absent)}
+.swatch.sb{background:var(--breaking)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:26px 0 6px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+      background:var(--surface);border:1px solid var(--rule-strong);color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+
+.graphbox{margin-top:18px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+          box-shadow:var(--shadow);overflow-x:auto}
+svg.graph{display:block;min-width:940px;width:100%;height:auto}
+.node rect{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1}
+.node.hub rect{stroke:var(--ink);stroke-width:1.6}
+.node text.name{font-family:var(--mono);font-size:12.5px;fill:var(--ink);dominant-baseline:middle}
+.node text.count{font-family:var(--mono);font-size:10px;fill:var(--muted);dominant-baseline:middle}
+.node{cursor:pointer}
+.node:hover rect{stroke:var(--accent)}
+.node.sel rect{stroke:var(--accent);stroke-width:2;fill:var(--surface)}
+.node.dim{opacity:.22}
+.edge{fill:none;stroke-width:1.4;cursor:pointer}
+.edge.unchecked{stroke:var(--absent);opacity:.5}
+.edge.proved{stroke:var(--proved);stroke-width:2}
+.edge.breaking{stroke:var(--breaking);stroke-width:2;stroke-dasharray:6 3.5}
+.edge.dim{opacity:.08}
+.edge.sel{stroke-width:3.2}
+.edge:hover{stroke-width:3.2}
+.edgeflag{font-family:var(--mono);font-size:11px;font-weight:700}
+.layerlab{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+          fill:var(--muted)}
+
+.detail{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+        padding:20px 20px 22px;box-shadow:var(--shadow);min-height:180px}
+.detail .hint{color:var(--muted);font-size:14px;margin:0}
+.detail h3{font-family:var(--mono);font-size:16px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.tag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--rule-strong);
+     color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+.tag.proved{color:var(--proved);border-color:var(--proved)}
+.tag.breaking{color:var(--breaking);border-color:var(--breaking)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:14px 0 0;font-size:14px}
+.kv dt{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.kv dd{margin:0;color:var(--ink-2)}
+
+.tablewrap{overflow-x:auto;margin-top:18px;border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+           box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+   font-weight:500;position:sticky;top:0;background:var(--surface);z-index:1}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td.mono{font-family:var(--mono)}
+.opgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px;margin-top:12px;
+        max-height:320px;overflow-y:auto;padding-right:6px}
+.op{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;padding:2px 0}
+.op .dot{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+.op .dot.f0{background:var(--translatable)}
+.op .dot.f1{background:var(--proved)}
+.op .dot.f2{background:repeating-linear-gradient(135deg,var(--absent) 0 2px,transparent 2px 4px);
+            border:1px solid var(--absent)}
+.op .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.op .nm{overflow:hidden;text-overflow:ellipsis}
+
+.knobs{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin:22px 0 4px;
+       background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.knob label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.knob .val{font-family:var(--mono);color:var(--ink);font-weight:620}
+.knob input[type=range]{width:100%;accent-color:var(--accent)}
+.knob .why{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.45}
+
+ul.plain{padding-left:1.1em;margin:0 0 1em}
+ul.plain li{margin-bottom:.45em;color:var(--ink-2)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:20px 0 0;max-width:68ch}
+ol.steps li{counter-increment:s;position:relative;padding-left:38px;margin-bottom:14px;color:var(--ink-2)}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);border:1px solid var(--rule-strong);border-radius:50%;width:22px;height:22px;
+  display:grid;place-items:center}
+footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion: no-preference){
+  .edge,.node rect{transition:opacity .18s ease, stroke-width .18s ease}
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Исследовательская заметка · 29 июля 2026 · prototypes/fcvd_ct</p>
+    <h1>Карта трансляций MLIR</h1>
+    <p class="standfirst">Где понижение компилятора превращает безопасный код в небезопасный, какие
+      диалекты стоят на пути у проверки сразу трёх компиляторов — и во сколько обходится закрыть
+      каждый пробел.</p>
+    <div class="checkouts">
+      <span class="checkout"><b>circt</b> 2803829</span>
+      <span class="checkout"><b>heir</b> de797a2</span>
+      <span class="checkout"><b>onnx-mlir</b> de23de7</span>
+      <span class="checkout">xdsl-smt <b>dd30235</b></span>
+      <span class="checkout">z3 <b>4.15.1</b></span>
+      <span class="checkout">Xeon 8168</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="method">
+  <div class="wrap">
+    <p class="eyebrow">Метод</p>
+    <h2>Полуавтоматический верификатор компилятора</h2>
+    <div class="prose">
+      <p class="lede">Доказывает, что шаги понижения MLIR от исходного кода до LLVM не превращают
+        безопасный код в небезопасный. Под компилятором имеется в виду любой MLIR-компилятор.</p>
+      <p>Под безопасностью понимается функциональная эквивалентность, а также устойчивость к
+        тайминг-атакам. Иные формы уязвимости — кэш, энергопотребление — здесь не рассматриваются.</p>
+      <p>В качестве основного метода выбран <b>FCVD</b>: он даёт трансляцию диалектов в SMT и гарантию
+        безопасности через самокомпозицию SMT при наличии всех трансляций. Минус — для корректной работы
+        необходимо, чтобы каждая операция MLIR из трансляции имела отображение в SMT.</p>
+      <p>Полуавтоматика достигается за счёт двух вещей:</p>
+      <ol class="steps">
+        <li>трансляции между уровнями пишутся <b>только один раз</b> — с течением времени все основные
+          преобразования переиспользуются;</li>
+        <li>если отображения в SMT нет, всегда можно реализовать <b>макро-шаблоны</b> — декларативные
+          правила вида «цикл с границами [S, E, St] и телом F(x) эквивалентен скелету из четырёх блоков
+          <code>cf.br</code>», доказываемые один раз и дальше применяемые без перепроверки.</li>
+      </ol>
+      <p style="margin-top:1.2em">То есть все доказательства формируются единообразно единым алгоритмом:
+        при доказательстве безопасности нового компилятора алгоритм действий тривиален.</p>
+      <div class="note">
+        <b>Одна поправка по факту реализации.</b> «Применяются без перепроверки» верно относительно
+        <i>программ</i>: шаблон доказан для всех программ, которыми его можно инстанцировать, и для новой
+        программы не перепроверяется. Но сам вердикт зависит ещё и от модели утечек, реестра семантик и
+        версии солвера, а они в файле шаблона не записаны — поэтому счётчик покрытия перегоняет шаблоны
+        заново при каждом запуске. Это стоит <b>0.13 с</b> на шаблон (медиана из 21 замера ниже), то есть
+        дешевле, чем доверять.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compilers">
+  <div class="wrap">
+    <p class="eyebrow">Три компилятора</p>
+    <h2>Что из них вообще можно проверять сегодня</h2>
+    <p class="lede">Эти три выбраны потому, что в них мало «больших» типов и понижений. Счёт ведётся по
+      собственным тестовым корпусам компиляторов: сколько разных операций встречается и какая доля
+      <i>упоминаний</i> приходится на те, что мы умеем переводить.</p>
+    <div class="cards" id="cards"></div>
+    <ul class="legend">
+      <li><span class="swatch s0"></span> есть семантика SMT (форма 0)</li>
+      <li><span class="swatch s1"></span> покрыто доказанным шаблоном (форма 1)</li>
+      <li><span class="swatch s2"></span> не покрыто (форма 2)</li>
+    </ul>
+  </div>
+</section>
+
+<section id="graph">
+  <div class="wrap">
+    <p class="eyebrow">Граф</p>
+    <h2>Диалекты и понижения между ними</h2>
+    <p class="lede">Узел — диалект MLIR, ребро — шаг понижения из конвейера компилятора, взятый из его
+      исходников. Узел с жирной рамкой используется больше чем одним компилятором: это и есть точки
+      переиспользования, ради которых трансляция пишется один раз.</p>
+    <div class="controls" role="group" aria-label="Фильтр по компилятору">
+      <button class="chip" data-comp="all" aria-pressed="true">все три</button>
+      <button class="chip" data-comp="circt" aria-pressed="false">circt</button>
+      <button class="chip" data-comp="heir" aria-pressed="false">heir</button>
+      <button class="chip" data-comp="onnx-mlir" aria-pressed="false">onnx-mlir</button>
+    </div>
+    <ul class="legend">
+      <li><span class="swatch s1"></span> ✓ шаг с доказанной спецификацией</li>
+      <li><span class="swatch sb"></span> ✕ шаг, доказанно ломающий constant-time</li>
+      <li><span class="swatch s2"></span> шаг не проверялся</li>
+    </ul>
+    <div class="graphbox"><svg class="graph" id="svg" role="img"
+      aria-label="Граф диалектов MLIR и понижений между ними"></svg></div>
+    <div class="detail" id="detail"><p class="hint">Нажмите на диалект или на ребро, чтобы увидеть
+      разбор: какие операции туда входят, что из них переводится, чем доказан шаг.</p></div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="wrap">
+    <p class="eyebrow">Понижения по отдельности</p>
+    <h2>Стоимость каждого шага</h2>
+    <p class="lede">«Операции на входе» — это операции входных диалектов шага, встречающиеся в корпусе
+      компилятора. Именно они определяют, можно ли прогнать через шаг реальную программу. Оценка времени
+      считается из двух ручек ниже, а не из измерений: измерено только время солвера.</p>
+    <div class="knobs">
+      <div class="knob">
+        <label for="k1">Одна новая трансляция операции — <span class="val" id="k1v">30 мин</span></label>
+        <input type="range" id="k1" min="5" max="180" step="5" value="30">
+        <p class="why">Измерено косвенно: 4 трансляции, написанные для этой работы, — от 80 до 253 строк
+          Python. Человеко-время не инструментировалось. Считайте это порядком величины, а не замером.</p>
+      </div>
+      <div class="knob">
+        <label for="k2">Один макро-шаблон — <span class="val" id="k2v">15 мин</span></label>
+        <input type="range" id="k2" min="5" max="120" step="5" value="15">
+        <p class="why">Основной расход — прочитать паттерн в исходниках компилятора. Прогон солвера при
+          этом занимает 0.13 с (медиана), то есть в счёт не идёт.</p>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="stepstable">
+      <thead><tr>
+        <th>Компилятор</th><th>Шаг понижения</th><th>Из → в</th>
+        <th class="num">форма 0</th><th class="num">форма 1</th><th class="num">форма 2</th>
+        <th>Спецификация</th><th class="num">Оценка</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p class="lede" style="margin-top:14px">Итого, чтобы сделать <b>проверяемыми по программам</b> все
+      шаги: <span class="mono" id="totalcost"></span>. Это оценка объёма, а не сложности: <code>hw.module</code>
+      — одна механическая трансляция, <code>onnx.Conv</code> — тоже «одна».</p>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <p class="eyebrow">Что действительно измерено</p>
+    <h2>Замеры, а не оценки</h2>
+    <p class="lede">Каждый шаблон прогнан по одному разу в этом же процессе; время включает построение
+      SMT-запроса и ответ z3.</p>
+    <div class="tablewrap"><table id="tmpltable">
+      <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений<br>ист. → цель</th>
+        <th class="num">строк</th><th class="num">секунд</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="note"><b>Красные строки — это находки, а не поломки инструмента.</b> Шаблон,
+      документированный как ломающий constant-time, обязан ломать его и сегодня, иначе находка устарела;
+      счётчик покрытия проверяет и это.</div>
+    <h3 style="margin-top:34px">Трансляции, которые пришлось написать</h3>
+    <div class="tablewrap"><table id="modtable">
+      <thead><tr><th>Модуль</th><th>Что переводит</th><th class="num">строк</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <p class="eyebrow">Границы утверждений</p>
+    <h2>Чего эта карта не говорит</h2>
+    <div class="prose">
+      <ul class="plain">
+        <li><b>Компиляторы не запускались.</b> Ни circt-opt, ни heir-opt, ни onnx-mlir на этой машине не
+          собраны. Каждая пара «до/после» переписана вручную из исходника паттерна или из его же
+          lit-теста, со ссылкой на файл и строку. Значит, доказано свойство <i>спецификации</i> шага, а не
+          того, что выдаёт бинарник компилятора.</li>
+        <li><b>Счёт операций — по тестовым корпусам</b> и по регулярному выражению, а не по определениям
+          диалектов. Операция, которую компилятор поддерживает, но в тестах не использует, в счёт не
+          попадёт.</li>
+        <li><b>Вердикты относительны модели утечек:</b> деление и остаток раскрывают операнды, обращение к
+          памяти раскрывает адрес, ветвление раскрывает условие, всё остальное считается постоянным по
+          времени. Для железа добавлено отдельное допущение: комбинационная арифметика фиксирована по
+          задержке.</li>
+        <li><b>Уровень MLIR ничего не говорит о бинарнике.</b> Находка «<code>mod_arith.add</code> даёт
+          <code>remui</code> над секретом» может быть закрыта бэкендом LLVM, который заменяет деление на
+          константу умножением со сдвигом. Это вопрос к слоям на бинарном уровне, не к этой карте.</li>
+        <li><b>Форма 0/1/2 отвечает на «умеем ли переводить», а не «безопасно ли».</b> У
+          <code>tensor_ext.rotate</code> одна ветка понижения доказанно безопасна, вторая доказанно
+          ломающая — клетки для такого в классификации нет, и операция осталась в форме 2.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  Источник данных: <code class="mono">prototypes/fcvd_ct</code>, ветка
+  <code class="mono">fcvd-mlir-noninterference</code>. Воспроизводится через <code class="mono">./run_all.sh</code>
+  и <code class="mono">uv run fcvd-ct-coverage</code>; вердикты закреплены тестами (<code class="mono">uv run pytest</code>).
+</div></footer>
+
+<script type="application/json" id="artifact-data">{"compilers":[{"name":"circt","commit":"2803829","repo":"https://github.com/llvm/circt","note":"Software-to-hardware path as `hlstool` builds it. Read from tools/hlstool/hlstool.cpp; pass names from include/circt/{Conversion,Transforms}/Passes.td.","files":280,"distinct":237,"mentions":10064,"form0":49,"form1":0,"form2":188,"m0":4037,"m1":0,"m2":6027,"steps":12,"specified":2},{"name":"heir","commit":"de797a2","repo":"https://github.com/google/heir","note":"Two pipelines: `--convert-to-data-oblivious` (the constant-time hardening family) and the plaintext backend `--polynomial-to-llvm`. Read from lib/Pipelines/PipelineRegistration.cpp and tools/heir-opt.cpp.","files":453,"distinct":117,"mentions":8400,"form0":34,"form1":1,"form2":82,"m0":4485,"m1":4,"m2":3911,"steps":12,"specified":3},{"name":"onnx-mlir","commit":"de23de7","repo":"https://github.com/onnx/onnx-mlir","note":"The default `onnx-mlir -EmitLib` pipeline, read from src/Compiler/CompilerPasses.cpp.","files":248,"distinct":302,"mentions":8278,"form0":14,"form1":0,"form2":288,"m0":2785,"m1":0,"m2":5493,"steps":6,"specified":1}],"dialects":[{"name":"onnx","compilers":["onnx-mlir"],"ops":[{"name":"onnx.Constant","n":1023,"form":2,"by":""},{"name":"onnx.Return","n":892,"form":2,"by":""},{"name":"onnx.NoValue","n":283,"form":2,"by":""},{"name":"onnx.Add","n":193,"form":2,"by":""},{"name":"onnx.Concat","n":112,"form":2,"by":""},{"name":"onnx.Dim","n":95,"form":2,"by":""},{"name":"onnx.MatMul","n":88,"form":2,"by":""},{"name":"onnx.Conv","n":87,"form":2,"by":""},{"name":"onnx.Mul","n":79,"form":2,"by":""},{"name":"onnx.Reshape","n":74,"form":2,"by":""},{"name":"onnx.name","n":63,"form":2,"by":""},{"name":"onnx.Cast","n":56,"form":2,"by":""},{"name":"onnx.Transpose","n":48,"form":2,"by":""},{"name":"onnx.Gemm","n":40,"form":2,"by":""},{"name":"onnx.Relu","n":36,"form":2,"by":""},{"name":"onnx.Yield","n":36,"form":2,"by":""},{"name":"onnx.ReduceMeanV13","n":36,"form":2,"by":""},{"name":"onnx.Expand","n":36,"form":2,"by":""},{"name":"onnx.MaxPoolSingleOut","n":35,"form":2,"by":""},{"name":"onnx.MatMulInteger","n":32,"form":2,"by":""},{"name":"onnx.Div","n":29,"form":2,"by":""},{"name":"onnx.Split","n":29,"form":2,"by":""},{"name":"onnx.Clip","n":28,"form":2,"by":""},{"name":"onnx.Sqrt","n":27,"form":2,"by":""},{"name":"onnx.GridSample","n":27,"form":2,"by":""},{"name":"onnx.AveragePool","n":26,"form":2,"by":""},{"name":"onnx.Squeeze","n":25,"form":2,"by":""},{"name":"onnx.Unsqueeze","n":25,"form":2,"by":""},{"name":"onnx.Im2Col","n":24,"form":2,"by":""},{"name":"onnx.Sub","n":24,"form":2,"by":""},{"name":"onnx.ReduceSum","n":24,"form":2,"by":""},{"name":"onnx.LSTM","n":24,"form":2,"by":""},{"name":"onnx.Resize","n":24,"form":2,"by":""},{"name":"onnx.Slice","n":24,"form":2,"by":""},{"name":"onnx.Einsum","n":23,"form":2,"by":""},{"name":"onnx.UpsampleAndPad","n":22,"form":2,"by":""},{"name":"onnx.ConvTranspose","n":22,"form":2,"by":""},{"name":"onnx.Pow","n":21,"form":2,"by":""},{"name":"onnx.GRU","n":20,"form":2,"by":""},{"name":"onnx.RNN","n":20,"form":2,"by":""},{"name":"onnx.GatherND","n":20,"form":2,"by":""},{"name":"onnx.PRelu","n":19,"form":2,"by":""},{"name":"onnx.Gather","n":19,"form":2,"by":""},{"name":"onnx.SplitToSequence","n":19,"form":2,"by":""},{"name":"onnx.Less","n":18,"form":2,"by":""},{"name":"onnx.Shape","n":18,"form":2,"by":""},{"name":"onnx.Range","n":18,"form":2,"by":""},{"name":"onnx.Where","n":17,"form":2,"by":""},{"name":"onnx.Identity","n":17,"form":2,"by":""},{"name":"onnx.BatchNormalizationInferenceMode","n":16,"form":2,"by":""},{"name":"onnx.ConstantOfShape","n":16,"form":2,"by":""},{"name":"onnx.ScatterND","n":16,"form":2,"by":""},{"name":"onnx.DequantizeLinear","n":15,"form":2,"by":""},{"name":"onnx.SqueezeV11","n":15,"form":2,"by":""},{"name":"onnx.Sigmoid","n":14,"form":2,"by":""},{"name":"onnx.RandomNormalLike","n":14,"form":2,"by":""},{"name":"onnx.dim_params","n":14,"form":2,"by":""},{"name":"onnx.Attention","n":14,"form":2,"by":""},{"name":"onnx.Custom","n":13,"form":2,"by":""},{"name":"onnx.Equal","n":13,"form":2,"by":""},{"name":"onnx.RandomUniform","n":13,"form":2,"by":""},{"name":"onnx.ReduceMaxV13","n":13,"form":2,"by":""},{"name":"onnx.SplitV11","n":13,"form":2,"by":""},{"name":"onnx.Unique","n":13,"form":2,"by":""},{"name":"onnx.GatherElements","n":12,"form":2,"by":""},{"name":"onnx.UnsqueezeV11","n":12,"form":2,"by":""},{"name":"onnx.ConvInteger","n":12,"form":2,"by":""},{"name":"onnx.If","n":11,"form":2,"by":""},{"name":"onnx.LeakyRelu","n":11,"form":2,"by":""},{"name":"onnx.RandomUniformLike","n":11,"form":2,"by":""},{"name":"onnx.NonMaxSuppression","n":11,"form":2,"by":""},{"name":"onnx.Flatten","n":11,"form":2,"by":""},{"name":"onnx.CategoryMapper","n":10,"form":2,"by":""},{"name":"onnx.CumSum","n":10,"form":2,"by":""},{"name":"onnx.Sum","n":10,"form":2,"by":""},{"name":"onnx.Erf","n":10,"form":2,"by":""},{"name":"onnx.Softmax","n":10,"form":2,"by":""},{"name":"onnx.QuantizeLinear","n":10,"form":2,"by":""},{"name":"onnx.SequenceEmpty","n":10,"form":2,"by":""},{"name":"onnx.Pad","n":10,"form":2,"by":""},{"name":"onnx.ReduceMean","n":10,"form":2,"by":""},{"name":"onnx.Scaler","n":10,"form":2,"by":""},{"name":"onnx.EntryPoint","n":9,"form":2,"by":""},{"name":"onnx.Loop","n":9,"form":2,"by":""},{"name":"onnx.Mod","n":9,"form":2,"by":""},{"name":"onnx.Tanh","n":9,"form":2,"by":""},{"name":"onnx.ReduceMinV13","n":9,"form":2,"by":""},{"name":"onnx.LayerNormalization","n":9,"form":2,"by":""},{"name":"onnx.DynamicQuantizeLinear","n":9,"form":2,"by":""},{"name":"onnx.Compress","n":9,"form":2,"by":""},{"name":"onnx.ScatterElements","n":9,"form":2,"by":""},{"name":"onnx.Tile","n":9,"form":2,"by":""},{"name":"onnx.RandomNormal","n":8,"form":2,"by":""},{"name":"onnx.TopK","n":8,"form":2,"by":""},{"name":"onnx.SequenceInsert","n":8,"form":2,"by":""},{"name":"onnx.Optional","n":8,"form":2,"by":""},{"name":"onnx.LayoutTransform","n":7,"form":2,"by":""},{"name":"onnx.Exp","n":7,"form":2,"by":""},{"name":"onnx.Max","n":7,"form":2,"by":""},{"name":"onnx.Sin","n":7,"form":2,"by":""},{"name":"onnx.Abs","n":7,"form":2,"by":""},{"name":"onnx.DepthToSpace","n":7,"form":2,"by":""},{"name":"onnx.SoftmaxCrossEntropyLoss","n":7,"form":2,"by":""},{"name":"onnx.And","n":6,"form":2,"by":""},{"name":"onnx.Min","n":6,"form":2,"by":""},{"name":"onnx.IsInf","n":6,"form":2,"by":""},{"name":"onnx.Gelu","n":6,"form":2,"by":""},{"name":"onnx.SoftmaxV11","n":6,"form":2,"by":""},{"name":"onnx.SequenceAt","n":6,"form":2,"by":""},{"name":"onnx.GlobalAveragePool","n":6,"form":2,"by":""},{"name":"onnx.GlobalMaxPool","n":6,"form":2,"by":""},{"name":"onnx.OneHotEncoder","n":6,"form":2,"by":""},{"name":"onnx.ShapeTransform","n":5,"form":2,"by":""},{"name":"onnx.Cos","n":5,"form":2,"by":""},{"name":"onnx.Log","n":5,"form":2,"by":""},{"name":"onnx.Reciprocal","n":5,"form":2,"by":""},{"name":"onnx.QLinearMatMul","n":5,"form":2,"by":""},{"name":"onnx.ReduceMax","n":5,"form":2,"by":""},{"name":"onnx.Size","n":5,"form":2,"by":""},{"name":"onnx.OneHot","n":5,"form":2,"by":""},{"name":"onnx.Greater","n":4,"form":2,"by":""},{"name":"onnx.BitwiseAnd","n":4,"form":2,"by":""},{"name":"onnx.Round","n":4,"form":2,"by":""},{"name":"onnx.HardSigmoid","n":4,"form":2,"by":""},{"name":"onnx.Sign","n":4,"form":2,"by":""},{"name":"onnx.Floor","n":4,"form":2,"by":""},{"name":"onnx.Ceil","n":4,"form":2,"by":""},{"name":"onnx.Hardmax","n":4,"form":2,"by":""},{"name":"onnx.SpaceToDepth","n":4,"form":2,"by":""},{"name":"onnx.ArgMax","n":4,"form":2,"by":""},{"name":"onnx.SequenceConstruct","n":4,"form":2,"by":""},{"name":"onnx.Conv_1","n":4,"form":2,"by":""},{"name":"onnx.Or","n":3,"form":2,"by":""},{"name":"onnx.Xor","n":3,"form":2,"by":""},{"name":"onnx.Elu","n":3,"form":2,"by":""},{"name":"onnx.BitwiseNot","n":3,"form":2,"by":""},{"name":"onnx.Celu","n":3,"form":2,"by":""},{"name":"onnx.HardSwish","n":3,"form":2,"by":""},{"name":"onnx.Softplus","n":3,"form":2,"by":""},{"name":"onnx.Binarizer","n":3,"form":2,"by":""},{"name":"onnx.HannWindow","n":3,"form":2,"by":""},{"name":"onnx.ReduceSumV11","n":3,"form":2,"by":""},{"name":"onnx.HammingWindow","n":3,"form":2,"by":""},{"name":"onnx.BlackmanWindow","n":3,"form":2,"by":""},{"name":"onnx.ReverseSequence","n":3,"form":2,"by":""},{"name":"onnx.Neg","n":3,"form":2,"by":""},{"name":"onnx.ReduceMin","n":3,"form":2,"by":""},{"name":"onnx.Bernoulli","n":3,"form":2,"by":""},{"name":"onnx.EyeLike","n":3,"form":2,"by":""},{"name":"onnx.Dropout","n":3,"form":2,"by":""},{"name":"onnx.ReduceProd","n":3,"form":2,"by":""},{"name":"onnx.GridSampleV16","n":3,"form":2,"by":""},{"name":"onnx.DFTV17","n":3,"form":2,"by":""},{"name":"onnx.Upsample","n":3,"form":2,"by":""},{"name":"onnx.Fused","n":3,"form":2,"by":""},{"name":"onnx.Conv_0","n":3,"form":2,"by":""},{"name":"onnx.Conv_2","n":3,"form":2,"by":""},{"name":"onnx.BitwiseOr","n":2,"form":2,"by":""},{"name":"onnx.IsNaN","n":2,"form":2,"by":""},{"name":"onnx.Atan","n":2,"form":2,"by":""},{"name":"onnx.NonZero","n":2,"form":2,"by":""},{"name":"onnx.Mean","n":2,"form":2,"by":""},{"name":"onnx.Sinh","n":2,"form":2,"by":""},{"name":"onnx.Cosh","n":2,"form":2,"by":""},{"name":"onnx.Selu","n":2,"form":2,"by":""},{"name":"onnx.ThresholdedRelu","n":2,"form":2,"by":""},{"name":"onnx.Shrink","n":2,"form":2,"by":""},{"name":"onnx.Mish","n":2,"form":2,"by":""},{"name":"onnx.BitShift","n":2,"form":2,"by":""},{"name":"onnx.MeanVarianceNormalization","n":2,"form":2,"by":""},{"name":"onnx.LpNormalization","n":2,"form":2,"by":""},{"name":"onnx.ReduceProdV13","n":2,"form":2,"by":""},{"name":"onnx.Trilu","n":2,"form":2,"by":""},{"name":"onnx.InstanceNormalization","n":2,"form":2,"by":""},{"name":"onnx.GreaterOrEqual","n":2,"form":2,"by":""},{"name":"onnx.LessOrEqual","n":2,"form":2,"by":""},{"name":"onnx.ArgMin","n":2,"form":2,"by":""},{"name":"onnx.ConcatFromSequence","n":2,"form":2,"by":""},{"name":"onnx.LogSoftmax","n":2,"form":2,"by":""},{"name":"onnx.CastLike","n":2,"form":2,"by":""},{"name":"onnx.Concat_2","n":2,"form":2,"by":""},{"name":"onnx.Relu_1","n":2,"form":2,"by":""},{"name":"onnx.Relu_2","n":2,"form":2,"by":""},{"name":"onnx.Relu_3","n":2,"form":2,"by":""},{"name":"onnx.LRelu_1","n":2,"form":2,"by":""},{"name":"onnx.LRelu_2","n":2,"form":2,"by":""},{"name":"onnx.LRelu_3","n":2,"form":2,"by":""},{"name":"onnx.MaxPoolSingleOut_1","n":2,"form":2,"by":""},{"name":"onnx.GroupNormalizationV18","n":2,"form":2,"by":""},{"name":"onnx.GroupNormalization","n":2,"form":2,"by":""},{"name":"onnx.ReduceLogSumExp","n":2,"form":2,"by":""},{"name":"onnx.ClipV6","n":2,"form":2,"by":""},{"name":"onnx.CenterCropPad","n":2,"form":2,"by":""},{"name":"onnx.Conv_3","n":2,"form":2,"by":""},{"name":"onnx.Concat_4","n":2,"form":2,"by":""},{"name":"onnx.GlobalLpPool","n":2,"form":2,"by":""},{"name":"onnx.Scan","n":2,"form":2,"by":""},{"name":"onnx.ConcatShapeTranspose","n":2,"form":2,"by":""},{"name":"onnx.RMSLayerNormalization","n":2,"form":2,"by":""},{"name":"onnx.OptionalGetElement","n":2,"form":2,"by":""},{"name":"onnx.OptionalHasElement","n":2,"form":2,"by":""},{"name":"onnx.BitwiseXor","n":1,"form":2,"by":""},{"name":"onnx.Acos","n":1,"form":2,"by":""},{"name":"onnx.Acosh","n":1,"form":2,"by":""},{"name":"onnx.Asin","n":1,"form":2,"by":""},{"name":"onnx.Asinh","n":1,"form":2,"by":""},{"name":"onnx.Atanh","n":1,"form":2,"by":""},{"name":"onnx.Tan","n":1,"form":2,"by":""},{"name":"onnx.Softsign","n":1,"form":2,"by":""},{"name":"onnx.SequenceErase","n":1,"form":2,"by":""},{"name":"onnx.Concat_0","n":1,"form":2,"by":""},{"name":"onnx.Concat_1","n":1,"form":2,"by":""},{"name":"onnx.Relu_0","n":1,"form":2,"by":""},{"name":"onnx.Not","n":1,"form":2,"by":""},{"name":"onnx.ReduceL1","n":1,"form":2,"by":""},{"name":"onnx.ReduceL2","n":1,"form":2,"by":""},{"name":"onnx.ReduceLogSum","n":1,"form":2,"by":""},{"name":"onnx.ReduceSumSquare","n":1,"form":2,"by":""},{"name":"onnx.UpsampleV7","n":1,"form":2,"by":""},{"name":"onnx.PadV2","n":1,"form":2,"by":""},{"name":"onnx.ResizeV10","n":1,"form":2,"by":""},{"name":"onnx.ResizeV11","n":1,"form":2,"by":""},{"name":"onnx.ResizeV13","n":1,"form":2,"by":""},{"name":"onnx.SplitV13","n":1,"form":2,"by":""},{"name":"onnx.PadV13","n":1,"form":2,"by":""},{"name":"onnx.Scatter","n":1,"form":2,"by":""},{"name":"onnx.MaxUnpool","n":1,"form":2,"by":""},{"name":"onnx.Conv_4","n":1,"form":2,"by":""},{"name":"onnx.Conv_5","n":1,"form":2,"by":""},{"name":"onnx.Concat_6","n":1,"form":2,"by":""},{"name":"onnx.NoValue_0","n":1,"form":2,"by":""},{"name":"onnx.SequenceLength","n":1,"form":2,"by":""},{"name":"onnx.RoiAlign","n":1,"form":2,"by":""},{"name":"onnx.MaxRoiPool","n":1,"form":2,"by":""},{"name":"onnx.CastMap","n":1,"form":2,"by":""},{"name":"onnx.ZipMap","n":1,"form":2,"by":""}],"forms":[0,0,236],"mentions":4911,"layer":0},{"name":"secret","compilers":["heir"],"ops":[{"name":"secret.yield","n":425,"form":2,"by":""},{"name":"secret.generic","n":424,"form":2,"by":""},{"name":"secret.secret","n":68,"form":2,"by":""},{"name":"secret.conceal","n":33,"form":2,"by":""},{"name":"secret.kernel","n":20,"form":2,"by":""},{"name":"secret.cast","n":15,"form":2,"by":""},{"name":"secret.reveal","n":7,"form":2,"by":""},{"name":"secret.separator","n":4,"form":2,"by":""}],"forms":[0,0,8],"mentions":996,"layer":0},{"name":"tensor_ext","compilers":["heir"],"ops":[{"name":"tensor_ext.layout","n":391,"form":2,"by":""},{"name":"tensor_ext.rotate","n":114,"form":2,"by":""},{"name":"tensor_ext.original_type","n":92,"form":2,"by":""},{"name":"tensor_ext.assign_layout","n":72,"form":2,"by":""},{"name":"tensor_ext.convert_layout","n":19,"form":2,"by":""},{"name":"tensor_ext.unpack","n":3,"form":2,"by":""},{"name":"tensor_ext.remap","n":1,"form":2,"by":""}],"forms":[0,0,7],"mentions":692,"layer":0},{"name":"polynomial","compilers":["heir"],"ops":[{"name":"polynomial.eval","n":8,"form":2,"by":""},{"name":"polynomial.add","n":2,"form":2,"by":""},{"name":"polynomial.mul_scalar","n":1,"form":2,"by":""}],"forms":[0,0,3],"mentions":11,"layer":0},{"name":"tensor","compilers":["heir"],"ops":[{"name":"tensor.empty","n":260,"form":2,"by":""},{"name":"tensor.extract_slice","n":252,"form":2,"by":""},{"name":"tensor.extract","n":178,"form":0,"by":"SMT semantics"},{"name":"tensor.expand_shape","n":142,"form":2,"by":""},{"name":"tensor.insert","n":114,"form":0,"by":"SMT semantics"},{"name":"tensor.insert_slice","n":74,"form":2,"by":""},{"name":"tensor.collapse_shape","n":58,"form":2,"by":""},{"name":"tensor.from_elements","n":42,"form":2,"by":""},{"name":"tensor.yield","n":16,"form":2,"by":""},{"name":"tensor.pad","n":15,"form":2,"by":""},{"name":"tensor.concat","n":10,"form":2,"by":""},{"name":"tensor.splat","n":6,"form":2,"by":""},{"name":"tensor.generate","n":1,"form":2,"by":""},{"name":"tensor.reshape","n":1,"form":2,"by":""}],"forms":[2,0,12],"mentions":1169,"layer":1},{"name":"krnl","compilers":["onnx-mlir"],"ops":[{"name":"krnl.iterate","n":70,"form":2,"by":""},{"name":"krnl.block","n":50,"form":2,"by":""},{"name":"krnl.define_loops","n":49,"form":2,"by":""},{"name":"krnl.global","n":40,"form":2,"by":""},{"name":"krnl.load","n":39,"form":2,"by":""},{"name":"krnl.get_induction_var_value","n":32,"form":2,"by":""},{"name":"krnl.store","n":24,"form":2,"by":""},{"name":"krnl.entry_point","n":22,"form":2,"by":""},{"name":"krnl.copy_to_tile_buffer","n":17,"form":2,"by":""},{"name":"krnl.permute","n":13,"form":2,"by":""},{"name":"krnl.yield","n":9,"form":2,"by":""},{"name":"krnl.memset","n":8,"form":2,"by":""},{"name":"krnl.copy_from_tile_buffer","n":6,"form":2,"by":""},{"name":"krnl.matmul","n":6,"form":2,"by":""},{"name":"krnl.parallel","n":5,"form":2,"by":""},{"name":"krnl.unroll","n":5,"form":2,"by":""},{"name":"krnl.runtime_instrument","n":4,"form":2,"by":""},{"name":"krnl.find_index","n":4,"form":2,"by":""},{"name":"krnl.get_linear_offset_index","n":3,"form":2,"by":""},{"name":"krnl.strlen","n":3,"form":2,"by":""},{"name":"krnl.call","n":2,"form":2,"by":""},{"name":"krnl.strncmp","n":2,"form":2,"by":""},{"name":"krnl.random_normal","n":2,"form":2,"by":""},{"name":"krnl.seqextract","n":2,"form":2,"by":""},{"name":"krnl.prefetch","n":1,"form":2,"by":""},{"name":"krnl.erf","n":1,"form":2,"by":""},{"name":"krnl.acos","n":1,"form":2,"by":""},{"name":"krnl.acosh","n":1,"form":2,"by":""},{"name":"krnl.asin","n":1,"form":2,"by":""},{"name":"krnl.asinh","n":1,"form":2,"by":""},{"name":"krnl.atan","n":1,"form":2,"by":""},{"name":"krnl.atanh","n":1,"form":2,"by":""},{"name":"krnl.tan","n":1,"form":2,"by":""},{"name":"krnl.noValue","n":1,"form":2,"by":""},{"name":"krnl.memcpy","n":1,"form":2,"by":""},{"name":"krnl.region","n":1,"form":2,"by":""},{"name":"krnl.seqstore","n":1,"form":2,"by":""},{"name":"krnl.seqdealloc","n":1,"form":2,"by":""},{"name":"krnl.specialized_kernel","n":1,"form":2,"by":""}],"forms":[0,0,39],"mentions":432,"layer":1},{"name":"mod_arith","compilers":["heir"],"ops":[{"name":"mod_arith.constant","n":46,"form":2,"by":""},{"name":"mod_arith.encapsulate","n":33,"form":2,"by":""},{"name":"mod_arith.lift","n":29,"form":2,"by":""},{"name":"mod_arith.reduce","n":23,"form":2,"by":""},{"name":"mod_arith.add","n":19,"form":2,"by":""},{"name":"mod_arith.mul","n":17,"form":2,"by":""},{"name":"mod_arith.sub","n":16,"form":2,"by":""},{"name":"mod_arith.mod_switch","n":15,"form":2,"by":""},{"name":"mod_arith.barrett_reduce","n":7,"form":2,"by":""},{"name":"mod_arith.mac","n":6,"form":2,"by":""},{"name":"mod_arith.subifge","n":4,"form":1,"by":"heir/mod_arith_subifge_to_arith.mlir"}],"forms":[0,1,10],"mentions":215,"layer":1},{"name":"affine","compilers":["heir","onnx-mlir","circt"],"ops":[{"name":"affine.for","n":204,"form":0,"by":"exact unrolling, constant bounds only (fcvdct.predication)"},{"name":"affine.yield","n":87,"form":0,"by":"exact unrolling, constant bounds only (fcvdct.predication)"},{"name":"affine.load","n":83,"form":2,"by":""},{"name":"affine.store","n":75,"form":2,"by":""},{"name":"affine.apply","n":5,"form":2,"by":""},{"name":"affine.if","n":2,"form":2,"by":""},{"name":"affine.parallel","n":1,"form":2,"by":""}],"forms":[2,0,5],"mentions":457,"layer":2},{"name":"scf","compilers":["circt","heir","onnx-mlir"],"ops":[{"name":"scf.yield","n":219,"form":0,"by":"if-conversion (fcvdct.predication)"},{"name":"scf.for","n":81,"form":0,"by":"bounded unrolling (fcvdct.predication)"},{"name":"scf.if","n":70,"form":0,"by":"if-conversion (fcvdct.predication)"},{"name":"scf.execute_region","n":6,"form":2,"by":""},{"name":"scf.while","n":6,"form":2,"by":""},{"name":"scf.condition","n":6,"form":2,"by":""},{"name":"scf.parallel","n":2,"form":2,"by":""}],"forms":[3,0,4],"mentions":390,"layer":3},{"name":"memref","compilers":["circt","heir","onnx-mlir"],"ops":[{"name":"memref.alloc","n":72,"form":0,"by":"SMT semantics"},{"name":"memref.alloca","n":48,"form":2,"by":""},{"name":"memref.store","n":37,"form":0,"by":"SMT semantics"},{"name":"memref.load","n":34,"form":0,"by":"SMT semantics"},{"name":"memref.global","n":25,"form":2,"by":""},{"name":"memref.get_global","n":25,"form":2,"by":""},{"name":"memref.reshape","n":10,"form":2,"by":""},{"name":"memref.dim","n":9,"form":2,"by":""},{"name":"memref.dealloc","n":6,"form":0,"by":"SMT semantics"},{"name":"memref.copy","n":3,"form":2,"by":""},{"name":"memref.dma_start","n":1,"form":2,"by":""},{"name":"memref.dma_wait","n":1,"form":2,"by":""},{"name":"memref.reinterpret_cast","n":1,"form":2,"by":""}],"forms":[4,0,9],"mentions":272,"layer":3},{"name":"arith","compilers":["circt","heir","onnx-mlir"],"ops":[{"name":"arith.constant","n":1276,"form":0,"by":"SMT semantics"},{"name":"arith.addi","n":451,"form":0,"by":"SMT semantics"},{"name":"arith.addf","n":328,"form":2,"by":""},{"name":"arith.muli","n":258,"form":0,"by":"SMT semantics"},{"name":"arith.mulf","n":237,"form":2,"by":""},{"name":"arith.cmpi","n":95,"form":0,"by":"SMT semantics"},{"name":"arith.select","n":74,"form":0,"by":"SMT semantics"},{"name":"arith.extsi","n":51,"form":0,"by":"SMT semantics"},{"name":"arith.subf","n":46,"form":2,"by":""},{"name":"arith.trunci","n":43,"form":0,"by":"SMT semantics"},{"name":"arith.index_cast","n":38,"form":0,"by":"SMT semantics"},{"name":"arith.subi","n":37,"form":0,"by":"SMT semantics"},{"name":"arith.remsi","n":23,"form":0,"by":"SMT semantics"},{"name":"arith.maximumf","n":21,"form":2,"by":""},{"name":"arith.divf","n":20,"form":2,"by":""},{"name":"arith.shrsi","n":19,"form":0,"by":"SMT semantics"},{"name":"arith.cmpf","n":18,"form":2,"by":""},{"name":"arith.remui","n":16,"form":0,"by":"SMT semantics"},{"name":"arith.maxsi","n":11,"form":0,"by":"SMT semantics"},{"name":"arith.minsi","n":11,"form":0,"by":"SMT semantics"},{"name":"arith.divsi","n":6,"form":0,"by":"SMT semantics"},{"name":"arith.extui","n":6,"form":0,"by":"SMT semantics"},{"name":"arith.andi","n":5,"form":0,"by":"SMT semantics"},{"name":"arith.negf","n":4,"form":2,"by":""},{"name":"arith.xori","n":3,"form":0,"by":"SMT semantics"},{"name":"arith.divui","n":3,"form":0,"by":"SMT semantics"},{"name":"arith.shli","n":3,"form":0,"by":"SMT semantics"},{"name":"arith.addui_extended","n":3,"form":2,"by":""},{"name":"arith.remf","n":1,"form":2,"by":""},{"name":"arith.ori","n":1,"form":0,"by":"SMT semantics"},{"name":"arith.minui","n":1,"form":0,"by":"SMT semantics"},{"name":"arith.fptosi","n":1,"form":2,"by":""},{"name":"arith.sitofp","n":1,"form":2,"by":""},{"name":"arith.bitcast","n":1,"form":2,"by":""},{"name":"arith.shrui","n":1,"form":0,"by":"SMT semantics"}],"forms":[23,0,12],"mentions":3113,"layer":4},{"name":"func","compilers":["circt","heir","onnx-mlir"],"ops":[{"name":"func.func","n":2028,"form":0,"by":"structural lowering"},{"name":"func.return","n":502,"form":0,"by":"structural lowering"},{"name":"func.call","n":20,"form":2,"by":""}],"forms":[2,0,1],"mentions":2550,"layer":4},{"name":"fsm","compilers":["circt"],"ops":[{"name":"fsm.state","n":63,"form":2,"by":""},{"name":"fsm.transition","n":43,"form":2,"by":""},{"name":"fsm.output","n":41,"form":2,"by":""},{"name":"fsm.machine","n":36,"form":2,"by":""},{"name":"fsm.return","n":19,"form":2,"by":""},{"name":"fsm.variable","n":8,"form":2,"by":""},{"name":"fsm.update","n":7,"form":2,"by":""},{"name":"fsm.hw_instance","n":3,"form":2,"by":""}],"forms":[0,0,8],"mentions":220,"layer":4},{"name":"cf","compilers":["circt","heir","onnx-mlir"],"ops":[{"name":"cf.br","n":120,"form":0,"by":"if-conversion (fcvdct.predication)"},{"name":"cf.cond_br","n":77,"form":0,"by":"if-conversion (fcvdct.predication)"}],"forms":[2,0,0],"mentions":197,"layer":4},{"name":"ckks","compilers":["heir"],"ops":[{"name":"ckks.schemeParam","n":36,"form":2,"by":""},{"name":"ckks.mul_plain","n":22,"form":2,"by":""},{"name":"ckks.add_plain","n":21,"form":2,"by":""},{"name":"ckks.add","n":21,"form":2,"by":""},{"name":"ckks.rotate","n":10,"form":2,"by":""},{"name":"ckks.rescale","n":6,"form":2,"by":""},{"name":"ckks.level_reduce","n":1,"form":2,"by":""},{"name":"ckks.bootstrap","n":1,"form":2,"by":""},{"name":"ckks.sub","n":1,"form":2,"by":""},{"name":"ckks.negate","n":1,"form":2,"by":""},{"name":"ckks.mul","n":1,"form":2,"by":""},{"name":"ckks.relinearize","n":1,"form":2,"by":""}],"forms":[0,0,12],"mentions":122,"layer":4},{"name":"lwe","compilers":["heir"],"ops":[{"name":"lwe.rlwe_encode","n":46,"form":2,"by":""},{"name":"lwe.encode","n":7,"form":2,"by":""},{"name":"lwe.rmul_plain","n":1,"form":2,"by":""},{"name":"lwe.rlwe_encrypt","n":1,"form":2,"by":""},{"name":"lwe.radd_plain","n":1,"form":2,"by":""}],"forms":[0,0,5],"mentions":56,"layer":4},{"name":"vector","compilers":["onnx-mlir"],"ops":[{"name":"vector.load","n":18,"form":2,"by":""},{"name":"vector.store","n":12,"form":2,"by":""},{"name":"vector.shuffle","n":6,"form":2,"by":""}],"forms":[0,0,3],"mentions":36,"layer":4},{"name":"bgv","compilers":["heir"],"ops":[{"name":"bgv.schemeParam","n":24,"form":2,"by":""},{"name":"bgv.modulus_switch","n":1,"form":2,"by":""},{"name":"bgv.level_reduce","n":1,"form":2,"by":""},{"name":"bgv.mul_plain","n":1,"form":2,"by":""}],"forms":[0,0,4],"mentions":27,"layer":4},{"name":"rns","compilers":["heir"],"ops":[{"name":"rns.extract_slice","n":2,"form":2,"by":""}],"forms":[0,0,1],"mentions":2,"layer":4},{"name":"calyx","compilers":["circt"],"ops":[{"name":"calyx.assign","n":72,"form":2,"by":""},{"name":"calyx.register","n":19,"form":2,"by":""},{"name":"calyx.group","n":16,"form":2,"by":""},{"name":"calyx.group_done","n":16,"form":2,"by":""},{"name":"calyx.enable","n":15,"form":2,"by":""},{"name":"calyx.component","n":14,"form":2,"by":""},{"name":"calyx.wires","n":14,"form":2,"by":""},{"name":"calyx.control","n":14,"form":2,"by":""},{"name":"calyx.group_go","n":11,"form":2,"by":""},{"name":"calyx.seq","n":11,"form":2,"by":""},{"name":"calyx.undef","n":5,"form":2,"by":""},{"name":"calyx.entrypoint","n":5,"form":2,"by":""},{"name":"calyx.std_lt","n":4,"form":2,"by":""},{"name":"calyx.invoke","n":3,"form":2,"by":""},{"name":"calyx.std_add","n":3,"form":2,"by":""},{"name":"calyx.if","n":2,"form":2,"by":""},{"name":"calyx.while","n":2,"form":2,"by":""},{"name":"calyx.std_wire","n":2,"form":2,"by":""},{"name":"calyx.instance","n":1,"form":2,"by":""},{"name":"calyx.fsm_group_done_inputs","n":1,"form":2,"by":""},{"name":"calyx.fsm_group_go_outputs","n":1,"form":2,"by":""},{"name":"calyx.fsm_top_level_done","n":1,"form":2,"by":""},{"name":"calyx.fsm_top_level_go","n":1,"form":2,"by":""},{"name":"calyx.std_mult_pipe","n":1,"form":2,"by":""},{"name":"calyx.std_pad","n":1,"form":2,"by":""},{"name":"calyx.undefined","n":1,"form":2,"by":""},{"name":"calyx.std_signext","n":1,"form":2,"by":""},{"name":"calyx.unroll","n":1,"form":2,"by":""}],"forms":[0,0,28],"mentions":238,"layer":5},{"name":"handshake","compilers":["circt"],"ops":[{"name":"handshake.func","n":50,"form":2,"by":""},{"name":"handshake.return","n":3,"form":2,"by":""},{"name":"handshake.mux","n":2,"form":2,"by":""},{"name":"handshake.esi_instance","n":2,"form":2,"by":""},{"name":"handshake.instance","n":2,"form":2,"by":""},{"name":"handshake.pack","n":1,"form":2,"by":""},{"name":"handshake.unpack","n":1,"form":2,"by":""},{"name":"handshake.extmemory","n":1,"form":2,"by":""}],"forms":[0,0,8],"mentions":62,"layer":5},{"name":"dc","compilers":["circt"],"ops":[{"name":"dc.clock","n":4,"form":2,"by":""},{"name":"dc.reset","n":4,"form":2,"by":""},{"name":"dc.pack","n":2,"form":2,"by":""},{"name":"dc.unpack","n":2,"form":2,"by":""},{"name":"dc.fork","n":2,"form":2,"by":""},{"name":"dc.buffer","n":2,"form":2,"by":""},{"name":"dc.from_esi","n":2,"form":2,"by":""},{"name":"dc.to_esi","n":2,"form":2,"by":""},{"name":"dc.join","n":1,"form":2,"by":""},{"name":"dc.branch","n":1,"form":2,"by":""},{"name":"dc.select","n":1,"form":2,"by":""},{"name":"dc.sink","n":1,"form":2,"by":""},{"name":"dc.source","n":1,"form":2,"by":""},{"name":"dc.merge","n":1,"form":2,"by":""}],"forms":[0,0,14],"mentions":26,"layer":5},{"name":"hw","compilers":["circt"],"ops":[{"name":"hw.module","n":1505,"form":2,"by":""},{"name":"hw.output","n":1026,"form":2,"by":""},{"name":"hw.constant","n":931,"form":0,"by":"SMT semantics"},{"name":"hw.instance","n":274,"form":2,"by":""},{"name":"hw.array_get","n":74,"form":2,"by":""},{"name":"hw.bitcast","n":70,"form":2,"by":""},{"name":"hw.aggregate_constant","n":60,"form":2,"by":""},{"name":"hw.wire","n":53,"form":2,"by":""},{"name":"hw.param","n":43,"form":2,"by":""},{"name":"hw.array_create","n":42,"form":2,"by":""},{"name":"hw.struct_extract","n":39,"form":2,"by":""},{"name":"hw.array_inject","n":38,"form":2,"by":""},{"name":"hw.struct_create","n":32,"form":2,"by":""},{"name":"hw.array_slice","n":29,"form":2,"by":""},{"name":"hw.struct_inject","n":29,"form":2,"by":""},{"name":"hw.typedecl","n":22,"form":2,"by":""},{"name":"hw.triggered","n":22,"form":2,"by":""},{"name":"hw.union_extract","n":20,"form":2,"by":""},{"name":"hw.enum","n":20,"form":2,"by":""},{"name":"hw.array_concat","n":17,"form":2,"by":""},{"name":"hw.union_create","n":16,"form":2,"by":""},{"name":"hw.hierpath","n":15,"form":2,"by":""},{"name":"hw.struct_explode","n":11,"form":2,"by":""},{"name":"hw.exportPort","n":9,"form":2,"by":""},{"name":"hw.type_scope","n":9,"form":2,"by":""},{"name":"hw.arg","n":8,"form":2,"by":""},{"name":"hw.res","n":8,"form":2,"by":""},{"name":"hw.verilogName","n":7,"form":2,"by":""},{"name":"hw.generator","n":5,"form":2,"by":""},{"name":"hw.attrname","n":2,"form":2,"by":""}],"forms":[1,0,29],"mentions":4436,"layer":6},{"name":"comb","compilers":["circt"],"ops":[{"name":"comb.mux","n":347,"form":0,"by":"SMT semantics"},{"name":"comb.icmp","n":308,"form":0,"by":"SMT semantics"},{"name":"comb.add","n":241,"form":0,"by":"SMT semantics"},{"name":"comb.extract","n":237,"form":0,"by":"SMT semantics"},{"name":"comb.concat","n":224,"form":0,"by":"SMT semantics"},{"name":"comb.and","n":176,"form":0,"by":"SMT semantics"},{"name":"comb.xor","n":141,"form":0,"by":"SMT semantics"},{"name":"comb.or","n":103,"form":0,"by":"SMT semantics"},{"name":"comb.mul","n":71,"form":0,"by":"SMT semantics"},{"name":"comb.sub","n":37,"form":0,"by":"SMT semantics"},{"name":"comb.replicate","n":34,"form":0,"by":"SMT semantics"},{"name":"comb.shl","n":27,"form":0,"by":"SMT semantics"},{"name":"comb.parity","n":22,"form":0,"by":"SMT semantics"},{"name":"comb.divu","n":20,"form":0,"by":"SMT semantics"},{"name":"comb.shrs","n":20,"form":0,"by":"SMT semantics"},{"name":"comb.divs","n":19,"form":0,"by":"SMT semantics"},{"name":"comb.shru","n":19,"form":0,"by":"SMT semantics"},{"name":"comb.modu","n":18,"form":0,"by":"SMT semantics"},{"name":"comb.truth_table","n":14,"form":2,"by":""},{"name":"comb.mods","n":12,"form":0,"by":"SMT semantics"},{"name":"comb.reverse","n":6,"form":2,"by":""}],"forms":[19,0,2],"mentions":2096,"layer":6},{"name":"seq","compilers":["circt"],"ops":[{"name":"seq.compreg","n":110,"form":2,"by":""},{"name":"seq.firreg","n":98,"form":2,"by":""},{"name":"seq.firmem","n":77,"form":2,"by":""},{"name":"seq.to_clock","n":34,"form":2,"by":""},{"name":"seq.from_clock","n":25,"form":2,"by":""},{"name":"seq.clock_gate","n":21,"form":2,"by":""},{"name":"seq.initial","n":18,"form":2,"by":""},{"name":"seq.yield","n":18,"form":2,"by":""},{"name":"seq.const_clock","n":13,"form":2,"by":""},{"name":"seq.clock_inv","n":8,"form":2,"by":""},{"name":"seq.fifo","n":7,"form":2,"by":""},{"name":"seq.clock_div","n":6,"form":2,"by":""},{"name":"seq.read","n":5,"form":2,"by":""},{"name":"seq.clock_mux","n":4,"form":2,"by":""},{"name":"seq.hlmem","n":4,"form":2,"by":""},{"name":"seq.shiftreg","n":3,"form":2,"by":""},{"name":"seq.write","n":3,"form":2,"by":""},{"name":"seq.from_immutable","n":1,"form":2,"by":""}],"forms":[0,0,18],"mentions":455,"layer":6},{"name":"sv","compilers":["circt"],"ops":[{"name":"sv.read_inout","n":128,"form":2,"by":""},{"name":"sv.wire","n":117,"form":2,"by":""},{"name":"sv.assign","n":105,"form":2,"by":""},{"name":"sv.reg","n":98,"form":2,"by":""},{"name":"sv.assert_property","n":75,"form":2,"by":""},{"name":"sv.verbatim","n":71,"form":2,"by":""},{"name":"sv.fwrite","n":67,"form":2,"by":""},{"name":"sv.always","n":60,"form":2,"by":""},{"name":"sv.macro","n":59,"form":2,"by":""},{"name":"sv.if","n":53,"form":2,"by":""},{"name":"sv.interface","n":51,"form":2,"by":""},{"name":"sv.passign","n":46,"form":2,"by":""},{"name":"sv.bpassign","n":42,"form":2,"by":""},{"name":"sv.ifdef","n":40,"form":2,"by":""},{"name":"sv.initial","n":39,"form":2,"by":""},{"name":"sv.assert","n":29,"form":2,"by":""},{"name":"sv.func","n":28,"form":2,"by":""},{"name":"sv.namehint","n":27,"form":2,"by":""},{"name":"sv.array_index_inout","n":20,"form":2,"by":""},{"name":"sv.alwaysff","n":20,"form":2,"by":""},{"name":"sv.attributes","n":20,"form":2,"by":""},{"name":"sv.fatal","n":18,"form":2,"by":""},{"name":"sv.cover","n":16,"form":2,"by":""},{"name":"sv.assume","n":15,"form":2,"by":""},{"name":"sv.logic","n":12,"form":2,"by":""},{"name":"sv.bind","n":12,"form":2,"by":""},{"name":"sv.system","n":10,"form":2,"by":""},{"name":"sv.xmr","n":9,"form":2,"by":""},{"name":"sv.case","n":9,"form":2,"by":""},{"name":"sv.assume_property","n":9,"form":2,"by":""},{"name":"sv.error","n":8,"form":2,"by":""},{"name":"sv.struct_field_inout","n":7,"form":2,"by":""},{"name":"sv.cover_property","n":7,"form":2,"by":""},{"name":"sv.alwayscomb","n":6,"form":2,"by":""},{"name":"sv.exit","n":6,"form":2,"by":""},{"name":"sv.indexed_part_select_inout","n":6,"form":2,"by":""},{"name":"sv.warning","n":6,"form":2,"by":""},{"name":"sv.info","n":6,"form":2,"by":""},{"name":"sv.return","n":6,"form":2,"by":""},{"name":"sv.constantZ","n":5,"form":2,"by":""},{"name":"sv.constantX","n":4,"form":2,"by":""},{"name":"sv.constantStr","n":4,"form":2,"by":""},{"name":"sv.readmem","n":4,"form":2,"by":""},{"name":"sv.localparam","n":3,"form":2,"by":""},{"name":"sv.indexed_part_select","n":3,"form":2,"by":""},{"name":"sv.write","n":3,"form":2,"by":""},{"name":"sv.for","n":2,"form":2,"by":""},{"name":"sv.stop","n":2,"form":2,"by":""},{"name":"sv.finish","n":2,"form":2,"by":""},{"name":"sv.fflush","n":2,"form":2,"by":""},{"name":"sv.alias","n":2,"form":2,"by":""},{"name":"sv.unpacked_array_create","n":2,"form":2,"by":""},{"name":"sv.sformatf","n":2,"form":2,"by":""},{"name":"sv.modport","n":2,"form":2,"by":""},{"name":"sv.include","n":2,"form":2,"by":""},{"name":"sv.reserve_names","n":1,"form":2,"by":""},{"name":"sv.force","n":1,"form":2,"by":""},{"name":"sv.release","n":1,"form":2,"by":""},{"name":"sv.fclose","n":1,"form":2,"by":""},{"name":"sv.unpacked_open_array_cast","n":1,"form":2,"by":""},{"name":"sv.concat_str","n":1,"form":2,"by":""},{"name":"sv.ordered","n":1,"form":2,"by":""}],"forms":[0,0,62],"mentions":1414,"layer":7},{"name":"verilog","compilers":["circt"],"ops":[],"forms":[0,0,0],"mentions":0,"layer":7},{"name":"llvm","compilers":["heir","onnx-mlir"],"ops":[],"forms":[0,0,0],"mentions":0,"layer":7}],"steps":[{"compiler":"circt","pass":"--flatten-memref","from":["memref"],"to":["memref"],"cited":"tools/hlstool/hlstool.cpp:250","forms":[3,0,5],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--lower-affine","from":["affine"],"to":["scf"],"cited":"tools/hlstool/hlstool.cpp:336","forms":[0,0,0],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--convert-scf-to-cf","from":["scf"],"to":["cf"],"cited":"tools/hlstool/hlstool.cpp:253","forms":[3,0,4],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--lower-cf-to-handshake","from":["cf","arith"],"to":["handshake"],"cited":"tools/hlstool/hlstool.cpp:257","forms":[21,0,9],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--handshake-to-dc","from":["handshake"],"to":["dc"],"cited":"tools/hlstool/hlstool.cpp:349","forms":[0,0,8],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--lower-dc-to-hw","from":["dc"],"to":["hw","comb","seq"],"cited":"tools/hlstool/hlstool.cpp:356","forms":[0,0,14],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--map-arith-to-comb","from":["arith"],"to":["comb","hw"],"cited":"tools/hlstool/hlstool.cpp:358","forms":[19,0,9],"proved":["circt/map_arith_to_comb_pure.mlir","circt/map_arith_to_comb_div.mlir","circt/map_arith_to_comb_minmax.mlir"],"breaks":[]},{"compiler":"circt","pass":"--lower-scf-to-calyx","from":["scf","arith","memref"],"to":["calyx"],"cited":"tools/hlstool/hlstool.cpp:425","forms":[25,0,18],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--lower-calyx-to-hw","from":["calyx"],"to":["hw","comb","seq"],"cited":"tools/hlstool/hlstool.cpp:453","forms":[0,0,28],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--lower-seq-to-sv","from":["seq"],"to":["sv"],"cited":"tools/hlstool/hlstool.cpp:293","forms":[0,0,18],"proved":[],"breaks":[]},{"compiler":"circt","pass":"ExportVerilog","from":["hw","comb","sv"],"to":["verilog"],"cited":"tools/hlstool/hlstool.cpp:375","forms":[20,0,93],"proved":[],"breaks":[]},{"compiler":"circt","pass":"--convert-comb-to-arith","from":["comb","hw"],"to":["arith"],"cited":"lib/Tools/arcilator/pipelines.cpp:170 -> lib/Conversion/ArcToLLVM/LowerArcToLLVM.cpp:1910","forms":[20,0,31],"proved":[],"breaks":["circt/comb_to_arith_div.mlir"]},{"compiler":"heir","pass":"--convert-secret-extract-to-static-extract","from":["secret","tensor"],"to":["affine","scf","tensor"],"cited":"lib/Pipelines/PipelineRegistration.cpp:155","forms":[2,0,20],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-secret-insert-to-static-insert","from":["secret","tensor"],"to":["affine","scf","tensor"],"cited":"lib/Pipelines/PipelineRegistration.cpp:156","forms":[2,0,20],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-secret-while-to-static-for","from":["secret","scf"],"to":["affine","scf"],"cited":"lib/Pipelines/PipelineRegistration.cpp:159","forms":[3,0,10],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-secret-for-to-static-for","from":["secret","scf"],"to":["affine","scf"],"cited":"lib/Pipelines/PipelineRegistration.cpp:160","forms":[3,0,10],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-if-to-select","from":["secret","scf"],"to":["arith"],"cited":"lib/Pipelines/PipelineRegistration.cpp:163","forms":[3,0,10],"proved":["heir/if_to_select_speculative.mlir"],"breaks":["heir/if_to_select_unspeculatable.mlir"]},{"compiler":"heir","pass":"--elementwise-to-affine","from":["tensor"],"to":["affine"],"cited":"lib/Pipelines/PipelineRegistration.cpp:84","forms":[2,0,12],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--polynomial-to-mod-arith","from":["polynomial"],"to":["mod_arith"],"cited":"lib/Pipelines/PipelineRegistration.cpp:85","forms":[0,0,3],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--mod-arith-to-arith","from":["mod_arith"],"to":["arith"],"cited":"lib/Pipelines/PipelineRegistration.cpp:87","forms":[0,1,10],"proved":["heir/mod_arith_subifge_to_arith.mlir"],"breaks":["heir/mod_arith_add_to_arith.mlir","heir/mod_arith_subifge_branchy.mlir"]},{"compiler":"heir","pass":"--lower-affine","from":["affine"],"to":["scf"],"cited":"lib/Pipelines/PipelineRegistration.cpp:97","forms":[2,0,4],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-scf-to-cf","from":["scf"],"to":["cf"],"cited":"lib/Pipelines/PipelineRegistration.cpp:108","forms":[3,0,2],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--convert-to-llvm","from":["cf","arith","memref","func"],"to":["llvm"],"cited":"lib/Pipelines/PipelineRegistration.cpp:115","forms":[27,0,14],"proved":[],"breaks":[]},{"compiler":"heir","pass":"--tensor-ext-to-tensor","from":["tensor_ext"],"to":["tensor","arith"],"cited":"lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.cpp:33","forms":[0,0,7],"proved":["heir/tensor_ext_rotate_static.mlir"],"breaks":["heir/tensor_ext_rotate_dynamic.mlir"]},{"compiler":"onnx-mlir","pass":"--convert-onnx-to-krnl","from":["onnx"],"to":["krnl","affine","memref","arith"],"cited":"src/Compiler/CompilerPasses.cpp:298","forms":[0,0,236],"proved":[],"breaks":["onnx_mlir/gather_to_krnl.mlir"]},{"compiler":"onnx-mlir","pass":"--convert-krnl-to-affine","from":["krnl"],"to":["affine","scf","memref"],"cited":"src/Compiler/CompilerPasses.cpp:310","forms":[0,0,39],"proved":[],"breaks":[]},{"compiler":"onnx-mlir","pass":"--lower-affine","from":["affine"],"to":["scf"],"cited":"src/Compiler/CompilerPasses.cpp:405","forms":[1,0,3],"proved":[],"breaks":[]},{"compiler":"onnx-mlir","pass":"--convert-scf-to-cf","from":["scf"],"to":["cf"],"cited":"src/Compiler/CompilerPasses.cpp:406","forms":[1,0,0],"proved":[],"breaks":[]},{"compiler":"onnx-mlir","pass":"--convert-vector-to-llvm","from":["vector"],"to":["llvm"],"cited":"src/Compiler/CompilerPasses.cpp:530","forms":[0,0,3],"proved":[],"breaks":[]},{"compiler":"onnx-mlir","pass":"--convert-krnl-to-llvm","from":["krnl","memref","cf","arith","func"],"to":["llvm"],"cited":"src/Compiler/CompilerPasses.cpp:539","forms":[12,0,46],"proved":[],"breaks":[]}],"templates":[{"file":"if_to_select_leaky.mlir","verdict":"ct-breaking","obs":[3,2],"bounded":false,"seconds":0.183,"lines":28},{"file":"if_to_select_pure.mlir","verdict":"ct-preserving","obs":[1,0],"bounded":false,"seconds":0.112,"lines":25},{"file":"loop_early_exit.mlir","verdict":"ct-breaking","obs":[9,12],"bounded":true,"seconds":1.078,"lines":38},{"file":"scf_for_bounded.mlir","verdict":"ct-preserving","obs":[9,9],"bounded":true,"seconds":0.922,"lines":23},{"file":"scf_for_to_cf.mlir","verdict":"ct-preserving","obs":[9,8],"bounded":true,"seconds":0.872,"lines":36},{"file":"scf_if_to_cf.mlir","verdict":"ct-preserving","obs":[3,3],"bounded":false,"seconds":0.156,"lines":31},{"file":"select_to_cf.mlir","verdict":"ct-breaking","obs":[0,1],"bounded":false,"seconds":0.108,"lines":23},{"file":"swapped_arms.mlir","verdict":"ct-breaking","obs":[3,3],"bounded":false,"seconds":0.244,"lines":35},{"file":"while_unsupported.mlir","verdict":"unknown","obs":[0,0],"bounded":false,"seconds":0.001,"lines":29},{"file":"circt/comb_to_arith_div.mlir","verdict":"ct-breaking","obs":[0,2],"bounded":false,"seconds":0.125,"lines":29},{"file":"circt/map_arith_to_comb_div.mlir","verdict":"ct-preserving","obs":[4,0],"bounded":false,"seconds":0.079,"lines":23},{"file":"circt/map_arith_to_comb_minmax.mlir","verdict":"ct-preserving","obs":[0,0],"bounded":false,"seconds":0.084,"lines":21},{"file":"circt/map_arith_to_comb_pure.mlir","verdict":"ct-preserving","obs":[0,0],"bounded":false,"seconds":0.109,"lines":44},{"file":"heir/if_to_select_speculative.mlir","verdict":"ct-preserving","obs":[1,0],"bounded":false,"seconds":0.083,"lines":22},{"file":"heir/if_to_select_unspeculatable.mlir","verdict":"ct-breaking","obs":[3,2],"bounded":false,"seconds":0.127,"lines":29},{"file":"heir/mod_arith_add_to_arith.mlir","verdict":"ct-breaking","obs":[0,2],"bounded":false,"seconds":0.135,"lines":29},{"file":"heir/mod_arith_subifge_branchy.mlir","verdict":"ct-breaking","obs":[0,1],"bounded":false,"seconds":0.133,"lines":24},{"file":"heir/mod_arith_subifge_to_arith.mlir","verdict":"ct-preserving","obs":[0,0],"bounded":false,"seconds":0.081,"lines":33},{"file":"heir/tensor_ext_rotate_dynamic.mlir","verdict":"ct-breaking","obs":[0,4],"bounded":false,"seconds":0.166,"lines":51},{"file":"heir/tensor_ext_rotate_static.mlir","verdict":"ct-preserving","obs":[0,0],"bounded":false,"seconds":0.084,"lines":27},{"file":"onnx_mlir/gather_to_krnl.mlir","verdict":"ct-breaking","obs":[0,3],"bounded":false,"seconds":0.183,"lines":29}],"modules":[{"file":"hw_ops.py","what":"hw.constant: syntax + semantics","lines":80},{"file":"tensor_ops.py","what":"tensor.extract/insert + the tensor type, on SMT arrays","lines":172},{"file":"affine_ops.py","what":"affine.for/yield syntax","lines":147},{"file":"index_ops.py","what":"arith on index, arith.index_cast","lines":119},{"file":"predication.py","what":"control flow by if-conversion and unrolling","lines":304},{"file":"leakage.py","what":"the leakage model itself","lines":187},{"file":"selfcomp.py","what":"self-composition driver, four obligations","lines":287},{"file":"structural.py","what":"macro-template checker","lines":228},{"file":"pdl_ct.py","what":"PDL rewrite checker","lines":236},{"file":"coverage.py","what":"the coverage counter","lines":346}]}</script>
+
+<script>
+const DATA = JSON.parse(document.getElementById("artifact-data").textContent);
+const NBSP = " ";
+const fmt = n => n.toLocaleString("ru-RU");
+const state = {comp: "all", sel: null};
+
+/* ---------- compiler cards ---------- */
+const cards = document.getElementById("cards");
+cards.innerHTML = DATA.compilers.map(c => {
+  const share = c.mentions ? (100 * (c.m0 + c.m1) / c.mentions) : 0;
+  const w = f => c.mentions ? (100 * f / c.mentions).toFixed(2) + "%" : "0%";
+  return `<article class="card">
+    <h3>${c.name} <span class="commit">${c.commit}</span></h3>
+    <div class="meter" role="img" aria-label="доля упоминаний по формам">
+      <span class="s0" style="width:${w(c.m0)}"></span>
+      <span class="s1" style="width:${w(c.m1)}"></span>
+      <span class="s2" style="width:${w(c.m2)}"></span>
+    </div>
+    <p class="figure">${share.toFixed(1)}<small>${NBSP}% упоминаний переводимо</small></p>
+    <p class="sub">${fmt(c.distinct)} разных операций в ${fmt(c.files)} тестовых файлах,
+      из них <b>${c.form2}</b> без перевода. Шагов конвейера ${c.steps},
+      с проверенной спецификацией ${c.specified}.</p>
+  </article>`;
+}).join("");
+
+/* ---------- graph ---------- */
+const stepNodes = new Set();
+DATA.steps.forEach(s => { s.from.forEach(d => stepNodes.add(d)); s.to.forEach(d => stepNodes.add(d)); });
+const nodes = DATA.dialects.filter(d => stepNodes.has(d.name));
+const byName = Object.fromEntries(nodes.map(d => [d.name, d]));
+
+const NW = 118, NH = 34, GAPX = 158, GAPY = 46, PAD_X = 26, PAD_Y = 44;
+const layers = {};
+nodes.forEach(d => (layers[d.layer] = layers[d.layer] || []).push(d));
+const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+const maxRows = Math.max(...layerKeys.map(k => layers[k].length));
+layerKeys.forEach((k, li) => {
+  const col = layers[k];
+  const offset = (maxRows - col.length) / 2;
+  col.forEach((d, i) => { d.x = PAD_X + li * GAPX; d.y = PAD_Y + (i + offset) * GAPY; });
+});
+const W = PAD_X * 2 + (layerKeys.length - 1) * GAPX + NW;
+const H = PAD_Y * 2 + maxRows * GAPY;
+
+const edges = [];
+DATA.steps.forEach((s, si) => s.from.forEach(f => s.to.forEach(t => {
+  if (!byName[f] || !byName[t] || f === t) return;
+  edges.push({step: si, from: f, to: t,
+    kind: s.breaks.length ? "breaking" : (s.proved.length ? "proved" : "unchecked")});
+})));
+
+const svg = document.getElementById("svg");
+svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+const LAYER_NAMES = {0: "предметный", 1: "промежуточный", 2: "циклы", 3: "структурный",
+  4: "плоский", 5: "планирование", 6: "железо", 7: "выход"};
+
+function path(e) {
+  const a = byName[e.from], b = byName[e.to];
+  const back = b.x <= a.x;
+  const x1 = back ? a.x : a.x + NW, y1 = a.y + NH / 2;
+  const x2 = back ? b.x + NW : b.x, y2 = b.y + NH / 2;
+  if (back) {
+    const dip = Math.max(a.y, b.y) + NH + 26;
+    return `M ${x1} ${y1} C ${x1 - 60} ${dip}, ${x2 + 60} ${dip}, ${x2} ${y2}`;
+  }
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+
+function render() {
+  const active = s => state.comp === "all" || s.compiler === state.comp;
+  const liveNodes = new Set();
+  DATA.steps.forEach(s => { if (active(s)) { s.from.forEach(d => liveNodes.add(d)); s.to.forEach(d => liveNodes.add(d)); } });
+
+  let out = "";
+  layerKeys.forEach((k, li) => {
+    out += `<text class="layerlab" x="${PAD_X + li * GAPX}" y="22">${LAYER_NAMES[k] || ""}</text>`;
+  });
+  edges.forEach((e, i) => {
+    const s = DATA.steps[e.step];
+    const on = active(s);
+    const sel = state.sel && state.sel.type === "step" && state.sel.id === e.step;
+    out += `<path class="edge ${e.kind}${on ? "" : " dim"}${sel ? " sel" : ""}" d="${path(e)}"
+      data-edge="${i}" tabindex="0" role="button"
+      aria-label="${s.compiler} ${s.pass}: ${e.from} в ${e.to}"><title>${s.compiler} · ${s.pass}
+${e.from} → ${e.to}</title></path>`;
+  });
+  nodes.forEach(d => {
+    const on = liveNodes.has(d.name);
+    const sel = state.sel && state.sel.type === "dialect" && state.sel.id === d.name;
+    const hub = d.compilers.length > 1;
+    const total = d.forms[0] + d.forms[1] + d.forms[2];
+    const known = d.forms[0] + d.forms[1];
+    out += `<g class="node${hub ? " hub" : ""}${on ? "" : " dim"}${sel ? " sel" : ""}"
+        data-node="${d.name}" tabindex="0" role="button" aria-label="диалект ${d.name}">
+      <rect x="${d.x}" y="${d.y}" width="${NW}" height="${NH}" rx="7"></rect>
+      <text class="name" x="${d.x + 11}" y="${d.y + NH / 2 - 5}">${d.name}</text>
+      <text class="count" x="${d.x + 11}" y="${d.y + NH / 2 + 9}">${total ? known + "/" + total : "нет данных"}</text>
+      ${total ? `<rect x="${d.x + NW - 10}" y="${d.y + 6}" width="4" height="${NH - 12}" rx="2"
+        fill="var(--absent)" opacity=".35"></rect>
+        <rect x="${d.x + NW - 10}" y="${d.y + 6 + (NH - 12) * (1 - known / total)}" width="4"
+        height="${(NH - 12) * known / total}" rx="2" fill="var(--translatable)"></rect>` : ""}
+    </g>`;
+  });
+  svg.innerHTML = out;
+}
+
+svg.addEventListener("click", ev => {
+  const edge = ev.target.closest("[data-edge]"), node = ev.target.closest("[data-node]");
+  if (edge) select({type: "step", id: +edge.dataset.edge >= 0 ? edges[+edge.dataset.edge].step : null});
+  else if (node) select({type: "dialect", id: node.dataset.node});
+});
+svg.addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  ev.preventDefault(); ev.target.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+});
+
+/* ---------- detail panel ---------- */
+const detail = document.getElementById("detail");
+const FORM_LABEL = ["есть семантика SMT", "доказанный шаблон", "перевода нет"];
+
+function select(sel) { state.sel = sel; render(); showDetail(); detail.scrollIntoView({block: "nearest", behavior: "smooth"}); }
+
+function showDetail() {
+  if (!state.sel) return;
+  if (state.sel.type === "dialect") {
+    const d = byName[state.sel.id];
+    const used = DATA.steps.filter(s => s.from.includes(d.name) || s.to.includes(d.name));
+    const ops = d.ops.slice().sort((a, b) => a.form - b.form || b.n - a.n);
+    detail.innerHTML = `<h3>${d.name}
+      ${d.compilers.map(c => `<span class="tag">${c}</span>`).join("")}
+      ${d.compilers.length > 1 ? '<span class="tag">точка переиспользования</span>' : ""}</h3>
+      <dl class="kv">
+        <dt>операций</dt><dd>${d.ops.length} разных, ${fmt(d.mentions)} упоминаний в корпусах</dd>
+        <dt>формы</dt><dd>${d.forms[0]} с семантикой · ${d.forms[1]} шаблоном · <b>${d.forms[2]} без перевода</b></dd>
+        <dt>участвует в</dt><dd>${used.length ? used.map(s => `<code>${s.pass}</code>`).join(", ") : "—"}</dd>
+      </dl>
+      ${ops.length ? `<div class="opgrid">${ops.map(o => `<div class="op" title="${FORM_LABEL[o.form]}${o.by ? ": " + o.by : ""}">
+        <span class="dot f${o.form}"></span><span class="nm">${o.name}</span><span class="n">${fmt(o.n)}</span></div>`).join("")}</div>`
+      : '<p class="hint">Операции этого диалекта в просканированных тестах не встретились — он присутствует только как цель понижения.</p>'}`;
+  } else {
+    const s = DATA.steps[state.sel.id];
+    const tmpl = DATA.templates.filter(t => s.proved.includes(t.file) || s.breaks.includes(t.file));
+    detail.innerHTML = `<h3><code>${s.pass}</code> <span class="tag">${s.compiler}</span>
+      ${s.proved.map(() => '<span class="tag proved">✓ доказано сохраняющим</span>').join("")}
+      ${s.breaks.map(() => '<span class="tag breaking">✕ доказанно ломает</span>').join("")}</h3>
+      <dl class="kv">
+        <dt>из → в</dt><dd>${s.from.join(", ")} → ${s.to.join(", ")}</dd>
+        <dt>источник</dt><dd><code>${s.cited}</code></dd>
+        <dt>на входе</dt><dd>${s.forms[0]} с семантикой · ${s.forms[1]} шаблоном ·
+          <b>${s.forms[2]} без перевода</b> ${s.forms[2] ? "— по программам шаг пока не прогнать" : "— шаг готов к попрограммной проверке"}</dd>
+      </dl>
+      ${tmpl.length ? `<div class="tablewrap" style="margin-top:16px"><table>
+        <thead><tr><th>Шаблон</th><th>Вердикт</th><th class="num">наблюдений</th><th class="num">секунд</th></tr></thead>
+        <tbody>${tmpl.map(t => `<tr><td class="mono">${t.file}</td>
+          <td class="mono" style="color:var(--${t.verdict === "ct-preserving" ? "proved" : "breaking"})">
+          ${t.verdict === "ct-preserving" ? "✓ сохраняет" : "✕ ломает"}</td>
+          <td class="num">${t.obs[0]} → ${t.obs[1]}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`).join("")}</tbody>
+      </table></div>` : '<p class="hint" style="margin-top:14px">Спецификации у этого шага пока нет — он не проверялся ни в одну сторону.</p>'}`;
+  }
+}
+
+/* ---------- filters ---------- */
+document.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => {
+  state.comp = chip.dataset.comp;
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c === chip)));
+  render(); drawSteps();
+}));
+
+/* ---------- steps table with the cost estimate ---------- */
+const k1 = document.getElementById("k1"), k2 = document.getElementById("k2");
+const tbody = document.querySelector("#stepstable tbody");
+
+function hours(minutes) {
+  if (minutes < 60) return minutes + " мин";
+  const h = minutes / 60;
+  return h < 10 ? h.toFixed(1) + " ч" : Math.round(h) + " ч";
+}
+
+function drawSteps() {
+  const perOp = +k1.value, perTmpl = +k2.value;
+  document.getElementById("k1v").textContent = perOp + " мин";
+  document.getElementById("k2v").textContent = perTmpl + " мин";
+  const rows = DATA.steps.filter(s => state.comp === "all" || s.compiler === state.comp);
+  let total = 0;
+  tbody.innerHTML = rows.map((s, i) => {
+    const idx = DATA.steps.indexOf(s);
+    const cost = s.forms[2] * perOp;
+    total += cost;
+    const spec = s.breaks.length ? '<span class="tag breaking">✕ ломает</span>'
+      : s.proved.length ? '<span class="tag proved">✓ сохраняет</span>'
+      : `<span class="tag">нет · ~${hours(2 * perTmpl)}</span>`;
+    return `<tr class="clickable" data-step="${idx}">
+      <td class="mono">${s.compiler}</td>
+      <td class="mono">${s.pass}</td>
+      <td class="mono" style="color:var(--muted)">${s.from.join("+")} → ${s.to.join("+")}</td>
+      <td class="num">${s.forms[0]}</td><td class="num">${s.forms[1]}</td>
+      <td class="num"${s.forms[2] ? ' style="color:var(--breaking)"' : ""}>${s.forms[2]}</td>
+      <td>${spec}</td>
+      <td class="num">${cost ? hours(cost) : "—"}</td></tr>`;
+  }).join("");
+  document.getElementById("totalcost").textContent = hours(total)
+    + " (" + rows.reduce((a, s) => a + s.forms[2], 0) + " операций)";
+}
+tbody.addEventListener("click", ev => {
+  const tr = ev.target.closest("[data-step]");
+  if (tr) select({type: "step", id: +tr.dataset.step});
+});
+k1.addEventListener("input", drawSteps);
+k2.addEventListener("input", drawSteps);
+
+/* ---------- measurement tables ---------- */
+document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
+  .slice().sort((a, b) => b.seconds - a.seconds).map(t => {
+    const col = t.verdict === "ct-preserving" ? "proved" : t.verdict === "ct-breaking" ? "breaking" : "absent";
+    const label = t.verdict === "ct-preserving" ? "✓ сохраняет"
+      : t.verdict === "ct-breaking" ? "✕ ломает" : "? неизвестно";
+    return `<tr><td class="mono">${t.file}</td>
+      <td class="mono" style="color:var(--${col})">${label}</td>
+      <td class="num">${t.obs[0]} → ${t.obs[1]}${t.bounded ? " (огранич.)" : ""}</td>
+      <td class="num">${t.lines}</td><td class="num">${t.seconds.toFixed(3)}</td></tr>`;
+  }).join("");
+
+document.querySelector("#modtable tbody").innerHTML = DATA.modules
+  .map(m => `<tr><td class="mono">${m.file}</td><td>${m.what}</td><td class="num">${m.lines}</td></tr>`).join("");
+
+render(); drawSteps();
+</script>
+
