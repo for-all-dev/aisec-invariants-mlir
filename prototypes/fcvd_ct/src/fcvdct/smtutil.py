@@ -11,14 +11,25 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.builder import Builder
-from xdsl.dialects.builtin import ArrayAttr
+from xdsl.context import Context
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.ir import Operation, SSAValue
+from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.common_subexpression_elimination import (
+    CommonSubexpressionElimination,
+)
 from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
 from xdsl_smt.dialects import smt_dialect as smt
 from xdsl_smt.dialects import smt_utils_dialect as smt_utils
 from xdsl_smt.dialects.effects.effect import StateType
+from xdsl_smt.passes.dead_code_elimination import DeadCodeElimination
+from xdsl_smt.passes.lower_effects_with_memory import LowerEffectsWithMemoryPass
+from xdsl_smt.passes.lower_memory_effects import LowerMemoryEffectsPass
+from xdsl_smt.passes.lower_memory_to_array import LowerMemoryToArrayPass
+from xdsl_smt.passes.lower_pairs import LowerPairs
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
+from xdsl_smt.passes.smt_expand import SMTExpand
 
 from .dialect import Observation, StructuralTrace, template_semantics
 from .leakage import LeakageRule
@@ -114,3 +125,26 @@ def instantiate(
         for op in body:
             state = SMTLowerer.lower_operation(op, state) or state
     return trace, program.bounded, state
+
+
+def finish_module(ctx: Context, module: ModuleOp, opt: bool = True) -> None:
+    """Run the SMT-level pipeline, in upstream's own order.
+
+    Taken from `xdsl_smt/cli/xdsl_tv.py`: effects become a (memory, ub) pair, memory
+    becomes SMT arrays, and the rest is simplification. Both checkers run it, so a
+    template and a kernel that mention memory are lowered the same way.
+    """
+    LowerMemoryEffectsPass().apply(ctx, module)
+    LowerEffectsWithMemoryPass().apply(ctx, module)
+    if opt:
+        LowerPairs().apply(ctx, module)
+        CanonicalizePass().apply(ctx, module)
+    LowerMemoryToArrayPass().apply(ctx, module)
+    SMTExpand().apply(ctx, module)
+    if opt:
+        LowerPairs().apply(ctx, module)
+        CanonicalizePass().apply(ctx, module)
+        CommonSubexpressionElimination().apply(ctx, module)
+        CanonicalizePass().apply(ctx, module)
+        DeadCodeElimination().apply(ctx, module)
+    module.verify()

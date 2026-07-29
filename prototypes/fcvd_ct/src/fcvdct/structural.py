@@ -40,23 +40,15 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.canonicalize import CanonicalizePass
-from xdsl.transforms.common_subexpression_elimination import (
-    CommonSubexpressionElimination,
-)
 from xdsl_smt.dialects import smt_dialect as smt
-from xdsl_smt.passes.dead_code_elimination import DeadCodeElimination
-from xdsl_smt.passes.lower_effects import LowerEffectPass
-from xdsl_smt.passes.lower_pairs import LowerPairs
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
-from xdsl_smt.passes.smt_expand import SMTExpand
 from xdsl_smt.traits.smt_printer import print_to_smtlib
 
 from .dialect import StructuralTrace
 from .leakage import LeakageRule
 from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate
 from .smtutil import conjoin as _conjoin
-from .smtutil import instantiate, traces_agree
+from .smtutil import finish_module, instantiate, traces_agree
 
 Verdict = Literal["ct-preserving", "ct-breaking", "unknown"]
 
@@ -174,15 +166,7 @@ def build_query(
     builder.insert(smt.AssertOp(builder.insert(smt.AndOp(same_source, differs)).result))
     builder.insert(smt.CheckSatOp())
 
-    LowerEffectPass().apply(ctx, module)
-    SMTExpand().apply(ctx, module)
-    if opt:
-        LowerPairs().apply(ctx, module)
-        CanonicalizePass().apply(ctx, module)
-        CommonSubexpressionElimination().apply(ctx, module)
-        CanonicalizePass().apply(ctx, module)
-        DeadCodeElimination().apply(ctx, module)
-    module.verify()
+    finish_module(ctx, module, opt)
 
     stream = StringIO()
     print_to_smtlib(module, stream)
