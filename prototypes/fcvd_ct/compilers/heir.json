@@ -151,6 +151,17 @@
         "llvm"
       ],
       "cited": "lib/Pipelines/PipelineRegistration.cpp:115"
+    },
+    {
+      "pass": "--tensor-ext-to-tensor",
+      "from": [
+        "tensor_ext"
+      ],
+      "to": [
+        "tensor",
+        "arith"
+      ],
+      "cited": "lib/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.cpp:33"
     }
   ],
   "templates": [
@@ -183,6 +194,18 @@
     {
       "file": "heir/mod_arith_subifge_branchy.mlir",
       "verifies": "--mod-arith-to-arith",
+      "expect": "ct-breaking",
+      "covers": []
+    },
+    {
+      "file": "heir/tensor_ext_rotate_static.mlir",
+      "verifies": "--tensor-ext-to-tensor",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "heir/tensor_ext_rotate_dynamic.mlir",
+      "verifies": "--tensor-ext-to-tensor",
       "expect": "ct-breaking",
       "covers": []
     }

@@ -64,6 +64,8 @@ def test_the_hardened_form_is_checked_not_vacuous():
         ("mod_arith_add_to_arith", "ct-breaking"),
         ("mod_arith_subifge_to_arith", "ct-preserving"),
         ("mod_arith_subifge_branchy", "ct-breaking"),
+        ("tensor_ext_rotate_static", "ct-preserving"),
+        ("tensor_ext_rotate_dynamic", "ct-breaking"),
     ],
 )
 def test_templates(template: str, verdict: str):
