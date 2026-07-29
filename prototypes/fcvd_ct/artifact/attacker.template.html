@@ -212,10 +212,11 @@ table.grid td{padding:0}
       the memory. Sketches of this onion usually draw the physical observer innermost, and then the
       order stops matching what the picture says it shows.</p>
     <p class="lede">The blue block is what the MLIR pipeline closes. Timing is proved at O2 and carried
-      outward — O2 sees strictly more than O1, so runs indistinguishable in the constant-time trace are
-      indistinguishable to any weaker observer. At O6 and inward the classes stop being the binding
-      constraint altogether: an observer holding process memory has nothing left to infer. One cell
-      breaks the pattern, and it is worth the click.</p>
+      outward, but only as far as the carry is sound: a weaker observer inherits the result when its
+      observation is a function of the O2 trace, which holds for end-to-end latency and stops at the
+      first observer whose clock resolves what the model leaves out. At O6 and inward the classes stop
+      being the binding constraint altogether — an observer holding process memory has nothing left to
+      infer. One cell breaks the pattern, and it is worth the click.</p>
 
     <div class="split">
       <div class="onionbox">

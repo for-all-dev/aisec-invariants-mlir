@@ -124,9 +124,9 @@ CELLS = {
     ),
     ("timing", "O1"): (
         "covered",
-        "Carried outward rather than proved separately: O2 sees strictly "
-        "more than O1 — every branch and every latency class, not only the total — so two runs "
-        "indistinguishable in the constant-time trace are indistinguishable in end-to-end latency.",
+        "Carried outward rather than proved separately, and the carry is only sound where the "
+        "observation is a function of the O2 trace. It is here: under the leakage model, elapsed "
+        "time is the trace summed up, so two runs with identical traces take identical time.",
     ),
     ("timing", "O2"): (
         "covered",
@@ -137,19 +137,21 @@ CELLS = {
     ),
     ("timing", "O3"): (
         "partial",
-        "The address trace is proved equal, which removes the main source "
-        "of cache-timing variation. Eviction, set conflicts and contention are not modelled, so a "
-        "local observer can still time what we do not describe.",
+        "Where the carry from O2 stops. The address trace is proved equal, which removes the main "
+        "source of cache-timing variation — but eviction, set conflicts and contention are not in "
+        "the model, so elapsed time is no longer a function of what we proved equal, and a local "
+        "clock can resolve the difference.",
     ),
     ("timing", "O4"): (
-        "covered",
-        "Carried outward as at O1. A physical observer holds a better "
-        "clock, but equal traces still take equal time under the model.",
+        "partial",
+        "The carry stops here for the same reason it stops at O3, and harder. A physical clock "
+        "resolves per-operation timing and the frequency behaviour underneath it, and neither is a "
+        "function of our trace. What is proved still holds; it stops being the whole story.",
     ),
     ("timing", "O5"): (
-        "covered",
-        "The host times the enclave from outside, which is O1 measurement "
-        "of an O2-proved trace. A boundary changes who holds the clock, not what leaks through it.",
+        "partial",
+        "A host times the enclave with a host's clock, not a network's: same objection as O3 and "
+        "O4. The boundary changes who holds the clock, not how fine it is.",
     ),
     ("timing", "O6"): (
         "moot",
