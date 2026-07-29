@@ -169,7 +169,6 @@ table.grid td{padding:0}
 .cell.has{cursor:pointer}
 .cell.covered{background:var(--covered);border-color:var(--covered)}
 .cell.partial{background:var(--partial);border-color:var(--partial)}
-.cell.bridge{background:var(--bridge);border-color:var(--bridge)}
 .cell.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
   border-color:var(--nothing)}
 .cell.unreachable{background:none;border-color:var(--rule)}
@@ -186,7 +185,6 @@ table.grid td{padding:0}
 .mlegend i{width:15px;height:15px;border-radius:4px;border:1px solid var(--rule);display:block}
 .mlegend i.covered{background:var(--covered);border-color:var(--covered)}
 .mlegend i.partial{background:var(--partial);border-color:var(--partial)}
-.mlegend i.bridge{background:var(--bridge);border-color:var(--bridge)}
 .mlegend i.gap{background:repeating-linear-gradient(135deg,var(--nothing) 0 3px,transparent 3px 7px);
   border-color:var(--nothing)}
 .mlegend i.unreachable{border-color:var(--rule)}
@@ -231,7 +229,6 @@ table.grid td{padding:0}
           <li><i class="covered"></i> proved</li>
           <li><i class="partial"></i> partly, under a stated assumption</li>
           <li><i class="gap"></i> visible here, we cover none of it</li>
-          <li><i class="bridge"></i> gap that voids a claim next to it</li>
           <li><i class="unreachable"></i> not observable from this ring</li>
           <li><i class="moot"></i> observer already reads secret state</li>
         </ul>
@@ -252,10 +249,9 @@ const D = JSON.parse(document.getElementById("profile-data").textContent);
 const cellOf = {};
 D.cells.forEach(c => (cellOf[c.cls + "/" + c.obs] = c));
 const state = {sel: null, col: null, row: null};
-const MARK = {covered: "✓", partial: "~", nothing: "", bridge: "!", unreachable: "", moot: "·"};
+const MARK = {covered: "✓", partial: "~", nothing: "", unreachable: "", moot: "·"};
 const STATE_LABEL = {covered: "proved", partial: "partly, under a stated assumption",
   nothing: "visible from here, and we cover none of it",
-  bridge: "a gap that voids a claim made next to it",
   unreachable: "not observable from this ring",
   moot: "the observer already reads secret state directly"};
 
@@ -330,7 +326,7 @@ function select(clsId, obsId) {
   const c = D.classes.find(x => x.id === clsId), o = D.observers.find(x => x.id === obsId);
   const cell = cellOf[clsId + "/" + obsId];
   detail.innerHTML = `<h3>${c.name} <span class="tag">${o.id} · ${o.name}</span>
-    <span class="tag ${cell.state === "covered" ? "proved" : cell.state === "bridge" ? "breaking" : ""}">
+    <span class="tag ${cell.state === "covered" ? "proved" : ""}">
     ${STATE_LABEL[cell.state]}</span></h3>
     <dl class="kv">
       <dt>what leaks</dt><dd>${c.what}</dd>

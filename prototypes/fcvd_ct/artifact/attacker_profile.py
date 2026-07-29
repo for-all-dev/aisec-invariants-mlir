@@ -70,7 +70,6 @@ CLASSES = [
 #   covered      proved; either here or carried outward from a stronger observer
 #   partial      partly, under an assumption that is written down
 #   nothing      observable from here, and we cover none of it
-#   bridge       a gap that voids a claim made in a neighbouring cell
 #   moot         the observer already reads secret state directly, so a leakage
 #                proof of this class no longer decides the outcome
 CELLS = {
@@ -185,11 +184,11 @@ CELLS = {
     # ---- power and emanations
     ("power", "O0"): ("unreachable", "No physical quantity reaches a transcript."),
     ("power", "O1"): (
-        "bridge",
-        "The uncomfortable cell, and it points at the row above. DVFS makes consumption change "
+        "nothing",
+        "The uncomfortable one, and it points at the row above. DVFS makes consumption change "
         "frequency, and frequency changes wall-clock time (Hertzbleed) — so a power channel "
-        "surfaces as remote timing. Equal observation traces are then no longer equal running "
-        "times, which is exactly the assumption the timing row rests on.",
+        "surfaces as remote timing, with no physical access at all. Equal observation traces then "
+        "stop implying equal running times, which is exactly what the timing row rests on.",
     ),
     ("power", "O2"): (
         "unreachable",
