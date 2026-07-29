@@ -25,6 +25,7 @@ from xdsl_smt.dialects.transfer import Transfer
 from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
 
 from .dialect import FCVD
+from .hw_ops import HWConstant, load_hw_semantics
 from .index_ops import load_index_semantics
 
 
@@ -35,6 +36,16 @@ def make_context() -> Context:
         "pdl",
         [*PDL.operations, *PDLDataflowDialect.operations],
         [*PDL.attributes, *PDLDataflowDialect.attributes],
+    )
+    # xdsl-smt declares `hw` but gives `hw.constant` neither syntax nor semantics; ours
+    # supplies both, and the rest of upstream's dialect is kept as it is.
+    hw_with_constant = Dialect(
+        "hw",
+        [
+            *(op for op in HW.operations if op.name not in {o.name for o in HWConstant.operations}),
+            *HWConstant.operations,
+        ],
+        [*HW.attributes],
     )
     smt_collection = Dialect(
         "smt",
@@ -57,7 +68,7 @@ def make_context() -> Context:
         Scf,
         FCVD,
         Comb,
-        HW,
+        hw_with_constant,
         LLVM,
         MemRef,
         Index,
@@ -71,4 +82,5 @@ def make_context() -> Context:
 
     load_vanilla_semantics()
     load_index_semantics()
+    load_hw_semantics()
     return ctx

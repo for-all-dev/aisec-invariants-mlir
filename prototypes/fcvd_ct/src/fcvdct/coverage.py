@@ -69,6 +69,16 @@ class Template:
     file: str
     covers: tuple[str, ...]
     """Operations this template's proof accounts for."""
+    verifies: str = ""
+    """The pipeline step this template is a specification of."""
+    expect: str = "ct-preserving"
+    """What the template is documented to come back as.
+
+    A template that is *expected* to break constant-time is a finding, not a failure --
+    `--convert-comb-to-arith` is one. Either way the checker must agree with the
+    documentation, or the descriptor is stale and neither the coverage nor the finding
+    can be believed.
+    """
 
 
 @dataclass
@@ -102,7 +112,15 @@ class Compiler:
                 )
                 for s in raw["pipeline"]
             ),
-            templates=tuple(Template(t["file"], tuple(t["covers"])) for t in raw["templates"]),
+            templates=tuple(
+                Template(
+                    t["file"],
+                    tuple(t.get("covers", ())),
+                    t.get("verifies", ""),
+                    t.get("expect", "ct-preserving"),
+                )
+                for t in raw["templates"]
+            ),
             note=raw.get("note", ""),
         )
 
@@ -127,6 +145,10 @@ class StageCoverage:
     stage: Stage
     forms: tuple[int, int, int]
     """How many distinct source-dialect operations fall in form 0, 1 and 2."""
+    proved: tuple[str, ...] = ()
+    """Templates that specify this step and came back ct-preserving, as documented."""
+    breaks: tuple[str, ...] = ()
+    """Templates that specify this step and came back ct-breaking, as documented."""
 
     @property
     def ready(self) -> bool:
@@ -207,25 +229,36 @@ def scan_operations(checkout: Path, globs: Sequence[str], dialects: Iterable[str
     return counts
 
 
-def prove_templates(compiler: Compiler, timeout: int = 120) -> tuple[dict[str, str], list[str]]:
-    """Run every template the descriptor claims, and report which ones hold today.
+@dataclass
+class TemplateOutcome:
+    template: Template
+    verdict: str
+    as_documented: bool
+    reason: str = ""
 
-    Returns the map from a covered operation to the template that covers it, and the
-    templates that did not prove -- those cover nothing, by construction.
+
+def prove_templates(compiler: Compiler, timeout: int = 120) -> list[TemplateOutcome]:
+    """Run every template the descriptor claims, and see whether it still behaves so.
+
+    A template only carries weight if the checker agrees with what the descriptor says
+    it does: a template that has stopped proving covers nothing, and a template
+    documented as ct-breaking has to still break, or the finding it records is stale.
     """
     ctx = make_context()
-    covered: dict[str, str] = {}
-    failed: list[str] = []
+    outcomes: list[TemplateOutcome] = []
     for template in compiler.templates:
         path = TEMPLATES / template.file
         module = Parser(ctx, path.read_text(), str(path)).parse_module()
         result = check_lowering(ctx, module, timeout=timeout)
-        if result.verdict == "ct-preserving":
-            for op in template.covers:
-                covered.setdefault(op, template.file)
-        else:
-            failed.append(f"{template.file}: {result.verdict} {result.reason}".strip())
-    return covered, failed
+        outcomes.append(
+            TemplateOutcome(
+                template,
+                result.verdict,
+                result.verdict == template.expect,
+                result.reason,
+            )
+        )
+    return outcomes
 
 
 def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> CoverageReport:
@@ -235,13 +268,33 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
 
     covered: dict[str, str] = {}
     failed: list[str] = []
+    proved_steps: dict[str, list[str]] = {}
+    breaking_steps: dict[str, list[str]] = {}
     if prove:
-        covered, failed = prove_templates(compiler, timeout)
+        for outcome in prove_templates(compiler, timeout):
+            template = outcome.template
+            if not outcome.as_documented:
+                failed.append(
+                    f"{template.file}: documented {template.expect}, checker says "
+                    f"{outcome.verdict} {outcome.reason}".strip()
+                )
+                continue
+            if outcome.verdict == "ct-preserving":
+                for op in template.covers:
+                    covered.setdefault(op, template.file)
+                if template.verifies:
+                    proved_steps.setdefault(template.verifies, []).append(template.file)
+            elif template.verifies:
+                breaking_steps.setdefault(template.verifies, []).append(template.file)
     else:
         # Claimed, not proved: only honest to report when the caller asked to skip.
         for template in compiler.templates:
+            if template.expect != "ct-preserving":
+                continue
             for op in template.covers:
                 covered.setdefault(op, f"{template.file} (claimed, not re-proved)")
+            if template.verifies:
+                proved_steps.setdefault(template.verifies, []).append(f"{template.file} (claimed)")
 
     operations = []
     for name, occurrences in counts.most_common():
@@ -260,7 +313,14 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
         for dialect in stage.source_dialects:
             for op in per_dialect.get(dialect, []):
                 forms[op.form] += 1
-        stages.append(StageCoverage(stage, (forms[0], forms[1], forms[2])))
+        stages.append(
+            StageCoverage(
+                stage,
+                (forms[0], forms[1], forms[2]),
+                tuple(proved_steps.get(stage.pass_name, ())),
+                tuple(breaking_steps.get(stage.pass_name, ())),
+            )
+        )
 
     return CoverageReport(
         compiler.name,

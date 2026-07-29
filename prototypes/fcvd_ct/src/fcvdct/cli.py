@@ -283,12 +283,21 @@ def main_coverage() -> None:
             f"  pipeline: {len(ready)}/{len(result.stages)} lowering steps have every "
             f"source operation translatable"
         )
+        specified = [s for s in result.stages if s.proved or s.breaks]
+        print(
+            f"  specification: {len(specified)}/{len(result.stages)} steps have a checked template"
+        )
         for stage in result.stages:
             mark = "ok     " if stage.ready else "blocked"
+            spec = ""
+            if stage.proved:
+                spec = f"   proved CT-preserving: {', '.join(stage.proved)}"
+            if stage.breaks:
+                spec += f"   SHOWN CT-BREAKING: {', '.join(stage.breaks)}"
             print(
                 f"    {mark} {stage.stage.pass_name:<44} "
                 f"form0 {stage.forms[0]:>3}  form1 {stage.forms[1]:>3}  "
-                f"form2 {stage.forms[2]:>3}   [{stage.stage.cited}]"
+                f"form2 {stage.forms[2]:>3}   [{stage.stage.cited}]{spec}"
             )
         top = result.by_form(2)[: args.top]
         if top:
