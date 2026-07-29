@@ -21,7 +21,7 @@ from .coverage import COMPILERS, Compiler, report
 from .pdl_ct import CTResult, check_pattern
 from .predication import DEFAULT_MAX_VISITS
 from .selfcomp import check_module, separating_secrets
-from .structural import LoweringResult, check_lowering
+from .structural import GateResult, LoweringResult, check_lowering, check_template
 
 _SELFCOMP_LINE = {
     "secure": "SECURE",
@@ -34,6 +34,20 @@ _VERDICT_LINE = {
     "ct-breaking": "CT-BREAKING",
     "unknown": "UNKNOWN",
 }
+
+_GATE_LINE = {
+    "verified": "VERIFIED",
+    "rejected": "REJECTED",
+    "unknown": "UNKNOWN",
+}
+
+_EQUIVALENCE_LINE = {
+    "equivalent": "EQUIVALENT",
+    "not-equivalent": "NOT-EQUIVALENT",
+    "unknown": "UNKNOWN",
+}
+
+_BOUNDED = "bounded: loops were unrolled, so this covers only the unrolled iterations"
 
 
 def _report(name: str, result: CTResult | LoweringResult, show_counterexample: bool) -> None:
@@ -49,6 +63,34 @@ def _report(name: str, result: CTResult | LoweringResult, show_counterexample: b
     if result.verdict == "ct-breaking" and show_counterexample and result.counterexample:
         for line in result.counterexample.splitlines():
             print(f"  | {line}")
+
+
+def _report_gate(name: str, gate: GateResult, show_counterexample: bool) -> None:
+    """Both halves, always both, and which one refused."""
+    ct, equivalence = gate.constant_time, gate.equivalence
+    print(f"{name}: {_GATE_LINE[gate.verdict]}")
+    print(
+        f"  constant-time  {_VERDICT_LINE[ct.verdict]:<14} "
+        f"(observations: source {ct.n_source_observations}, target {ct.n_target_observations})"
+    )
+    compared = (
+        f"{equivalence.n_compared} returned value(s) + the memory left behind"
+        if equivalence.n_compared
+        else "nothing returned, so the memory left behind is all that was compared"
+    )
+    print(f"  equivalence    {_EQUIVALENCE_LINE[equivalence.verdict]:<14} ({compared})")
+    if ct.bounded or equivalence.bounded:
+        print(f"  {_BOUNDED}")
+    for half, result in (("constant-time", ct), ("equivalence", equivalence)):
+        if result.reason:
+            print(f"  reason ({half}): {result.reason}")
+        if show_counterexample and result.counterexample and result.verdict in _REFUTED:
+            print(f"  counterexample ({half}):")
+            for line in result.counterexample.splitlines():
+                print(f"  | {line}")
+
+
+_REFUTED = ("ct-breaking", "not-equivalent")
 
 
 def main() -> None:
@@ -173,9 +215,10 @@ def main_selfcomp() -> None:
 
 def main_lowering() -> None:
     arg_parser = argparse.ArgumentParser(
-        description="Verify that a structural lowering specification (@source and "
-        "@target functions over holes) preserves constant-time, for every program it "
-        "can be instantiated with."
+        description="Verify a structural lowering specification (@source and @target "
+        "functions over holes), for every program it can be instantiated with: it must "
+        "preserve constant-time AND compute the same thing. Both halves are reported, "
+        "and VERIFIED needs both."
     )
     arg_parser.add_argument("file", help="MLIR file containing @source and @target")
     arg_parser.add_argument(
@@ -187,10 +230,20 @@ def main_lowering() -> None:
     arg_parser.add_argument(
         "--counterexample",
         action="store_true",
-        help="print the model z3 returns for a CT-breaking lowering",
+        help="print the model z3 returns for a refuted half",
+    )
+    arg_parser.add_argument(
+        "--ct-only",
+        action="store_true",
+        help="the leakage half alone, without the equivalence half (a partial answer)",
     )
     arg_parser.add_argument(
         "--print-smt", action="store_true", help="print the SMTLib query and exit"
+    )
+    arg_parser.add_argument(
+        "--print-smt-equivalence",
+        action="store_true",
+        help="print the SMTLib query of the equivalence half and exit",
     )
     arg_parser.add_argument("--timeout", type=int, default=60, help="solver timeout, s")
     arg_parser.add_argument("--no-opt", action="store_true", help="skip SMT-level simplification")
@@ -200,20 +253,37 @@ def main_lowering() -> None:
     with open(args.file) as f:
         module = Parser(ctx, f.read(), args.file).parse_module()
 
-    if args.print_smt:
-        from .structural import build_query
+    if args.print_smt or args.print_smt_equivalence:
+        from .structural import build_equivalence_query, build_query
 
-        script, _, _, _ = build_query(ctx, module, opt=not args.no_opt, max_visits=args.unroll)
+        if args.print_smt_equivalence:
+            script, _, _, _ = build_equivalence_query(
+                ctx, module, opt=not args.no_opt, max_visits=args.unroll
+            )
+        else:
+            script, _, _, _ = build_query(ctx, module, opt=not args.no_opt, max_visits=args.unroll)
         print(script)
         return
 
-    result = check_lowering(
+    if args.ct_only:
+        result = check_lowering(
+            ctx, module, opt=not args.no_opt, timeout=args.timeout, max_visits=args.unroll
+        )
+        _report(args.file, result, args.counterexample)
+        print("  half-checked: --ct-only, so nothing was proved about what it computes")
+        if result.verdict == "ct-breaking":
+            raise SystemExit(1)
+        if result.verdict == "unknown":
+            raise SystemExit(3)
+        return
+
+    gate = check_template(
         ctx, module, opt=not args.no_opt, timeout=args.timeout, max_visits=args.unroll
     )
-    _report(args.file, result, args.counterexample)
-    if result.verdict == "ct-breaking":
+    _report_gate(args.file, gate, args.counterexample)
+    if gate.verdict == "rejected":
         raise SystemExit(1)
-    if result.verdict == "unknown":
+    if gate.verdict == "unknown":
         raise SystemExit(3)
 
 

@@ -12,9 +12,9 @@ for kernel in kernels/*.mlir kernels/*/*.mlir; do
   uv run fcvd-ct "$kernel" --unroll 8 | grep -E '^[^ ]|^  [a-z]+ +INSECURE|^  reason'
 done
 
-banner "lowering templates (structural specifications)"
+banner "lowering templates (structural specifications): both halves of the gate"
 for template in templates/*.mlir templates/*/*.mlir; do
-  uv run fcvd-ct-lowering "$template" --unroll 8 | head -2
+  uv run fcvd-ct-lowering "$template" --unroll 8 | head -3
 done
 
 banner "PDL rewrites"
