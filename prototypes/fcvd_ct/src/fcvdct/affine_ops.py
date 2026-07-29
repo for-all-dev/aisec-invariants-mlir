@@ -44,7 +44,7 @@ def _parse(cls: type[ForOp], parser: Parser) -> ForOp:
     upper = parser.parse_integer()
     step = parser.parse_integer() if parser.parse_optional_keyword("step") else 1
 
-    arguments: list[Parser.Argument] = []
+    arguments: list[Parser.UnresolvedArgument] = []
     inits: list[UnresolvedOperand] = []
     if parser.parse_optional_keyword("iter_args"):
         parser.parse_punctuation("(")
@@ -139,7 +139,9 @@ def install_affine_syntax() -> None:
 
     Both ship without one, so IR containing them cannot be read in as it stands.
     """
-    ForOp.parse = classmethod(_parse)  # type: ignore[method-assign, assignment]
-    ForOp.print = _print  # type: ignore[method-assign, assignment]
-    YieldOp.parse = classmethod(_parse_yield)  # type: ignore[method-assign, assignment]
-    YieldOp.print = _print_yield  # type: ignore[method-assign, assignment]
+    # `setattr` rather than assignment: these are methods xdsl defines as raising, and
+    # rebinding them is the whole point.
+    setattr(ForOp, "parse", classmethod(_parse))  # noqa: B010
+    setattr(ForOp, "print", _print)  # noqa: B010
+    setattr(YieldOp, "parse", classmethod(_parse_yield))  # noqa: B010
+    setattr(YieldOp, "print", _print_yield)  # noqa: B010

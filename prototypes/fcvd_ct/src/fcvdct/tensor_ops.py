@@ -25,9 +25,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialects import tensor
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import ArrayAttr, TensorType
 from xdsl.ir import Attribute, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.hints import isa
 from xdsl_smt.dialects import smt_array_dialect as smt_array
 from xdsl_smt.dialects import smt_bitvector_dialect as smt_bv
 from xdsl_smt.dialects import smt_dialect as smt
@@ -75,9 +76,9 @@ def _in_bounds(index: SSAValue, size: int, rewriter: PatternRewriter) -> SSAValu
 def _tensor_size(attributes: Mapping[str, Attribute | SSAValue], position: int) -> int:
     """The static extent of the tensor operand, from the pre-lowering operand types."""
     types = attributes.get("__operand_types")
-    if types is None or not hasattr(types, "data"):
+    if not isa(types, ArrayAttr[Attribute]):
         raise UnsupportedTensor("tensor operand types were not recorded")
-    tensor_type = tuple(types.data)[position]  # type: ignore[attr-defined]
+    tensor_type = tuple(types)[position]
     if not isinstance(tensor_type, TensorType):
         raise UnsupportedTensor(f"expected a tensor operand, got {tensor_type}")
     shape = tensor_type.get_shape()
