@@ -43,7 +43,14 @@ for path in sorted(COMPILERS.glob("*.json")):
         "m2": sum(o.occurrences for o in r.by_form(2)),
         "steps": len(r.stages),
         "specified": len([s for s in r.stages if s.proved or s.breaks]),
+        # per-dialect forms for *this* compiler's own corpus: the cost of a compiler
+        # must not count operations only its neighbours use.
+        "byDialect": {},
     })
+    for op in r.operations:
+        d = op.name.split(".")[0]
+        forms = data["compilers"][-1]["byDialect"].setdefault(d, [0, 0, 0])
+        forms[op.form] += 1
     for op in r.operations:
         d = op.name.split(".")[0]
         entry = data["dialects"].setdefault(d, {"name": d, "compilers": [], "ops": {}})

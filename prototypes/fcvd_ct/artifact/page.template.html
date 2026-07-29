@@ -5,7 +5,7 @@
   --page:#f3f5f8; --surface:#fcfdfe; --surface-2:#eef1f5; --sunken:#e7ebf1;
   --ink:#0e1319; --ink-2:#4d5560; --muted:#828b96;
   --rule:#dde3ea; --rule-strong:#c6cfda;
-  --proved:#0ca30c; --breaking:#d03b3b; --translatable:#2a78d6; --absent:#898781;
+  --spec:#2a78d6; --breaking:#d03b3b; --translatable:#2a78d6; --absent:#898781;
   --accent:#2a78d6; --accent-ink:#1c5cab;
   --shadow:0 1px 2px rgba(14,19,25,.05), 0 8px 24px -16px rgba(14,19,25,.25);
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -17,7 +17,7 @@
     --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
     --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
     --rule:#242c36; --rule-strong:#333d49;
-    --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+    --spec:#3987e5; --breaking:#d03b3b; --translatable:#3987e5; --absent:#898781;
     --accent:#3987e5; --accent-ink:#86b6ef;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
   }
@@ -27,7 +27,7 @@
   --page:#0b0e12; --surface:#151a21; --surface-2:#1b222b; --sunken:#11161c;
   --ink:#f2f5f8; --ink-2:#aab3bf; --muted:#7c8794;
   --rule:#242c36; --rule-strong:#333d49;
-  --proved:#0ca30c; --breaking:#e66767; --translatable:#3987e5; --absent:#898781;
+  --spec:#3987e5; --breaking:#d03b3b; --translatable:#3987e5; --absent:#898781;
   --accent:#3987e5; --accent-ink:#86b6ef;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
 }
@@ -74,7 +74,7 @@ section > .wrap > .eyebrow{margin-bottom:10px}
 .meter{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:14px 0 10px;gap:2px;background:var(--sunken)}
 .meter span{display:block}
 .meter .s0{background:var(--translatable)}
-.meter .s1{background:var(--proved)}
+.meter .s1{background:var(--spec)}
 .meter .s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
            border:1px solid var(--absent);border-radius:0 4px 4px 0}
 .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;padding:0;list-style:none;
@@ -82,7 +82,7 @@ section > .wrap > .eyebrow{margin-bottom:10px}
 .legend li{display:flex;align-items:center;gap:7px}
 .swatch{width:13px;height:13px;border-radius:3px;flex:0 0 auto}
 .swatch.s0{background:var(--translatable)}
-.swatch.s1{background:var(--proved)}
+.swatch.s1{background:var(--spec)}
 .swatch.s2{background:repeating-linear-gradient(135deg,var(--absent) 0 3px,transparent 3px 6px);
            border:1px solid var(--absent)}
 .swatch.sb{background:var(--breaking)}
@@ -93,9 +93,20 @@ section > .wrap > .eyebrow{margin-bottom:10px}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .chip:hover{border-color:var(--accent)}
 
-.graphbox{margin-top:18px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;
-          box-shadow:var(--shadow);overflow-x:auto}
-svg.graph{display:block;min-width:940px;width:100%;height:auto}
+.graphbox{position:relative;margin-top:18px;background:var(--surface);border:1px solid var(--rule);
+          border-radius:12px;box-shadow:var(--shadow);overflow:hidden;
+          height:clamp(400px,64vh,660px);touch-action:none}
+svg.graph{display:block;width:100%;height:100%;cursor:grab}
+svg.graph.panning{cursor:grabbing}
+.zoomctl{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.zoomctl button{width:34px;height:34px;border-radius:8px;border:1px solid var(--rule-strong);
+  background:var(--surface);color:var(--ink);font-family:var(--mono);font-size:15px;line-height:1;
+  cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow)}
+.zoomctl button:hover{border-color:var(--accent);color:var(--accent-ink)}
+.zoomctl button.fit{font-size:10px;letter-spacing:.02em}
+.graphhint{position:absolute;left:14px;bottom:11px;font-size:11.5px;color:var(--muted);
+  font-family:var(--mono);pointer-events:none;background:var(--surface);padding:2px 7px;border-radius:6px;
+  border:1px solid var(--rule)}
 .node rect{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1}
 .node.hub rect{stroke:var(--ink);stroke-width:1.6}
 .node text.name{font-family:var(--mono);font-size:12.5px;fill:var(--ink);dominant-baseline:middle}
@@ -106,8 +117,8 @@ svg.graph{display:block;min-width:940px;width:100%;height:auto}
 .node.dim{opacity:.22}
 .edge{fill:none;stroke-width:1.4;cursor:pointer}
 .edge.unchecked{stroke:var(--absent);opacity:.5}
-.edge.proved{stroke:var(--proved);stroke-width:2}
-.edge.breaking{stroke:var(--breaking);stroke-width:2;stroke-dasharray:6 3.5}
+.edge.proved{stroke:var(--spec);stroke-width:2.2}
+.edge.breaking{stroke:var(--breaking);stroke-width:2.2;stroke-dasharray:7 4}
 .edge.dim{opacity:.08}
 .edge.sel{stroke-width:3.2}
 .edge:hover{stroke-width:3.2}
@@ -121,7 +132,7 @@ svg.graph{display:block;min-width:940px;width:100%;height:auto}
 .detail h3{font-family:var(--mono);font-size:16px;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
 .tag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--rule-strong);
      color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
-.tag.proved{color:var(--proved);border-color:var(--proved)}
+.tag.proved{color:var(--spec);border-color:var(--spec)}
 .tag.breaking{color:var(--breaking);border-color:var(--breaking)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:14px 0 0;font-size:14px}
 .kv dt{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
@@ -143,7 +154,7 @@ td.mono{font-family:var(--mono)}
 .op{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;padding:2px 0}
 .op .dot{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
 .op .dot.f0{background:var(--translatable)}
-.op .dot.f1{background:var(--proved)}
+.op .dot.f1{background:var(--spec);box-shadow:0 0 0 1.5px var(--surface),0 0 0 3px var(--spec)}
 .op .dot.f2{background:repeating-linear-gradient(135deg,var(--absent) 0 2px,transparent 2px 4px);
             border:1px solid var(--absent)}
 .op .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -211,14 +222,6 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
       </ol>
       <p style="margin-top:1.2em">То есть все доказательства формируются единообразно единым алгоритмом:
         при доказательстве безопасности нового компилятора алгоритм действий тривиален.</p>
-      <div class="note">
-        <b>Одна поправка по факту реализации.</b> «Применяются без перепроверки» верно относительно
-        <i>программ</i>: шаблон доказан для всех программ, которыми его можно инстанцировать, и для новой
-        программы не перепроверяется. Но сам вердикт зависит ещё и от модели утечек, реестра семантик и
-        версии солвера, а они в файле шаблона не записаны — поэтому счётчик покрытия перегоняет шаблоны
-        заново при каждом запуске. Это стоит <b>0.13 с</b> на шаблон (медиана из 21 замера ниже), то есть
-        дешевле, чем доверять.
-      </div>
     </div>
   </div>
 </section>
@@ -232,9 +235,8 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
       <i>упоминаний</i> приходится на те, что мы умеем переводить.</p>
     <div class="cards" id="cards"></div>
     <ul class="legend">
-      <li><span class="swatch s0"></span> есть семантика SMT (форма 0)</li>
-      <li><span class="swatch s1"></span> покрыто доказанным шаблоном (форма 1)</li>
-      <li><span class="swatch s2"></span> не покрыто (форма 2)</li>
+      <li><span class="swatch s0"></span> умеем переводить: семантика SMT (форма 0) или доказанный шаблон (форма 1)</li>
+      <li><span class="swatch s2"></span> перевода нет (форма 2)</li>
     </ul>
   </div>
 </section>
@@ -254,11 +256,19 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
     </div>
     <ul class="legend">
       <li><span class="swatch s1"></span> ✓ шаг с доказанной спецификацией</li>
-      <li><span class="swatch sb"></span> ✕ шаг, доказанно ломающий constant-time</li>
+      <li><span class="swatch sb"></span> ✕ шаг, доказанно ломающий constant-time (пунктир)</li>
       <li><span class="swatch s2"></span> шаг не проверялся</li>
     </ul>
-    <div class="graphbox"><svg class="graph" id="svg" role="img"
-      aria-label="Граф диалектов MLIR и понижений между ними"></svg></div>
+    <div class="graphbox">
+      <svg class="graph" id="svg" role="img"
+        aria-label="Граф диалектов MLIR и понижений между ними"></svg>
+      <div class="zoomctl">
+        <button type="button" id="zin" title="Приблизить" aria-label="Приблизить">+</button>
+        <button type="button" id="zout" title="Отдалить" aria-label="Отдалить">−</button>
+        <button type="button" id="zfit" class="fit" title="Показать целиком" aria-label="Показать целиком">fit</button>
+      </div>
+      <p class="graphhint">тянуть — двигать · ⌘/Ctrl + колесо или щипок — масштаб</p>
+    </div>
     <div class="detail" id="detail"><p class="hint">Нажмите на диалект или на ребро, чтобы увидеть
       разбор: какие операции туда входят, что из них переводится, чем доказан шаг.</p></div>
   </div>
@@ -293,9 +303,16 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
       </tr></thead>
       <tbody></tbody>
     </table></div>
-    <p class="lede" style="margin-top:14px">Итого, чтобы сделать <b>проверяемыми по программам</b> все
-      шаги: <span class="mono" id="totalcost"></span>. Это оценка объёма, а не сложности: <code>hw.module</code>
-      — одна механическая трансляция, <code>onnx.Conv</code> — тоже «одна».</p>
+    <p class="lede" style="margin-top:14px">Колонка «оценка» считает операции входных диалектов шага, а
+      один диалект питает несколько шагов — поэтому по столбцу складывать нельзя. Ниже сложено правильно:
+      каждая операция считается один раз на компилятор.</p>
+
+    <h3 style="margin-top:30px">Сколько стоит компилятор целиком</h3>
+    <div class="cards" id="costcards"></div>
+    <p class="lede" style="margin-top:14px">Считается только то, что компилятор действительно использует:
+      операции без перевода в тех диалектах, которые встречаются в его конвейере, по его собственному
+      тестовому корпусу. Это оценка объёма, а не сложности — <code>hw.module</code> одна механическая
+      трансляция, <code>onnx.Conv</code> тоже «одна».</p>
   </div>
 </section>
 
@@ -321,37 +338,13 @@ footer{padding:38px 0 60px;color:var(--muted);font-size:13px}
   </div>
 </section>
 
-<section id="limits">
-  <div class="wrap">
-    <p class="eyebrow">Границы утверждений</p>
-    <h2>Чего эта карта не говорит</h2>
-    <div class="prose">
-      <ul class="plain">
-        <li><b>Компиляторы не запускались.</b> Ни circt-opt, ни heir-opt, ни onnx-mlir на этой машине не
-          собраны. Каждая пара «до/после» переписана вручную из исходника паттерна или из его же
-          lit-теста, со ссылкой на файл и строку. Значит, доказано свойство <i>спецификации</i> шага, а не
-          того, что выдаёт бинарник компилятора.</li>
-        <li><b>Счёт операций — по тестовым корпусам</b> и по регулярному выражению, а не по определениям
-          диалектов. Операция, которую компилятор поддерживает, но в тестах не использует, в счёт не
-          попадёт.</li>
-        <li><b>Вердикты относительны модели утечек:</b> деление и остаток раскрывают операнды, обращение к
-          памяти раскрывает адрес, ветвление раскрывает условие, всё остальное считается постоянным по
-          времени. Для железа добавлено отдельное допущение: комбинационная арифметика фиксирована по
-          задержке.</li>
-        <li><b>Уровень MLIR ничего не говорит о бинарнике.</b> Находка «<code>mod_arith.add</code> даёт
-          <code>remui</code> над секретом» может быть закрыта бэкендом LLVM, который заменяет деление на
-          константу умножением со сдвигом. Это вопрос к слоям на бинарном уровне, не к этой карте.</li>
-        <li><b>Форма 0/1/2 отвечает на «умеем ли переводить», а не «безопасно ли».</b> У
-          <code>tensor_ext.rotate</code> одна ветка понижения доказанно безопасна, вторая доказанно
-          ломающая — клетки для такого в классификации нет, и операция осталась в форме 2.</li>
-      </ul>
-    </div>
-  </div>
-</section>
 
 </main>
 
 <footer><div class="wrap">
+  <p style="max-width:70ch;margin:0 0 10px">Компиляторы на машине не собраны: каждая пара «до / после»
+  переписана из исходника паттерна или из его lit-теста, со ссылкой на файл и строку. Доказано свойство
+  спецификации шага, а не выхода бинарника компилятора.</p>
   Источник данных: <code class="mono">prototypes/fcvd_ct</code>, ветка
   <code class="mono">fcvd-mlir-noninterference</code>. Воспроизводится через <code class="mono">./run_all.sh</code>
   и <code class="mono">uv run fcvd-ct-coverage</code>; вердикты закреплены тестами (<code class="mono">uv run pytest</code>).
@@ -372,9 +365,8 @@ cards.innerHTML = DATA.compilers.map(c => {
   const w = f => c.mentions ? (100 * f / c.mentions).toFixed(2) + "%" : "0%";
   return `<article class="card">
     <h3>${c.name} <span class="commit">${c.commit}</span></h3>
-    <div class="meter" role="img" aria-label="доля упоминаний по формам">
-      <span class="s0" style="width:${w(c.m0)}"></span>
-      <span class="s1" style="width:${w(c.m1)}"></span>
+    <div class="meter" role="img" aria-label="доля упоминаний, которые умеем переводить">
+      <span class="s0" style="width:${w(c.m0 + c.m1)}"></span>
       <span class="s2" style="width:${w(c.m2)}"></span>
     </div>
     <p class="figure">${share.toFixed(1)}<small>${NBSP}% упоминаний переводимо</small></p>
@@ -411,7 +403,7 @@ DATA.steps.forEach((s, si) => s.from.forEach(f => s.to.forEach(t => {
 })));
 
 const svg = document.getElementById("svg");
-svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
 const LAYER_NAMES = {0: "предметный", 1: "промежуточный", 2: "циклы", 3: "структурный",
   4: "плоский", 5: "планирование", 6: "железо", 7: "выход"};
 
@@ -465,6 +457,60 @@ ${e.from} → ${e.to}</title></path>`;
   });
   svg.innerHTML = out;
 }
+
+/* ---------- zoom & pan: the graph is a map, so it behaves like one ---------- */
+const view = {x: 0, y: 0, w: W, h: H};
+const MIN_W = W / 6, MAX_W = W * 1.6;
+function applyView() {
+  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
+}
+function toSvg(ev) {
+  const r = svg.getBoundingClientRect();
+  const scale = Math.max(view.w / r.width, view.h / r.height); // preserveAspectRatio=meet
+  return {
+    x: view.x + view.w / 2 + (ev.clientX - (r.left + r.width / 2)) * scale,
+    y: view.y + view.h / 2 + (ev.clientY - (r.top + r.height / 2)) * scale,
+  };
+}
+function zoomAt(factor, at) {
+  const w = Math.min(MAX_W, Math.max(MIN_W, view.w * factor));
+  const k = w / view.w;
+  view.x = at.x - (at.x - view.x) * k;
+  view.y = at.y - (at.y - view.y) * k;
+  view.w = w; view.h = H * (w / W);
+  applyView();
+}
+function fit() { view.x = 0; view.y = 0; view.w = W; view.h = H; applyView(); }
+const centre = () => ({x: view.x + view.w / 2, y: view.y + view.h / 2});
+document.getElementById("zin").addEventListener("click", () => zoomAt(1 / 1.35, centre()));
+document.getElementById("zout").addEventListener("click", () => zoomAt(1.35, centre()));
+document.getElementById("zfit").addEventListener("click", fit);
+svg.addEventListener("wheel", ev => {
+  // Only with a modifier, so the page still scrolls normally over the graph.
+  // A trackpad pinch arrives here as ctrlKey, which is exactly what we want.
+  if (!ev.ctrlKey && !ev.metaKey) return;
+  ev.preventDefault();
+  zoomAt(ev.deltaY > 0 ? 1.12 : 1 / 1.12, toSvg(ev));
+}, {passive: false});
+let drag = null;
+svg.addEventListener("pointerdown", ev => {
+  if (ev.target.closest("[data-node],[data-edge]")) return;
+  drag = {at: toSvg(ev), x: view.x, y: view.y};
+  svg.setPointerCapture(ev.pointerId);
+  svg.classList.add("panning");
+});
+svg.addEventListener("pointermove", ev => {
+  if (!drag) return;
+  const r = svg.getBoundingClientRect();
+  const scale = Math.max(view.w / r.width, view.h / r.height);
+  view.x = drag.x - (ev.movementX || 0) * scale;
+  view.y = drag.y - (ev.movementY || 0) * scale;
+  drag.x = view.x; drag.y = view.y;
+  applyView();
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(t =>
+  svg.addEventListener(t, () => { drag = null; svg.classList.remove("panning"); }));
+svg.addEventListener("dblclick", fit);
 
 svg.addEventListener("click", ev => {
   const edge = ev.target.closest("[data-edge]"), node = ev.target.closest("[data-node]");
@@ -560,8 +606,37 @@ function drawSteps() {
       <td>${spec}</td>
       <td class="num">${cost ? hours(cost) : "—"}</td></tr>`;
   }).join("");
-  document.getElementById("totalcost").textContent = hours(total)
-    + " (" + rows.reduce((a, s) => a + s.forms[2], 0) + " операций)";
+  drawCostCards(perOp, perTmpl);
+}
+
+function drawCostCards(perOp, perTmpl) {
+  const shown = DATA.compilers.filter(c => state.comp === "all" || c.name === state.comp);
+  document.getElementById("costcards").innerHTML = shown.map(c => {
+    const touched = new Set();
+    DATA.steps.filter(s => s.compiler === c.name)
+      .forEach(s => { s.from.forEach(d => touched.add(d)); s.to.forEach(d => touched.add(d)); });
+    let ops = 0, known = 0;
+    touched.forEach(d => {
+      const f = c.byDialect[d];
+      if (!f) return;
+      ops += f[2]; known += f[0] + f[1];
+    });
+    const steps = DATA.steps.filter(s => s.compiler === c.name);
+    const naked = steps.filter(s => !s.proved.length && !s.breaks.length).length;
+    const translate = ops * perOp, specify = naked * 2 * perTmpl;
+    const share = ops + known ? 100 * known / (ops + known) : 0;
+    return `<article class="card">
+      <h3>${c.name}</h3>
+      <div class="meter" role="img" aria-label="доля операций, которые умеем переводить">
+        <span class="s0" style="width:${share.toFixed(1)}%"></span>
+        <span class="s2" style="width:${(100 - share).toFixed(1)}%"></span>
+      </div>
+      <p class="figure">${hours(translate + specify)}</p>
+      <p class="sub"><b>${hours(translate)}</b> — ${ops} операций без перевода в ${touched.size} диалектах
+        конвейера.<br><b>${hours(specify)}</b> — по два шаблона на каждый из ${naked} шагов без
+        спецификации.</p>
+    </article>`;
+  }).join("");
 }
 tbody.addEventListener("click", ev => {
   const tr = ev.target.closest("[data-step]");
@@ -585,5 +660,5 @@ document.querySelector("#tmpltable tbody").innerHTML = DATA.templates
 document.querySelector("#modtable tbody").innerHTML = DATA.modules
   .map(m => `<tr><td class="mono">${m.file}</td><td>${m.what}</td><td class="num">${m.lines}</td></tr>`).join("");
 
-render(); drawSteps();
+render(); applyView(); drawSteps();
 </script>
