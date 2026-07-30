@@ -12,6 +12,7 @@
 // observer/model: public-sink-value
 // reason id: public-overwrite-before-observation
 // outstanding obligations: none
+// l1 disposition: relational-required
 // evidence boundary: L1 records RelationalRequired at the reload because
 // section 10 forbids a proof-authoritative strong update in the diagnostic
 // layer; L2 decides equal reloaded words in the exact product. No L3 or L4.

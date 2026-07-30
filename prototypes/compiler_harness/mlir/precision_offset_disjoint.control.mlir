@@ -12,6 +12,7 @@
 // observer/model: public-sink-value
 // reason id: offset-disjoint-public-reload
 // outstanding obligations: none
+// l1 disposition: relational-required
 // evidence boundary: L1 may collect byte regions for diagnostics but section 10
 // states those are not proof certificates, so the site is RelationalRequired;
 // L2 decides byte-exact disjointness in the exact product. No L3 or L4 claim.

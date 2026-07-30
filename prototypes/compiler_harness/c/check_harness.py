@@ -40,6 +40,24 @@ MLIR_FIELDS = (
 )
 
 OUTCOMES = frozenset({"verified", "unsafe", "unknown", "conditional"})
+#: Section-10 diagnostic dispositions. RelationalRequired is the one that makes
+#: precision controls expressible: it says the diagnostic layer completed and
+#: could not decide, so the product must. It is NOT silence, and coercing a
+#: control to silence invites the StaticallyDischarged shortcut that cannot
+#: establish safety.
+DISPOSITIONS = frozenset(
+    {
+        "not-observable",
+        "statically-discharged",
+        "definite-violation",
+        "relational-required",
+        "unknown",
+    }
+)
+#: A target tuple is triple/cpu/opt-level, each a lower-kebab or numeric token.
+TARGET_TUPLE = re.compile(r"[a-z0-9_.-]+/[a-z0-9_.-]+/O[0-3sz]\Z")
+#: A coalition is {} or {a} or {a,b}: lower-kebab members, comma separated.
+COALITION = re.compile(r"\{(?:[a-z][a-z0-9-]*(?:,[a-z][a-z0-9-]*)*)?\}\Z")
 CLASSIFICATIONS = frozenset(
     {
         "compiler-generated-minimized",
@@ -55,12 +73,92 @@ IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 EVIDENCE_LEVEL = re.compile(r"\bL[0-4]\b")
 
 
+#: A verdict is only ever a claim about one (entry, coalition) pair, evaluated
+#: for one target tuple. There is exactly one representation: every fixture
+#: carries rows, and a single-observer fixture carries one row keyed by the
+#: empty coalition -- the world-visible observer.
 @dataclass(frozen=True)
-class ScenarioContract:
+class ResultRow:
+    coalition: str
     outcome: str
-    observer_model: str
     reason_id: str
     obligations: tuple[str, ...] = ()
+
+
+#: Aggregate a row set into the artifact-level outcome. Deliberately total and
+#: order-independent: unsafe dominates, then unknown, then conditional. A row set
+#: that is entirely verified aggregates to verified.
+AGGREGATE_ORDER = ("unsafe", "unknown", "conditional", "verified")
+
+
+def aggregate_outcome(rows: tuple[ResultRow, ...]) -> str:
+    present = {row.outcome for row in rows}
+    for candidate in AGGREGATE_ORDER:
+        if candidate in present:
+            return candidate
+    return "verified"
+
+
+@dataclass(frozen=True)
+class ScenarioContract:
+    """A verdict is a SET OF ROWS, one per (entry, coalition).
+
+    There is deliberately no single-outcome form. A fixture with one observer
+    has one row whose coalition is the empty set -- the world-visible observer --
+    rather than a separate flatter representation. Two ways to say the same
+    thing is what made the actor dimension unrepresentable for so long: the
+    scalar form could not grow a second row, and nothing forced the question.
+
+    outcome, reason_id and obligations are DERIVED from the rows. They are not
+    stored, so they cannot disagree with them.
+    """
+
+    observer_model: str
+    rows: tuple[ResultRow, ...]
+    #: The target tuple a verdict is relative to. Empty means the fixture's
+    #: conclusion is target-independent and must say so in its evidence
+    #: boundary. Measured counterexample: one module emits a secret-dependent
+    #: branch on x86-64 and a conditional select on aarch64, so a control-flow
+    #: verdict without a target tuple is not a claim about anything runnable.
+    target_tuple: str = ""
+    #: Required first-layer disposition. Present only on precision controls,
+    #: where the point is that the diagnostic layer is EXPECTED to lose
+    #: precision; without this field a control cannot say "report imprecision
+    #: here, but never silence", so the suite cannot catch an analysis that
+    #: invents leaks.
+    disposition: str = ""
+
+    @property
+    def outcome(self) -> str:
+        return aggregate_outcome(self.rows)
+
+    @property
+    def reason_ids(self) -> frozenset[str]:
+        """Every reason the rows carry.
+
+        There is deliberately no single derived reason_id. With several rows
+        carrying different reasons nothing picks one: audience_mismatch is
+        unsafe at {} for raw-item-not-world-releasable and unsafe at {bob} for
+        release-audience-mismatch, and neither is more the artifact's reason
+        than the other. The header names whichever the diagnostic pins, and is
+        checked for MEMBERSHIP rather than equality.
+        """
+        return frozenset(row.reason_id for row in self.rows)
+
+    @property
+    def obligations(self) -> tuple[str, ...]:
+        """Union across rows, first-seen order, so it stays deterministic."""
+        seen: list[str] = []
+        for row in self.rows:
+            for item in row.obligations:
+                if item not in seen:
+                    seen.append(item)
+        return tuple(seen)
+
+
+def one_row(outcome: str, reason: str, obligations: tuple[str, ...] = ()) -> tuple[ResultRow, ...]:
+    """A single world-visible-observer row: the common case, stated once."""
+    return (ResultRow("{}", outcome, reason, obligations),)
 
 
 # The corpus is intentionally small and curated. Pin the structured outcome,
@@ -73,87 +171,121 @@ EXPECTED_SCENARIOS: dict[str, ScenarioContract] = {
     # MT-CM5: unproved ABI alias separation may not be assumed. Unknown rather
     # than unsafe, because no witness replayed by the exact semantics exists.
     "abi_alias_unproved.unknown.mlir": ScenarioContract(
-        "unknown",
         "public-sink-value",
-        "alias-binding-mismatch",
-        ("proved-disjoint-clause",),
+        one_row("unknown", "alias-binding-mismatch", ("proved-disjoint-clause",)),
     ),
     # Allocation-size acceptance pair. The refusal and its twin differ only in the
     # label and binding on the size operand, so neither can be satisfied by
     # inspecting the allocation shape alone.
     "alloca_size_high_count.unknown.mlir": ScenarioContract(
-        "unknown",
         "allocation-size-trace",
-        "alloca-size-not-world-structural",
-        ("world-structural-size-expression",),
+        one_row("unknown", "alloca-size-not-world-structural", ("world-structural-size-expression",)),
     ),
     "alloca_size_public.control.mlir": ScenarioContract(
-        "verified", "allocation-size-trace", "world-structural-alloca-size"
+        "allocation-size-trace",
+        one_row("verified", "world-structural-alloca-size"),
     ),
     # MT-CM2: bounded-run filtering is not a sound proof domain. First loop
     # fixture in the corpus. loop-remainder must never denote an engine cap.
     "bound_exhausted_loop.unknown.mlir": ScenarioContract(
-        "unknown", "operation-count-trace", "loop-remainder", ("bound-adequacy",)
+        "operation-count-trace",
+        one_row("unknown", "loop-remainder", ("bound-adequacy",)),
+    ),
+    # First fixture with per-(entry, coalition) rows. verified at {alice} and
+    # unsafe at {bob} on byte-identical operations; the artifact outcome is the
+    # projection of the rows, recomputed rather than trusted.
+    "audience_mismatch.bad.mlir": ScenarioContract(
+        "public-sink-value",
+        (
+            ResultRow("{}", "unsafe", "raw-item-not-world-releasable"),
+            ResultRow("{alice}", "verified", "authorized-audience"),
+            ResultRow("{bob}", "unsafe", "release-audience-mismatch"),
+            ResultRow("{alice,bob}", "unsafe", "release-audience-mismatch"),
+        ),
     ),
     "breach_compressed_length.bad.mlir": ScenarioContract(
-        "unsafe", "reduced-public-wire-length-output", "secret-to-public-sink"
+        "reduced-public-wire-length-output",
+        one_row("unsafe", "secret-to-public-sink"),
     ),
     "breach_compressed_length.fixed.mlir": ScenarioContract(
-        "verified", "reduced-public-wire-length-output", "public-sink-isolation"
+        "reduced-public-wire-length-output",
+        one_row("verified", "public-sink-isolation"),
     ),
     "ckks_unsafe_release.bad.mlir": ScenarioContract(
-        "unsafe", "public-release-sink", "unauthorized-release"
+        "public-release-sink",
+        one_row("unsafe", "unauthorized-release"),
     ),
     "ckks_unsafe_release.fixed.mlir": ScenarioContract(
-        "conditional",
         "public-release-sink",
-        "sanitized-release-requires-evidence",
-        (
+        one_row("conditional", "sanitized-release-requires-evidence", (
             "sanitizer-sufficiency",
             "certificate-soundness",
             "release-policy-integrity",
-        ),
+        )),
     ),
     "clangover_poly_frommsg.lowered_bad.mlir": ScenarioContract(
-        "unsafe", "x86-control-flow-timing", "secret-dependent-branch"
+        "x86-control-flow-timing",
+        one_row("unsafe", "secret-dependent-branch"),
     ),
     "clangover_poly_frommsg.lowered_fixed.mlir": ScenarioContract(
-        "verified", "in-module-x86-control-flow-timing", "branchless-selection"
+        "in-module-x86-control-flow-timing",
+        one_row("verified", "branchless-selection"),
     ),
     "clangover_poly_frommsg.source.mlir": ScenarioContract(
-        "verified", "source-operation-timing", "source-branchless-dataflow"
+        "source-operation-timing",
+        one_row("verified", "source-branchless-dataflow"),
     ),
     "dynamic_kv_length.bad.mlir": ScenarioContract(
-        "unsafe", "reduced-public-count-output", "secret-to-public-sink"
+        "reduced-public-count-output",
+        one_row("unsafe", "secret-to-public-sink"),
     ),
     "dynamic_kv_length.fixed.mlir": ScenarioContract(
-        "verified", "reduced-public-count-output", "public-sink-isolation"
+        "reduced-public-count-output",
+        one_row("verified", "public-sink-isolation"),
     ),
     "explicit_error_oracle.bad.mlir": ScenarioContract(
-        "unsafe", "release-relative-padding-oracle", "residual-leak-beyond-release"
+        "release-relative-padding-oracle",
+        one_row("unsafe", "residual-leak-beyond-release"),
     ),
     "explicit_error_oracle.fixed.mlir": ScenarioContract(
-        "verified", "release-relative-padding-oracle", "authorized-release-only"
+        "release-relative-padding-oracle",
+        one_row("verified", "authorized-release-only"),
     ),
     "kyberslash1_poly_tomsg.bad.mlir": ScenarioContract(
-        "unsafe", "source-operation-timing", "secret-dependent-variable-latency-op"
+        "source-operation-timing",
+        one_row("unsafe", "secret-dependent-variable-latency-op"),
+    ),
+    # Compiler-introduced leak. The only fixture whose obligations can be
+    # discharged solely by evidence from a LOWER level: the module is branchless
+    # and an IR-level analysis has nothing to object to, yet the x86 backend
+    # converts the select to a conditional jump because it has a memory operand.
+    # unknown rather than verified because the artifact that runs is not this
+    # one; unknown rather than unsafe because no replayable counterexample
+    # exists at this level. See integration/laundering-x86-codegen.test.
+    "launder_scan.analyzed_clean.unknown.mlir": ScenarioContract(
+        "target-control-flow-timing",
+        one_row("unknown", "backend-may-reintroduce-branch", ("backend-trace-preservation", "target-tuple-binding")),
+        target_tuple="x86_64-unknown-linux-gnu/generic/O2",
     ),
     "kyberslash1_poly_tomsg.fixed.mlir": ScenarioContract(
-        "verified", "source-operation-timing", "variable-latency-op-removed"
+        "source-operation-timing",
+        one_row("verified", "variable-latency-op-removed"),
     ),
     "kyberslash2_compress.bad.mlir": ScenarioContract(
-        "unsafe", "source-operation-timing", "secret-dependent-variable-latency-op"
+        "source-operation-timing",
+        one_row("unsafe", "secret-dependent-variable-latency-op"),
     ),
     "kyberslash2_compress.fixed.mlir": ScenarioContract(
-        "verified", "source-operation-timing", "variable-latency-op-removed"
+        "source-operation-timing",
+        one_row("verified", "variable-latency-op-removed"),
     ),
     "leftoverlocals_scratch.bad.mlir": ScenarioContract(
-        "unsafe", "reduced-sequential-cross-tenant-output", "cross-domain-stale-state"
+        "reduced-sequential-cross-tenant-output",
+        one_row("unsafe", "cross-domain-stale-state"),
     ),
     "leftoverlocals_scratch.fixed.mlir": ScenarioContract(
-        "verified",
         "reduced-sequential-cross-tenant-output",
-        "cross-domain-state-reinitialized",
+        one_row("verified", "cross-domain-state-reinitialized"),
     ),
     # Diagnostic-precision negative controls. Each is release-relative
     # noninterferent, so a reported violation is imprecision, not a finding.
@@ -164,98 +296,109 @@ EXPECTED_SCENARIOS: dict[str, ScenarioContract] = {
     # RelationalRequired, not silence, and coercing them to silence invites the
     # StaticallyDischarged shortcut that section 10 forbids.
     "precision_identical_successor.control.mlir": ScenarioContract(
-        "verified",
         "source-control-location-trace",
-        "identical-successor-control-location",
+        one_row("verified", "identical-successor-control-location"),
+        disposition="relational-required",
     ),
     "precision_offset_disjoint.control.mlir": ScenarioContract(
-        "verified", "public-sink-value", "offset-disjoint-public-reload"
+        "public-sink-value",
+        one_row("verified", "offset-disjoint-public-reload"),
+        disposition="relational-required",
     ),
     "precision_overwritten_slot.control.mlir": ScenarioContract(
-        "verified", "public-sink-value", "public-overwrite-before-observation"
+        "public-sink-value",
+        one_row("verified", "public-overwrite-before-observation"),
+        disposition="relational-required",
     ),
     "precision_xor_cancellation.control.mlir": ScenarioContract(
-        "verified", "public-sink-value", "lane-equal-value-after-cancellation"
+        "public-sink-value",
+        one_row("verified", "lane-equal-value-after-cancellation"),
+        disposition="relational-required",
     ),
     # Anti-control for precision_identical_successor: same single-successor
     # branch shape, differing only in block-argument operands. Satisfying that
     # control by the rule "identical successors imply no control leak" silently
     # accepts this counterexample.
     "predecessor_choice_blockarg.bad.mlir": ScenarioContract(
-        "unsafe", "public-sink-value", "secret-selected-block-argument"
+        "public-sink-value",
+        one_row("unsafe", "secret-selected-block-argument"),
     ),
     # MT-CM3: a future release may not condition an earlier observation.
     "prefix_causal_release.bad.mlir": ScenarioContract(
-        "unsafe", "release-relative-public-channel", "pre-release-observation"
+        "release-relative-public-channel",
+        one_row("unsafe", "pre-release-observation"),
     ),
     "redis_pool_reuse.bad.mlir": ScenarioContract(
-        "unsafe", "reduced-sequential-cross-actor-response", "cross-domain-stale-state"
+        "reduced-sequential-cross-actor-response",
+        one_row("unsafe", "cross-domain-stale-state"),
     ),
     "redis_pool_reuse.fixed.mlir": ScenarioContract(
-        "verified",
         "reduced-sequential-cross-actor-response",
-        "cross-domain-state-reinitialized",
+        one_row("verified", "cross-domain-state-reinitialized"),
     ),
     "secret_embedding_index.bad.mlir": ScenarioContract(
-        "unsafe", "source-memory-address-trace", "secret-dependent-address"
+        "source-memory-address-trace",
+        one_row("unsafe", "secret-dependent-address"),
     ),
     "secret_embedding_index.fixed.mlir": ScenarioContract(
-        "verified", "source-memory-address-trace", "secret-independent-address-scan"
+        "source-memory-address-trace",
+        one_row("verified", "secret-independent-address-scan"),
     ),
     "secret_logging_checkpoint.bad.mlir": ScenarioContract(
-        "unsafe", "public-log-and-artifact-sinks", "secret-to-public-sink"
+        "public-log-and-artifact-sinks",
+        one_row("unsafe", "secret-to-public-sink"),
     ),
     "secret_logging_checkpoint.fixed.mlir": ScenarioContract(
-        "verified", "public-log-and-artifact-sinks", "public-sink-isolation"
+        "public-log-and-artifact-sinks",
+        one_row("verified", "public-sink-isolation"),
     ),
     "wolfssl_3579_mul.source.mlir": ScenarioContract(
-        "unknown",
         "rv32i-helper-timing",
-        "missing-target-timing",
-        ("target-lowering-semantics", "helper-latency-contract"),
+        one_row("unknown", "missing-target-timing", ("target-lowering-semantics", "helper-latency-contract")),
     ),
     "wolfssl_3579_mul.target_bad.mlir": ScenarioContract(
-        "unsafe",
         "affected-rv32i-muldi3-v1",
-        "secret-dependent-variable-latency-call",
+        one_row("unsafe", "secret-dependent-variable-latency-call"),
     ),
     "wolfssl_3579_mul.target_constant_latency.mlir": ScenarioContract(
-        "verified",
         "constant-latency-muldi3-test-v1",
-        "constant-latency-helper-contract",
+        one_row("verified", "constant-latency-helper-contract"),
     ),
     "wolfssl_3579_mul.target_fixed.mlir": ScenarioContract(
-        "conditional",
         "modeled-rv32i-timing",
-        "fixed-loop-requires-target-evidence",
-        ("base-operation-latency", "backend-trace-preservation"),
+        one_row("conditional", "fixed-loop-requires-target-evidence", ("base-operation-latency", "backend-trace-preservation")),
     ),
     "wolfssl_3579_mul.target_unknown.mlir": ScenarioContract(
-        "unknown",
         "rv32i-helper-timing",
-        "missing-helper-contract",
-        ("helper-latency-contract",),
+        one_row("unknown", "missing-helper-contract", ("helper-latency-contract",)),
     ),
     "wolfssl_3580_mask.source.mlir": ScenarioContract(
-        "verified", "source-operation-timing", "source-branchless-dataflow"
+        "source-operation-timing",
+        one_row("verified", "source-branchless-dataflow"),
     ),
     "wolfssl_3580_mask.target_bad.mlir": ScenarioContract(
-        "unsafe", "modeled-rv32i-control-flow-timing", "secret-dependent-branch"
+        "modeled-rv32i-control-flow-timing",
+        one_row("unsafe", "secret-dependent-branch"),
     ),
     "wolfssl_3580_mask.target_fixed.mlir": ScenarioContract(
-        "verified", "modeled-rv32i-control-flow-timing", "branchless-selection"
+        "modeled-rv32i-control-flow-timing",
+        one_row("verified", "branchless-selection"),
     ),
     "wrong_host_fhe_reveal.bad.mlir": ScenarioContract(
-        "unsafe", "host-authorized-plaintext-sinks", "wrong-audience-or-host"
+        "host-authorized-plaintext-sinks",
+        one_row("unsafe", "wrong-audience-or-host"),
     ),
     "wrong_host_fhe_reveal.fixed.mlir": ScenarioContract(
-        "verified", "host-authorized-plaintext-sinks", "authorized-sink-isolation"
+        "host-authorized-plaintext-sinks",
+        one_row("verified", "authorized-sink-isolation"),
     ),
     "wrong_party_plaintext.bad.mlir": ScenarioContract(
-        "unsafe", "audience-authorized-mailbox-sinks", "wrong-audience-or-host"
+        "audience-authorized-mailbox-sinks",
+        one_row("unsafe", "wrong-audience-or-host"),
     ),
     "wrong_party_plaintext.fixed.mlir": ScenarioContract(
-        "verified", "audience-authorized-mailbox-sinks", "authorized-sink-isolation"
+        "audience-authorized-mailbox-sinks",
+        one_row("verified", "authorized-sink-isolation"),
     ),
 }
 
@@ -426,6 +569,69 @@ def field_values(text: str, field: str) -> list[str]:
     ]
 
 
+#: A result-row block looks like:
+#:
+#:   // result rows:
+#:   //   {}          verified  world-visible-observer          none
+#:   //   {alice}     unsafe    release-audience-mismatch       none
+#:   //   {bob}       unknown   missing-helper-contract         helper-latency-contract
+#:
+#: Columns are coalition, outcome, reason id, obligations. Whitespace separated,
+#: obligations comma separated or the literal 'none'.
+RESULT_ROW = re.compile(
+    r"(?m)^\s*//\s+(\{[^}]*\})\s+(\w+)\s+([a-z][a-z0-9-]*)\s+(\S+)\s*$"
+)
+
+
+def parse_result_rows(errors: list[str], path: Path, text: str) -> tuple[ResultRow, ...]:
+    """Parse an optional '// result rows:' block. Absent block means no rows."""
+    if not field_values(text, "// result rows:"):
+        return ()
+
+    block = text.split("// result rows:", 1)[1]
+    #: Stop at the first line that is not a row, so a following metadata field
+    #: or prose comment ends the block rather than being silently swallowed.
+    lines: list[str] = []
+    for line in block.splitlines()[1:]:
+        if RESULT_ROW.fullmatch(line):
+            lines.append(line)
+        elif line.strip().startswith("//") and not line.strip("/ \t"):
+            continue
+        else:
+            break
+
+    rows: list[ResultRow] = []
+    seen: set[str] = set()
+    for line in lines:
+        coalition, outcome, reason, obligations = RESULT_ROW.fullmatch(line).groups()
+        if not COALITION.fullmatch(coalition):
+            fail(errors, path, f"malformed coalition {coalition!r} in result rows")
+            continue
+        if coalition in seen:
+            fail(errors, path, f"duplicate coalition {coalition!r} in result rows")
+            continue
+        seen.add(coalition)
+        if outcome not in OUTCOMES:
+            fail(errors, path, f"result row {coalition} has invalid outcome {outcome!r}")
+            continue
+        parsed = () if obligations == "none" else tuple(obligations.split(","))
+        if any(not IDENTIFIER.fullmatch(item) for item in parsed):
+            fail(errors, path, f"result row {coalition} has a malformed obligation")
+            continue
+        #: The same invariant as the artifact level, enforced per row: a row that
+        #: claims to be finished may not carry an obligation, and a row that is
+        #: not finished must say what would finish it.
+        if outcome in {"verified", "unsafe"} and parsed:
+            fail(errors, path, f"result row {coalition} is {outcome} but has obligations")
+        if outcome in {"unknown", "conditional"} and not parsed:
+            fail(errors, path, f"result row {coalition} is {outcome} with no obligation")
+        rows.append(ResultRow(coalition, outcome, reason, parsed))
+
+    if not rows:
+        fail(errors, path, "'// result rows:' block declared but no valid rows parsed")
+    return tuple(rows)
+
+
 def check_fixture_inventory(paths: list[Path]) -> list[str]:
     errors: list[str] = []
     actual = {path.name for path in paths}
@@ -499,11 +705,12 @@ def check_metadata(errors: list[str], path: Path, text: str) -> str | None:
     reason = values.get("// reason id:")
     if reason is not None and not IDENTIFIER.fullmatch(reason):
         fail(errors, path, "reason id must be one lower-kebab-case identifier")
-    elif expected is not None and reason != expected.reason_id:
+    elif expected is not None and reason not in expected.reason_ids:
         fail(
             errors,
             path,
-            f"reason id is {reason!r}; scenario requires {expected.reason_id!r}",
+            f"reason id is {reason!r}; scenario rows carry "
+            f"{sorted(expected.reason_ids)}",
         )
 
     obligations = values.get("// outstanding obligations:")
@@ -537,6 +744,63 @@ def check_metadata(errors: list[str], path: Path, text: str) -> str | None:
     boundary = values.get("// evidence boundary:")
     if boundary is not None and not EVIDENCE_LEVEL.search(boundary):
         fail(errors, path, "evidence boundary must name at least one level L0 through L4")
+
+    # ---- optional record extensions -------------------------------------
+    # All three are optional so the original corpus needs no re-recording, but
+    # once present they are checked as strictly as the mandatory fields.
+
+    rows = parse_result_rows(errors, path, text)
+    if rows:
+        derived = aggregate_outcome(rows)
+        if outcome is not None and outcome != derived:
+            fail(
+                errors,
+                path,
+                f"expected outcome is {outcome!r} but the result rows aggregate "
+                f"to {derived!r}; the artifact outcome is a projection of the "
+                f"rows, not an independent claim",
+            )
+        if expected is not None and expected.rows and rows != expected.rows:
+            fail(errors, path, "result rows do not match the scenario contract")
+
+    targets = field_values(text, "// target tuple:")
+    if targets:
+        if len(targets) != 1:
+            fail(errors, path, "'// target tuple:' occurs more than once")
+        elif not TARGET_TUPLE.fullmatch(targets[0]):
+            fail(
+                errors,
+                path,
+                "target tuple must be <triple>/<cpu>/<opt-level>, "
+                "for example x86_64-unknown-linux-gnu/generic/O2",
+            )
+        elif expected is not None and expected.target_tuple and targets[0] != expected.target_tuple:
+            fail(
+                errors,
+                path,
+                f"target tuple is {targets[0]!r}; scenario requires "
+                f"{expected.target_tuple!r}",
+            )
+
+    dispositions = field_values(text, "// l1 disposition:")
+    if dispositions:
+        if len(dispositions) != 1:
+            fail(errors, path, "'// l1 disposition:' occurs more than once")
+        elif dispositions[0] not in DISPOSITIONS:
+            fail(
+                errors,
+                path,
+                "l1 disposition must be one of: " + ", ".join(sorted(DISPOSITIONS)),
+            )
+        elif expected is not None and expected.disposition and dispositions[0] != expected.disposition:
+            fail(
+                errors,
+                path,
+                f"l1 disposition is {dispositions[0]!r}; scenario requires "
+                f"{expected.disposition!r}",
+            )
+    elif expected is not None and expected.disposition:
+        fail(errors, path, "scenario requires an '// l1 disposition:' field")
 
     c_source = values.get("// c source:")
     if c_source is not None:
@@ -598,14 +862,14 @@ def check_annotations() -> list[str]:
                     path,
                     "each confidentiality error must have one adjacent expected-error",
                 )
-            expected_reason = EXPECTED_SCENARIOS[path.name].reason_id
+            allowed = EXPECTED_SCENARIOS[path.name].reason_ids
             for actual_reason in expected_errors:
-                if actual_reason != expected_reason:
+                if actual_reason not in allowed:
                     fail(
                         errors,
                         path,
                         f"expected-error reason is {actual_reason!r}; "
-                        f"scenario requires {expected_reason!r}",
+                        f"scenario rows carry {sorted(allowed)}",
                     )
         elif error_count:
             fail(errors, path, "non-bad fixture contains a confidentiality error block")

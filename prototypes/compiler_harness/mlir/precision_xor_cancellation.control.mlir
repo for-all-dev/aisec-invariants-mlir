@@ -12,6 +12,7 @@
 // observer/model: public-sink-value
 // reason id: lane-equal-value-after-cancellation
 // outstanding obligations: none
+// l1 disposition: relational-required
 // evidence boundary: L1 records RelationalRequired at the store because a
 // forward Low/High lattice cannot see value congruence; L2 decides equal stored
 // words in the exact product. No L3 or L4 claim.

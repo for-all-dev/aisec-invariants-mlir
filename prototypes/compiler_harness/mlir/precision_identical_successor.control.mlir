@@ -12,6 +12,7 @@
 // observer/model: source-control-location-trace
 // reason id: identical-successor-control-location
 // outstanding obligations: none
+// l1 disposition: relational-required
 // evidence boundary: L1 records RelationalRequired at the branch site because
 // the section 10 diagnostic has no proof-authoritative strong update; L2
 // decides equal control locations in the exact product. No L3 or L4 claim.
