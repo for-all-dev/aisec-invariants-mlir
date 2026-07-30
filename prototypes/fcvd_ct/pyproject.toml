@@ -1,0 +1,44 @@
+[project]
+name = "fcvdct"
+version = "0.1.0"
+description = "Constant-time verification for MLIR rewrites, on top of FCVD (xdsl-smt)"
+requires-python = ">=3.12"
+dependencies = ["xdsl-smt", "xdsl==0.48.3", "z3-solver==4.15.1.0"]
+
+[project.scripts]
+fcvd-ct-pdl = "fcvdct.cli:main"
+fcvd-ct-lowering = "fcvdct.cli:main_lowering"
+fcvd-ct = "fcvdct.cli:main_selfcomp"
+fcvd-ct-coverage = "fcvdct.cli:main_coverage"
+
+[dependency-groups]
+dev = ["ruff>=0.14", "ty>=0.0.1a1", "pytest>=8", "hypothesis>=6"]
+
+[tool.uv.sources]
+# FCVD upstream, pinned at dd30235. `third_party/xdsl-smt` is a gitignored checkout
+# (or symlink to one) that `setup.sh` creates: referenced, never vendored, because
+# the repo ships no LICENSE file. See ../../docs/research/fcvd-selfcomposition.agents.md §5.
+# A git source cannot be used directly: xdsl-smt has an ssh-only submodule.
+xdsl-smt = { path = "third_party/xdsl-smt", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Same selection as the other packages in the monorepo.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ty.environment]
+# xdsl-smt is an editable install of a checkout outside the package, which ty's
+# module resolution does not follow on its own.
+extra-paths = ["third_party/xdsl-smt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
