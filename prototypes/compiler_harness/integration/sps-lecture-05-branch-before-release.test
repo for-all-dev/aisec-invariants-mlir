@@ -1,0 +1,13 @@
+# REQUIRES: llvm-as, llvm-dis
+# RUN: %llvm-as %harness/integration/Inputs/sps-lecture/05-branch-before-release/capture-shape.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness --case 05-branch-before-release | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i8 @fixture_entry(i8 %secret)
+# SHAPE: br i1 %is_zero
+# SHAPE: %private = phi i8
+# SHAPE-NEXT: call void @release_secret(i8 %secret)
+# SHAPE-NEXT: ret i8 %private
+
+# CONTRACT: verified 05-branch-before-release: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Counterexample

@@ -1,0 +1,17 @@
+# The sidecars are theorem inputs, so hash-consistent metadata must still agree
+# with the LLVM module it describes. Mutate both an ABI root and a carrier
+# multiplicity while repairing the envelope digests; structural validation must
+# reject the resulting bundle for module-interface reasons.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root/c
+# RUN: cp %harness/c/check_harness.py %t.root/c/check_harness.py
+# RUN: cp -R %harness/artifacts %t.root/artifacts
+# RUN: cp -R %harness/contracts %t.root/contracts
+# RUN: cp -R %harness/mlir %t.root/mlir
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/artifacts/audience-mismatch'); side=root/'abi.json'; value=json.loads(side.read_text()); value['arguments'][1]['kind']='scalar'; side.write_text(json.dumps(value,indent=2,sort_keys=True)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['abi.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2,sort_keys=True)+'\n')"
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/artifacts/audience-mismatch'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['multiplicity']=2; side.write_text(json.dumps(value,indent=2,sort_keys=True)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2,sort_keys=True)+'\n')"
+# RUN: not %python %t.root/c/check_harness.py artifacts 2>&1 | %FileCheck %s
+
+# CHECK: artifacts/audience-mismatch/abi.json: ABI scalar argument 1 is pointer-typed
+# CHECK: artifacts/audience-mismatch/release-table.json: carrier 'sps_release_masked_class_v1' multiplicity does not match direct calls

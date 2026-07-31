@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.udiv
 //
 // case: kyberslash2/poly_compress
+// entry: kyberslash2_compress_fixed
 // classification: compiler-generated-minimized
 // c source: ../c/kyberslash2_compress_fixed.c
 // upstream GitHub source: https://github.com/pq-crystals/kyber/commit/11d00ff1f20cfca1f72d819e5a45165c1e0a2816
 // upstream revision: 11d00ff1f20cfca1f72d819e5a45165c1e0a2816
 // secret: %coefficient
 // public: KYBER_Q-derived reciprocal and shift constants
-// expected outcome: verified
-// observer/model: source-operation-timing
-// reason id: variable-latency-op-removed
-// outstanding obligations: none
+// diagnostic focus: source-operation-timing
 // evidence boundary: L1 source-operation model confirms no division remains
 //
 // CHECK-LABEL: llvm.func @kyberslash2_compress_fixed

@@ -1,0 +1,26 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family pointer-layout | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i1 @same_root_gep_equal(ptr %root, i64 %offset)
+# SHAPE: %left = getelementptr i8, ptr %root, i64 %offset
+# SHAPE-NEXT: %right = getelementptr i8, ptr %root, i64 %offset
+# SHAPE-NEXT: %equal = icmp eq ptr %left, %right
+# SHAPE-LABEL: define i1 @adjacent_one_past_vs_base()
+# SHAPE: %one_past_a = getelementptr [4 x i8], ptr %object_a, i64 0, i64 4
+# SHAPE-NEXT: %base_b = getelementptr [1 x i8], ptr %object_b, i64 0, i64 0
+# SHAPE-NEXT: %equal = icmp eq ptr %one_past_a, %base_b
+# SHAPE-LABEL: define i1 @wrapping_gep_vs_null(ptr nonnull %root, i64 %offset)
+# SHAPE: %wrapped = getelementptr i8, ptr %root, i64 %offset
+# SHAPE-NEXT: %equal = icmp eq ptr %wrapped, null
+# SHAPE-LABEL: define i1 @outside_lifetime_compare()
+# SHAPE: call void @llvm.lifetime.end.p0(i64 1, ptr %object)
+# SHAPE-NEXT: %equal = icmp eq ptr %object, null
+# SHAPE-NOT: load
+# SHAPE-NOT: store
+
+# CONTRACT: verified pointer-layout: 4 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

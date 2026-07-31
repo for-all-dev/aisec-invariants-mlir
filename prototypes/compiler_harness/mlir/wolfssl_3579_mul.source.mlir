@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: wolfssl/CVE-2026-3579
+// entry: wolfssl_3579_mul_source
 // classification: compiler-generated-minimized
 // c source: ../c/wolfssl_3579_mul_vulnerable.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
 // upstream revision: b6fbfad945d4b98fce619b6e5b6561b3eca1205b
 // secret: %secret_a and %secret_b
 // public: target profile RV32I without the M extension
-// expected outcome: unknown
-// observer/model: rv32i-helper-timing
-// reason id: missing-target-timing
-// outstanding obligations: target-lowering-semantics,helper-latency-contract
+// diagnostic focus: rv32i-helper-timing
 // evidence boundary: source llvm.mul at L1 establishes no target timing fact; target evidence is L3/L4
 //
 // CHECK-LABEL: llvm.func @wolfssl_3579_mul_source

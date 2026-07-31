@@ -2,24 +2,22 @@
 // RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
 //
 // case: acceptance/alloca-size-not-world-structural
+// entry: alloca_size_high_count
 // classification: seeded-semantic-harness
 // c source: ../c/alloca_size_models.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/llvm/test/Transforms/InstCombine/alloca.ll
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %secret_bit, which selects the scratch byte count
 // public: the candidate sizes 64 and 128 and the public sink target
-// expected outcome: unknown
-// observer/model: allocation-size-trace
-// reason id: alloca-size-not-world-structural
-// outstanding obligations: world-structural-size-expression
+// diagnostic focus: world-structural-control-trace
 // evidence boundary: L0 supplies no world-structural size binding for the
 // allocation; L1 reaches the allocation site and stops. No L2 conclusion.
 //
 // Covers the section 20 acceptance row requiring a refusal when a reachable
 // allocation's actual byte size is missing, unproved, or High-dependent.
 //
-// The harness names allocation size as an observer-visible channel, yet before
-// this fixture the corpus contained NO llvm.alloca whose size was in question.
+// Rev4 requires the actual byte-size expression to be world-structural. This is
+// a universal semantic-support premise, not an optional observer configuration.
 //
 // THE TRAP THIS EXISTS TO CATCH: both candidate sizes, 64 and 128, lie under one
 // public upper bound. An equal CAP does not make the actual size equal. An
@@ -29,9 +27,8 @@
 // alloca_size_public.control.mlir must also stay green: a checker that refuses
 // every dynamic allocation would satisfy this fixture and fail that one.
 //
-// WHY unknown RATHER THAN unsafe: no observation of the size has been modeled
-// here, so no replayable counterexample exists. The honest result names the
-// missing world-structural size expression.
+// WHY Unknown RATHER THAN Counterexample: failure of the world-structural alloca premise
+// is a normative refusal. It is not by itself a replayed Bad execution.
 //
 // INDEPENDENCE NOTE: the world-structural allocation obligation is an
 // independent universal semantic-support obligation, not a consequence of

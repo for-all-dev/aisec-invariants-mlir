@@ -21,9 +21,9 @@
  *   public sink target
  *
  * Expected confidentiality issue:
- *   Allocation size is named as an observer-visible channel by this harness, yet
- *   before these functions the corpus contained no allocation whose size was in
- *   question.
+ *   Rev4 requires every reachable allocation's actual byte-size expression to
+ *   be world-structural. This is a semantic-support premise, not a configurable
+ *   allocation-size observer.
  *
  *   Refusal case: a secret bit selects between 64 and 128 scratch bytes. The
  *   required disposition is Unknown with the alloca-size reason and the
@@ -53,21 +53,26 @@
  *   Written for this harness. Contains no third-party source.
  */
 
+/* A volatile pointer store prevents optimization from deleting the VLA. */
+static unsigned char *volatile scratch_escape;
+
 /* Refusal case: High-dependent actual size under a single public cap. */
 void alloca_size_high_count(int secret_bit, unsigned *public_sink)
 {
-  unsigned char scratch[128];
   unsigned count = secret_bit ? 64u : 128u;
+  unsigned char scratch[count];
 
   scratch[0] = (unsigned char)count;
+  scratch_escape = scratch;
   *public_sink = 0u;
 }
 
 /* Acceptance twin: public, world-structural size. */
 void alloca_size_public_control(unsigned public_count, unsigned *public_sink)
 {
-  unsigned char scratch[128];
+  unsigned char scratch[public_count];
 
   scratch[0] = (unsigned char)public_count;
+  scratch_escape = scratch;
   *public_sink = 0u;
 }

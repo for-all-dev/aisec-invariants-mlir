@@ -1,0 +1,5 @@
+# REQUIRES: sps-verifier, llvm-22.1.8, sps-teaching-materialized
+# Future exact-verifier contract; unsupported until the checker and bundle exist.
+# RUN: %sps-verifier verify --bundle %sps-teaching-materialized/03-missing-placement | %FileCheck %s
+# CHECK: ModelStatus: Unknown(PlacementMismatch)
+# CHECK: DeploymentStatus: Open(P4EvidenceProfileUnavailable)

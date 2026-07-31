@@ -1,0 +1,51 @@
+{
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
+  "claimable_from_checked_in_pair": false,
+  "current_harness_status": {
+    "kind": "Pending",
+    "reasons": [
+      "sps-verifier-not-implemented",
+      "llvm-22.1.8-nf-recapture-required"
+    ]
+  },
+  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
+  "oracle": {
+    "deployment_status": {
+      "kind": "Open",
+      "obligations": [
+        "model-counterexample"
+      ]
+    },
+    "entry": "audience_mismatch_bad",
+    "global_blockers": [],
+    "model_status": {
+      "kind": "Counterexample",
+      "witness": "required-replayable"
+    },
+    "policy_review_status": {
+      "kind": "Complete"
+    },
+    "product_rows": [
+      {
+        "coalition": "{}",
+        "product_disposition": "ProductSafe"
+      },
+      {
+        "coalition": "{alice}",
+        "product_disposition": "ProductSafe"
+      },
+      {
+        "bad_state": "bob-visible-output-while-release-obligation-active",
+        "coalition": "{bob}",
+        "product_disposition": "ReplayableCounterexample",
+        "replay": "required"
+      },
+      {
+        "coalition": "{alice,bob}",
+        "product_disposition": "ProductSafe"
+      }
+    ]
+  },
+  "required_checker_feature": "sps-verifier",
+  "schema_version": "sps-fixture-oracle-v0"
+}

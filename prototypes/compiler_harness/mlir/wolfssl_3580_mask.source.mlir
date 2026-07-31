@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
 //
 // case: wolfssl/CVE-2026-3580
+// entry: wolfssl_3580_select_source
 // classification: compiler-generated-minimized
 // c source: ../c/wolfssl_3580_mask_vulnerable.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
 // upstream revision: b6fbfad945d4b98fce619b6e5b6561b3eca1205b
 // secret: %table_index
 // public: %scan_index, %table_value, and fixed scan bound
-// expected outcome: verified
-// observer/model: source-operation-timing
-// reason id: source-branchless-dataflow
-// outstanding obligations: none
+// diagnostic focus: source-operation-timing
 // evidence boundary: L1 source-operation model; the separate target model records L3 backend evidence
 //
 // CHECK-LABEL: llvm.func @wolfssl_3580_select_source

@@ -1,0 +1,62 @@
+# REQUIRES: clang, llvm-as, llvm-dis, x86-target
+#
+# BITCODE CANONICALISATION AND THE FREEZE DISCIPLINE.
+#
+# This is the .bc level, and it is the level the rev-4 freeze story is actually
+# about. T is defined as "the canonical reparsed LLVM module": serialize to
+# bitcode B, record SHA-256(B), destroy the mutable module, parse B in a fresh
+# context, and confirm the parsed module serialises to the same hash. NFConforms
+# clause 2 is exactly that hash equality.
+#
+# THE NON-OBVIOUS FACT THIS PINS. With the recorded LLVM 17 producer, the
+# bitcode Clang emits is not its own canonical form. One normalisation round
+# trip is required, after which serialisation is idempotent:
+#
+#   b0 = clang -c -emit-llvm ...      # emitted
+#   b1 = llvm-as(llvm-dis(b0))        # canonical      b1 != b0
+#   b2 = llvm-as(llvm-dis(b1))        # fixpoint       b2 == b1
+#
+# WHY AN IMPLEMENTER NEEDS THIS. On a producer whose direct output is not a
+# writer fixpoint, hashing that output and later comparing it against a
+# reparse-and-reserialise will fail. The profile is careful to say the reparsed
+# module must serialise to the same hash "under the canonical writer." The
+# generic test below establishes the fixpoint; the companion LLVM-17 test pins
+# the concrete producer that needs the initial normalization.
+#
+# These checks make no ModelStatus claim.
+
+# --- emitted bitcode, and its canonical form -------------------------------
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/c/argmax_release_body.c -o %t.b0.bc
+# RUN: %llvm-dis %t.b0.bc -o %t.b0.ll
+# RUN: %llvm-as %t.b0.ll -o %t.b1.bc
+
+# --- one more round trip: serialisation is now idempotent -------------------
+# RUN: %llvm-dis %t.b1.bc -o %t.b1.ll
+# RUN: %llvm-as %t.b1.ll -o %t.b2.bc
+# RUN: cmp -s %t.b1.bc %t.b2.bc
+
+# The b1 == b2 fixpoint is the toolchain-independent content of "canonical".
+# The LLVM-17-specific b0 != b1 producer observation lives in the companion
+# bitcode-producer-normalization.test rather than skipping this generic check
+# on every newer toolchain.
+
+# --- the reparsed module still says what it said ----------------------------
+# Canonicalisation must not change the facts the audit reads. The argmax body
+# is inside the accepted integer surface before and after.
+# RUN: %FileCheck %s --check-prefix=CANON --input-file=%t.b1.ll
+# CANON-NOT: @llvm.fsh
+# CANON-DAG: icmp
+# CANON-DAG: select i1
+
+# --- the same discipline on a module that is OUTSIDE the fragment -----------
+# Canonicalisation is not a filter. A module the audit must reject still
+# round-trips cleanly and still contains the rejected construct afterwards, so a
+# funnel shift cannot be laundered by a serialise/parse cycle.
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/c/sha256_round_release_body.c -o %t.h0.bc
+# RUN: %llvm-dis %t.h0.bc -o %t.h0.ll
+# RUN: %llvm-as %t.h0.ll -o %t.h1.bc
+# RUN: %llvm-dis %t.h1.bc -o %t.h1.ll
+# RUN: %llvm-as %t.h1.ll -o %t.h2.bc
+# RUN: cmp -s %t.h1.bc %t.h2.bc
+# RUN: %FileCheck %s --check-prefix=CANON-HASH --input-file=%t.h1.ll
+# CANON-HASH: llvm.fshl.i32

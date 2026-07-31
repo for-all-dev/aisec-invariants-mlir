@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: BREACH compressed-length disclosure analogue
+// entry: breach_compressed_length_fixed
 // classification: reduced-runtime-model
 // c source: ../c/breach_compressed_length_fixed.c
 // upstream GitHub source: https://github.com/nealharris/BREACH/tree/71a9fcbe261b50486be88664046c478956dac857
 // upstream revision: 71a9fcbe261b50486be88664046c478956dac857
 // secret: %secret_byte
 // public: %public_guess, %encrypted_body, and fixed wire length
-// expected outcome: verified
-// observer/model: reduced-public-wire-length-output
-// reason id: public-sink-isolation
-// outstanding obligations: none
+// diagnostic focus: reduced-public-wire-length-output
 // evidence boundary: L1 output-memory flow; L2 observes equal length 32 in both runs
 // L4 extrapolation: no compressor, padding, or transport event is encoded here
 //

@@ -1,0 +1,40 @@
+{
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "alice_channel",
+        "relation": "Disjoint",
+        "right": "bob_channel"
+      }
+    ]
+  },
+  "arguments": [
+    {
+      "component": "logits",
+      "confidentiality": "High",
+      "index": 0,
+      "kind": "scalar",
+      "name": "logits"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "alice_channel",
+      "output": "alice_channel"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 2,
+      "kind": "root",
+      "name": "bob_channel",
+      "output": "bob_channel"
+    }
+  ],
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
+  "entry": "audience_mismatch_bad",
+  "initialized_regions": [],
+  "schema_version": "sps-fixture-abi-v0"
+}

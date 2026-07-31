@@ -1,0 +1,28 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/output-closure.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family output-closure | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i8 @high_abi_return(i8 %secret)
+# SHAPE: ret i8 %secret
+# SHAPE-LABEL: define i8 @constant_abi_return(i8 %secret)
+# SHAPE: ret i8 7
+# SHAPE-LABEL: define void @high_pointer_writeback(i8 %secret, ptr %output)
+# SHAPE: store i8 %secret, ptr %output
+# SHAPE-LABEL: define void @two_byte_writeback(i8 %secret, ptr %output)
+# SHAPE: %second = getelementptr i8, ptr %output, i64 1
+# SHAPE-NEXT: store i8 0, ptr %second
+# SHAPE-LABEL: define void @uninitialized_terminal_byte(i8 %secret, ptr %output)
+# SHAPE: store i8 %secret, ptr %output
+# SHAPE-NOT: getelementptr
+# SHAPE-LABEL: define i8 @one_lane_returns(i1 %secret)
+# SHAPE: br i1 %secret, label %returns, label %continues
+# SHAPE: returns:
+# SHAPE: ret i8 0
+# SHAPE: continues:
+# SHAPE: br label %continues
+
+# CONTRACT: verified output-closure: 7 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

@@ -2,17 +2,15 @@
 // RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
 //
 // case: precision-control/offset-disjoint-public-reload
+// entry: offset_disjoint_control
 // classification: seeded-semantic-harness
 // c source: ../c/precision_controls.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/llvm/test/Analysis/BasicAA/gep-alias.ll
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %secret_byte, declared by sps.label on the argument
 // public: %public_value, byte offsets 4 and 8, and the public store target
-// expected outcome: verified
-// observer/model: public-sink-value
-// reason id: offset-disjoint-public-reload
-// outstanding obligations: none
-// l1 disposition: relational-required
+// diagnostic focus: public-sink-value
+// diagnostic disposition: relational-required
 // evidence boundary: L1 may collect byte regions for diagnostics but section 10
 // states those are not proof certificates, so the site is RelationalRequired;
 // L2 decides byte-exact disjointness in the exact product. No L3 or L4 claim.
@@ -26,7 +24,7 @@
 // Two design facts this pins:
 //   1. A memory map keyed at allocation granularity cannot discharge this and
 //      will report a false violation.
-//   2. A map that coarsens offsets must NOT report verified here either. Under
+//   2. A map that coarsens offsets must NOT report Proved here either. Under
 //      section 20 row 10 a configured offset class that discards any
 //      allocation-relative byte bit is Unknown(UnsupportedAddressObservationProfile)
 //      and never Proved. Silence obtained by coarsening is the wrong repair.
@@ -58,7 +56,7 @@ module {
   llvm.func @offset_disjoint_control(
       %secret_byte: i32 {sps.label = "high"},
       %public_value: i32 {sps.label = "public"},
-      %buffer: !llvm.ptr {sps.label = "public", sps.alias = "disjoint_v1"},
+      %buffer: !llvm.ptr {sps.label = "public", sps.alias_candidate = "disjoint_v1"},
       %public_sink: !llvm.ptr {sps.sink_class = "public"}) {
     %off_secret = llvm.mlir.constant(4 : i32) : i32
     %off_public = llvm.mlir.constant(8 : i32) : i32

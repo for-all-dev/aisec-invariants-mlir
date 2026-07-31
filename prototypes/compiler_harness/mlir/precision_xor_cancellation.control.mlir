@@ -2,17 +2,15 @@
 // RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
 //
 // case: precision-control/value-cancellation
+// entry: xor_cancellation_control
 // classification: seeded-semantic-harness
 // c source: ../c/precision_controls.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/llvm/test/Transforms/InstCombine/xor.ll
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %secret, declared by sps.label on the argument
 // public: the sps.sink_class public store target
-// expected outcome: verified
-// observer/model: public-sink-value
-// reason id: lane-equal-value-after-cancellation
-// outstanding obligations: none
-// l1 disposition: relational-required
+// diagnostic focus: public-sink-value
+// diagnostic disposition: relational-required
 // evidence boundary: L1 records RelationalRequired at the store because a
 // forward Low/High lattice cannot see value congruence; L2 decides equal stored
 // words in the exact product. No L3 or L4 claim.

@@ -1,6 +1,7 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: explicit PKCS#1 padding error oracle
+// entry: explicit_error_oracle_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/explicit_error_oracle_fixed.c
 // upstream GitHub source: https://github.com/openssl/openssl/blob/7fc67e0a33102aa47bbaa56533eeecb98c0450f7/crypto/rsa/rsa_pk1.c#L321-L418
@@ -8,10 +9,7 @@
 // secret: %padding_is_valid and %padding_error_detail
 // input invariant: %padding_is_valid is a well-formed Boolean in {0, 1}
 // public: %authorized_plaintext_length, public status, and uniform public error detail
-// expected outcome: verified
-// observer/model: release-relative-padding-oracle
-// reason id: authorized-release-only
-// outstanding obligations: none
+// diagnostic focus: release-relative-padding-oracle
 // evidence boundary: L1 suppresses detail; L2 authorizes validity; synthetic-plaintext security is outside this L4 model
 //
 // CHECK-LABEL: llvm.func @explicit_error_oracle_fixed

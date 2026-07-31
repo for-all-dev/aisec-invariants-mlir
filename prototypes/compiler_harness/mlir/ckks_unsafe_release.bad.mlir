@@ -1,7 +1,7 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: CKKS release before sanitization and validation
+// entry: ckks_unsafe_release_bad
 // classification: seeded-semantic-harness
 // c source: ../c/ckks_unsafe_release_bad.c
 // upstream GitHub source: https://github.com/microsoft/SEAL
@@ -10,10 +10,7 @@
 // public: trusted-integrity sanitizer mask and certificate flag, plus the public-release stored value
 // input invariant: %certificate_ok is a well-formed Boolean in {0, 1}
 // private result: the function return is not in the public observer projection
-// expected outcome: unsafe
-// observer/model: public-release-sink
-// reason id: unauthorized-release
-// outstanding obligations: none
+// diagnostic focus: public-release-sink
 // evidence boundary: L1 public-sink flow; real CKKS semantics are outside this L4 reduction
 //
 // CHECK-LABEL: llvm.func @ckks_unsafe_release_bad
@@ -31,7 +28,6 @@ module {
     // observable effect: the public release sink receives the raw value
     // reason: no approved sanitizer result or certificate check dominates this store
     // detection boundary: direct L1 output-flow violation; no L4 fact can repair this path
-    // expected-error @+1 {{unauthorized-release}}
     llvm.store %raw_approximate_plaintext, %public_release : i32, !llvm.ptr
     llvm.return %raw_approximate_plaintext : i32
   }

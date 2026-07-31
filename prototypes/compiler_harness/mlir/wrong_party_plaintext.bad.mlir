@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: wrong-party plaintext delivery
+// entry: wrong_party_plaintext_bad
 // classification: seeded-semantic-harness
 // c source: ../c/wrong_party_plaintext_bad.c
 // upstream GitHub source: none -- report: https://www.wiz.io/blog/wiz-research-discovers-critical-vulnerability-in-replicate
 // upstream revision: none
 // secret: %plaintext, owned by the authorized party
 // public: mailbox addresses and party authorization policy
-// expected outcome: unsafe
-// observer/model: audience-authorized-mailbox-sinks
-// reason id: wrong-audience-or-host
-// outstanding obligations: none
+// diagnostic focus: audience-authorized-mailbox-sinks
 // evidence boundary: L1 semantic harness; the linked hosted incident is outside this L4 model
 //
 // CHECK-LABEL: llvm.func @wrong_party_plaintext_bad
@@ -29,7 +26,6 @@ module {
     // observable effect: the unauthorized party can read its mailbox contents
     // reason: this store copies the secret verbatim across the audience boundary
     // detection boundary: direct L1 placement and output-policy violation
-    // expected-error @+1 {{wrong-audience-or-host}}
     llvm.store %plaintext, %unauthorized_mailbox : i32, !llvm.ptr
     llvm.return
   }

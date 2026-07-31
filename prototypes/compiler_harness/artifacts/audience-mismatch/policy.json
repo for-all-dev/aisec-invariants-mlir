@@ -1,0 +1,37 @@
+{
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
+  "component_visibility": {
+    "logits": []
+  },
+  "error_visibility": {},
+  "fixed_observation_model": "Theta_ct",
+  "invocation_scope": "SingleInvocation",
+  "maximal_adversary_coalitions": [
+    [
+      "alice",
+      "bob"
+    ]
+  ],
+  "output_visibility": {
+    "alice_channel": [
+      "alice"
+    ],
+    "bob_channel": [
+      "bob"
+    ]
+  },
+  "placement": [
+    {
+      "entry": "audience_mismatch_bad",
+      "host": "host0"
+    }
+  ],
+  "principals": [
+    "alice",
+    "bob"
+  ],
+  "release_bindings": [
+    "masked_class_v1"
+  ],
+  "schema_version": "sps-fixture-policy-v0"
+}

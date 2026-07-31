@@ -1,18 +1,15 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 // RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: metatheory/MT-CM6-predecessor-choice
+// entry: predecessor_choice_blockarg_bad
 // classification: seeded-semantic-harness
 // c source: ../c/predecessor_choice_blockarg_bad.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/mlir/test/Analysis/DataFlow/test-dead-code-analysis.mlir
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %secret_bit, declared by sps.label on the argument
 // public: the arm constants 10 and 20, and the sps.sink_class store target
-// expected outcome: unsafe
-// observer/model: public-sink-value
-// reason id: secret-selected-block-argument
-// outstanding obligations: none
+// diagnostic focus: public-sink-value
 // evidence boundary: L1 must close dependence over predecessor choice, not only
 // over SSA operand edges; L2 replays secret_bit=0 against secret_bit=1 and
 // observes stored words 20 against 10. No L3 or L4 claim.
@@ -63,7 +60,6 @@ module {
     // observable effect: the public sink receives 10 or 20 according to the secret
     // reason: dependence closed only over SSA operands misses the predecessor gating fact
     // detection boundary: L1 predecessor-choice closure over block arguments
-    // expected-error @+1 {{secret-selected-block-argument}}
     llvm.cond_br %secret_bit, ^merge(%low : i32), ^merge(%high : i32)
   ^merge(%selected: i32):
     llvm.store %selected, %public_sink {sps.sink_class = "public"} : i32, !llvm.ptr

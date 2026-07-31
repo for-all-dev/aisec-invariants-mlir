@@ -1,0 +1,7 @@
+{
+  "candidate_bitcode_sha256": "262ed2d0e1e2f78e47b5913f31c8dde8657139202b0cde0de8e505b774f183cf",
+  "mechanism_contracts": [],
+  "schema_version": "sps-fixture-contracts-v0",
+  "target_profile": null,
+  "timing_contracts": []
+}

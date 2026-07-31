@@ -1,0 +1,25 @@
+# REQUIRES: host-coverage
+#
+# This is source-execution coverage, not semantic or input-domain completeness.
+# The driver's value assertions and the separate compiler-shape tests provide
+# complementary checks on those other dimensions.
+#
+# Every C reduction is executable evidence, not just compilable provenance.
+# Keep this inventory-driven: the glob makes a newly added c/*.c file part of
+# the measured binary automatically, and the TOTAL row fails until every
+# function in that expanded corpus is exercised by equivalence_driver.c.
+#
+# The driver itself intentionally does not execute its failure return, so it is
+# excluded from the report. Every fixture region, function, line, and branch
+# must be reached.
+
+# RUN: %host-coverage-cc -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fprofile-instr-generate -fcoverage-mapping %harness/c/*.c -o %t.exe
+# RUN: env LLVM_PROFILE_FILE=%t.profraw %t.exe
+# RUN: %host-llvm-profdata merge -sparse %t.profraw -o %t.profdata
+# RUN: %host-llvm-cov report %t.exe -instr-profile=%t.profdata -ignore-filename-regex='equivalence_driver\.c' %harness/c | %FileCheck %s
+
+# CHECK: TOTAL
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%

@@ -1,5 +1,5 @@
 /*
- * Case: MT-CM2 execution-bound filtering is not a pair filter
+ * Case: secret trip-count counterexample and MT-CM2 bound refusal
  *
  * Original C source:
  *   none
@@ -13,15 +13,16 @@
  *   upstream body is copied.
  *
  * Secret inputs:
- *   secret_count, which decides the loop trip count
+ *   secret_count in bound_secret_trip_count_bad
  *
  * Public inputs:
- *   the loop start value 0, the increment 1, and the public sink target
+ *   public_count in bound_exhausted_public_loop, the loop constants, and sink
  *
- * Expected confidentiality issue:
- *   The trip count depends on a secret, so the two lanes execute different
- *   numbers of backedges. Operation count is an observer-visible channel even
- *   though the stored value is a public constant.
+ * Expected confidentiality issue and refusal:
+ *   A secret trip count gives an immediate replayable control counterexample.
+ *   The separate public-count function has equal control in both lanes; when a
+ *   configured proof bound is too small it produces symmetric BoundExhausted and
+ *   therefore Unknown(LoopRemainder), not a counterexample.
  *
  *   The unsound shortcut this pins: an implementation that DELETES the execution
  *   exceeding its unrolling guard silently narrows the proof domain and reports
@@ -33,11 +34,10 @@
  *   Filtering an execution after it exhausts a bound, faults, fails, or risks
  *   undefined behavior is forbidden.
  *
- * Why the outcome is unknown and not unsafe:
- *   A reachable, exactly modeled BoundExhausted transition that does not yield a
- *   replayed bad execution is Unknown with the loop-remainder reason and the
- *   bound-adequacy obligation open. It is NOT a counterexample, because no
- *   replayable witness reaching a bad state has been produced.
+ * Why these must be separate fixtures:
+ *   Counts 0 and 1 diverge at the first branch, before bound exhaustion, so that
+ *   case is Counterexample. A reachable, aligned BoundExhausted transition for
+ *   the same public count in both lanes yields Unknown with bound adequacy open.
  *
  * Reason-code conflation to avoid:
  *   loop-remainder denotes an exactly modeled reachable BoundExhausted
@@ -60,12 +60,23 @@
  * License note:
  *   Written for this harness. Contains no third-party source.
  */
-void bound_exhausted_loop(int secret_count, unsigned *public_sink)
+void bound_secret_trip_count_bad(int secret_count, unsigned *public_sink)
 {
   int i;
 
   for (i = 0; i < secret_count; i++) {
     /* Body is deliberately empty: the channel is the backedge count. */
+  }
+
+  *public_sink = 0u;
+}
+
+void bound_exhausted_public_loop(int public_count, unsigned *public_sink)
+{
+  int i;
+
+  for (i = 0; i < public_count; i++) {
+    /* The bundle deliberately chooses a public count above its proof bound. */
   }
 
   *public_sink = 0u;

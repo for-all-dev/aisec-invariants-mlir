@@ -1,176 +1,157 @@
 # LLVM/MLIR confidentiality regression harness
 
-This directory is a standalone LLVM-style regression suite for compiler
-security and information-flow examples. It combines small C reductions with
-review-sized LLVM-dialect MLIR fixtures. `llvm-lit` supplies test discovery and
-isolation, `mlir-opt` verifies the checked-in IR, and `FileCheck` pins each
-fixture's decisive operation or repair.
+This harness now separates five things that used to be conflated: compiler
+shape, unary diagnostics, future Rev4 model results, final-binary risk, and
+policy review. A green default run means the executable preflight checks pass;
+it does **not** mean that SPS has returned `ModelStatus: Proved`.
 
-These checks are regression evidence, not a confidentiality proof. In
-particular, verifier-valid IR and a matching `FileCheck` pattern establish
-neither semantic equivalence nor noninterference for every input. The C
-execution and code-generation tests add concrete evidence at the boundaries
-they name; assumptions about helper timing, compression, GPU state, and
-sanitizer sufficiency remain explicit obligations.
+The authoritative Rev4 theorem object will be frozen canonical LLVM bitcode.
+The checked-in pairs here are deliberately weaker: LLVM 17.0.6 candidate
+bitcode used to develop fixtures while the LLVM 22.1.8 normalizer, freeze
+pipeline, exact relational verifier, and replay engine are still absent.
 
-There is no key-recovery code and no full cryptographic implementation here.
+For a priority-ordered, piece-by-piece manual review, use the
+[fixture review guide](FIXTURE_REVIEW_GUIDE.md).
 
-## Layout
+## Test strata
 
-```text
-prototypes/compiler_harness/
-├── Makefile                 # public test entry points
-├── lit.cfg.py               # standalone llvm-lit configuration
-├── README.md
-├── c/
-│   ├── Makefile             # compatibility and fixture-generation targets
-│   ├── check_harness.py     # provenance and metadata contract checks
-│   ├── equivalence_driver.c
-│   └── *_bad.c / *_fixed.c / *_vulnerable.c
-├── mlir/
-│   ├── README.md
-│   ├── L0_L1_L2_PIPELINE.md
-│   └── *.mlir               # 45 checked-in regression fixtures
-└── integration/             # integration .test files
-```
+| Directory | What it checks | What it cannot claim |
+| --- | --- | --- |
+| `mlir/` | LLVM-dialect parsing, invariants, and decisive IR shape | Any `ModelStatus` |
+| `diagnostic/` | The current unary scanner's five finding classes | Relational proof, replay, or proof from silence |
+| `artifacts/` | Candidate `.bc`/derived `.ll` integrity and prototype descriptor/oracle consistency | `NFConforms` or a current verifier report |
+| `integration/` | C provenance, concrete witnesses, import, LLVM shape, and seven SPS lecture fixture contracts | Whole-entry noninterference or a current `ModelStatus` |
+| `p4-risk/` | Target-specific assembly/code-generation risk evidence | Model proof or closed deployment refinement |
+| `sps/` | Seven future exact-verifier lecture tests | Feature-gated `UNSUPPORTED` until the verifier and canonical LLVM 22.1.8 bundles exist |
 
-Generated artifacts and per-test temporary files live below `build/`; a local
-lit virtual environment lives below `.venv/`. Neither directory is test input.
+Design-only coalition examples live under `examples/`; post-MVP authorization
+and robust-declassification examples live under `examples/integrity/`. Neither
+directory is discovered as a test suite.
 
 ## Commands
 
-Run these from this directory:
+Run from this directory:
 
 ```sh
-make check                 # all MLIR and integration tests
-make check-mlir            # verifier and focused IR-shape tests
-make check-integration     # metadata, C execution/import, and codegen tests
-make list-tests            # show exactly what llvm-lit discovered
+make check             # every executable test, then an explicit SPS skip notice
+make check-shape       # MLIR parse/FileCheck plus shape-manifest validation
+make check-diagnostic  # unary scanner tests; skipped unless SPS_SCAN is explicit
+make check-artifacts   # exact candidate .bc/.ll pairs and descriptor/oracle checks
+make check-integration # C provenance, witnesses, import, and LLVM shape
+make check-p4-risk     # target-bound risk evidence only
+make check-sps         # runs the feature-gated semantic suite (unsupported today)
+make list-tests        # discovery audit
 ```
 
-The suite never installs a dependency as a side effect of `check`. If
-`llvm-lit` is unavailable, explicitly create the pinned local runner once:
+The local runner uses `lit==17.0.6`. Create it explicitly if needed:
 
 ```sh
-make bootstrap-lit         # installs lit==17.0.6 in .venv/
+make bootstrap-lit
 ```
 
-LLVM 17.0.6 is the initial code-generation baseline. Tools default to
-`/opt/homebrew/opt/llvm/bin`; override the tool directory or lit executable
-when necessary:
+Tools default to `/opt/homebrew/opt/llvm/bin` and may be overridden:
 
 ```sh
 make check LLVM_BIN=/path/to/llvm/bin
 make check LIT=/path/to/llvm-lit
+make check-diagnostic SPS_SCAN=/path/to/sps-scan
 ```
 
-The existing C entry point remains supported:
+`SPS_SCAN` has no automatic build-tree fallback. Requiring an explicit path
+avoids silently running a stale, unversioned prototype binary. Missing optional
+targets or tools produce `UNSUPPORTED`, not a fabricated success.
+
+## The `.bc` / `.ll` ownership contract
+
+Every semantic candidate bundle contains both forms requested for review:
+
+- `artifact.bc` is the exact candidate byte sequence and the source of truth
+  inside that pair;
+- `artifact.ll` is generated by `llvm-dis artifact.bc`, never authored as an
+  independent input;
+- `artifact.json` is an explicitly nonnormative
+  `sps-artifact-candidate-v1` envelope with hashes for the bitcode, derived
+  text, source MLIR, and every prototype sidecar;
+- `policy.json`, `abi.json`, `contracts.json`, `release-table.json`, and
+  `expected-report.json` are prototype fixture descriptors bound to the
+  candidate bitcode hash.
+
+`tools/artifact_bundle.py check` verifies the hashes, reproduces the exact
+disassembly, and verifies that the checked-in `.ll` reassembles to the exact
+`.bc` bytes with the recorded producer toolchain. Regenerate intentionally:
 
 ```sh
-make -C c verify
+python3 tools/artifact_bundle.py generate --llvm-bin /path/to/llvm/bin
 ```
 
-An optional historical wolfSSL 3580 reproduction needs a RISC-V GCC. Its lit
-test is `UNSUPPORTED` when no compiler is configured; this is an unavailable
-test environment, not an expected failure:
+These checks establish pair integrity, not Rev4 canonicality. A conformance
+bundle must instead be produced by the pinned LLVM 22.1.8 late pipeline, carry
+the complete normative `ArtifactIdentity` and canonical interfaces, destroy
+and freshly reparse the frozen module, re-audit it, and feed the same bytes to
+P1-P3 and core instruction selection.
 
-```sh
-make check-integration RISCV_GCC=/path/to/riscv32-gcc
+## Result contract
+
+Rev4 has three independent result axes:
+
+```text
+ModelStatus       = Proved | Counterexample(receiptId)
+                  | Unknown(PublicDispositionReasonV1)
+DeploymentStatus  = Open(P4EvidenceProfileUnavailable) | Closed(P4EvidenceBundle)
+PolicyReviewStatus = Complete | Findings(finite set) | Incomplete(Reason)
 ```
 
-The lit configuration detects Clang's X86, AArch64, and RISC-V targets and the
-ability to execute host binaries. Tests that depend on a missing optional
-feature are skipped with `UNSUPPORTED`; portable MLIR verification remains
-runnable.
+The public counterexample constructor carries a fresh restricted-evidence
+`receiptId`, never the witness itself.
 
-## What each layer establishes
+There is one artifact-scoped `ModelStatus`. Per `(entry, coalition)` records are
+product dispositions, not additional model statuses. Counterexamples require
+exact replay. Diagnostics, lints, source filenames, and backend risk never
+directly determine the model result.
 
-| Layer | Mechanism | Evidence provided |
-| --- | --- | --- |
-| MLIR syntax/invariants | `mlir-opt` | Every checked-in module parses and satisfies registered operation invariants. |
-| Fixture shape | `FileCheck` | The decisive store, branch, address, division, helper contract, or repair remains present and connected as expected. |
-| Diagnostic oracle | `--verify-diagnostics` | Every bad fixture names the stable reason ID that a future SPS pass must emit at each decisive operation. |
-| Metadata | `check_harness.py` | Each fixture has one four-valued outcome, one observer/model, a reason ID, valid obligations, an evidence boundary, and existing C provenance. |
-| C behavior | two-run driver | Selected bad cases have a concrete differing-observation witness and repairs retain their intended functional result. |
-| Translation | Clang, `mlir-translate`, `mlir-opt` | C can be emitted as LLVM IR, imported into LLVM-dialect MLIR, and verified. |
-| Backend shape | Clang and optional GCC | Selected target-specific branch, division, or helper-call shapes are reproducible for the named toolchain/profile. |
+The files named `expected-report.json` are non-claimable future oracles. Their
+status fields live under `oracle`; the same file records a current `Pending`
+state and `claimable_from_checked_in_pair: false`. The simplified `*-v0`
+descriptors are useful test intent, not replacements for canonical Rev4 policy,
+ABI, release, contract, placement, or observation interfaces.
 
-Bad confidentiality fixtures remain valid compiler input. Each now has both a
-successful verifier/shape RUN and an active `--verify-diagnostics` RUN with an
-`expected-error` at every decisive operation. Because no final-LLVM SPS pass
-emits those diagnostics yet, the 17 bad fixtures intentionally fail. They are
-bring-up gates, not `XFAIL` tests: implementing the pass and adding it to the
-diagnostic RUN is what turns them green.
+## Current semantic limitations
 
-## Precision controls and paired anti-controls
+The current `sps-scan` propagates unary Low/High dependence through SSA and
+recognizes branch, public-sink, address, variable-latency-operation, and
+allocation-size findings. It has no exact byte memory, complete alias topology,
+prefix-causal release ledger, coalition products, witness replay, artifact
+identity, or P4 refinement. A zero-finding result is therefore only silence.
 
-A corpus of leaky programs is satisfied by an analysis that reports every
-program as unsafe. The `*.control.mlir` fixtures are the guard against that:
-each is release-relative noninterferent, so a reported violation there is
-imprecision rather than a finding.
+The explicit coverage ledger at `contracts/rev4-conformance-matrix.json`
+enumerates all `NF-A01`-`NF-A15` acceptance cases and `NF-CM01`-`NF-CM12`
+countermodels. Rows marked `preflight-seed` or `infrastructure-seed` preserve a
+useful shape; none is marked implemented.
 
-Their required first-layer disposition is `RelationalRequired`, **not** silence.
-The single `Low/High` diagnostic analysis has no proof-authoritative strong
-update, no summaries, and no slice selection, so it is expected to lose
-precision at these sites and to leave them for the exact product. Coercing a
-control to literal silence invites exactly the `StaticallyDischarged` and
-`NotObservable` shortcuts that cannot establish a proof. Controls therefore
-carry no `--verify-diagnostics` RUN; they pin IR shape and stability only.
+## C and generated evidence
 
-A control wants an anti-control that must retain the opposite outcome, because
-the cheapest way to quiet a control is usually an unsound repair. **Two such
-fixture pairs exist today**; the other two controls name the unsound repair they
-forbid but have no encoded partner yet, and that is an open gap rather than a
-completed discipline:
+C reductions document provenance and support concrete two-run witnesses or
+source-shape reproduction. Optimizers may erase the shape being illustrated,
+and the VLA reduction may acquire stack-protector or volatile behavior outside
+the Rev4 normal form. C is therefore motivation/preflight evidence unless an
+exact conformant bitcode capture is separately audited.
 
-| Control | Paired anti-control | Unsound repair it blocks |
-| --- | --- | --- |
-| `precision_identical_successor.control` | `predecessor_choice_blockarg.bad` | "identical successors imply no control leak" — both are one-successor branches differing only in block-argument operands |
-| `precision_overwritten_slot.control` | the same fixture's `RelationalRequired` disposition | adding a strong update to the diagnostic layer |
-| `precision_offset_disjoint.control` | offsets are nonzero and byte-exact | coarsening offsets to a cache line, which is a refusal and never a proof |
-| `alloca_size_public.control` | `alloca_size_high_count.unknown` | refusing every dynamic allocation, or treating an equal public cap as an equal size |
+`make -C c regen-mlir` writes imports under `build/mlir/`. Hand-minimized target
+models remain visibly separate from target assembly in `p4-risk/`. Backend-only
+branches, helper lowering, stack probes, and timing facts affect
+`DeploymentStatus`; they do not retroactively change LLVM `ModelStatus`.
 
-Never satisfy one member of a pair by weakening the other.
+## SPS lecture fixture contracts
 
-## Scenario contract
+The seven hand-authored teaching instances from
+`SPS/SPS_Lecture_Notes/artifacts/` are mirrored under
+`integration/Inputs/sps-lecture/`. Their integration tests assemble and
+round-trip the LLVM capture shapes, check the current reserved release-marker
+model and prefix order, and validate the complete three-coalition fixture
+oracles. They are explicitly `claimable: false`; these checks do not execute
+the relational semantics.
 
-The metadata outcome is exact: `verified`, `unsafe`, `unknown`, or
-`conditional`. It describes the named observer/model only. `verified` and
-`unsafe` have no outstanding obligations; `unknown` and `conditional` must
-name the facts still needed.
-
-| Family | Checked scenarios |
-| --- | --- |
-| Explicit oracle | Bad is `unsafe` because error detail remains beyond `padding_validity_v1`; fixed is `verified` for that authorized-validity release model. |
-| Dynamic KV, BREACH, logging | Bad is `unsafe` through a reduced public sink; fixed is `verified` for the named reduced model. Real allocation/compression/runtime behavior is outside the reduced fixture. |
-| Wrong party and wrong host | Bad is `unsafe` for the named audience/host policy; fixed is `verified`. |
-| Redis and LeftoverLocals | Bad is `unsafe` for the explicit sequential cross-domain model; fixed is `verified` for that model. Relating it to the concurrent/GPU incident remains L4 evidence. |
-| Secret embedding index | Bad is `unsafe` due to a secret-dependent address; fixed is `verified` at the source boundary. |
-| CKKS | Bad is `unsafe` because it performs an unauthorized release; fixed is `conditional` on sanitizer sufficiency, certificate soundness, and release-policy integrity. |
-| KyberSlash 1 and 2 | Bad is `unsafe` due to secret-dependent variable-latency division; fixed is `verified` under the source-operation timing model. |
-| Clangover | Source is `verified`; lowered bad is `unsafe` due to a secret-dependent branch; lowered fixed is `verified` for its in-module model. L3 is required for the compiler-regression attribution. |
-| Precision controls | Four `verified` controls whose sites are `RelationalRequired` at L1: identical successor, value cancellation, public overwrite, offset-disjoint reload. |
-| MT-CM6 predecessor choice | Bad is `unsafe` because a secret selects the merge block argument while no secret flows through any SSA operand. Reason is `secret-selected-block-argument`, not a differing control location. |
-| MT-CM3 prefix-causal release | Bad is `unsafe` because the secret reaches a public channel before its authorized release. A whole-run release-equality encoding misses it. |
-| MT-CM5 alias separation | `unknown` with `proved-disjoint-clause` open: unproved separation yields neither safety nor a replayable counterexample. |
-| MT-CM2 bound filtering | `unknown` with `bound-adequacy` open. First loop fixture; `loop-remainder` must never denote an engine-cap shortfall. |
-| Allocation size | High-dependent size is `unknown` with `world-structural-size-expression` open; the public, world-structural twin is `verified`. |
-| wolfSSL 3580 | Source is `verified`; target bad is `unsafe` due to a secret-dependent branch; target fixed is `verified` for the modeled target. |
-| wolfSSL 3579 | Source is `unknown` without target timing; a target call with no summary is `unknown`; the affected helper profile is `unsafe`; a constant-latency test profile is `verified`; the fixed-loop target model is `conditional` on base-operation latency and backend-trace preservation. |
-
-The complete file-by-file mapping and L0-L4 interpretation are in
-[`mlir/L0_L1_L2_PIPELINE.md`](mlir/L0_L1_L2_PIPELINE.md).
-
-## Generated evidence
-
-`make -C c regen-mlir` emits source-level imports under `build/mlir/`. For the
-backend-modeled Clangover and wolfSSL families, vulnerable imports use
-`.source.mlir` and repaired imports use `.fixed_source.mlir`. It deliberately
-never generates a `target_bad` or `target_fixed` file: LLVM-dialect import
-occurs before backend effects. KyberSlash keeps accurate source-level
-`.bad.mlir` and `.fixed.mlir` generated names.
-
-Checked-in target MLIR is hand-minimized and labeled as a target model.
-Backend-only effects such as an RV32I branch or legalization to `__muldi3` are
-supported by separate compiler evidence; they are not represented as literal
-GCC-generated MLIR.
+Matching tests under `sps/` state the future exact semantic expectations.
+They use `REQUIRES: sps-verifier, llvm-22.1.8,
+sps-teaching-materialized`, so the current harness reports them as
+`UNSUPPORTED`, never as passing or expected failures.

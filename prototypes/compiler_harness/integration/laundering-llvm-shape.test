@@ -1,0 +1,19 @@
+# REQUIRES: clang, x86-target
+#
+# Pre-P4 LLVM shape: both bad source forms become a branchless select, while the
+# barrier form remains select-free. These checks make no ModelStatus claim.
+
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S -emit-llvm %harness/c/launder_scan_bad.c -o %t.bad.ll
+# RUN: %FileCheck %s --check-prefix=IR-BAD --input-file=%t.bad.ll
+# IR-BAD: select i1
+# IR-BAD-NOT: br i1
+
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S -emit-llvm %harness/c/launder_scan_folded_bad.c -o %t.folded.ll
+# RUN: %FileCheck %s --check-prefix=IR-FOLDED --input-file=%t.folded.ll
+# IR-FOLDED: select i1
+# IR-FOLDED-NOT: br i1
+
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S -emit-llvm %harness/c/launder_scan_fixed.c -o %t.fixed.ll
+# RUN: %FileCheck %s --check-prefix=IR-FIXED --input-file=%t.fixed.ll
+# IR-FIXED-NOT: select i1
+# IR-FIXED-NOT: br i1

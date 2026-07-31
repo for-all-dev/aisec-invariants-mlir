@@ -100,6 +100,36 @@ void wrong_party_plaintext_fixed(uint32_t plaintext,
                                  uint32_t *authorized_mailbox,
                                  uint32_t *unauthorized_mailbox);
 
+void abi_alias_missing_binding(unsigned secret, unsigned *p, unsigned *q,
+                               unsigned *public_output);
+void abi_alias_mayalias_overlap(unsigned secret, unsigned *p, unsigned *q,
+                                unsigned *public_output);
+void abi_alias_disjoint_control(unsigned secret, unsigned *p, unsigned *q,
+                                unsigned *public_output);
+void alloca_size_high_count(int secret_bit, unsigned *public_sink);
+void alloca_size_public_control(unsigned public_count, unsigned *public_sink);
+uint32_t argmax_release_body(const int32_t logits[10]);
+void audience_mismatch_bad(unsigned logits, unsigned *alice_channel,
+                           unsigned *bob_channel);
+void bound_secret_trip_count_bad(int secret_count, unsigned *public_sink);
+void bound_exhausted_public_loop(int public_count, unsigned *public_sink);
+uint64_t launder_scan_bad(int secret, uint64_t x, const uint64_t *p);
+uint64_t launder_scan_folded_bad(int secret, uint64_t x, const uint64_t *p);
+uint64_t launder_scan_fixed(int secret, uint64_t x, const uint64_t *p);
+unsigned predecessor_choice_blockarg_bad(int secret_bit);
+void prefix_causal_release_bad(unsigned secret, unsigned *public_channel);
+unsigned identical_successor_control(int high_condition,
+                                     unsigned public_value);
+unsigned xor_cancellation_control(unsigned secret);
+unsigned overwritten_slot_control(unsigned secret, unsigned public_value);
+unsigned offset_disjoint_control(unsigned char *buffer, unsigned secret_byte,
+                                 unsigned public_value);
+uint32_t sps_release_p_v1(uint32_t raw, uint32_t public_mask);
+void release_carrier(uint32_t raw, uint32_t mask_a, uint32_t mask_b,
+                     uint32_t *sink);
+uint32_t sha256_round_release_body(uint32_t e, uint32_t f, uint32_t g,
+                                   uint32_t h, uint32_t k, uint32_t w);
+
 static int failures;
 
 static void expect_u64(const char *name, uint64_t got, uint64_t want) {
@@ -113,12 +143,15 @@ static void check_clangover(void) {
   uint8_t msg[32] = {0};
   int16_t bad[256] = {0};
   int16_t fixed[256] = {0};
-  for (unsigned value = 0; value < 256; ++value) {
-    msg[0] = (uint8_t)value;
-    clangover_poly_frommsg_vulnerable(bad, msg);
-    clangover_poly_frommsg_fixed(fixed, msg);
-    for (unsigned i = 0; i < 256; ++i)
-      expect_u64("clangover output", (uint16_t)bad[i], (uint16_t)fixed[i]);
+  for (unsigned position = 0; position < 32; ++position) {
+    for (unsigned value = 0; value < 256; ++value) {
+      msg[position] = (uint8_t)value;
+      clangover_poly_frommsg_vulnerable(bad, msg);
+      clangover_poly_frommsg_fixed(fixed, msg);
+      for (unsigned i = 0; i < 256; ++i)
+        expect_u64("clangover output", (uint16_t)bad[i], (uint16_t)fixed[i]);
+    }
+    msg[position] = 0;
   }
 }
 
@@ -163,11 +196,13 @@ static void check_semantic_harnesses(void) {
   expect_u64("wrong party fixed redaction", d, 0u);
 
   secret_logging_checkpoint_bad(0xaceu, &a, &b, &c);
+  expect_u64("logging bad private state", a, 0xaceu);
+  expect_u64("logging bad log", b, 0xaceu);
+  expect_u64("logging bad checkpoint", c, 0xaceu);
   secret_logging_checkpoint_fixed(0xaceu, &d, &a, &b);
   expect_u64("logging private state", d, 0xaceu);
   expect_u64("logging fixed log", a, 0u);
   expect_u64("logging fixed checkpoint", b, 0u);
-  expect_u64("logging bad checkpoint", c, 0xaceu);
 
   expect_u64("explicit oracle return",
              explicit_error_oracle_bad(1u, 7u, 123u, &bad_status,
@@ -213,6 +248,14 @@ static void check_semantic_harnesses(void) {
   for (unsigned i = 0; i < 16; ++i)
     expect_u64("embedding value", secret_embedding_index_bad(table, i),
                secret_embedding_index_fixed(table, i));
+  for (unsigned i = 0; i < 16; ++i) {
+    expect_u64("embedding wrapped value",
+               secret_embedding_index_bad(table, i + 16u),
+               secret_embedding_index_fixed(table, i + 16u));
+    expect_u64("embedding high-bit value",
+               secret_embedding_index_bad(table, 0xfffffff0u | i),
+               secret_embedding_index_fixed(table, 0xfffffff0u | i));
+  }
 
   expect_u64("dynamic return", dynamic_kv_length_bad(5u, 42u, &a, &b),
              dynamic_kv_length_fixed(5u, 42u, &c, &d));
@@ -231,6 +274,7 @@ static void check_semantic_harnesses(void) {
              wrong_host_fhe_reveal_bad(9u, 1234u, &a, &b),
              wrong_host_fhe_reveal_fixed(9u, 1234u, &c, &d));
   expect_u64("wrong-host authorized", a, c);
+  expect_u64("wrong-host bad unauthorized leak", b, 1234u);
   expect_u64("wrong-host fixed unauthorized", d, 0u);
 
   expect_u64("ckks return", ckks_unsafe_release_bad(55u, 12u, 1u, &a),
@@ -241,6 +285,10 @@ static void check_semantic_harnesses(void) {
   (void)ckks_unsafe_release_fixed(23u, 12u, 1u, &d);
   expect_u64("ckks release-relative bad witness", c, 23u);
   expect_u64("ckks equal sanctioned release", d, 4u);
+  (void)ckks_unsafe_release_bad(55u, 12u, 0u, &a);
+  (void)ckks_unsafe_release_fixed(55u, 12u, 0u, &b);
+  expect_u64("ckks bad ignores failed certificate", a, 55u);
+  expect_u64("ckks fixed failed certificate", b, 0u);
 
   expect_u64("leftover return", leftoverlocals_scratch_bad(99u, 7u, &a, &b),
              leftoverlocals_scratch_fixed(99u, 7u, &c, &d));
@@ -253,11 +301,109 @@ static void check_semantic_harnesses(void) {
   expect_u64("redis fixed response", redis_pool_reuse_fixed(11u, 22u, 1u), 22u);
 }
 
+static void check_remaining_models(void) {
+  unsigned p = 0u, q = 0u, out = 0u;
+  unsigned char buffer[16] = {0};
+  uint32_t carrier[2] = {0};
+  uint64_t pointed = 0xfedcba9876543210ull;
+  const uint64_t fallback = 0x0123456789abcdefull;
+  int32_t logits[10] = {0};
+
+  abi_alias_missing_binding(0x1234u, &p, &p, &out);
+  expect_u64("ABI missing-binding body overlap behavior", out, 0x1234u);
+  abi_alias_mayalias_overlap(0x5678u, &p, &p, &out);
+  expect_u64("ABI may-alias overlap witness", out, 0x5678u);
+  q = 0x9abcu;
+  abi_alias_disjoint_control(0xdef0u, &p, &q, &out);
+  expect_u64("ABI disjoint public reload", out, 0x9abcu);
+
+  out = 1u;
+  alloca_size_high_count(0, &out);
+  expect_u64("high VLA public sink, false arm", out, 0u);
+  out = 1u;
+  alloca_size_high_count(1, &out);
+  expect_u64("high VLA public sink, true arm", out, 0u);
+  out = 1u;
+  alloca_size_public_control(64u, &out);
+  expect_u64("public VLA public sink", out, 0u);
+
+  for (unsigned i = 0; i < 10; ++i)
+    logits[i] = -100;
+  logits[4] = -1;
+  expect_u64("argmax all-negative maximum", argmax_release_body(logits), 4u);
+  for (unsigned i = 0; i < 10; ++i)
+    logits[i] = 0;
+  expect_u64("argmax lowest-index tie", argmax_release_body(logits), 0u);
+  logits[2] = 7;
+  logits[7] = 7;
+  expect_u64("argmax strict tie rule", argmax_release_body(logits), 2u);
+  logits[7] = 8;
+  expect_u64("argmax later maximum", argmax_release_body(logits), 7u);
+
+  audience_mismatch_bad(0x1234u, &p, &q);
+  expect_u64("audience authorized payload", p, 0x34u);
+  expect_u64("audience unauthorized payload", q, 0x34u);
+
+  out = 1u;
+  bound_secret_trip_count_bad(0, &out);
+  expect_u64("secret trip count zero", out, 0u);
+  out = 1u;
+  bound_secret_trip_count_bad(3, &out);
+  expect_u64("secret trip count backedge", out, 0u);
+  out = 1u;
+  bound_exhausted_public_loop(3, &out);
+  expect_u64("public bound backedge", out, 0u);
+
+  expect_u64("launder ternary false", launder_scan_bad(0, fallback, &pointed),
+             fallback);
+  expect_u64("launder ternary true", launder_scan_bad(1, fallback, &pointed),
+             pointed);
+  expect_u64("launder folded mask false",
+             launder_scan_folded_bad(0, fallback, &pointed), fallback);
+  expect_u64("launder folded mask true",
+             launder_scan_folded_bad(1, fallback, &pointed), pointed);
+  expect_u64("launder barrier false",
+             launder_scan_fixed(0, fallback, &pointed), fallback);
+  expect_u64("launder barrier true",
+             launder_scan_fixed(1, fallback, &pointed), pointed);
+
+  expect_u64("predecessor false", predecessor_choice_blockarg_bad(0), 20u);
+  expect_u64("predecessor true", predecessor_choice_blockarg_bad(1), 10u);
+
+  out = 0u;
+  prefix_causal_release_bad(0x4567u, &out);
+  expect_u64("prefix-causal early observation", out, 0x4567u);
+
+  expect_u64("identical successor false",
+             identical_successor_control(0, 0x1111u), 0x1111u);
+  expect_u64("identical successor true",
+             identical_successor_control(1, 0x1111u), 0x1111u);
+  expect_u64("xor cancellation", xor_cancellation_control(0x2222u), 0u);
+  expect_u64("overwritten slot",
+             overwritten_slot_control(0x3333u, 0x4444u), 0x4444u);
+  expect_u64("offset-disjoint reload",
+             offset_disjoint_control(buffer, 0x55u, 0x66u), 0x66u);
+  expect_u64("offset-disjoint secret byte", buffer[4], 0x55u);
+  expect_u64("offset-disjoint public byte", buffer[8], 0x66u);
+
+  expect_u64("release wrapper", sps_release_p_v1(0xf3u, 0x3cu), 0x30u);
+  release_carrier(0xf3u, 0x0fu, 0xf0u, carrier);
+  expect_u64("release carrier first occurrence", carrier[0], 0x03u);
+  expect_u64("release carrier second occurrence", carrier[1], 0xf0u);
+
+  expect_u64("SHA-256 round reduction",
+             sha256_round_release_body(0x510e527fu, 0x9b05688cu,
+                                       0x1f83d9abu, 0x5be0cd19u,
+                                       0x428a2f98u, 0x61626380u),
+             0x54da50e8u);
+}
+
 int main(void) {
   check_clangover();
   check_kyberslash();
   check_wolfssl();
   check_semantic_harnesses();
+  check_remaining_models();
 
   if (failures != 0)
     return 1;

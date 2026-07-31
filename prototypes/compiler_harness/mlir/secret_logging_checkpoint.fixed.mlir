@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: secret logging and checkpoint export
+// entry: secret_logging_checkpoint_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/secret_logging_checkpoint_fixed.c
 // upstream GitHub source: https://github.com/kubernetes-sigs/secrets-store-csi-driver/commit/dcb2c294be3bc8b792e02b9f03e5078664db0581
 // upstream revision: dcb2c294be3bc8b792e02b9f03e5078664db0581
 // secret: %service_account_token
 // public: log and artifact-store contents plus the zero redaction sentinel
-// expected outcome: verified
-// observer/model: public-log-and-artifact-sinks
-// reason id: public-sink-isolation
-// outstanding obligations: none
+// diagnostic focus: public-log-and-artifact-sinks
 // evidence boundary: L1 public-log and public-artifact sink summaries
 //
 // CHECK-LABEL: llvm.func @secret_logging_checkpoint_fixed

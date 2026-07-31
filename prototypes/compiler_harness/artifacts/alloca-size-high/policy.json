@@ -1,0 +1,20 @@
+{
+  "candidate_bitcode_sha256": "d87a54b4a4b57ee8f12497662e759fa6ae94800cb8ba6da8233f033e3ec2bb6a",
+  "component_visibility": {},
+  "error_visibility": {},
+  "fixed_observation_model": "Theta_ct",
+  "invocation_scope": "SingleInvocation",
+  "maximal_adversary_coalitions": [
+    []
+  ],
+  "output_visibility": {},
+  "placement": [
+    {
+      "entry": "alloca_size_high_count",
+      "host": "host0"
+    }
+  ],
+  "principals": [],
+  "release_bindings": [],
+  "schema_version": "sps-fixture-policy-v0"
+}

@@ -2,16 +2,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --check-prefix=COUNT --implicit-check-not='llvm.call @__muldi3' --implicit-check-not=llvm.cond_br
 //
 // case: wolfssl/CVE-2026-3579
+// entry: wolfssl_3579_mul_fixed_model
 // classification: modeled-fixed-target
 // c source: ../c/wolfssl_3579_mul_fixed.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
 // upstream revision: 8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
 // secret: %secret_a and %secret_b
 // public: fixed loop count 64 and selected fixed-operation RV32I profile
-// expected outcome: conditional
-// observer/model: modeled-rv32i-timing
-// reason id: fixed-loop-requires-target-evidence
-// outstanding obligations: base-operation-latency,backend-trace-preservation
+// diagnostic focus: modeled-rv32i-timing
 // evidence boundary: L1 verifies the fixed loop; target-operation and backend-conformance facts remain L4
 // artifact status: hand-written fixed target model
 //

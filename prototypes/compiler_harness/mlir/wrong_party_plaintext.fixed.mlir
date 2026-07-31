@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: wrong-party plaintext delivery
+// entry: wrong_party_plaintext_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/wrong_party_plaintext_fixed.c
 // upstream GitHub source: none -- report: https://www.wiz.io/blog/wiz-research-discovers-critical-vulnerability-in-replicate
 // upstream revision: none
 // secret: %plaintext, owned by the authorized party
 // public: mailbox addresses, zero sentinel, and party authorization policy
-// expected outcome: verified
-// observer/model: audience-authorized-mailbox-sinks
-// reason id: authorized-sink-isolation
-// outstanding obligations: none
+// diagnostic focus: audience-authorized-mailbox-sinks
 // evidence boundary: L1 semantic harness; the linked hosted incident is outside this L4 model
 //
 // CHECK-LABEL: llvm.func @wrong_party_plaintext_fixed

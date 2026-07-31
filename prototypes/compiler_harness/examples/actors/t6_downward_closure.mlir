@@ -1,32 +1,24 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
-//
-// BRING-UP GATE. The second RUN fails today with "expected error ... was not
-// produced", exactly like the 17 bad fixtures in ../../mlir/. That is the
-// intended state: the diagnostic names the stable reason a future analysis must
-// emit at the decisive operation, and implementing that analysis is what turns
-// this green. It is not a disabled test and must not be marked XFAIL.
 //
 // DESIGN EXAMPLE. Not part of the enforced corpus; see README.md.
 //
-// T6 -- the leak exists ONLY at a derived coalition that was never authored.
+// T6 -- every derived coalition row must be emitted, even when maximal also fails.
 //
 // This example tests the coalition DERIVATION rather than any information flow.
-// The manifest authors exactly one maximal coalition, {alice, bob}. The derived
+// The manifest authors exactly one maximal coalition, {alice, bob, carol}. The derived
 // family is its downward closure:
 //
-//     {}   {alice}   {bob}   {alice, bob}
+//     {}   {alice}   {bob}   {carol}
+//     {alice,bob}   {alice,carol}   {bob,carol}   {alice,bob,carol}
 //
-// `carol_item` is visible only to carol, who is a declared principal but appears
-// in no authored maximal coalition. The singleton {carol} is nonetheless a
-// derived coalition and must be checked. The store below leaks at {carol} and
-// nowhere else.
+// `private_state` remains High to the family, while `carol_output` is visible to
+// coalitions containing carol. The singleton {carol} is absent from the authored
+// maximal list but present in its downward closure, and must be checked.
 //
-// So an implementation that iterates the AUTHORED list finds nothing wrong, and
-// an implementation that iterates the DERIVED closure finds the leak. That is
-// the entire content of this fixture, and it is why the specification states
-// that every member of the coalition family must be checked including those
-// omitted from the authored maximal list.
+// The authored maximal row is not a substitute for the derived rows even when it
+// also observes the output: the report must still contain every coalition and
+// its own result. This fixture pins completeness of enumeration, not a monotonic
+// inference rule.
 //
 // A checker that passes t1 and t2 can still fail this one, because t1 and t2
 // both have their leak inside an authored coalition or a subset of one.
@@ -37,47 +29,49 @@
 // that is a property of the specification, not an implementation shortcut to
 // optimize away by collapsing rows.
 //
-// coalition rows:
-//   {}                    verified  item-concealed-by-projection
-//   {alice}               verified  item-concealed-by-projection
-//   {bob}                 verified  item-concealed-by-projection
-//   {carol}               unsafe    derived-coalition-observes-item
-//   {alice,bob}           verified  item-concealed-by-projection
-//   {alice,carol}         unsafe    derived-coalition-observes-item
-//   {bob,carol}           unsafe    derived-coalition-observes-item
-//   {alice,bob,carol}     unsafe    derived-coalition-observes-item
-// artifact aggregate: unsafe
+// product rows:
+//   {}                    ProductSafe
+//   {alice}               ProductSafe
+//   {bob}                 ProductSafe
+//   {carol}               ReplayableCounterexample
+//   {alice,bob}           ProductSafe
+//   {alice,carol}         ReplayableCounterexample
+//   {bob,carol}           ReplayableCounterexample
+//   {alice,bob,carol}     ReplayableCounterexample
+// future artifact ModelStatus: Counterexample(ReplayableWitness)
 //
 // CHECK-LABEL: llvm.func @serve_carol_item
-// CHECK: llvm.store %{{.*}}sps.item = "carol_item"
+// CHECK: llvm.store %{{.*}}sps.output = "carol_output"
 module attributes {
   // carol is a declared principal.
   sps.principals = ["alice", "bob", "carol"],
 
-  // ...but appears in NO authored maximal coalition. {carol} is still derived.
-  sps.coalitions_maximal = [["alice", "bob"]],
+  // Carol belongs to the authored maximal coalition, so {carol} is genuinely in
+  // its downward closure even though the singleton itself was not authored.
+  sps.coalitions_maximal = [["alice", "bob", "carol"]],
 
   sps.visibility = [
-    {item = "carol_item", visible_to = ["carol"]}
+    {output = "carol_output", visible_to = ["carol"]}
   ],
 
   sps.release_policies = [],
   sps.placement = [{func = "@serve_carol_item", host = "host_eu"}]
 } {
   llvm.func @serve_carol_item(
-      %carol_item: i32 {sps.label = "high", sps.item = "carol_item"},
-      %carol_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["carol"]}) {
+      %private_state: i32 {sps.label = "high", sps.item = "private_state"},
+      %carol_channel: !llvm.ptr {sps.sink_class = "principal",
+                                 sps.output = "carol_output",
+                                 sps.audience = ["carol"]}) {
 
-    // Invisible to every authored coalition, visible to a derived one.
+    // Visible to every coalition containing carol, including required derived rows.
     //
-    // CONFIDENTIALITY ERROR: item observed only at a coalition nobody authored
-    // secret source: %carol_item is declared high and carries item carol_item
+    // CONFIDENTIALITY ERROR: private item reaches a coalition-visible output
+    // secret source: %private_state is declared high and carries item private_state
     // observable effect: carol_channel receives 13 and 26 for two items
-    // reason: carol appears in no authored maximal coalition, so the leak exists only at derived {carol}
+    // reason: {carol} is a required derived row of maximal {alice,bob,carol}
     // detection boundary: L1 enumerates the downward closure rather than the authored list; L2 supplies the 13/26 witness at {carol}
-    // expected-error @+1 {{derived-coalition-observes-item}}
-    llvm.store %carol_item, %carol_channel
-        {sps.audience = ["carol"], sps.item = "carol_item"} : i32, !llvm.ptr
+    llvm.store %private_state, %carol_channel
+        {sps.audience = ["carol"], sps.output = "carol_output"} : i32, !llvm.ptr
 
     llvm.return
   }

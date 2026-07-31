@@ -1,0 +1,52 @@
+{
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "buffer",
+        "relation": "Disjoint",
+        "right": "owner_private_sink"
+      }
+    ]
+  },
+  "arguments": [
+    {
+      "confidentiality": "High",
+      "index": 0,
+      "kind": "scalar",
+      "name": "secret"
+    },
+    {
+      "confidentiality": "WorldVisible",
+      "index": 1,
+      "kind": "scalar",
+      "name": "fallback"
+    },
+    {
+      "confidentiality": "WorldVisible",
+      "extent_bytes": 8,
+      "index": 2,
+      "kind": "root",
+      "name": "buffer"
+    },
+    {
+      "extent_bytes": 8,
+      "index": 3,
+      "kind": "root",
+      "name": "owner_private_sink",
+      "output": "owner_private_result"
+    }
+  ],
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880",
+  "entry": "launder_scan_model_proved",
+  "initialized_regions": [
+    {
+      "offset": 0,
+      "root": "buffer",
+      "visibility": "world",
+      "width": 8
+    }
+  ],
+  "schema_version": "sps-fixture-abi-v0"
+}

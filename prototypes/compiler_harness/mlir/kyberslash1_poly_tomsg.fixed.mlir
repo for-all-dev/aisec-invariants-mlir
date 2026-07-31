@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.udiv
 //
 // case: kyberslash1/poly_tomsg
+// entry: kyberslash1_poly_tomsg_fixed
 // classification: compiler-generated-minimized
 // c source: ../c/kyberslash1_poly_tomsg_fixed.c
 // upstream GitHub source: https://github.com/pq-crystals/kyber/commit/dda29cc63af721981ee2c831cf00822e69be3220
 // upstream revision: dda29cc63af721981ee2c831cf00822e69be3220
 // secret: %coefficient
 // public: KYBER_Q-derived reciprocal and shift constants
-// expected outcome: verified
-// observer/model: source-operation-timing
-// reason id: variable-latency-op-removed
-// outstanding obligations: none
+// diagnostic focus: source-operation-timing
 // evidence boundary: L1 source-operation model confirms no division remains
 //
 // CHECK-LABEL: llvm.func @kyberslash1_poly_tomsg_fixed

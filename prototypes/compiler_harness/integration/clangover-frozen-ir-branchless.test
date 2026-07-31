@@ -1,0 +1,77 @@
+# REQUIRES: clang, x86-target
+#
+# THE CAPTURE-POINT BOUNDARY, as an executable assertion.
+#
+# This is the missing middle of the clangover case. p4-risk/clangover-x86-codegen.test
+# already asserts what the x86 ASSEMBLY contains (btl / jae). This test asserts
+# what the PRE-ISEL LLVM IR contains -- the artifact a frozen-LLVM relational
+# verifier actually reads -- and the answer is: no secret-dependent branch at all.
+#
+# The three levels of the same translation unit:
+#
+#   .c   branchless by construction   (mask = -bit; out = mask & 1665)
+#   .ll  branchless `select i1`       <-- THIS TEST
+#   .s   btl + jae                    (p4-risk/clangover-x86-codegen.test)
+#
+# WHY THIS MATTERS MORE THAN IT LOOKS. A verifier that freezes pre-ISel and proves
+# a relational property over the frozen module will find secret-INDEPENDENT
+# control flow here, and will be correct to do so. The leak is introduced by
+# instruction selection, below the capture point. clangover is therefore a P4
+# phenomenon, and a claim that an LLVM-level relational proof "catches clangover"
+# is false.
+#
+# Keeping that as a test rather than as prose means it cannot quietly rot: if a
+# future LLVM starts emitting the branch in the middle end instead, the branch
+# count below changes and the classification must be revisited.
+#
+# These checks make no ModelStatus claim.
+
+# --- vulnerable form: the secret-dependent op is a select, not a branch -----
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %harness/c/clangover_poly_frommsg_vulnerable.c -o %t.bad.ll
+# RUN: %FileCheck %s --check-prefix=IR-BAD --input-file=%t.bad.ll
+
+# The message bit selects between 0 and the coefficient, branchlessly.
+# IR-BAD-DAG: select i1
+# The only two branches are the loop back-edges, on public trip counts.
+# IR-BAD-DAG: icmp eq i64 {{.*}}, 32
+# IR-BAD-DAG: icmp eq i64 {{.*}}, 8
+
+# Exactly two `br i1` exist, which together with the two DAG matches above
+# accounts for every branch in the function. None tests the message byte.
+# RUN: grep -c "br i1" %t.bad.ll | %FileCheck %s --check-prefix=BAD-BRCOUNT
+# BAD-BRCOUNT: 2
+
+# --- fixed form: branchless at IR level too, via an outlined cmov -----------
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %harness/c/clangover_poly_frommsg_fixed.c -o %t.fixed.ll
+# RUN: %FileCheck %s --check-prefix=IR-FIXED --input-file=%t.fixed.ll
+# IR-FIXED-DAG: @clangover_ct_cmov
+# IR-FIXED-NOT: select i1
+
+# RUN: grep -c "br i1" %t.fixed.ll | %FileCheck %s --check-prefix=FIXED-BRCOUNT
+# FIXED-BRCOUNT: 2
+
+# --- the differential that names the boundary -------------------------------
+# Same translation unit, same flags, one step further down the pipeline: the
+# branch appears. This pair of facts is what locates the defect below the freeze
+# point rather than inside the frozen module.
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %harness/c/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
+# RUN: %FileCheck %s --check-prefix=ASM-BAD --input-file=%t.bad.s
+# ASM-BAD-LABEL: clangover_poly_frommsg_vulnerable:
+# ASM-BAD: btl
+# ASM-BAD-NEXT: jae
+
+# CONSEQUENCE FOR FIXTURE CLASSIFICATION.
+#
+# mlir/clangover_poly_frommsg.lowered_bad.mlir models this case as an
+# `llvm.cond_br` at LLVM-dialect level. Its own header is scrupulous about this
+# -- "classification: modeled-from-verified-assembly", "artifact status:
+# hand-written target model derived from verified assembly" -- and that labelling
+# should be read as marking a P4 case rendered in LLVM-dialect syntax for
+# convenience, NOT as a claim that the frozen module contains a branch. This test
+# is the evidence for that reading.
+#
+# INCIDENTAL OBSERVATION, not asserted here. The fixed form's call is emitted as
+# `tail call`. Profile section 8.4 rejects `tail`, `musttail`, `notail`, `invoke`
+# and `callbr` in v1, so the fixed artifact would need the marker removed or the
+# call re-emitted before it could enter the normal form. That is a normal-form
+# question rather than a confidentiality one.

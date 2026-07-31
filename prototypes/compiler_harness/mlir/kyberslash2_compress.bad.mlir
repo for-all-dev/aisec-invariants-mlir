@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: kyberslash2/poly_compress
+// entry: kyberslash2_compress_bad
 // classification: compiler-generated-minimized
 // c source: ../c/kyberslash2_compress_vulnerable.c
 // upstream GitHub source: https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L23-L32
 // upstream revision: b628ba78711bc28327dc7d2d5c074a00f061884e
 // secret: %coefficient
 // public: KYBER_Q=3329 and rounding constants
-// expected outcome: unsafe
-// observer/model: source-operation-timing
-// reason id: secret-dependent-variable-latency-op
-// outstanding obligations: none
+// diagnostic focus: source-operation-timing
 // evidence boundary: direct L1 variable-time division check
 //
 // CHECK-LABEL: llvm.func @kyberslash2_compress_bad
@@ -35,7 +32,6 @@ module {
     // observable effect: division latency can vary with the numerator value
     // reason: inputs differing only in %coefficient execute a variable-time llvm.udiv before the public four-bit mask
     // detection boundary: direct L1 source/LLVM-dialect check
-    // expected-error @+1 {{secret-dependent-variable-latency-op}}
     %quotient = llvm.udiv %numerator, %q : i32
     %compressed = llvm.and %quotient, %fifteen : i32
     llvm.return %compressed : i32

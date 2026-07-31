@@ -1,0 +1,762 @@
+{
+  "fixed_observation_model": "Theta_ct",
+  "fixtures": {
+    "abi_alias_disjoint.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "abi_alias_disjoint_control",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "abi-alias-disjoint",
+      "sha256": "17f896ab736d648b87ce150ad8216f0131f1e52026bf0891486003ca51ddcfaa"
+    },
+    "abi_alias_mayalias_overlap.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "abi_alias_mayalias_overlap",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "abi-alias-mayalias-overlap",
+      "sha256": "80a45cbe908a8f7a01630375c24a63a09e99a0df2724d97dd080525587f76e5f"
+    },
+    "abi_alias_missing_binding.unknown.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "abi_alias_missing_binding",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "abi-alias-missing-binding",
+      "sha256": "c334e0fd407c5bcccb665a9d1d9a3ecd8a68ab6764f25c1a633aeb0489f71cd8"
+    },
+    "alloca_size_high_count.unknown.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "world-structural-control-trace",
+      "entry": "alloca_size_high_count",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "alloca-size-high",
+      "sha256": "dc1083ad192db9fc6a2c870abaed4ba6741b384b4d2e521090743261aaf48d60"
+    },
+    "alloca_size_public.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "world-structural-control-trace",
+      "entry": "alloca_size_public_control",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "alloca-size-public",
+      "sha256": "61503f810da4c3a9dd22f28bad21a2c4f117d384f00ba2817625628803c2eb82"
+    },
+    "audience_mismatch.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "audience_mismatch_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "audience-mismatch",
+      "sha256": "5e739c279b7dab89934ad9a412cf3f8aca14c6cd7be8a56ae340ce7f2e0f8698"
+    },
+    "bound_exhausted_loop.unknown.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "world-structural-control-trace",
+      "entry": "bound_exhausted_public_loop",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "bound-exhausted-public",
+      "sha256": "e0e39a2ed290c2ed30d549d95e9c5f0feae4e98b48a53b7eb39b76e25fb42392"
+    },
+    "bound_secret_trip_count.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "world-structural-control-trace",
+      "entry": "bound_secret_trip_count_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "bound-secret-trip-count",
+      "sha256": "e3b3f5eb9369a6ada9cf38780d79450f48afbc3d834d04ddd614e39aac188ebd"
+    },
+    "breach_compressed_length.bad.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-public-wire-length-output",
+      "entry": "breach_compressed_length_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "b0e5bfae15f92bade41e2f3ce5d238a6ce493167c20fe2257608c37dfc720ed6"
+    },
+    "breach_compressed_length.fixed.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-public-wire-length-output",
+      "entry": "breach_compressed_length_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "893c8f461f123f556e2add3d7024efbae8a7e59e946af46f4ee8a829e69ab765"
+    },
+    "ckks_unsafe_release.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-release-sink",
+      "entry": "ckks_unsafe_release_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "5e6d5bac52639f7fcb8cc3c63672cdb133d00a75493af200b7e5f6750f98328d"
+    },
+    "ckks_unsafe_release.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-release-sink",
+      "entry": "ckks_unsafe_release_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "858d06cfc361143f7cc34ff79e479fc5c491d655fc61a7b6791dee6c85bafdac"
+    },
+    "clangover_poly_frommsg.lowered_bad.mlir": {
+      "classification": "modeled-from-verified-assembly",
+      "diagnostic_focus": "x86-control-flow-timing",
+      "entry": "clangover_poly_frommsg_x86_bad_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "f1f76d35a906b6e5aad371963c919ec29ce0ba6ded1503d27414664958316fad"
+    },
+    "clangover_poly_frommsg.lowered_fixed.mlir": {
+      "classification": "modeled-fixed-target",
+      "diagnostic_focus": "in-module-x86-control-flow-timing",
+      "entry": "clangover_poly_frommsg_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "fc45c4f4bfcfca5e2d3ee0f61dbc6e62c4dce91267257748c7b320d5521cb2f1"
+    },
+    "clangover_poly_frommsg.source.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "clangover_poly_frommsg_source",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "c95a46101124f7b632933a58144ebe41c3b05b93cbd554d42b6e46273e91f9f1"
+    },
+    "dynamic_kv_length.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "reduced-public-count-output",
+      "entry": "dynamic_kv_length_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "7a00809bf52f88b3d707f6d2f54ed5f39402d9eab845e3ab11015bb0dc99da1f"
+    },
+    "dynamic_kv_length.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "reduced-public-count-output",
+      "entry": "dynamic_kv_length_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "c735ffaa3f51ada4351a9efbaf9028da66d926ff46d26efbcb6dfab5a4a1dec0"
+    },
+    "explicit_error_oracle.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-relative-padding-oracle",
+      "entry": "explicit_error_oracle_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "e5b972445d0116f3f4ca7f736dc24ad92ec17aca5fe55a5d47fb3aaefffb2710"
+    },
+    "explicit_error_oracle.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-relative-padding-oracle",
+      "entry": "explicit_error_oracle_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "303ff237d607c5ef94e717b8f285ff1ccc701debfc74b32cca72b3f6d9b1c29c"
+    },
+    "kyberslash1_poly_tomsg.bad.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "kyberslash1_poly_tomsg_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "88f241b537d6189f9efb42089a58e7dcce97e0687bc08cff2bc7b985566e20ae"
+    },
+    "kyberslash1_poly_tomsg.fixed.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "kyberslash1_poly_tomsg_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "62a8a3a93fee1ff87de4854a8a7fc71a4d914adcb6f4ba121488094935494838"
+    },
+    "kyberslash2_compress.bad.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "kyberslash2_compress_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "1b148d9dcf1d90013e6d78008b2f8593ba695175324c164fdd2805bb6432a140"
+    },
+    "kyberslash2_compress.fixed.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "kyberslash2_compress_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "ef813a6242e741f46729ed6015bcba35d4816bcf767532b15aeb51c267c66ac2"
+    },
+    "launder_scan.model_proved.p4_open.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "llvm-world-structural-trace",
+      "entry": "launder_scan_model_proved",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": "launder-scan",
+      "sha256": "dfc8014ef969631b3486ef2280eb2beff123aa6d48562bc66151efcf51691557"
+    },
+    "leftoverlocals_scratch.bad.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-sequential-cross-tenant-output",
+      "entry": "leftoverlocals_scratch_bad",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "c14b305af75cd7092cbb082a22dc87c3718d75950580414fa31404414b84b245"
+    },
+    "leftoverlocals_scratch.fixed.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-sequential-cross-tenant-output",
+      "entry": "leftoverlocals_scratch_fixed",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "76f46b3f3fff166141f39ee8b19be1a778be25137146dbbf13d69fe08545f8ee"
+    },
+    "precision_identical_successor.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "source-control-location-trace",
+      "entry": "identical_successor_control",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "f3575c32f6c6cadd5b611d8d2531dbe8593bf159669c34611d1b02fd0b537dec"
+    },
+    "precision_offset_disjoint.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "offset_disjoint_control",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "0df4f09ebc64852109dbc4d591e8cb196b57ca4b6149446a75d795aafd3c0750"
+    },
+    "precision_overwritten_slot.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "overwritten_slot_control",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "a212d87dfb018663b2239f3c68f3976aac469a0d212bbdeeae838f2434774f61"
+    },
+    "precision_xor_cancellation.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "xor_cancellation_control",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "67b17af60067184a252b871cb92380d8d3a91ecf3c2eaec49bc42682162f7b5d"
+    },
+    "predecessor_choice_blockarg.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-sink-value",
+      "entry": "predecessor_choice_blockarg_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "relational-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "c062536d9623cde3a81b8a6819aace1ecea6c9f22a92405143f621272a76a38e"
+    },
+    "prefix_causal_release.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-relative-public-channel",
+      "entry": "prefix_causal_release_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "58cb573f9167d7836e4fc5fb9aecd59142655ca2ac2510912fb6473e1c47cc62"
+    },
+    "redis_pool_reuse.bad.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-sequential-cross-actor-response",
+      "entry": "redis_pool_reuse_bad",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "7e8227d5a60bf3655182bf98330f5860d7ae3c52a9031517b375a13cf19c1e4e"
+    },
+    "redis_pool_reuse.fixed.mlir": {
+      "classification": "reduced-runtime-model",
+      "diagnostic_focus": "reduced-sequential-cross-actor-response",
+      "entry": "redis_pool_reuse_fixed",
+      "pending_capabilities": [
+        "alias-v1",
+        "byte-memory-v1",
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "71f7581794b57cb37f5efc807d30d8eb9d8d93c3e1f360ab49d3f297266eae2b"
+    },
+    "release_carrier_lost.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-carrier-lost",
+      "entry": "release_carrier_lost_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "f9df6e19cccdbfd54d5a5fa7bdced13c63d479405c184b0c63cb8a702e85dd9d"
+    },
+    "release_carrier_marker_only.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-marker-without-conformance",
+      "entry": "release_carrier_marker_only_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "a448274ccece7bf228f4af5c47a377d2205242b755bd50e94e66e40f68c52818"
+    },
+    "release_carrier_pinned.control.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "release-carrier-pinned",
+      "entry": "release_carrier_pinned_control",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "release-ledger-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "8b9853a60b65670d903e1ce08c04d83b8678af70eef394b2d79a1cbb555dbfab"
+    },
+    "secret_embedding_index.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "source-memory-address-trace",
+      "entry": "secret_embedding_index_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "7d4d055eab97793ae71342541239568ac91c1570cda3ae01daa5f0e78b3ad5a8"
+    },
+    "secret_embedding_index.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "source-memory-address-trace",
+      "entry": "secret_embedding_index_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "229a5baa09a457f9468bb55f334fe0cb1adb27a4f7e8920a3bc546f684d516d2"
+    },
+    "secret_logging_checkpoint.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-log-and-artifact-sinks",
+      "entry": "secret_logging_checkpoint_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "5f5ec19e7aea9df5878e69e2d0e75a6bb9a35c7036f76f72c78bb3a040015b80"
+    },
+    "secret_logging_checkpoint.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "public-log-and-artifact-sinks",
+      "entry": "secret_logging_checkpoint_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "037f4b6b7eb16f1b721a3fd86195bf0cbe6253d29307d47e24d5d8f2dc2c650a"
+    },
+    "wolfssl_3579_mul.source.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "rv32i-helper-timing",
+      "entry": "wolfssl_3579_mul_source",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "aff6392269831bfe42bcdfa67afb6f69af625b795bd5342975d5ac3c6116de28"
+    },
+    "wolfssl_3579_mul.target_bad.mlir": {
+      "classification": "modeled-from-verified-assembly",
+      "diagnostic_focus": "affected-rv32i-muldi3-v1",
+      "entry": "wolfssl_3579_mul_rv32_bad_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "1df17e12e539fb98ddc2f0910774b7707cc3ff064a8a41022c94266a9283eaf1"
+    },
+    "wolfssl_3579_mul.target_constant_latency.mlir": {
+      "classification": "modeled-test-profile",
+      "diagnostic_focus": "constant-latency-muldi3-test-v1",
+      "entry": "wolfssl_3579_mul_rv32_constant_latency_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "30aec1d96b129a01515eaf56e27c9d49e59992fc92e545c9fb071ce97d5c79cb"
+    },
+    "wolfssl_3579_mul.target_fixed.mlir": {
+      "classification": "modeled-fixed-target",
+      "diagnostic_focus": "modeled-rv32i-timing",
+      "entry": "wolfssl_3579_mul_fixed_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "24be98df73d1240b838907f9d29e7eaca27960503a99f6e0ee4f1f54da9188b0"
+    },
+    "wolfssl_3579_mul.target_unknown.mlir": {
+      "classification": "modeled-helper-call-without-contract",
+      "diagnostic_focus": "rv32i-helper-timing",
+      "entry": "wolfssl_3579_mul_rv32_unknown_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "7132326d5e5ef886dc79ec3a2a32a4585553ed26e6c5765e43e1e53735897a65"
+    },
+    "wolfssl_3580_mask.source.mlir": {
+      "classification": "compiler-generated-minimized",
+      "diagnostic_focus": "source-operation-timing",
+      "entry": "wolfssl_3580_select_source",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "03b5ccb02cb060cb90eb5b8ff24cffc79ccaa1b11f4684849a5b785c9cc73a57"
+    },
+    "wolfssl_3580_mask.target_bad.mlir": {
+      "classification": "modeled-from-verified-assembly",
+      "diagnostic_focus": "modeled-rv32i-control-flow-timing",
+      "entry": "wolfssl_3580_rv32_bad_model",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "18ea1ee637e8d6a76bb29f991b493c3892f57eb0302d86c9bce30cfb51b06fe4"
+    },
+    "wolfssl_3580_mask.target_fixed.mlir": {
+      "classification": "modeled-fixed-target",
+      "diagnostic_focus": "modeled-rv32i-control-flow-timing",
+      "entry": "wolfssl_3580_select_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "final-binary-p4-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "2f1ae351413c9517bb50351ac4e1a4d16d3f4304c7e6ed1c774d2b27dfd3d1fe"
+    },
+    "wrong_host_fhe_reveal.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "host-authorized-plaintext-sinks",
+      "entry": "wrong_host_fhe_reveal_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "3aad834b0e28d13ac4e191ff2409fcf5701bebd20d8a4c7afcb8d1c01c39744f"
+    },
+    "wrong_host_fhe_reveal.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "host-authorized-plaintext-sinks",
+      "entry": "wrong_host_fhe_reveal_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "9143eb3d391b91c33ece77bbeaa3b42ecd1ac4b6935ccd97abf6f64c9a5f5c1d"
+    },
+    "wrong_party_plaintext.bad.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "audience-authorized-mailbox-sinks",
+      "entry": "wrong_party_plaintext_bad",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "bb5d38c4df77a3303dcbc9e68287a3e39f8e94e7e26b009808468639c238f03d"
+    },
+    "wrong_party_plaintext.fixed.mlir": {
+      "classification": "seeded-semantic-harness",
+      "diagnostic_focus": "audience-authorized-mailbox-sinks",
+      "entry": "wrong_party_plaintext_fixed",
+      "pending_capabilities": [
+        "canonical-bitcode-v1",
+        "coalition-audience-v1",
+        "policy-binding-v1",
+        "whole-entry-product-v1"
+      ],
+      "scope": "preflight-only",
+      "semantic_bundle": null,
+      "sha256": "bad9f0fc5e6386f895ae5bf1e472a2e1d7985a0315d9b61fe4eff2577e27438e"
+    }
+  },
+  "model_status_authoritative": false,
+  "schema_version": "sps-shape-manifest-v1",
+  "scope": "preflight-only"
+}

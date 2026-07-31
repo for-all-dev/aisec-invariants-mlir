@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: redis-py canceled-connection reuse analogue
+// entry: redis_pool_reuse_bad
 // classification: reduced-runtime-model
 // c source: ../c/redis_pool_reuse_bad.c
 // upstream GitHub source: https://github.com/redis/redis-py/blob/318b114f4da9846a2a7c150e1fb702e9bebd9fdf/redis/asyncio/cluster.py#L997-L1009
 // upstream revision: 318b114f4da9846a2a7c150e1fb702e9bebd9fdf
 // secret: %response_owned_by_a, confidential to actor A
 // public: %response_owned_by_b and %request_a_was_cancelled
-// expected outcome: unsafe
-// observer/model: reduced-sequential-cross-actor-response
-// reason id: cross-domain-stale-state
-// outstanding obligations: none
+// diagnostic focus: reduced-sequential-cross-actor-response
 // evidence boundary: L1 reduced return-flow model; cancellation, pooling, and concurrency applicability is L4
 //
 // CHECK-LABEL: llvm.func @redis_pool_reuse_bad
@@ -39,7 +36,6 @@ module {
     // observable effect: actor B receives the function's returned response
     // reason: connection reuse routes A's unread response to B after cancellation
     // detection boundary: L1 catches this model; the exact async race needs future runtime semantics
-    // expected-error @+1 {{cross-domain-stale-state}}
     llvm.return %response_owned_by_a : i32
   ^fresh:
     llvm.return %response_owned_by_b : i32

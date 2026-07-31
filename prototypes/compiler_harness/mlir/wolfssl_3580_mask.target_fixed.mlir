@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
 //
 // case: wolfssl/CVE-2026-3580
+// entry: wolfssl_3580_select_fixed
 // classification: modeled-fixed-target
 // c source: ../c/wolfssl_3580_mask_fixed.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/tree/8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5/wolfcrypt/src
 // upstream revision: 8a5c1c7af1ec791eeb4a8c183658a6e926e6e1a5
 // secret: %table_index
 // public: %scan_index, %table_value, and fixed scan bound
-// expected outcome: verified
-// observer/model: modeled-rv32i-control-flow-timing
-// reason id: branchless-selection
-// outstanding obligations: none
+// diagnostic focus: modeled-rv32i-control-flow-timing
 // evidence boundary: L1 fixed-mask target model; L3 separately compares backend output
 // artifact status: hand-written fixed target model
 //

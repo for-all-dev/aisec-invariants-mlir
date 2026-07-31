@@ -1,0 +1,30 @@
+{
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
+  "mechanism_contracts": [
+    {
+      "abi": {
+        "arguments": [
+          "i32"
+        ],
+        "result": "i32"
+      },
+      "callee": "sps_release_masked_class_v1",
+      "events": [
+        "release-carrier"
+      ],
+      "faults": "none",
+      "reads": [],
+      "relation": {
+        "argument": 0,
+        "constant": 255,
+        "kind": "bit-vector-and",
+        "width": 32
+      },
+      "termination": "returns",
+      "writes": []
+    }
+  ],
+  "schema_version": "sps-fixture-contracts-v0",
+  "target_profile": null,
+  "timing_contracts": []
+}

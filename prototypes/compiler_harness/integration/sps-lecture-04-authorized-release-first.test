@@ -1,0 +1,14 @@
+# REQUIRES: llvm-as, llvm-dis
+# RUN: %llvm-as %harness/integration/Inputs/sps-lecture/04-authorized-release-first/capture-shape.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness --case 04-authorized-release-first | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define internal void @release_secret(i8 %value)
+# SHAPE: call void @__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d(i8 %value)
+# SHAPE-LABEL: define i8 @fixture_entry(i8 %secret)
+# SHAPE: call void @release_secret(i8 %secret)
+# SHAPE: br i1 %is_zero
+# SHAPE: ret i8 %private
+
+# CONTRACT: verified 04-authorized-release-first: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Proved

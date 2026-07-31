@@ -1,0 +1,20 @@
+# REQUIRES: candidate-producer-toolchain, llvm-as, llvm-config, llvm-dis, mlir-translate
+#
+# Malformed frozen bytes must fail with bundle-scoped diagnostics. The checker
+# used to leak a subprocess traceback and abort before reporting the remaining
+# integrity failures.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root
+# RUN: cp -R %harness/tools %t.root/tools
+# RUN: cp -R %harness/mlir %t.root/mlir
+# RUN: cp -R %harness/artifacts %t.root/artifacts
+# RUN: head -c 16 %t.root/artifacts/abi-alias-disjoint/artifact.bc > %t.truncated.bc
+# RUN: mv %t.truncated.bc %t.root/artifacts/abi-alias-disjoint/artifact.bc
+# RUN: not %python %t.root/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s
+
+# CHECK-NOT: Traceback
+# CHECK: abi-alias-disjoint: bitcode hash mismatch
+# CHECK: abi-alias-disjoint: artifact.bc is not the exact lowering of source MLIR
+# CHECK: abi-alias-disjoint: invalid LLVM bitcode
+# CHECK: abi-alias-disjoint: artifact.ll does not reassemble to exact artifact.bc bytes

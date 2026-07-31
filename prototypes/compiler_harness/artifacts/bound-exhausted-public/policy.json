@@ -1,0 +1,26 @@
+{
+  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219",
+  "component_visibility": {},
+  "error_visibility": {},
+  "execution_bounds": [
+    {
+      "backedge_limit": 4,
+      "entry": "bound_exhausted_public_loop"
+    }
+  ],
+  "fixed_observation_model": "Theta_ct",
+  "invocation_scope": "SingleInvocation",
+  "maximal_adversary_coalitions": [
+    []
+  ],
+  "output_visibility": {},
+  "placement": [
+    {
+      "entry": "bound_exhausted_public_loop",
+      "host": "host0"
+    }
+  ],
+  "principals": [],
+  "release_bindings": [],
+  "schema_version": "sps-fixture-policy-v0"
+}

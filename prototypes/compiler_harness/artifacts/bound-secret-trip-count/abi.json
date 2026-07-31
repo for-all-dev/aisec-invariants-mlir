@@ -1,0 +1,35 @@
+{
+  "admission_constraints": [
+    {
+      "argument": "secret_count",
+      "relation": "in",
+      "values": [
+        0,
+        1
+      ]
+    }
+  ],
+  "alias_topology": {
+    "complete": true,
+    "relations": []
+  },
+  "arguments": [
+    {
+      "confidentiality": "High",
+      "index": 0,
+      "kind": "scalar",
+      "name": "secret_count"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "public_sink",
+      "output": "world"
+    }
+  ],
+  "candidate_bitcode_sha256": "ee9adf07c7bf62e0a21593ee340a0833e8f1574b091fe66c5b8e1da6df7a4544",
+  "entry": "bound_secret_trip_count_bad",
+  "initialized_regions": [],
+  "schema_version": "sps-fixture-abi-v0"
+}

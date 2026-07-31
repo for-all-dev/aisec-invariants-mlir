@@ -1,0 +1,39 @@
+{
+  "candidate_bitcode_sha256": "ee9adf07c7bf62e0a21593ee340a0833e8f1574b091fe66c5b8e1da6df7a4544",
+  "claimable_from_checked_in_pair": false,
+  "current_harness_status": {
+    "kind": "Pending",
+    "reasons": [
+      "sps-verifier-not-implemented",
+      "llvm-22.1.8-nf-recapture-required"
+    ]
+  },
+  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
+  "oracle": {
+    "deployment_status": {
+      "kind": "Open",
+      "obligations": [
+        "model-counterexample"
+      ]
+    },
+    "entry": "bound_secret_trip_count_bad",
+    "global_blockers": [],
+    "model_status": {
+      "kind": "Counterexample",
+      "witness": "required-replayable"
+    },
+    "policy_review_status": {
+      "kind": "Complete"
+    },
+    "product_rows": [
+      {
+        "bad_state": "world-control-location-mismatch",
+        "coalition": "{}",
+        "product_disposition": "ReplayableCounterexample",
+        "replay": "required"
+      }
+    ]
+  },
+  "required_checker_feature": "sps-verifier",
+  "schema_version": "sps-fixture-oracle-v0"
+}

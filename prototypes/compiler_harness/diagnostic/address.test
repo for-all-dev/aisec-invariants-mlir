@@ -1,0 +1,4 @@
+# REQUIRES: sps-scan-unary
+# RUN: %sps-scan --refine-address %harness/mlir/secret_embedding_index.bad.mlir | %FileCheck %s
+# CHECK: [secret-dependent-address]
+# CHECK: findings: 1

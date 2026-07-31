@@ -1,11 +1,4 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
-//
-// BRING-UP GATE. The second RUN fails today with "expected error ... was not
-// produced", exactly like the 17 bad fixtures in ../../mlir/. That is the
-// intended state: the diagnostic names the stable reason a future analysis must
-// emit at the decisive operation, and implementing that analysis is what turns
-// this green. It is not a disabled test and must not be marked XFAIL.
 //
 // DESIGN EXAMPLE. Not part of the enforced corpus; see README.md.
 //
@@ -30,10 +23,10 @@
 // closed-world reading of `sps.visibility` is therefore required: anything not
 // granted is denied. An open-world reading would make this artifact look clean.
 //
-// coalition rows:
-//   {}             unsafe    item-outside-declared-visibility
-//   {alice}        unsafe    item-outside-declared-visibility
-// artifact aggregate: unsafe
+// product rows:
+//   {}             ProductSafe
+//   {alice}        ReplayableCounterexample  item-outside-declared-visibility
+// future artifact ModelStatus: Counterexample(ReplayableWitness)
 //
 // CHECK-LABEL: llvm.func @serve_two_items
 // CHECK: llvm.store %{{.*}}sps.item = "embeddings"
@@ -69,7 +62,6 @@ module attributes {
     // observable effect: alice_channel receives 4 and 8 for two prompts
     // reason: raw_prompt grants visibility to no principal, and absence of a grant is a denial under the closed-world reading
     // detection boundary: L1 resolves visibility per item, not per principal; L2 supplies the 4/8 witness
-    // expected-error @+1 {{item-outside-declared-visibility}}
     llvm.store %raw_prompt, %alice_channel
         {sps.audience = ["alice"], sps.item = "raw_prompt"} : i32, !llvm.ptr
 

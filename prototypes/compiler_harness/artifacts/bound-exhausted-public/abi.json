@@ -1,0 +1,32 @@
+{
+  "admission_constraints": [
+    {
+      "argument": "public_count",
+      "relation": "equals",
+      "value": 8
+    }
+  ],
+  "alias_topology": {
+    "complete": true,
+    "relations": []
+  },
+  "arguments": [
+    {
+      "confidentiality": "WorldStructural",
+      "index": 0,
+      "kind": "scalar",
+      "name": "public_count"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "public_sink",
+      "output": "world"
+    }
+  ],
+  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219",
+  "entry": "bound_exhausted_public_loop",
+  "initialized_regions": [],
+  "schema_version": "sps-fixture-abi-v0"
+}

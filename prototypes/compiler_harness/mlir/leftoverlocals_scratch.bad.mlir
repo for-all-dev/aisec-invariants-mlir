@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: LeftoverLocals residual scratch model
+// entry: leftoverlocals_scratch_bad
 // classification: reduced-runtime-model
 // c source: ../c/leftoverlocals_scratch_bad.c
 // upstream GitHub source: https://github.com/trailofbits/LeftoverLocalsRelease
 // upstream revision: none -- exact behavior is GPU/driver dependent
 // secret: %prior_tenant_secret
 // public: next-tenant value, scratch address, output address, and domain policy
-// expected outcome: unsafe
-// observer/model: reduced-sequential-cross-tenant-output
-// reason id: cross-domain-stale-state
-// outstanding obligations: none
+// diagnostic focus: reduced-sequential-cross-tenant-output
 // evidence boundary: L1 reduced sequential model; real cross-process GPU applicability is L4
 //
 // CHECK-LABEL: llvm.func @leftoverlocals_scratch_bad
@@ -32,7 +29,6 @@ module {
     // observable effect: the next tenant reads the prior tenant's scratch value
     // reason: no initialization or domain-transition clear occurs before publication
     // detection boundary: direct L1 flow in this model; exact GPU isolation is L4
-    // expected-error @+1 {{cross-domain-stale-state}}
     llvm.store %residual, %next_tenant_output : i32, !llvm.ptr
     llvm.return %next_tenant_public_value : i32
   }

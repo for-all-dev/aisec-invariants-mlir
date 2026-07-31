@@ -1,0 +1,7 @@
+# REQUIRES: sps-verifier, llvm-22.1.8, sps-teaching-materialized
+# Future exact-verifier contract; unsupported until the checker and bundle exist.
+# RUN: %sps-verifier verify --bundle %sps-teaching-materialized/04-authorized-release-first | %FileCheck %s
+# CHECK: ModelStatus: Proved
+# CHECK: DeploymentStatus: Open(P4EvidenceProfileUnavailable)
+# CHECK: PolicyReviewStatus: Findings
+# CHECK: IdentityReleaseOfHigh

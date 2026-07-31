@@ -2,17 +2,15 @@
 // RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
 //
 // case: precision-control/identical-successor
+// entry: identical_successor_control
 // classification: seeded-semantic-harness
 // c source: ../c/precision_controls.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/mlir/test/Analysis/DataFlow/test-dead-code-analysis.mlir
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %high_condition, declared by sps.label on the argument
 // public: the stored constant 7 and the sps.sink_class public store target
-// expected outcome: verified
-// observer/model: source-control-location-trace
-// reason id: identical-successor-control-location
-// outstanding obligations: none
-// l1 disposition: relational-required
+// diagnostic focus: source-control-location-trace
+// diagnostic disposition: relational-required
 // evidence boundary: L1 records RelationalRequired at the branch site because
 // the section 10 diagnostic has no proof-authoritative strong update; L2
 // decides equal control locations in the exact product. No L3 or L4 claim.

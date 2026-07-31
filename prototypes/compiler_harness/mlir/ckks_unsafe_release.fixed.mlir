@@ -1,6 +1,7 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: CKKS release after modeled sanitization and validation
+// entry: ckks_unsafe_release_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/ckks_unsafe_release_fixed.c
 // upstream GitHub source: https://github.com/microsoft/SEAL
@@ -9,10 +10,7 @@
 // public: trusted-integrity sanitizer mask and certificate flag, plus the public-release stored value
 // input invariant: %certificate_ok is a well-formed Boolean in {0, 1}
 // private result: the function return is not in the public observer projection
-// expected outcome: conditional
-// observer/model: public-release-sink
-// reason id: sanitized-release-requires-evidence
-// outstanding obligations: sanitizer-sufficiency,certificate-soundness,release-policy-integrity
+// diagnostic focus: public-release-sink
 // evidence boundary: L1 sanitizer-before-release structure; L4 discharges production sufficiency
 //
 // CHECK-LABEL: llvm.func @ckks_sanitize_model

@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: wrong-host FHE reveal
+// entry: wrong_host_fhe_reveal_bad
 // classification: seeded-semantic-harness
 // c source: ../c/wrong_host_fhe_reveal_bad.c
 // upstream GitHub source: https://github.com/google/heir
 // upstream revision: none -- this is a policy harness, not a HEIR defect
 // secret: %revealed_plaintext
 // public: ciphertext handle, mailbox addresses, and host authority policy
-// expected outcome: unsafe
-// observer/model: host-authorized-plaintext-sinks
-// reason id: wrong-audience-or-host
-// outstanding obligations: none
+// diagnostic focus: host-authorized-plaintext-sinks
 // evidence boundary: direct L1 host and release-policy violation
 //
 // CHECK-LABEL: llvm.func @wrong_host_fhe_reveal_bad
@@ -30,7 +27,6 @@ module {
     // observable effect: the server can read plaintext from its mailbox
     // reason: the server is authorized for ciphertext but not for revealed plaintext
     // detection boundary: direct L1 host-authority and release-policy check
-    // expected-error @+1 {{wrong-audience-or-host}}
     llvm.store %revealed_plaintext, %unauthorized_server_plaintext : i32, !llvm.ptr
     llvm.return %ciphertext_handle : i32
   }

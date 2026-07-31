@@ -4,36 +4,78 @@ HARNESS_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 LLVM_BIN ?= /opt/homebrew/opt/llvm/bin
 PYTHON ?= python3
 HOST_CC ?= cc
-LIT ?= $(HARNESS_DIR)/.venv/bin/lit
+LIT ?= "$(HARNESS_DIR)/.venv/bin/python" -c 'from lit.main import main; main()'
 LIT_FLAGS ?= -sv
 LIT_BUILD_ROOT ?= $(HARNESS_DIR)/build/lit
 RISCV_GCC ?=
+SPS_SCAN ?=
+SPS_VERIFIER ?=
+SPS_TEACHING_MATERIALIZED ?=
 
-.PHONY: check check-mlir check-integration list-tests bootstrap-lit require-lit
+.PHONY: check check-shape check-mlir check-integration check-diagnostic \
+	check-sps check-artifacts check-p4-risk list-tests bootstrap-lit require-lit
 
 check: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
+	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
+	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  "$(LIT)" $(LIT_FLAGS) "$(HARNESS_DIR)"
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)"
+	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_TEACHING_MATERIALIZED)" ]; then \
+	  echo "SKIPPED: no executable Rev4 verifier/materialized teaching bundle; no ModelStatus was computed"; \
+	fi
 
-check-mlir: require-lit
+check-shape: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
+	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  "$(LIT)" $(LIT_FLAGS) "$(HARNESS_DIR)/mlir"
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/mlir"
+
+check-mlir: check-shape
 
 check-integration: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
+	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  "$(LIT)" $(LIT_FLAGS) "$(HARNESS_DIR)/integration"
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/integration"
+
+check-diagnostic: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" SPS_SCAN="$(SPS_SCAN)" \
+	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/diagnostic"
+
+check-sps: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
+	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
+	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/sps"
+	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_TEACHING_MATERIALIZED)" ]; then \
+	  echo "SKIPPED: no executable Rev4 verifier/materialized teaching bundle; no ModelStatus was computed"; \
+	fi
+
+check-artifacts: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/artifacts"
+
+check-p4-risk: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
+	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/p4-risk"
 
 list-tests: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
+	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
+	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  "$(LIT)" --show-tests "$(HARNESS_DIR)"
+	  $(LIT) --show-tests "$(HARNESS_DIR)"
 
 bootstrap-lit:
 	$(PYTHON) -m venv "$(HARNESS_DIR)/.venv"
@@ -41,8 +83,8 @@ bootstrap-lit:
 	  --requirement "$(HARNESS_DIR)/requirements-test.txt"
 
 require-lit:
-	@if ! command -v "$(LIT)" >/dev/null 2>&1; then \
-	  echo "error: LLVM lit not found at $(LIT)" >&2; \
+	@if ! $(LIT) --version >/dev/null 2>&1; then \
+	  echo "error: LLVM lit is not runnable through: $(LIT)" >&2; \
 	  echo "run 'make bootstrap-lit' or set LIT=/path/to/lit" >&2; \
 	  exit 1; \
 	fi

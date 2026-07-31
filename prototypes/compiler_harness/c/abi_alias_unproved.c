@@ -30,13 +30,10 @@
  *   conjunct of LowEq^0, and EntryABIConforms must include the complete alias
  *   relation.
  *
- * Why the outcome is unknown and not unsafe:
- *   With no proved Disjoint clause and no declared MayAlias realization in the
- *   product, neither safety nor a counterexample follows. The honest result is
- *   Unknown(AliasBindingMismatch) with the separation obligation named. The two
- *   sound repairs are (a) put the alias into the product's beta.alias so it can
- *   be caught, or (b) put disjointness into the ABI admission contract and open
- *   a deployment obligation.
+ * This source supports three independently bound fixture contracts:
+ *   - missing topology => Unknown(AliasBindingMismatch);
+ *   - MayAlias, including p == q => Counterexample(ReplayableWitness);
+ *   - proved Disjoint => eligible for Proved under the remaining premises.
  *
  * Deliberate trap:
  *   A first implementation will almost certainly assume two distinct pointer
@@ -49,8 +46,22 @@
  * License note:
  *   Written for this harness. Contains no third-party source.
  */
-void abi_alias_unproved(unsigned secret, unsigned *p, unsigned *q,
-                        unsigned *public_output)
+void abi_alias_missing_binding(unsigned secret, unsigned *p, unsigned *q,
+                               unsigned *public_output)
+{
+  *p = secret;
+  *public_output = *q;
+}
+
+void abi_alias_mayalias_overlap(unsigned secret, unsigned *p, unsigned *q,
+                                unsigned *public_output)
+{
+  *p = secret;
+  *public_output = *q;
+}
+
+void abi_alias_disjoint_control(unsigned secret, unsigned *p, unsigned *q,
+                                unsigned *public_output)
 {
   *p = secret;
   *public_output = *q;

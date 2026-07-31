@@ -1,0 +1,4 @@
+# REQUIRES: sps-scan-unary
+# RUN: %sps-scan --refine-address %harness/mlir/alloca_size_high_count.unknown.mlir | %FileCheck %s
+# CHECK: [secret-dependent-allocation-size] llvm.alloca
+# CHECK: findings: 1

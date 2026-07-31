@@ -1,0 +1,38 @@
+{
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": false,
+    "relations": []
+  },
+  "arguments": [
+    {
+      "confidentiality": "High",
+      "index": 0,
+      "kind": "scalar",
+      "name": "secret"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "p"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 2,
+      "kind": "root",
+      "name": "q"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 3,
+      "kind": "root",
+      "name": "public_output",
+      "output": "world"
+    }
+  ],
+  "candidate_bitcode_sha256": "7253ce30f6c1d263abfb5ea241427272d56046fb286c1ca68420137f445702d7",
+  "entry": "abi_alias_missing_binding",
+  "initialized_regions": [],
+  "schema_version": "sps-fixture-abi-v0"
+}

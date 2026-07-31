@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: redis-py canceled-connection reuse analogue
+// entry: redis_pool_reuse_fixed
 // classification: reduced-runtime-model
 // c source: ../c/redis_pool_reuse_fixed.c
 // upstream GitHub source: https://github.com/redis/redis-py/commit/66a4d6b2a493dd3a20cc299ab5fef3c14baad965
 // upstream revision: 66a4d6b2a493dd3a20cc299ab5fef3c14baad965
 // secret: %response_owned_by_a, confidential to actor A
 // public: %response_owned_by_b and %request_a_was_cancelled
-// expected outcome: verified
-// observer/model: reduced-sequential-cross-actor-response
-// reason id: cross-domain-state-reinitialized
-// outstanding obligations: none
+// diagnostic focus: reduced-sequential-cross-actor-response
 // evidence boundary: L1 reduced return-flow model; cancellation, pooling, and concurrency applicability is L4
 //
 // CHECK-LABEL: llvm.func @redis_pool_reuse_fixed

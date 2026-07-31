@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: secret-dependent dynamic tensor and KV-cache length
+// entry: dynamic_kv_length_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/dynamic_kv_length_fixed.c
 // upstream GitHub source: https://github.com/vllm-project/vllm/issues/16016
 // upstream revision: none -- this is not a claimed vLLM defect
 // secret: %secret_length and private return payload %private_result
 // public: stored count fields and constant 64; the return is outside this public boundary
-// expected outcome: verified
-// observer/model: reduced-public-count-output
-// reason id: public-sink-isolation
-// outstanding obligations: none
+// diagnostic focus: reduced-public-count-output
 // evidence boundary: L1 output-memory flow; L2 observes equal count pairs
 // L4 extrapolation: actual fixed allocation and fixed work are not encoded here
 //

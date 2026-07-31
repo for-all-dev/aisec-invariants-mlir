@@ -1,0 +1,39 @@
+// CURRENT-INTERFACE CONTROL: same t9 bodies with complete placement.
+// RUN: %mlir-opt %s | %FileCheck %s
+//
+// product rows (per entry):
+//   @serve_placed    {}       ProductSafe
+//   @serve_placed    {alice}  ProductSafe
+//   @serve_unplaced  {}       ProductSafe
+//   @serve_unplaced  {alice}  ProductSafe
+// future artifact ModelStatus: Proved
+//
+// CHECK-LABEL: llvm.func @serve_placed
+// CHECK-LABEL: llvm.func @serve_unplaced
+module attributes {
+  sps.principals = ["alice"],
+  sps.coalitions_maximal = [["alice"]],
+  sps.visibility = [{item = "logits", visible_to = ["alice"]}],
+  sps.release_policies = [],
+  sps.placement = [
+    {func = "@serve_placed", host = "host_eu"},
+    {func = "@serve_unplaced", host = "host_eu"}
+  ]
+} {
+  llvm.func @serve_placed(
+      %logits: i32 {sps.label = "high", sps.item = "logits"},
+      %alice_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["alice"]}) {
+    llvm.store %logits, %alice_channel
+        {sps.audience = ["alice"], sps.item = "logits"} : i32, !llvm.ptr
+    llvm.return
+  }
+
+  llvm.func @serve_unplaced(
+      %logits: i32 {sps.label = "high", sps.item = "logits"},
+      %alice_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["alice"]}) {
+    llvm.store %logits, %alice_channel
+        {sps.audience = ["alice"], sps.item = "logits"} : i32, !llvm.ptr
+    llvm.return
+  }
+}
+

@@ -1,0 +1,557 @@
+{
+  "schema_version": "sps-rev4-high-value-fixtures-v1",
+  "authority": {
+    "claimable": false,
+    "checker_status": "Unimplemented",
+    "current_status": "Pending",
+    "statement": "Expected dispositions are hand-authored Rev. 4 fixture oracles, not current verifier results."
+  },
+  "inputs": {
+    "definedness": "integration/Inputs/sps-rev4-high-value/definedness.ll.in",
+    "release-marker": "integration/Inputs/sps-rev4-high-value/release-markers.ll.in",
+    "output-closure": "integration/Inputs/sps-rev4-high-value/output-closure.ll.in",
+    "aggregation": null,
+    "external-contract": "integration/Inputs/sps-rev4-high-value/external-memory.ll.in",
+    "exact-memory": "integration/Inputs/sps-rev4-high-value/external-memory.ll.in",
+    "artifact-freeze": "integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in",
+    "pointer-layout": "integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in",
+    "actor-policy": null
+  },
+  "cases": [
+    {
+      "id": "DEF-01",
+      "family": "definedness",
+      "title": "asymmetric udiv by zero",
+      "function": "asymmetric_udiv_zero",
+      "expected": "Counterexample(ReplayableWitness)",
+      "oracle": {"lane_0": "defined", "lane_1": "UBRisk", "replay_required": true}
+    },
+    {
+      "id": "DEF-02",
+      "family": "definedness",
+      "title": "aligned udiv by zero",
+      "function": "aligned_udiv_zero",
+      "expected": "Unknown(PossibleUB)",
+      "oracle": {"lane_0": "UBRisk", "lane_1": "UBRisk", "counterexample_forbidden": true}
+    },
+    {
+      "id": "DEF-03",
+      "family": "definedness",
+      "title": "out-of-range shift produces poison",
+      "function": "out_of_range_shift",
+      "expected": "Unknown(PoisonSemanticsUnsupported)",
+      "oracle": {"event_emitted": false, "counterexample_forbidden": true}
+    },
+    {
+      "id": "DEF-04",
+      "family": "definedness",
+      "title": "uninitialized load produces undef",
+      "function": "uninitialized_load",
+      "expected": "Unknown(UninitializedLoadProducesUndef)",
+      "oracle": {"classification": "undef", "ub_risk_forbidden": true, "counterexample_forbidden": true}
+    },
+
+    {
+      "id": "REL-01",
+      "family": "release-marker",
+      "title": "conforming reserved-marker wrapper",
+      "function": "release_conforming",
+      "mutation": "none",
+      "expected": "CarrierAccepted"
+    },
+    {
+      "id": "REL-02",
+      "family": "release-marker",
+      "title": "missing marker",
+      "function": "release_missing_marker",
+      "mutation": "missing-marker",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-03",
+      "family": "release-marker",
+      "title": "duplicate marker",
+      "function": "release_duplicate_marker",
+      "mutation": "duplicate-marker",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-04",
+      "family": "release-marker",
+      "title": "wrong derived marker symbol",
+      "function": "release_wrong_symbol",
+      "mutation": "wrong-symbol",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-05",
+      "family": "release-marker",
+      "title": "wrong marker type",
+      "function": "release_wrong_type",
+      "mutation": "wrong-type",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-06",
+      "family": "release-marker",
+      "title": "tail marker call",
+      "function": "release_tail_marker",
+      "mutation": "tail-call",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-07",
+      "family": "release-marker",
+      "title": "varargs marker",
+      "function": "release_varargs_marker",
+      "mutation": "varargs",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-08",
+      "family": "release-marker",
+      "title": "marker call with operand bundle",
+      "function": "release_operand_bundle",
+      "mutation": "operand-bundle",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-09",
+      "family": "release-marker",
+      "title": "wrong marker calling convention",
+      "function": "release_wrong_cc",
+      "mutation": "wrong-calling-convention",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-10",
+      "family": "release-marker",
+      "title": "missing noinline pin",
+      "function": "release_missing_noinline",
+      "mutation": "missing-noinline",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-11",
+      "family": "release-marker",
+      "title": "missing nooutline pin",
+      "function": "release_missing_nooutline",
+      "mutation": "missing-nooutline",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-12",
+      "family": "release-marker",
+      "title": "missing noduplicate pin",
+      "function": "release_missing_noduplicate",
+      "mutation": "missing-noduplicate",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-13",
+      "family": "release-marker",
+      "title": "missing nomerge pin",
+      "function": "release_missing_nomerge",
+      "mutation": "missing-nomerge",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-14",
+      "family": "release-marker",
+      "title": "missing nobuiltin pin",
+      "function": "release_missing_nobuiltin",
+      "mutation": "missing-nobuiltin",
+      "expected": "Unknown(ReleaseConformanceMismatch)"
+    },
+    {
+      "id": "REL-15",
+      "family": "release-marker",
+      "title": "wrong emitted value",
+      "function": "release_wrong_value",
+      "mutation": "wrong-value",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-16",
+      "family": "release-marker",
+      "title": "wrong release guard",
+      "function": "release_guarded",
+      "mutation": "binding-guard-negated",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-17",
+      "family": "release-marker",
+      "title": "wrong release footprint",
+      "function": "release_conforming",
+      "mutation": "binding-footprint-mismatch",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-18",
+      "family": "release-marker",
+      "title": "wrong release site",
+      "function": "release_conforming",
+      "mutation": "binding-site-mismatch",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-19",
+      "family": "release-marker",
+      "title": "wrong release ordinal",
+      "function": "release_conforming",
+      "mutation": "binding-ordinal-mismatch",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-20",
+      "family": "release-marker",
+      "title": "wrong occurrence count",
+      "function": "release_conforming",
+      "mutation": "binding-count-mismatch",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "REL-21",
+      "family": "release-marker",
+      "title": "false attempt zero then true attempt one",
+      "function": "release_retry_ordinal",
+      "mutation": "none",
+      "expected": "CarrierAccepted",
+      "oracle": {"attempt_guards": [false, true], "emitted_ordinal": 1}
+    },
+
+    {
+      "id": "OUT-01",
+      "family": "output-closure",
+      "title": "High ABI return",
+      "function": "high_abi_return",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "OUT-02",
+      "family": "output-closure",
+      "title": "constant ABI return control",
+      "function": "constant_abi_return",
+      "expected": "Proved"
+    },
+    {
+      "id": "OUT-03",
+      "family": "output-closure",
+      "title": "High pointer writeback",
+      "function": "high_pointer_writeback",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "OUT-04",
+      "family": "output-closure",
+      "title": "omitted output byte",
+      "function": "two_byte_writeback",
+      "mutation": "omit-byte-1",
+      "expected": "Unknown(OutputBindingIncomplete)"
+    },
+    {
+      "id": "OUT-05",
+      "family": "output-closure",
+      "title": "overlapping output bindings",
+      "function": "two_byte_writeback",
+      "mutation": "bind-byte-0-twice",
+      "expected": "Unknown(OutputBindingOverlap)"
+    },
+    {
+      "id": "OUT-06",
+      "family": "output-closure",
+      "title": "uninitialized terminal byte",
+      "function": "uninitialized_terminal_byte",
+      "mutation": "sample-two-byte-footprint",
+      "expected": "Unknown(UninitializedOutputByte)"
+    },
+    {
+      "id": "OUT-07",
+      "family": "output-closure",
+      "title": "one lane returns while the other continues",
+      "function": "one_lane_returns",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+
+    {
+      "id": "AGG-01",
+      "family": "aggregation",
+      "title": "counterexample beats unrelated timeout",
+      "expected": "Counterexample(ReplayableWitness)",
+      "inputs": {"conformant": true, "replayed_counterexample": true, "blockers": ["SolverTimeout"]},
+      "private_reasons": ["SolverTimeout"]
+    },
+    {
+      "id": "AGG-02",
+      "family": "aggregation",
+      "title": "single blocker remains precise",
+      "expected": "Unknown(SolverTimeout)",
+      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["SolverTimeout"]},
+      "private_reasons": ["SolverTimeout"]
+    },
+    {
+      "id": "AGG-03",
+      "family": "aggregation",
+      "title": "multiple blockers are publicly collapsed",
+      "expected": "Unknown(OpenModelObligations)",
+      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["PossibleUB", "SolverTimeout"]},
+      "private_reasons": ["PossibleUB", "SolverTimeout"]
+    },
+    {
+      "id": "AGG-04",
+      "family": "aggregation",
+      "title": "all products and obligations closed",
+      "expected": "Proved",
+      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": []},
+      "private_reasons": []
+    },
+    {
+      "id": "AGG-05",
+      "family": "aggregation",
+      "title": "apparent leak in nonconformant IR stays preflight-only",
+      "expected": "Unknown(PipelineMismatch)",
+      "inputs": {"conformant": false, "replayed_counterexample": false, "preflight_leak_finding": true, "blockers": []},
+      "private_reasons": ["PipelineMismatch"]
+    },
+    {
+      "id": "AGG-06",
+      "family": "aggregation",
+      "title": "contradictory admission is non-vacuous unknown",
+      "expected": "Unknown(VacuousAdmission)",
+      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["VacuousAdmission"]},
+      "private_reasons": ["VacuousAdmission"]
+    },
+    {
+      "id": "AGG-07",
+      "family": "aggregation",
+      "title": "expected High variation is absent",
+      "expected": "Unknown(ExpectedHighVariationAbsent)",
+      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["ExpectedHighVariationAbsent"]},
+      "private_reasons": ["ExpectedHighVariationAbsent"]
+    },
+
+    {
+      "id": "EXT-01",
+      "family": "external-contract",
+      "title": "complete deterministic scalar contract",
+      "function": "call_contracted_scalar",
+      "contract_variant": "complete-total-single-valued",
+      "expected": "ContractAccepted"
+    },
+    {
+      "id": "EXT-02",
+      "family": "external-contract",
+      "title": "missing functional row",
+      "function": "call_contracted_scalar",
+      "contract_variant": "missing-functional-row",
+      "expected": "Unknown(MechanismNondeterminismUnsupported)"
+    },
+    {
+      "id": "EXT-03",
+      "family": "external-contract",
+      "title": "two unequal rows for one input",
+      "function": "call_contracted_scalar",
+      "contract_variant": "two-unequal-results",
+      "expected": "Unknown(MechanismNondeterminismUnsupported)"
+    },
+    {
+      "id": "EXT-04",
+      "family": "external-contract",
+      "title": "pointer-producing allocation contract",
+      "function": "call_contracted_allocate",
+      "contract_variant": "returns-fresh-pointer",
+      "expected": "Unknown(ContractAllocationUnsupported)"
+    },
+    {
+      "id": "EXT-05",
+      "family": "external-contract",
+      "title": "coalition-visible host transfer",
+      "function": "visible_host_transfer",
+      "expected": "Counterexample(ReplayableWitness)"
+    },
+    {
+      "id": "EXT-06",
+      "family": "external-contract",
+      "title": "coalition-hidden host transfer control",
+      "function": "hidden_host_transfer",
+      "expected": "Proved"
+    },
+
+    {
+      "id": "MEM-01",
+      "family": "exact-memory",
+      "title": "loop initializes every output byte",
+      "function": "whole_loop_init",
+      "expected": "Proved"
+    },
+    {
+      "id": "MEM-02",
+      "family": "exact-memory",
+      "title": "early exit skips terminal byte",
+      "function": "early_exit_init",
+      "expected": "Unknown(UninitializedOutputByte)"
+    },
+    {
+      "id": "MEM-03",
+      "family": "exact-memory",
+      "title": "memcpy propagates uninitialized byte",
+      "function": "memcpy_uninitialized_byte",
+      "expected": "Unknown(UninitializedLoadProducesUndef)"
+    },
+    {
+      "id": "MEM-04",
+      "family": "exact-memory",
+      "title": "overlapping memmove",
+      "function": "overlapping_memmove",
+      "expected": "Proved"
+    },
+    {
+      "id": "MEM-05",
+      "family": "exact-memory",
+      "title": "zero-length memory operation",
+      "function": "zero_length_copy",
+      "expected": "Proved"
+    },
+    {
+      "id": "MEM-06",
+      "family": "exact-memory",
+      "title": "partial overwrite leaves bytes uninitialized",
+      "function": "partial_overwrite",
+      "expected": "Unknown(UninitializedOutputByte)"
+    },
+    {
+      "id": "MEM-07",
+      "family": "exact-memory",
+      "title": "exact full overwrite control",
+      "function": "full_overwrite",
+      "expected": "Proved"
+    },
+
+    {
+      "id": "FRZ-01",
+      "family": "artifact-freeze",
+      "title": "IR mutation after frozen-byte capture",
+      "function": "post_capture_mutation_seed",
+      "expected": "Unknown(PipelineMismatch)"
+    },
+    {
+      "id": "FRZ-02",
+      "family": "artifact-freeze",
+      "title": "safe freeze erasure",
+      "function": "freeze_defined",
+      "expected": "NormalizerAccepted"
+    },
+    {
+      "id": "FRZ-03",
+      "family": "artifact-freeze",
+      "title": "freeze undef may choose",
+      "function": "freeze_undef",
+      "expected": "Unknown(FreezeMayChoose)"
+    },
+    {
+      "id": "FRZ-04",
+      "family": "artifact-freeze",
+      "title": "stack-protector semantics enter artifact",
+      "function": "stack_protector_fixture",
+      "expected": "Unknown(UnsupportedStackProtector)"
+    },
+
+    {
+      "id": "PTR-01",
+      "family": "pointer-layout",
+      "title": "same-root canonical GEP equality",
+      "function": "same_root_gep_equal",
+      "expected": "ComparisonAccepted"
+    },
+    {
+      "id": "PTR-02",
+      "family": "pointer-layout",
+      "title": "one-past object A versus base of object B",
+      "function": "adjacent_one_past_vs_base",
+      "expected": "Unknown(LayoutDependentPointerComparison)"
+    },
+    {
+      "id": "PTR-03",
+      "family": "pointer-layout",
+      "title": "wrapping GEP versus null",
+      "function": "wrapping_gep_vs_null",
+      "expected": "Unknown(LayoutDependentPointerComparison)"
+    },
+    {
+      "id": "PTR-04",
+      "family": "pointer-layout",
+      "title": "outside-lifetime non-dereference control",
+      "function": "outside_lifetime_compare",
+      "expected": "ComparisonAccepted"
+    },
+
+    {
+      "id": "ACT-01",
+      "family": "actor-policy",
+      "title": "joint visibility",
+      "source": "examples/actors/t2_joint_visibility.mlir",
+      "expected": "Counterexample(ReplayableWitness)",
+      "rows": [
+        ["{}", "ProductSafe"],
+        ["{alice}", "ProductSafe"],
+        ["{bob}", "ProductSafe"],
+        ["{alice,bob}", "ReplayableCounterexample"]
+      ]
+    },
+    {
+      "id": "ACT-02",
+      "family": "actor-policy",
+      "title": "per-item closed-world clearance",
+      "source": "examples/actors/t5_clearance_violation.mlir",
+      "expected": "Counterexample(ReplayableWitness)",
+      "rows": [
+        ["{}", "ProductSafe"],
+        ["{alice}", "ReplayableCounterexample"]
+      ]
+    },
+    {
+      "id": "ACT-03",
+      "family": "actor-policy",
+      "title": "three-principal downward closure",
+      "source": "examples/actors/t6_downward_closure.mlir",
+      "expected": "Counterexample(ReplayableWitness)",
+      "rows": [
+        ["{}", "ProductSafe"],
+        ["{alice}", "ProductSafe"],
+        ["{bob}", "ProductSafe"],
+        ["{carol}", "ReplayableCounterexample"],
+        ["{alice,bob}", "ProductSafe"],
+        ["{alice,carol}", "ReplayableCounterexample"],
+        ["{bob,carol}", "ReplayableCounterexample"],
+        ["{alice,bob,carol}", "ReplayableCounterexample"]
+      ]
+    },
+    {
+      "id": "ACT-04",
+      "family": "actor-policy",
+      "title": "incomplete side of placement pair",
+      "source": "examples/actors/t9_placement_incomplete.mlir",
+      "expected": "Unknown(ManifestMismatch)",
+      "rows": [
+        ["@serve_placed/{}", "ProductSafe"],
+        ["@serve_placed/{alice}", "ProductSafe"],
+        ["@serve_unplaced/{}", "Blocked(ManifestMismatch)"],
+        ["@serve_unplaced/{alice}", "Blocked(ManifestMismatch)"]
+      ]
+    },
+    {
+      "id": "ACT-05",
+      "family": "actor-policy",
+      "title": "complete side of placement pair",
+      "source": "integration/Inputs/sps-rev4-high-value/actor-placement-complete.mlir.in",
+      "expected": "Proved",
+      "rows": [
+        ["@serve_placed/{}", "ProductSafe"],
+        ["@serve_placed/{alice}", "ProductSafe"],
+        ["@serve_unplaced/{}", "ProductSafe"],
+        ["@serve_unplaced/{alice}", "ProductSafe"]
+      ]
+    }
+  ]
+}

@@ -2,16 +2,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --check-prefix=COUNT --implicit-check-not=llvm.cond_br --implicit-check-not=llvm.getelementptr
 //
 // case: secret-dependent embedding index
+// entry: secret_embedding_index_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/secret_embedding_index_fixed.c
 // upstream GitHub source: none -- conceptual tensor information-flow harness
 // upstream revision: none
 // secret: %secret_index
 // public: table base, table contents, scan indices, and fixed table size 16
-// expected outcome: verified
-// observer/model: source-memory-address-trace
-// reason id: secret-independent-address-scan
-// outstanding obligations: none
+// diagnostic focus: source-memory-address-trace
 // evidence boundary: L1 source address trace; preservation is checked separately at L3
 //
 // CHECK-LABEL: llvm.func @secret_embedding_index_fixed

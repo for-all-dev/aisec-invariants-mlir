@@ -15,7 +15,7 @@
  *   logits
  *
  * Public inputs:
- *   the argmax release policy, its declared audience, and the two principal
+ *   the masked-class release policy, its declared audience, and the two principal
  *   channels
  *
  * Expected confidentiality issue:
@@ -23,25 +23,26 @@
  *   is {alice}. It is then delivered to two principal channels. The two stores
  *   are identical apart from their destination.
  *
- *   For any coalition containing alice the release is authorized, so the pair's
- *   obligation retires and the store is fine. For the coalition {bob} that same
- *   release is not authorized, nothing retires, and the identical operation is a
- *   leak.
+ *   For coalitions containing alice, the prefix-causal release ledger retires
+ *   the matching obligation. For {bob}, the carrier payload remains concealed,
+ *   the obligation stays active, and the later Bob-visible store reaches Bad.
  *
  * Why this fixture exists at all:
  *   It is the reason the result record is keyed by (entry, coalition) rather
- *   than by a single observer. The verdict is `verified` at {alice} and `unsafe`
- *   at {bob}, with no containment relation between those coalitions -- so a
+ *   than by a single observer. The product is safe at {alice} and has a
+ *   replayable counterexample at {bob}, with no containment relation between
+ *   those coalitions -- so a
  *   checker that evaluates only the authored maximal coalition {alice,bob}
  *   never visits {bob} alone and reports the artifact clean.
  *
  *   Before the record carried result rows this scenario was unrepresentable, and
  *   lived in examples/actors/ as a design sketch no tool read.
  *
- * Note on the empty coalition:
- *   The {} row is unsafe for a different reason than the {bob} row -- a raw item
- *   is not world-releasable at all. Two distinct reasons at two distinct
- *   coalitions is exactly what a single reason_id field could not express.
+ * Note on the empty and joint coalitions:
+ *   The empty coalition sees neither principal channel, so the projected payload
+ *   trace remains equal. The joint coalition contains alice, so the release is
+ *   authorized for it. World-level structure remains lockstep in both cases;
+ *   only {bob} obtains the replayable audience-mismatch witness.
  *
  * Canonical compiler command:
  *   clang -std=c11 -Wall -Wextra -Wpedantic -O0 -Xclang -disable-O0-optnone \
@@ -50,14 +51,14 @@
  * License note:
  *   Written for this harness. Contains no third-party source.
  */
-extern unsigned sps_release_argmax_v1(unsigned raw);
+extern unsigned sps_release_masked_class_v1(unsigned raw);
 
 void audience_mismatch_bad(unsigned logits, unsigned *alice_channel,
                            unsigned *bob_channel)
 {
-  unsigned released = sps_release_argmax_v1(logits);
+  unsigned released = sps_release_masked_class_v1(logits);
 
-  /* Authorized: alice is the declared audience of argmax_v1. */
+  /* Authorized: alice is the declared audience of masked_class_v1. */
   *alice_channel = released;
 
   /* NOT authorized for {bob}. Byte-identical operation, different verdict. */
@@ -69,7 +70,7 @@ void audience_mismatch_bad(unsigned logits, unsigned *alice_channel,
  * Makefile links every *.c into the equivalence driver, so an undefined symbol
  * breaks check-equivalence.
  */
-unsigned sps_release_argmax_v1(unsigned raw)
+unsigned sps_release_masked_class_v1(unsigned raw)
 {
   return raw & 0xffu;
 }

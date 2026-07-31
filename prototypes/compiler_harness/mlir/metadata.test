@@ -1,0 +1,2 @@
+# RUN: %python %harness/c/check_harness.py annotations | %FileCheck %s
+# CHECK: annotations checks passed

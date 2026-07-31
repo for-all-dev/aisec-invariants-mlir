@@ -1,0 +1,42 @@
+{
+  "admission_constraints": [
+    {
+      "argument": "public_count",
+      "max": 128,
+      "min": 1,
+      "relation": "range"
+    },
+    {
+      "expression": "zext(public_count)",
+      "kind": "alloca-byte-expression",
+      "overflow": "proved-absent"
+    },
+    {
+      "kind": "stack-feasibility",
+      "max_bytes": 128
+    }
+  ],
+  "alias_topology": {
+    "complete": true,
+    "relations": []
+  },
+  "arguments": [
+    {
+      "confidentiality": "WorldStructural",
+      "index": 0,
+      "kind": "scalar",
+      "name": "public_count"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "public_sink",
+      "output": "world"
+    }
+  ],
+  "candidate_bitcode_sha256": "11d2eccd8924102f1f58a4e802194238fa4ce029ab2f495a39f3b9e408c473cb",
+  "entry": "alloca_size_public_control",
+  "initialized_regions": [],
+  "schema_version": "sps-fixture-abi-v0"
+}

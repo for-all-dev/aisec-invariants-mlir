@@ -2,15 +2,16 @@
 //
 // DESIGN EXAMPLE. Not part of the enforced corpus; see README.md.
 //
-// T9 -- incomplete placement table, and why the honest answer is `unknown`.
+// T9 -- incomplete placement table, and why the honest answer is
+// `Unknown(ManifestMismatch)`.
 //
 // Two functions are reachable. `@serve_placed` has a declared host.
 // `@serve_unplaced` does NOT appear in `sps.placement` at all.
 //
 // Without a unique host for a reachable function there is no host-visibility
 // projection for its events, so the placement premise is simply absent. Neither
-// safety nor a counterexample follows: the required disposition is `unknown`
-// with the placement obligation named, NOT `unsafe`.
+// safety nor a counterexample follows: placement is a global blocker and no
+// product result may be promoted to an artifact theorem.
 //
 // This is the failure mode most likely to produce a confidently wrong green
 // result, because the tempting default is to treat an unplaced function as
@@ -34,11 +35,12 @@
 // placement, asserting opposite outcomes -- the same "policy is an input"
 // discipline as the t3/t4 pair.
 //
-// coalition rows (per entry):
-//   @serve_placed    {}  verified  unique-host-placement
-//   @serve_unplaced  {}  unknown   manifest-mismatch
-// outstanding obligations: unique-host-placement
-// artifact aggregate: unknown
+// product rows (per entry):
+//   @serve_placed    {}       ProductSafe
+//   @serve_placed    {alice}  ProductSafe
+//   @serve_unplaced  {}       Blocked(ManifestMismatch)
+//   @serve_unplaced  {alice}  Blocked(ManifestMismatch)
+// future artifact ModelStatus: Unknown(ManifestMismatch)
 //
 // CHECK-LABEL: llvm.func @serve_placed
 // CHECK-LABEL: llvm.func @serve_unplaced

@@ -1,0 +1,225 @@
+{
+  "schema_version": "sps-rev4-conformance-matrix-v1",
+  "authority": "SPS_Rev4_LLVM_Normal_Form_and_Conformance_Profile.md sections 15-16",
+  "status_meaning": "A seed preserves a relevant shape or expected disposition; it is not a passing conformance test until recaptured by LLVM 22.1.8 and executed by the Rev4 verifier.",
+  "required_conformance_fixture_records": [
+    "artifact-identity",
+    "canonical-bitcode",
+    "ordered-pass-trace",
+    "normalizer-trace",
+    "normal-form-audit-inventory",
+    "expected-result"
+  ],
+  "cases": [
+    {
+      "id": "NF-A01",
+      "title": "Exact byte replay to core ISel",
+      "expected": "NFConforms may hold after freeze, fresh parse, equal canonical hash, and mutation-free replay to core ISel",
+      "harness_status": "infrastructure-seed",
+      "seeds": ["artifacts/pairs.test"],
+      "gap": "Current pairs prove only exact bc/ll disassembly and reassembly under LLVM 17.0.6; freeze capture, pass trace, LLVM 22.1.8 audit, and ISel replay remain absent"
+    },
+    {
+      "id": "NF-A02",
+      "title": "Strict scalar arithmetic",
+      "expected": "Accept only flag-free defined scalar arithmetic and unambiguous strict FP semantics",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A03",
+      "title": "Safe annotation weakening",
+      "expected": "Accept the final verified module after only permitted annotation weakening",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A04",
+      "title": "Proven-safe freeze erasure",
+      "expected": "Accept only when the frozen value is proved non-undef and non-poison and the rewrite is recorded",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The LLVM shape and noundef premise are pinned; the LLVM 22.1.8 normalizer rewrite record is not implemented"
+    },
+    {
+      "id": "NF-A05",
+      "title": "Complete fixed-vector scalarization",
+      "expected": "Accept only after complete scalarization leaves no vector type or operation",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A06",
+      "title": "Masked memory to guarded lanes",
+      "expected": "Accept exact guarded-lane lowering while retaining every introduced branch and address event",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A07",
+      "title": "Closed direct-call analysis inlining",
+      "expected": "Accept bounded analysis-time expansion of an eligible acyclic internal direct call without mutating the artifact",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A08",
+      "title": "Outlined release wrapper equivalence",
+      "expected": "Accept an occurrence-preserved release carrier only after exact count, ABI-role, and local expression/guard equivalence checks",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-release-marker.test"],
+      "gap": "Twenty-one carrier and binding variants are pinned as nonclaimable oracles; P1/PONF equivalence and replay remain unimplemented"
+    },
+    {
+      "id": "NF-A09",
+      "title": "Exhausted bounded loop",
+      "expected": "Encode BoundExhausted and prove it unreachable from the public semantic bound; K_loop supplies no premise",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A10",
+      "title": "Whole-region initialization at exit",
+      "expected": "Discharge initialization only with exact per-byte semantics on every feasible path",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-exact-memory.test"],
+      "gap": "Loop, early-exit, copy, move, zero-length, and overwrite shapes are pinned; exact byte-memory proof is not implemented"
+    },
+    {
+      "id": "NF-A11",
+      "title": "Eligible lockstep product",
+      "expected": "ProductSafe may hold only after the audit-all product proves all branch, loop, event, failure, and termination bad states unreachable",
+      "harness_status": "preflight-seed",
+      "seeds": [
+        "integration/rev4-high-value-output-closure.test",
+        "integration/rev4-high-value-aggregation.test"
+      ],
+      "gap": "Terminal and aggregation oracles are executable, but no audit-all relational product or replay engine exists"
+    },
+    {
+      "id": "NF-A12",
+      "title": "Contracted external call",
+      "expected": "Accept only a hash-bound complete contract covering ABI, memory, events, termination, faults, and deployment identity",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-external-contract.test"],
+      "gap": "Deterministic, incomplete, multivalued, allocation, and host-transfer variants are pinned; normative contract evaluation is not implemented"
+    },
+    {
+      "id": "NF-A13",
+      "title": "Layout-independent pointer equality",
+      "expected": "Accept only a proved modular offset predicate valid for every admissible base address",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "Same-root and lifetime-control shapes are pinned; canonical allocation/offset term construction is not implemented"
+    },
+    {
+      "id": "NF-A14",
+      "title": "Versioned unreachable cleanup",
+      "expected": "Accept only pinned CFG-unreachable cleanup with recorded sites; reachable unsupported operations remain Unknown",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-A15",
+      "title": "Target-bound timing-risk lint",
+      "expected": "Emit timing-risk records without changing NFConforms or ModelStatus; leave DeploymentStatus Open absent paired P4 evidence",
+      "harness_status": "preflight-seed",
+      "seeds": ["artifacts/launder-scan", "mlir/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
+      "gap": "The select and division shapes are seeds only; no normative TimingRiskLintRecord is emitted"
+    },
+    {
+      "id": "NF-CM01",
+      "title": "Post-freeze IR mutation",
+      "expected": "Unknown(PipelineMismatch)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The test proves captured and post-instcombine bitcode differ; canonical LLVM 22.1.8 capture-to-ISel identity is not implemented"
+    },
+    {
+      "id": "NF-CM02",
+      "title": "Residual target-legal masked/vector operation",
+      "expected": "Unknown(ResidualVector)",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-CM03",
+      "title": "ABI attribute stripped",
+      "expected": "Unknown(NormalizerMismatch) or Unknown(UnsupportedType)",
+      "harness_status": "pending",
+      "seeds": []
+    },
+    {
+      "id": "NF-CM04",
+      "title": "freeze of undef unsafely erased",
+      "expected": "Unknown(FreezeMayChoose)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The freeze undef shape and disposition oracle are pinned; the normalizer refusal is not implemented"
+    },
+    {
+      "id": "NF-CM05",
+      "title": "Public-bound exhaustion discarded",
+      "expected": "Counterexample after replay for a lane mismatch, otherwise Unknown(LoopRemainder); never Proved",
+      "harness_status": "preflight-seed",
+      "seeds": ["artifacts/bound-exhausted-public"]
+    },
+    {
+      "id": "NF-CM06",
+      "title": "Divergent controls forced into lockstep",
+      "expected": "Counterexample(ReplayableWitness)",
+      "harness_status": "preflight-seed",
+      "seeds": ["artifacts/bound-secret-trip-count", "mlir/predecessor_choice_blockarg.bad.mlir"]
+    },
+    {
+      "id": "NF-CM07",
+      "title": "UBRisk pair filtered away",
+      "expected": "Counterexample after asymmetric exact replay; aligned UBRisk companion is Unknown(PossibleUB)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-definedness.test"],
+      "gap": "Asymmetric and aligned udiv pairs are both pinned; exact relational definedness and replay are not implemented"
+    },
+    {
+      "id": "NF-CM08",
+      "title": "Diagnostic initialization summary used as semantics",
+      "expected": "Unknown(InvalidDiagnosticShortcut), with exact unwritten-byte read producing Unknown(UninitializedLoadProducesUndef)",
+      "harness_status": "preflight-seed",
+      "seeds": [
+        "integration/rev4-high-value-definedness.test",
+        "integration/rev4-high-value-exact-memory.test"
+      ],
+      "gap": "Direct uninitialized load and propagation shapes are pinned; exact byte initialization semantics are not implemented"
+    },
+    {
+      "id": "NF-CM09",
+      "title": "ABI separation inferred from LLVM",
+      "expected": "Unknown(AliasBindingMismatch)",
+      "harness_status": "preflight-seed",
+      "seeds": ["artifacts/abi-alias-missing-binding", "artifacts/abi-alias-mayalias-overlap", "artifacts/abi-alias-disjoint"]
+    },
+    {
+      "id": "NF-CM10",
+      "title": "Adjacent-allocation pointer equality guessed false",
+      "expected": "Unknown(LayoutDependentPointerComparison)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "The adjacent one-past/base comparison is pinned; the layout-independence auditor is not implemented"
+    },
+    {
+      "id": "NF-CM11",
+      "title": "Null compared with a wrapping GEP",
+      "expected": "Unknown(LayoutDependentPointerComparison)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "The flag-free wrapping GEP/null shape is pinned; the layout-independence auditor is not implemented"
+    },
+    {
+      "id": "NF-CM12",
+      "title": "Stack-protector semantics enter the frozen artifact",
+      "expected": "Unknown(UnsupportedStackProtector)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The sspstrong artifact shape is pinned; the LLVM 22.1.8 conformance refusal is not implemented"
+    }
+  ]
+}

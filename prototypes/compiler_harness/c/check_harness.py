@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
-"""Dependency-free structural checks for the C/MLIR confidentiality corpus."""
+"""Structural checks for SPS preflight fixtures and candidate bitcode bundles.
+
+MLIR files in ``mlir/`` are deliberately shape-only.  They do not carry a
+ModelStatus. Non-claimable future oracles live beside LLVM-17 candidate
+``artifact.bc`` files under ``artifacts/``. They preserve the normative result
+domains without pretending that the prototype descriptors are Rev4 interfaces.
+"""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import itertools
+import json
 import re
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 C_DIR = ROOT / "c"
 MLIR_DIR = ROOT / "mlir"
+ARTIFACTS_DIR = ROOT / "artifacts"
+SHAPE_MANIFEST = ROOT / "contracts" / "shape-fixtures.json"
+CONFORMANCE_MATRIX = ROOT / "contracts" / "rev4-conformance-matrix.json"
 
 PROVENANCE_FIELDS = (
     "Case:",
@@ -26,38 +37,28 @@ PROVENANCE_FIELDS = (
 
 MLIR_FIELDS = (
     "// case:",
+    "// entry:",
     "// classification:",
     "// c source:",
     "// upstream GitHub source:",
     "// upstream revision:",
     "// secret:",
     "// public:",
-    "// expected outcome:",
-    "// observer/model:",
-    "// reason id:",
-    "// outstanding obligations:",
+    "// diagnostic focus:",
     "// evidence boundary:",
 )
 
-OUTCOMES = frozenset({"verified", "unsafe", "unknown", "conditional"})
-#: Section-10 diagnostic dispositions. RelationalRequired is the one that makes
-#: precision controls expressible: it says the diagnostic layer completed and
-#: could not decide, so the product must. It is NOT silence, and coercing a
-#: control to silence invites the StaticallyDischarged shortcut that cannot
-#: establish safety.
-DISPOSITIONS = frozenset(
-    {
-        "not-observable",
-        "statically-discharged",
-        "definite-violation",
-        "relational-required",
-        "unknown",
-    }
+LEGACY_RESULT_FIELDS = (
+    "// expected outcome:",
+    "// expected verdict:",
+    "// observer/model:",
+    "// reason id:",
+    "// outstanding obligations:",
+    "// result rows:",
+    "// target tuple:",
+    "// l1 disposition:",
 )
-#: A target tuple is triple/cpu/opt-level, each a lower-kebab or numeric token.
-TARGET_TUPLE = re.compile(r"[a-z0-9_.-]+/[a-z0-9_.-]+/O[0-3sz]\Z")
-#: A coalition is {} or {a} or {a,b}: lower-kebab members, comma separated.
-COALITION = re.compile(r"\{(?:[a-z][a-z0-9-]*(?:,[a-z][a-z0-9-]*)*)?\}\Z")
+
 CLASSIFICATIONS = frozenset(
     {
         "compiler-generated-minimized",
@@ -69,337 +70,31 @@ CLASSIFICATIONS = frozenset(
         "reduced-runtime-model",
     }
 )
+
+MODEL_STATUS = frozenset({"Proved", "Counterexample", "Unknown"})
+DEPLOYMENT_STATUS = frozenset({"Open", "Closed"})
+POLICY_STATUS = frozenset({"Complete", "Findings", "Incomplete"})
+PRODUCT_DISPOSITION = frozenset({"ProductSafe", "ReplayableCounterexample", "Blocked"})
 IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 EVIDENCE_LEVEL = re.compile(r"\bL[0-4]\b")
+COALITION = re.compile(r"\{(?:[a-z][a-z0-9-]*(?:,[a-z][a-z0-9-]*)*)?\}\Z")
+REQUIRED_CONFORMANCE_IDS = {
+    *(f"NF-A{index:02d}" for index in range(1, 16)),
+    *(f"NF-CM{index:02d}" for index in range(1, 13)),
+}
 
-
-#: A verdict is only ever a claim about one (entry, coalition) pair, evaluated
-#: for one target tuple. There is exactly one representation: every fixture
-#: carries rows, and a single-observer fixture carries one row keyed by the
-#: empty coalition -- the world-visible observer.
-@dataclass(frozen=True)
-class ResultRow:
-    coalition: str
-    outcome: str
-    reason_id: str
-    obligations: tuple[str, ...] = ()
-
-
-#: Aggregate a row set into the artifact-level outcome. Deliberately total and
-#: order-independent: unsafe dominates, then unknown, then conditional. A row set
-#: that is entirely verified aggregates to verified.
-AGGREGATE_ORDER = ("unsafe", "unknown", "conditional", "verified")
-
-
-def aggregate_outcome(rows: tuple[ResultRow, ...]) -> str:
-    present = {row.outcome for row in rows}
-    for candidate in AGGREGATE_ORDER:
-        if candidate in present:
-            return candidate
-    return "verified"
-
-
-@dataclass(frozen=True)
-class ScenarioContract:
-    """A verdict is a SET OF ROWS, one per (entry, coalition).
-
-    There is deliberately no single-outcome form. A fixture with one observer
-    has one row whose coalition is the empty set -- the world-visible observer --
-    rather than a separate flatter representation. Two ways to say the same
-    thing is what made the actor dimension unrepresentable for so long: the
-    scalar form could not grow a second row, and nothing forced the question.
-
-    outcome, reason_id and obligations are DERIVED from the rows. They are not
-    stored, so they cannot disagree with them.
-    """
-
-    observer_model: str
-    rows: tuple[ResultRow, ...]
-    #: The target tuple a verdict is relative to. Empty means the fixture's
-    #: conclusion is target-independent and must say so in its evidence
-    #: boundary. Measured counterexample: one module emits a secret-dependent
-    #: branch on x86-64 and a conditional select on aarch64, so a control-flow
-    #: verdict without a target tuple is not a claim about anything runnable.
-    target_tuple: str = ""
-    #: Required first-layer disposition. Present only on precision controls,
-    #: where the point is that the diagnostic layer is EXPECTED to lose
-    #: precision; without this field a control cannot say "report imprecision
-    #: here, but never silence", so the suite cannot catch an analysis that
-    #: invents leaks.
-    disposition: str = ""
-
-    @property
-    def outcome(self) -> str:
-        return aggregate_outcome(self.rows)
-
-    @property
-    def reason_ids(self) -> frozenset[str]:
-        """Every reason the rows carry.
-
-        There is deliberately no single derived reason_id. With several rows
-        carrying different reasons nothing picks one: audience_mismatch is
-        unsafe at {} for raw-item-not-world-releasable and unsafe at {bob} for
-        release-audience-mismatch, and neither is more the artifact's reason
-        than the other. The header names whichever the diagnostic pins, and is
-        checked for MEMBERSHIP rather than equality.
-        """
-        return frozenset(row.reason_id for row in self.rows)
-
-    @property
-    def obligations(self) -> tuple[str, ...]:
-        """Union across rows, first-seen order, so it stays deterministic."""
-        seen: list[str] = []
-        for row in self.rows:
-            for item in row.obligations:
-                if item not in seen:
-                    seen.append(item)
-        return tuple(seen)
-
-
-def one_row(outcome: str, reason: str, obligations: tuple[str, ...] = ()) -> tuple[ResultRow, ...]:
-    """A single world-visible-observer row: the common case, stated once."""
-    return (ResultRow("{}", outcome, reason, obligations),)
-
-
-# The corpus is intentionally small and curated. Pin the structured outcome,
-# model, reason, and obligation fields so a valid-looking replacement cannot
-# silently change what a regression fixture claims. Classification, evidence
-# level, and provenance are validated separately below.
-EXPECTED_SCENARIOS: dict[str, ScenarioContract] = {
-    # Metatheory countermodel encodings. Each refutes one invalid proof or
-    # reporting principle the metatheory names as a required negative result.
-    # MT-CM5: unproved ABI alias separation may not be assumed. Unknown rather
-    # than unsafe, because no witness replayed by the exact semantics exists.
-    "abi_alias_unproved.unknown.mlir": ScenarioContract(
-        "public-sink-value",
-        one_row("unknown", "alias-binding-mismatch", ("proved-disjoint-clause",)),
-    ),
-    # Allocation-size acceptance pair. The refusal and its twin differ only in the
-    # label and binding on the size operand, so neither can be satisfied by
-    # inspecting the allocation shape alone.
-    "alloca_size_high_count.unknown.mlir": ScenarioContract(
-        "allocation-size-trace",
-        one_row("unknown", "alloca-size-not-world-structural", ("world-structural-size-expression",)),
-    ),
-    "alloca_size_public.control.mlir": ScenarioContract(
-        "allocation-size-trace",
-        one_row("verified", "world-structural-alloca-size"),
-    ),
-    # MT-CM2: bounded-run filtering is not a sound proof domain. First loop
-    # fixture in the corpus. loop-remainder must never denote an engine cap.
-    "bound_exhausted_loop.unknown.mlir": ScenarioContract(
-        "operation-count-trace",
-        one_row("unknown", "loop-remainder", ("bound-adequacy",)),
-    ),
-    # First fixture with per-(entry, coalition) rows. verified at {alice} and
-    # unsafe at {bob} on byte-identical operations; the artifact outcome is the
-    # projection of the rows, recomputed rather than trusted.
-    "audience_mismatch.bad.mlir": ScenarioContract(
-        "public-sink-value",
-        (
-            ResultRow("{}", "unsafe", "raw-item-not-world-releasable"),
-            ResultRow("{alice}", "verified", "authorized-audience"),
-            ResultRow("{bob}", "unsafe", "release-audience-mismatch"),
-            ResultRow("{alice,bob}", "unsafe", "release-audience-mismatch"),
-        ),
-    ),
-    "breach_compressed_length.bad.mlir": ScenarioContract(
-        "reduced-public-wire-length-output",
-        one_row("unsafe", "secret-to-public-sink"),
-    ),
-    "breach_compressed_length.fixed.mlir": ScenarioContract(
-        "reduced-public-wire-length-output",
-        one_row("verified", "public-sink-isolation"),
-    ),
-    "ckks_unsafe_release.bad.mlir": ScenarioContract(
-        "public-release-sink",
-        one_row("unsafe", "unauthorized-release"),
-    ),
-    "ckks_unsafe_release.fixed.mlir": ScenarioContract(
-        "public-release-sink",
-        one_row("conditional", "sanitized-release-requires-evidence", (
-            "sanitizer-sufficiency",
-            "certificate-soundness",
-            "release-policy-integrity",
-        )),
-    ),
-    "clangover_poly_frommsg.lowered_bad.mlir": ScenarioContract(
-        "x86-control-flow-timing",
-        one_row("unsafe", "secret-dependent-branch"),
-    ),
-    "clangover_poly_frommsg.lowered_fixed.mlir": ScenarioContract(
-        "in-module-x86-control-flow-timing",
-        one_row("verified", "branchless-selection"),
-    ),
-    "clangover_poly_frommsg.source.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("verified", "source-branchless-dataflow"),
-    ),
-    "dynamic_kv_length.bad.mlir": ScenarioContract(
-        "reduced-public-count-output",
-        one_row("unsafe", "secret-to-public-sink"),
-    ),
-    "dynamic_kv_length.fixed.mlir": ScenarioContract(
-        "reduced-public-count-output",
-        one_row("verified", "public-sink-isolation"),
-    ),
-    "explicit_error_oracle.bad.mlir": ScenarioContract(
-        "release-relative-padding-oracle",
-        one_row("unsafe", "residual-leak-beyond-release"),
-    ),
-    "explicit_error_oracle.fixed.mlir": ScenarioContract(
-        "release-relative-padding-oracle",
-        one_row("verified", "authorized-release-only"),
-    ),
-    "kyberslash1_poly_tomsg.bad.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("unsafe", "secret-dependent-variable-latency-op"),
-    ),
-    # Compiler-introduced leak. The only fixture whose obligations can be
-    # discharged solely by evidence from a LOWER level: the module is branchless
-    # and an IR-level analysis has nothing to object to, yet the x86 backend
-    # converts the select to a conditional jump because it has a memory operand.
-    # unknown rather than verified because the artifact that runs is not this
-    # one; unknown rather than unsafe because no replayable counterexample
-    # exists at this level. See integration/laundering-x86-codegen.test.
-    "launder_scan.analyzed_clean.unknown.mlir": ScenarioContract(
-        "target-control-flow-timing",
-        one_row("unknown", "backend-may-reintroduce-branch", ("backend-trace-preservation", "target-tuple-binding")),
-        target_tuple="x86_64-unknown-linux-gnu/generic/O2",
-    ),
-    "kyberslash1_poly_tomsg.fixed.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("verified", "variable-latency-op-removed"),
-    ),
-    "kyberslash2_compress.bad.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("unsafe", "secret-dependent-variable-latency-op"),
-    ),
-    "kyberslash2_compress.fixed.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("verified", "variable-latency-op-removed"),
-    ),
-    "leftoverlocals_scratch.bad.mlir": ScenarioContract(
-        "reduced-sequential-cross-tenant-output",
-        one_row("unsafe", "cross-domain-stale-state"),
-    ),
-    "leftoverlocals_scratch.fixed.mlir": ScenarioContract(
-        "reduced-sequential-cross-tenant-output",
-        one_row("verified", "cross-domain-state-reinitialized"),
-    ),
-    # Diagnostic-precision negative controls. Each is release-relative
-    # noninterferent, so a reported violation is imprecision, not a finding.
-    # Section 10 gives the diagnostic analysis no proof-authoritative strong
-    # update, no summaries, and no slice selection, so each site below is
-    # RelationalRequired at L1 and is decided by the exact product at L2.
-    # These carry no diagnostic RUN: the required disposition is
-    # RelationalRequired, not silence, and coercing them to silence invites the
-    # StaticallyDischarged shortcut that section 10 forbids.
-    "precision_identical_successor.control.mlir": ScenarioContract(
-        "source-control-location-trace",
-        one_row("verified", "identical-successor-control-location"),
-        disposition="relational-required",
-    ),
-    "precision_offset_disjoint.control.mlir": ScenarioContract(
-        "public-sink-value",
-        one_row("verified", "offset-disjoint-public-reload"),
-        disposition="relational-required",
-    ),
-    "precision_overwritten_slot.control.mlir": ScenarioContract(
-        "public-sink-value",
-        one_row("verified", "public-overwrite-before-observation"),
-        disposition="relational-required",
-    ),
-    "precision_xor_cancellation.control.mlir": ScenarioContract(
-        "public-sink-value",
-        one_row("verified", "lane-equal-value-after-cancellation"),
-        disposition="relational-required",
-    ),
-    # Anti-control for precision_identical_successor: same single-successor
-    # branch shape, differing only in block-argument operands. Satisfying that
-    # control by the rule "identical successors imply no control leak" silently
-    # accepts this counterexample.
-    "predecessor_choice_blockarg.bad.mlir": ScenarioContract(
-        "public-sink-value",
-        one_row("unsafe", "secret-selected-block-argument"),
-    ),
-    # MT-CM3: a future release may not condition an earlier observation.
-    "prefix_causal_release.bad.mlir": ScenarioContract(
-        "release-relative-public-channel",
-        one_row("unsafe", "pre-release-observation"),
-    ),
-    "redis_pool_reuse.bad.mlir": ScenarioContract(
-        "reduced-sequential-cross-actor-response",
-        one_row("unsafe", "cross-domain-stale-state"),
-    ),
-    "redis_pool_reuse.fixed.mlir": ScenarioContract(
-        "reduced-sequential-cross-actor-response",
-        one_row("verified", "cross-domain-state-reinitialized"),
-    ),
-    "secret_embedding_index.bad.mlir": ScenarioContract(
-        "source-memory-address-trace",
-        one_row("unsafe", "secret-dependent-address"),
-    ),
-    "secret_embedding_index.fixed.mlir": ScenarioContract(
-        "source-memory-address-trace",
-        one_row("verified", "secret-independent-address-scan"),
-    ),
-    "secret_logging_checkpoint.bad.mlir": ScenarioContract(
-        "public-log-and-artifact-sinks",
-        one_row("unsafe", "secret-to-public-sink"),
-    ),
-    "secret_logging_checkpoint.fixed.mlir": ScenarioContract(
-        "public-log-and-artifact-sinks",
-        one_row("verified", "public-sink-isolation"),
-    ),
-    "wolfssl_3579_mul.source.mlir": ScenarioContract(
-        "rv32i-helper-timing",
-        one_row("unknown", "missing-target-timing", ("target-lowering-semantics", "helper-latency-contract")),
-    ),
-    "wolfssl_3579_mul.target_bad.mlir": ScenarioContract(
-        "affected-rv32i-muldi3-v1",
-        one_row("unsafe", "secret-dependent-variable-latency-call"),
-    ),
-    "wolfssl_3579_mul.target_constant_latency.mlir": ScenarioContract(
-        "constant-latency-muldi3-test-v1",
-        one_row("verified", "constant-latency-helper-contract"),
-    ),
-    "wolfssl_3579_mul.target_fixed.mlir": ScenarioContract(
-        "modeled-rv32i-timing",
-        one_row("conditional", "fixed-loop-requires-target-evidence", ("base-operation-latency", "backend-trace-preservation")),
-    ),
-    "wolfssl_3579_mul.target_unknown.mlir": ScenarioContract(
-        "rv32i-helper-timing",
-        one_row("unknown", "missing-helper-contract", ("helper-latency-contract",)),
-    ),
-    "wolfssl_3580_mask.source.mlir": ScenarioContract(
-        "source-operation-timing",
-        one_row("verified", "source-branchless-dataflow"),
-    ),
-    "wolfssl_3580_mask.target_bad.mlir": ScenarioContract(
-        "modeled-rv32i-control-flow-timing",
-        one_row("unsafe", "secret-dependent-branch"),
-    ),
-    "wolfssl_3580_mask.target_fixed.mlir": ScenarioContract(
-        "modeled-rv32i-control-flow-timing",
-        one_row("verified", "branchless-selection"),
-    ),
-    "wrong_host_fhe_reveal.bad.mlir": ScenarioContract(
-        "host-authorized-plaintext-sinks",
-        one_row("unsafe", "wrong-audience-or-host"),
-    ),
-    "wrong_host_fhe_reveal.fixed.mlir": ScenarioContract(
-        "host-authorized-plaintext-sinks",
-        one_row("verified", "authorized-sink-isolation"),
-    ),
-    "wrong_party_plaintext.bad.mlir": ScenarioContract(
-        "audience-authorized-mailbox-sinks",
-        one_row("unsafe", "wrong-audience-or-host"),
-    ),
-    "wrong_party_plaintext.fixed.mlir": ScenarioContract(
-        "audience-authorized-mailbox-sinks",
-        one_row("verified", "authorized-sink-isolation"),
-    ),
+# Each bundle contains the theorem-facing form of a corrected MLIR shape seed.
+SEMANTIC_BUNDLES = {
+    "abi_alias_disjoint.control.mlir": "abi-alias-disjoint",
+    "abi_alias_mayalias_overlap.bad.mlir": "abi-alias-mayalias-overlap",
+    "abi_alias_missing_binding.unknown.mlir": "abi-alias-missing-binding",
+    "alloca_size_high_count.unknown.mlir": "alloca-size-high",
+    "alloca_size_public.control.mlir": "alloca-size-public",
+    "audience_mismatch.bad.mlir": "audience-mismatch",
+    "bound_exhausted_loop.unknown.mlir": "bound-exhausted-public",
+    "bound_secret_trip_count.bad.mlir": "bound-secret-trip-count",
+    "launder_scan.model_proved.p4_open.mlir": "launder-scan",
 }
 
 ERROR_BLOCK = re.compile(
@@ -408,15 +103,8 @@ ERROR_BLOCK = re.compile(
     r"\s*// observable effect: .+\n"
     r"\s*// reason: .+\n"
     r"\s*// detection boundary: .+\n"
-    r"\s*// expected-error @\+1 \{\{[a-z][a-z0-9]*(?:-[a-z0-9]+)*\}\}\n"
     r"\s*(?!//)(?:[%^}]|[a-zA-Z]).+"
 )
-
-EXPECTED_ERROR_DIRECTIVE = re.compile(
-    r"(?m)^\s*// expected-error @\+1 "
-    r"\{\{([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\}\}\s*$"
-)
-DIAGNOSTIC_RUN = "// RUN: %mlir-opt %s --verify-diagnostics"
 
 REPAIR_BLOCK = re.compile(
     r"(?m)^\s*// CONFIDENTIALITY REPAIR: .+\n"
@@ -428,90 +116,95 @@ REPAIR_BLOCK = re.compile(
 )
 
 
-# These snippets pin the distinctions that previously made several fixtures
-# misleading. They are structural regression checks, not an IFC proof.
-FIXTURE_CONTRACT_SNIPPETS: dict[str, tuple[str, ...]] = {
-    "explicit_error_oracle.bad.mlir": (
-        "// SANCTIONED RELEASE:",
-        '"sps.release_policy" = "padding_validity_v1"',
-        "llvm.store %status, %public_status",
-        "llvm.store %padding_error_detail, %public_error_detail",
-    ),
-    "explicit_error_oracle.fixed.mlir": (
-        "// SANCTIONED RELEASE:",
-        '"sps.release_policy" = "padding_validity_v1"',
-        "llvm.store %status, %public_status",
-        "llvm.store %zero, %public_error_detail",
-    ),
-    "ckks_unsafe_release.bad.mlir": (
-        "// private result:",
-        "llvm.store %raw_approximate_plaintext, %public_release",
-    ),
-    "ckks_unsafe_release.fixed.mlir": (
-        "// private result:",
-        '"sps.contract_kind" = "sanitizer"',
-        '"sps.contract_status" = "requires_l4_evidence"',
-        '"sps.release_function" = "(raw & public_mask) & certificate_mask"',
-        '"sps.required_integrity" = "public_sanitizer_mask:trusted,certificate_ok:trusted"',
-        "%masked_plaintext = llvm.and %raw_approximate_plaintext, %public_sanitizer_mask",
-        "llvm.call @ckks_sanitize_model",
-        '"sps.release_policy" = "ckks_masked_release_v1"',
-        "llvm.store %sanitized, %public_release",
-    ),
-    "dynamic_kv_length.bad.mlir": (
-        "// L4 extrapolation: no allocation, dynamic shape, loop, or scheduler event is encoded here",
-    ),
-    "dynamic_kv_length.fixed.mlir": (
-        "// L4 extrapolation: actual fixed allocation and fixed work are not encoded here",
-    ),
-    "breach_compressed_length.bad.mlir": (
-        "// L4 extrapolation: the match-to-length relation is already inlined; no compressor is encoded",
-    ),
-    "breach_compressed_length.fixed.mlir": (
-        "// L4 extrapolation: no compressor, padding, or transport event is encoded here",
-    ),
-    "wolfssl_3579_mul.target_bad.mlir": (
-        '"sps.contract_status" = "assumed_l0_target_fact"',
-        '"sps.helper_latency" = "operand_dependent"',
-        '"sps.real_target_applicability" = "requires_l4_evidence"',
-        '"sps.relevant_operands" = array<i32: 0, 1>',
-    ),
-}
+def split_llvm_arguments(arguments: str) -> list[str]:
+    """Split the simple and aggregate LLVM parameter spellings at top level."""
+    if not arguments.strip():
+        return []
+    parts: list[str] = []
+    start = 0
+    depth = 0
+    quoted = False
+    escaped = False
+    for index, character in enumerate(arguments):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+            continue
+        if character == '"':
+            quoted = True
+        elif character in "([{<":
+            depth += 1
+        elif character in ")]}>":
+            depth -= 1
+        elif character == "," and depth == 0:
+            parts.append(arguments[start:index].strip())
+            start = index + 1
+    parts.append(arguments[start:].strip())
+    return parts
 
-ORDERED_FIXTURE_SNIPPETS: dict[str, tuple[str, ...]] = {
-    "explicit_error_oracle.bad.mlir": (
-        "llvm.store %status, %public_status",
-        "llvm.store %padding_error_detail, %public_error_detail",
-    ),
-    "explicit_error_oracle.fixed.mlir": (
-        "llvm.store %status, %public_status",
-        "llvm.store %zero, %public_error_detail",
-    ),
-    "ckks_unsafe_release.fixed.mlir": (
-        "llvm.call @ckks_sanitize_model",
-        "llvm.store %sanitized, %public_release",
-    ),
-}
+
+def llvm_functions(llvm_ir: str, name: str) -> list[dict[str, object]]:
+    """Return declaration/definition signatures and definition bodies for name."""
+    header = re.compile(
+        rf"(?m)^(?P<kind>define|declare)\s+(?P<prefix>[^@\n]+)"
+        rf"@{re.escape(name)}\s*\((?P<arguments>[^)]*)\)(?P<suffix>[^\n]*)"
+    )
+    functions: list[dict[str, object]] = []
+    for match in header.finditer(llvm_ir):
+        prefix = match.group("prefix").strip()
+        result_type = prefix.split()[-1] if prefix else ""
+        parameters = [
+            parameter.split()[0] if parameter.split() else ""
+            for parameter in split_llvm_arguments(match.group("arguments"))
+        ]
+        body = ""
+        if match.group("kind") == "define":
+            opening = llvm_ir.find("{", match.start(), match.end())
+            closing = llvm_ir.find("\n}", opening)
+            if opening >= 0 and closing >= 0:
+                body = llvm_ir[opening + 1 : closing]
+        functions.append(
+            {
+                "kind": match.group("kind"),
+                "result": result_type,
+                "parameters": parameters,
+                "body": body,
+            }
+        )
+    return functions
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def fail(errors: list[str], path: Path, message: str) -> None:
-    errors.append(f"{path.relative_to(ROOT)}: {message}")
+    try:
+        label = path.relative_to(ROOT)
+    except ValueError:
+        label = path
+    errors.append(f"{label}: {message}")
+
+
+def field_values(text: str, field: str) -> list[str]:
+    return [
+        match.group(1).strip()
+        for match in re.finditer(rf"(?m)^\s*{re.escape(field)}\s*(.*?)\s*$", text)
+    ]
 
 
 def c_sources() -> list[Path]:
-    return sorted(
-        path
-        for path in C_DIR.glob("*.c")
-        if path.name != "equivalence_driver.c"
-    )
+    return sorted(path for path in C_DIR.glob("*.c") if path.name != "equivalence_driver.c")
 
 
 def check_provenance() -> list[str]:
     errors: list[str] = []
     mutable = re.compile(r"github\.com/[^/]+/[^/]+/(?:blob|tree)/(?:main|master)(?:/|$)")
-    github_revision = re.compile(
-        r"github\.com/[^/]+/[^/]+/(?:blob|tree)/([^/#?]+)(?:/|$)"
-    )
+    revision = re.compile(r"github\.com/[^/]+/[^/]+/(?:blob|tree)/([^/#?]+)(?:/|$)")
 
     for path in c_sources():
         text = path.read_text()
@@ -524,403 +217,636 @@ def check_provenance() -> list[str]:
             r"Original C source:\s*\n\s*\*\s+none\b", text, re.IGNORECASE
         )
         if not has_original and not declares_none:
-            fail(
-                errors,
-                path,
-                "must link Original vulnerable code or declare Original C source: none",
-            )
+            fail(errors, path, "must link Original vulnerable code or declare Original C source: none")
 
         for url in re.findall(r"https://[^\s*)]+", text):
-            clean_url = url.rstrip(".,")
-            if mutable.search(clean_url):
-                fail(errors, path, f"mutable GitHub URL {clean_url}")
-            match = github_revision.search(clean_url)
+            clean = url.rstrip(".,")
+            if mutable.search(clean):
+                fail(errors, path, f"mutable GitHub URL {clean}")
+            match = revision.search(clean)
             if match and not re.fullmatch(r"[0-9a-f]{40}", match.group(1)):
-                fail(errors, path, f"GitHub blob/tree URL lacks a full commit: {clean_url}")
-
-        classification_match = re.search(
-            r"Reduction classification:\s*\n\s*\*\s+([^\n]+)", text
-        )
-        classification = classification_match.group(1).strip() if classification_match else ""
-        if declares_none and classification in {
-            "faithful-minimal-reduction",
-            "adapted-upstream-snippet",
-        }:
-            fail(errors, path, "claims an upstream-C reduction after declaring no C source")
+                fail(errors, path, f"GitHub blob/tree URL lacks a full commit: {clean}")
 
     return errors
 
 
-def is_bad(path: Path) -> bool:
-    return any(marker in path.name for marker in (".bad.mlir", "_bad.mlir", "lowered_bad", "target_bad"))
+def required_capabilities(name: str) -> list[str]:
+    caps = {"canonical-bitcode-v1", "policy-binding-v1", "whole-entry-product-v1"}
+    lowered = name.lower()
+    if any(token in lowered for token in ("alias", "offset", "overwritten", "leftover", "redis")):
+        caps.update({"byte-memory-v1", "alias-v1"})
+    if any(token in lowered for token in ("release", "audience", "error_oracle", "ckks")):
+        caps.update({"release-ledger-v1", "coalition-audience-v1"})
+    if any(token in lowered for token in ("wrong_party", "wrong_host")):
+        caps.add("coalition-audience-v1")
+    if any(token in lowered for token in ("precision", "predecessor", "bound", "alloca")):
+        caps.add("relational-v1")
+    if any(token in lowered for token in ("kyberslash", "clangover", "wolfssl", "launder")):
+        caps.add("final-binary-p4-v1")
+    return sorted(caps)
 
 
-def is_fixed(path: Path) -> bool:
-    return any(marker in path.name for marker in (".fixed.mlir", "_fixed.mlir", "lowered_fixed", "target_fixed"))
+def shape_record(path: Path) -> dict[str, object]:
+    text = path.read_text()
+    entries = field_values(text, "// entry:")
+    entry = entries[0] if len(entries) == 1 else "<invalid>"
+    focus = field_values(text, "// diagnostic focus:")
+    classification = field_values(text, "// classification:")
+    return {
+        "sha256": digest(path),
+        "scope": "preflight-only",
+        "entry": entry,
+        "classification": classification[0] if len(classification) == 1 else "<invalid>",
+        "diagnostic_focus": focus[0] if len(focus) == 1 else "<invalid>",
+        "semantic_bundle": SEMANTIC_BUNDLES.get(path.name),
+        "pending_capabilities": required_capabilities(path.name),
+    }
 
 
-def field_values(text: str, field: str) -> list[str]:
-    """Return values for an exact, line-oriented MLIR metadata field."""
-    return [
-        match.group(1).strip()
-        for match in re.finditer(
-            rf"(?m)^\s*{re.escape(field)}\s*(.*?)\s*$", text
-        )
-    ]
+def shape_manifest_snapshot() -> dict[str, object]:
+    return {
+        "schema_version": "sps-shape-manifest-v1",
+        "scope": "preflight-only",
+        "fixed_observation_model": "Theta_ct",
+        "model_status_authoritative": False,
+        "fixtures": {
+            path.name: shape_record(path) for path in sorted(MLIR_DIR.glob("*.mlir"))
+        },
+    }
 
 
-#: A result-row block looks like:
-#:
-#:   // result rows:
-#:   //   {}          verified  world-visible-observer          none
-#:   //   {alice}     unsafe    release-audience-mismatch       none
-#:   //   {bob}       unknown   missing-helper-contract         helper-latency-contract
-#:
-#: Columns are coalition, outcome, reason id, obligations. Whitespace separated,
-#: obligations comma separated or the literal 'none'.
-RESULT_ROW = re.compile(
-    r"(?m)^\s*//\s+(\{[^}]*\})\s+(\w+)\s+([a-z][a-z0-9-]*)\s+(\S+)\s*$"
-)
+def write_shape_manifest() -> None:
+    SHAPE_MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+    SHAPE_MANIFEST.write_text(json.dumps(shape_manifest_snapshot(), indent=2, sort_keys=True) + "\n")
 
 
-def parse_result_rows(errors: list[str], path: Path, text: str) -> tuple[ResultRow, ...]:
-    """Parse an optional '// result rows:' block. Absent block means no rows."""
-    if not field_values(text, "// result rows:"):
-        return ()
-
-    block = text.split("// result rows:", 1)[1]
-    #: Stop at the first line that is not a row, so a following metadata field
-    #: or prose comment ends the block rather than being silently swallowed.
-    lines: list[str] = []
-    for line in block.splitlines()[1:]:
-        if RESULT_ROW.fullmatch(line):
-            lines.append(line)
-        elif line.strip().startswith("//") and not line.strip("/ \t"):
-            continue
-        else:
-            break
-
-    rows: list[ResultRow] = []
-    seen: set[str] = set()
-    for line in lines:
-        coalition, outcome, reason, obligations = RESULT_ROW.fullmatch(line).groups()
-        if not COALITION.fullmatch(coalition):
-            fail(errors, path, f"malformed coalition {coalition!r} in result rows")
-            continue
-        if coalition in seen:
-            fail(errors, path, f"duplicate coalition {coalition!r} in result rows")
-            continue
-        seen.add(coalition)
-        if outcome not in OUTCOMES:
-            fail(errors, path, f"result row {coalition} has invalid outcome {outcome!r}")
-            continue
-        parsed = () if obligations == "none" else tuple(obligations.split(","))
-        if any(not IDENTIFIER.fullmatch(item) for item in parsed):
-            fail(errors, path, f"result row {coalition} has a malformed obligation")
-            continue
-        #: The same invariant as the artifact level, enforced per row: a row that
-        #: claims to be finished may not carry an obligation, and a row that is
-        #: not finished must say what would finish it.
-        if outcome in {"verified", "unsafe"} and parsed:
-            fail(errors, path, f"result row {coalition} is {outcome} but has obligations")
-        if outcome in {"unknown", "conditional"} and not parsed:
-            fail(errors, path, f"result row {coalition} is {outcome} with no obligation")
-        rows.append(ResultRow(coalition, outcome, reason, parsed))
-
-    if not rows:
-        fail(errors, path, "'// result rows:' block declared but no valid rows parsed")
-    return tuple(rows)
-
-
-def check_fixture_inventory(paths: list[Path]) -> list[str]:
+def check_shape_manifest() -> list[str]:
     errors: list[str] = []
-    actual = {path.name for path in paths}
-    expected = set(EXPECTED_SCENARIOS)
-    for name in sorted(expected - actual):
-        errors.append(f"mlir/{name}: expected fixture is missing")
-    for name in sorted(actual - expected):
-        errors.append(
-            f"mlir/{name}: fixture has no scenario contract in check_harness.py"
-        )
+    if not SHAPE_MANIFEST.is_file():
+        fail(errors, SHAPE_MANIFEST, "missing; run check_harness.py update-manifest")
+        return errors
+    try:
+        actual = json.loads(SHAPE_MANIFEST.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        fail(errors, SHAPE_MANIFEST, f"cannot parse: {error}")
+        return errors
+    expected = shape_manifest_snapshot()
+    if actual != expected:
+        fail(errors, SHAPE_MANIFEST, "stale or incomplete; run check_harness.py update-manifest")
     return errors
-
-
-def check_metadata(errors: list[str], path: Path, text: str) -> str | None:
-    values: dict[str, str] = {}
-    for field in MLIR_FIELDS:
-        found = field_values(text, field)
-        if not found:
-            fail(errors, path, f"missing MLIR header field {field!r}")
-            continue
-        if len(found) != 1:
-            fail(errors, path, f"MLIR header field {field!r} occurs {len(found)} times")
-            continue
-        if not found[0]:
-            fail(errors, path, f"MLIR header field {field!r} is empty")
-            continue
-        values[field] = found[0]
-
-    if field_values(text, "// expected verdict:"):
-        fail(errors, path, "uses legacy '// expected verdict:' metadata")
-    if field_values(text, "// exact incident boundary:"):
-        fail(errors, path, "uses legacy '// exact incident boundary:' metadata")
-    metadata_text = "\n".join(values.values())
-    if re.search(r"\b(?:pass|reject)\b", metadata_text, re.IGNORECASE):
-        fail(errors, path, "uses legacy pass/reject wording in MLIR metadata")
-
-    classification = values.get("// classification:")
-    if classification is not None and classification not in CLASSIFICATIONS:
-        fail(
-            errors,
-            path,
-            "classification must be one of: " + ", ".join(sorted(CLASSIFICATIONS)),
-        )
-
-    outcome = values.get("// expected outcome:")
-    if outcome is not None and outcome not in OUTCOMES:
-        fail(
-            errors,
-            path,
-            "expected outcome must be exactly one of: " + ", ".join(sorted(OUTCOMES)),
-        )
-
-    expected = EXPECTED_SCENARIOS.get(path.name)
-    if outcome in OUTCOMES and expected is not None and outcome != expected.outcome:
-        fail(
-            errors,
-            path,
-            f"expected outcome is {outcome!r}; scenario requires {expected.outcome!r}",
-        )
-
-    observer = values.get("// observer/model:")
-    if observer is not None and not IDENTIFIER.fullmatch(observer):
-        fail(errors, path, "observer/model must be one lower-kebab-case identifier")
-    elif expected is not None and observer != expected.observer_model:
-        fail(
-            errors,
-            path,
-            f"observer/model is {observer!r}; scenario requires {expected.observer_model!r}",
-        )
-
-    reason = values.get("// reason id:")
-    if reason is not None and not IDENTIFIER.fullmatch(reason):
-        fail(errors, path, "reason id must be one lower-kebab-case identifier")
-    elif expected is not None and reason not in expected.reason_ids:
-        fail(
-            errors,
-            path,
-            f"reason id is {reason!r}; scenario rows carry "
-            f"{sorted(expected.reason_ids)}",
-        )
-
-    obligations = values.get("// outstanding obligations:")
-    if obligations is not None:
-        if obligations == "none":
-            parsed_obligations: list[str] = []
-        else:
-            parsed_obligations = obligations.split(",")
-            if any(not IDENTIFIER.fullmatch(item) for item in parsed_obligations):
-                fail(
-                    errors,
-                    path,
-                    "outstanding obligations must be 'none' or a comma-separated "
-                    "list of lower-kebab-case identifiers",
-                )
-            if len(set(parsed_obligations)) != len(parsed_obligations):
-                fail(errors, path, "outstanding obligations contain a duplicate")
-
-        if outcome in {"verified", "unsafe"} and parsed_obligations:
-            fail(errors, path, f"{outcome} outcome cannot have outstanding obligations")
-        if outcome in {"unknown", "conditional"} and not parsed_obligations:
-            fail(errors, path, f"{outcome} outcome requires an outstanding obligation")
-        if expected is not None and tuple(parsed_obligations) != expected.obligations:
-            required = ",".join(expected.obligations) or "none"
-            fail(
-                errors,
-                path,
-                f"outstanding obligations are {obligations!r}; scenario requires {required!r}",
-            )
-
-    boundary = values.get("// evidence boundary:")
-    if boundary is not None and not EVIDENCE_LEVEL.search(boundary):
-        fail(errors, path, "evidence boundary must name at least one level L0 through L4")
-
-    # ---- optional record extensions -------------------------------------
-    # All three are optional so the original corpus needs no re-recording, but
-    # once present they are checked as strictly as the mandatory fields.
-
-    rows = parse_result_rows(errors, path, text)
-    if rows:
-        derived = aggregate_outcome(rows)
-        if outcome is not None and outcome != derived:
-            fail(
-                errors,
-                path,
-                f"expected outcome is {outcome!r} but the result rows aggregate "
-                f"to {derived!r}; the artifact outcome is a projection of the "
-                f"rows, not an independent claim",
-            )
-        if expected is not None and expected.rows and rows != expected.rows:
-            fail(errors, path, "result rows do not match the scenario contract")
-
-    targets = field_values(text, "// target tuple:")
-    if targets:
-        if len(targets) != 1:
-            fail(errors, path, "'// target tuple:' occurs more than once")
-        elif not TARGET_TUPLE.fullmatch(targets[0]):
-            fail(
-                errors,
-                path,
-                "target tuple must be <triple>/<cpu>/<opt-level>, "
-                "for example x86_64-unknown-linux-gnu/generic/O2",
-            )
-        elif expected is not None and expected.target_tuple and targets[0] != expected.target_tuple:
-            fail(
-                errors,
-                path,
-                f"target tuple is {targets[0]!r}; scenario requires "
-                f"{expected.target_tuple!r}",
-            )
-
-    dispositions = field_values(text, "// l1 disposition:")
-    if dispositions:
-        if len(dispositions) != 1:
-            fail(errors, path, "'// l1 disposition:' occurs more than once")
-        elif dispositions[0] not in DISPOSITIONS:
-            fail(
-                errors,
-                path,
-                "l1 disposition must be one of: " + ", ".join(sorted(DISPOSITIONS)),
-            )
-        elif expected is not None and expected.disposition and dispositions[0] != expected.disposition:
-            fail(
-                errors,
-                path,
-                f"l1 disposition is {dispositions[0]!r}; scenario requires "
-                f"{expected.disposition!r}",
-            )
-    elif expected is not None and expected.disposition:
-        fail(errors, path, "scenario requires an '// l1 disposition:' field")
-
-    c_source = values.get("// c source:")
-    if c_source is not None:
-        candidate = (MLIR_DIR / c_source).resolve()
-        try:
-            candidate.relative_to(C_DIR.resolve())
-        except ValueError:
-            fail(errors, path, "c source must resolve inside the harness c/ directory")
-        else:
-            if candidate.suffix != ".c" or not candidate.is_file():
-                fail(errors, path, f"c source does not name an existing C file: {c_source}")
-            elif is_bad(path) and not candidate.stem.endswith(("_bad", "_vulnerable")):
-                fail(errors, path, "bad fixture must cite its bad or vulnerable C provenance")
-            elif is_fixed(path) and not candidate.stem.endswith("_fixed"):
-                fail(errors, path, "fixed fixture must cite its fixed C provenance")
-
-    return outcome
 
 
 def check_annotations() -> list[str]:
     errors: list[str] = []
-    paths = sorted(MLIR_DIR.glob("*.mlir"))
-    errors.extend(check_fixture_inventory(paths))
-
-    for path in paths:
+    for path in sorted(MLIR_DIR.glob("*.mlir")):
         text = path.read_text()
-        outcome = check_metadata(errors, path, text)
+        values: dict[str, str] = {}
+        for field in MLIR_FIELDS:
+            found = field_values(text, field)
+            if len(found) != 1 or not found[0]:
+                fail(errors, path, f"MLIR header field {field!r} must occur once and be nonempty")
+            else:
+                values[field] = found[0]
 
-        if "CONFIDENTIALITY BREAK" in text:
-            fail(errors, path, "uses obsolete CONFIDENTIALITY BREAK marker")
+        for field in LEGACY_RESULT_FIELDS:
+            if field_values(text, field):
+                fail(errors, path, f"legacy result field {field!r} belongs in a bundle sidecar")
+        if "--verify-diagnostics" in text or "expected-error @" in text:
+            fail(errors, path, "shape fixture contains an unimplemented semantic diagnostic oracle")
+
+        classification = values.get("// classification:")
+        if classification and classification not in CLASSIFICATIONS:
+            fail(errors, path, "unknown classification")
+        focus = values.get("// diagnostic focus:")
+        if focus and not IDENTIFIER.fullmatch(focus):
+            fail(errors, path, "diagnostic focus must be one lower-kebab identifier")
+        boundary = values.get("// evidence boundary:")
+        if boundary and not EVIDENCE_LEVEL.search(boundary):
+            fail(errors, path, "evidence boundary must name L0 through L4")
+
+        entry = shape_record(path)["entry"]
+        if entry == "<invalid>" or f"llvm.func @{entry}" not in text:
+            fail(errors, path, "entry must name a function in the file")
+        elif f"// CHECK-LABEL: llvm.func @{entry}" not in text:
+            fail(errors, path, "entry must have a matching CHECK-LABEL")
+
+        c_source = values.get("// c source:")
+        if c_source:
+            candidate = (MLIR_DIR / c_source).resolve()
+            try:
+                candidate.relative_to(C_DIR.resolve())
+            except ValueError:
+                fail(errors, path, "c source must resolve inside c/")
+            else:
+                if candidate.suffix != ".c" or not candidate.is_file():
+                    fail(errors, path, f"c source does not exist: {c_source}")
+
+        if re.search(r"sps\.alias\s*=", text):
+            fail(errors, path, "self-authoritative sps.alias is forbidden; use alias_candidate + ABI sidecar")
+        if "sps.world_structural_size" in text:
+            fail(errors, path, "self-authoritative world-structural binding is forbidden")
 
         error_count = text.count("CONFIDENTIALITY ERROR:")
         repair_count = text.count("CONFIDENTIALITY REPAIR:")
-        expected_errors = EXPECTED_ERROR_DIRECTIVE.findall(text)
-        diagnostic_run_count = text.count(DIAGNOSTIC_RUN)
-        complete_errors = len(ERROR_BLOCK.findall(text))
-        complete_repairs = len(REPAIR_BLOCK.findall(text))
-        if complete_errors != error_count:
+        if len(ERROR_BLOCK.findall(text)) != error_count:
             fail(errors, path, "has an incomplete or non-adjacent confidentiality error block")
-        if complete_repairs != repair_count:
+        if len(REPAIR_BLOCK.findall(text)) != repair_count:
             fail(errors, path, "has an incomplete or non-adjacent confidentiality repair block")
 
-        if is_bad(path):
-            if outcome != "unsafe":
-                fail(errors, path, "bad fixture must have outcome 'unsafe'")
-            if error_count == 0:
-                fail(errors, path, "lacks a complete error block adjacent to an MLIR op")
-            if repair_count:
-                fail(errors, path, "bad fixture contains a confidentiality repair block")
-            if diagnostic_run_count != 1:
+    errors.extend(check_shape_manifest())
+    return errors
+
+
+def read_json(errors: list[str], path: Path) -> dict[str, object] | None:
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        fail(errors, path, f"cannot parse JSON: {error}")
+        return None
+    if not isinstance(value, dict):
+        fail(errors, path, "top-level JSON value must be an object")
+        return None
+    return value
+
+
+def coalition_members(errors: list[str], path: Path, value: object) -> tuple[str, ...] | None:
+    if not isinstance(value, str) or not COALITION.fullmatch(value):
+        fail(errors, path, f"invalid coalition {value!r}")
+        return None
+    members = () if value == "{}" else tuple(value[1:-1].split(","))
+    if tuple(sorted(set(members))) != members:
+        fail(errors, path, f"coalition must be sorted and duplicate-free: {value}")
+        return None
+    return members
+
+
+def expected_coalitions(errors: list[str], path: Path, policy: dict[str, object]) -> set[tuple[str, ...]]:
+    principals = policy.get("principals")
+    maxima = policy.get("maximal_adversary_coalitions")
+    if not isinstance(principals, list) or any(not isinstance(item, str) for item in principals):
+        fail(errors, path, "principals must be an array of identifiers")
+        return set()
+    if principals != sorted(set(principals)):
+        fail(errors, path, "principals must be sorted and duplicate-free")
+    if any(not IDENTIFIER.fullmatch(item) for item in principals):
+        fail(errors, path, "principals must use lower-kebab identifiers")
+    if not isinstance(maxima, list) or not maxima:
+        fail(errors, path, "maximal_adversary_coalitions must be a nonempty array")
+        return set()
+    closure: set[tuple[str, ...]] = set()
+    normalized_maxima: list[tuple[str, ...]] = []
+    for maximum in maxima:
+        if not isinstance(maximum, list) or any(not isinstance(item, str) for item in maximum):
+            fail(errors, path, "each maximal coalition must be an array of identifiers")
+            continue
+        normalized = tuple(maximum)
+        if tuple(sorted(set(normalized))) != normalized:
+            fail(errors, path, "maximal coalitions must be sorted and duplicate-free")
+            continue
+        if any(member not in principals for member in normalized):
+            fail(errors, path, "maximal coalition contains an undeclared principal")
+            continue
+        normalized_maxima.append(normalized)
+        for size in range(len(normalized) + 1):
+            closure.update(itertools.combinations(normalized, size))
+    if len(normalized_maxima) != len(set(normalized_maxima)):
+        fail(errors, path, "maximal coalition list contains duplicates")
+    for left, right in itertools.permutations(normalized_maxima, 2):
+        if set(left) < set(right):
+            fail(errors, path, f"maximal coalitions are not an antichain: {left} is below {right}")
+            break
+    return closure
+
+
+def check_status_record(
+    errors: list[str], path: Path, oracle: dict[str, object], policy: dict[str, object]
+) -> None:
+    model = oracle.get("model_status")
+    deployment = oracle.get("deployment_status")
+    policy_review = oracle.get("policy_review_status")
+    rows = oracle.get("product_rows")
+    blockers = oracle.get("global_blockers")
+    if not isinstance(model, dict) or model.get("kind") not in MODEL_STATUS:
+        fail(errors, path, "invalid model_status domain")
+    elif model.get("kind") == "Counterexample" and model.get("witness") != "required-replayable":
+        fail(errors, path, "Counterexample must require a replayable witness")
+    elif model.get("kind") == "Unknown" and not model.get("reason"):
+        fail(errors, path, "Unknown requires a reason")
+    if not isinstance(deployment, dict) or deployment.get("kind") not in DEPLOYMENT_STATUS:
+        fail(errors, path, "invalid deployment_status domain")
+    elif deployment.get("kind") == "Open" and not deployment.get("obligations"):
+        fail(errors, path, "Open deployment status requires obligations")
+    elif deployment.get("kind") == "Closed" and not deployment.get("p4_evidence_bundle"):
+        fail(errors, path, "Closed deployment status requires a P4EvidenceBundle")
+    if not isinstance(policy_review, dict) or policy_review.get("kind") not in POLICY_STATUS:
+        fail(errors, path, "invalid policy_review_status domain")
+    elif policy_review.get("kind") == "Findings" and not policy_review.get("findings"):
+        fail(errors, path, "Findings policy status requires findings")
+    elif policy_review.get("kind") == "Incomplete" and not policy_review.get("reason"):
+        fail(errors, path, "Incomplete policy status requires a reason")
+    if not isinstance(blockers, list) or any(not isinstance(item, str) for item in blockers):
+        fail(errors, path, "global_blockers must be an array of stable reasons")
+        blockers = []
+    if not isinstance(rows, list) or not rows:
+        fail(errors, path, "product_rows must be a nonempty array")
+        return
+    seen: set[tuple[str, ...]] = set()
+    dispositions: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            fail(errors, path, "coalition row must be an object")
+            continue
+        coalition = row.get("coalition")
+        members = coalition_members(errors, path, coalition)
+        if members is None:
+            pass
+        elif members in seen:
+            fail(errors, path, f"duplicate coalition {coalition}")
+        else:
+            seen.add(members)
+        disposition = row.get("product_disposition")
+        if disposition not in PRODUCT_DISPOSITION:
+            fail(errors, path, f"invalid product disposition for {coalition}")
+        else:
+            dispositions.append(str(disposition))
+        if disposition == "ReplayableCounterexample" and row.get("replay") != "required":
+            fail(errors, path, f"counterexample row {coalition} lacks replay requirement")
+        if disposition == "Blocked" and not row.get("reason"):
+            fail(errors, path, f"blocked row {coalition} lacks a reason")
+    required_rows = expected_coalitions(errors, path, policy)
+    if seen != required_rows:
+        missing = sorted(required_rows - seen)
+        extra = sorted(seen - required_rows)
+        fail(errors, path, f"coalition rows are not the exact downward closure; missing={missing}, extra={extra}")
+    if isinstance(model, dict) and dispositions:
+        aggregate = (
+            "Counterexample"
+            if "ReplayableCounterexample" in dispositions
+            else "Unknown" if blockers or "Blocked" in dispositions else "Proved"
+        )
+        if model.get("kind") != aggregate:
+            fail(errors, path, f"future oracle ModelStatus is inconsistent with blockers/product rows; expected {aggregate}")
+
+
+def check_conformance_matrix() -> list[str]:
+    errors: list[str] = []
+    matrix = read_json(errors, CONFORMANCE_MATRIX)
+    if matrix is None:
+        return errors
+    if matrix.get("schema_version") != "sps-rev4-conformance-matrix-v1":
+        fail(errors, CONFORMANCE_MATRIX, "unsupported schema_version")
+    cases = matrix.get("cases")
+    if not isinstance(cases, list):
+        fail(errors, CONFORMANCE_MATRIX, "cases must be an array")
+        return errors
+    ids = [case.get("id") for case in cases if isinstance(case, dict)]
+    if len(ids) != len(cases) or len(ids) != len(set(ids)):
+        fail(errors, CONFORMANCE_MATRIX, "case ids must be present and unique")
+        return errors
+    if set(ids) != REQUIRED_CONFORMANCE_IDS:
+        fail(errors, CONFORMANCE_MATRIX, "must enumerate exactly NF-A01..15 and NF-CM01..12")
+    allowed = {"pending", "infrastructure-seed", "preflight-seed"}
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+        if case.get("harness_status") not in allowed:
+            fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: invalid harness_status")
+        if not case.get("expected"):
+            fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: expected disposition is required")
+        seeds = case.get("seeds")
+        if not isinstance(seeds, list) or any(not isinstance(seed, str) for seed in seeds):
+            fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: seeds must be an array of paths")
+            continue
+        if case.get("harness_status") != "pending" and not seeds:
+            fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: non-pending row requires seeds")
+        for seed in seeds:
+            candidate = (ROOT / seed).resolve()
+            try:
+                candidate.relative_to(ROOT.resolve())
+            except ValueError:
+                fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: seed escapes harness: {seed}")
+            else:
+                if not candidate.exists():
+                    fail(errors, CONFORMANCE_MATRIX, f"{case.get('id')}: missing seed: {seed}")
+    return errors
+
+
+def check_artifacts() -> list[str]:
+    errors: list[str] = []
+    expected_dirs = set(SEMANTIC_BUNDLES.values())
+    actual_dirs = {path.name for path in ARTIFACTS_DIR.iterdir() if path.is_dir()} if ARTIFACTS_DIR.exists() else set()
+    for name in sorted(expected_dirs - actual_dirs):
+        fail(errors, ARTIFACTS_DIR / name, "required semantic bundle is missing")
+    for name in sorted(actual_dirs - expected_dirs):
+        fail(errors, ARTIFACTS_DIR / name, "bundle is not referenced by a shape fixture")
+
+    for name in sorted(expected_dirs & actual_dirs):
+        directory = ARTIFACTS_DIR / name
+        required = (
+            "artifact.bc",
+            "artifact.ll",
+            "artifact.json",
+            "policy.json",
+            "abi.json",
+            "contracts.json",
+            "release-table.json",
+            "expected-report.json",
+        )
+        for filename in required:
+            if not (directory / filename).is_file():
+                fail(errors, directory / filename, "required bundle member is missing")
+        if any(not (directory / filename).is_file() for filename in required):
+            continue
+        identity = read_json(errors, directory / "artifact.json")
+        policy = read_json(errors, directory / "policy.json")
+        abi = read_json(errors, directory / "abi.json")
+        contracts = read_json(errors, directory / "contracts.json")
+        release_table = read_json(errors, directory / "release-table.json")
+        report = read_json(errors, directory / "expected-report.json")
+        if any(value is None for value in (identity, policy, abi, contracts, release_table, report)):
+            continue
+        bc_hash = digest(directory / "artifact.bc")
+        ll_hash = digest(directory / "artifact.ll")
+        declared_bc_hash = identity.get("candidate_bitcode_sha256")
+        declared_ll_hash = identity.get("derived_llvm_ir_sha256")
+        if not isinstance(declared_bc_hash, str) or not SHA256.fullmatch(declared_bc_hash):
+            fail(errors, directory / "artifact.json", "candidate bitcode digest is not SHA-256")
+        elif declared_bc_hash != bc_hash:
+            fail(errors, directory / "artifact.json", "candidate bitcode hash mismatch")
+        if not isinstance(declared_ll_hash, str) or not SHA256.fullmatch(declared_ll_hash):
+            fail(errors, directory / "artifact.json", "derived LLVM IR digest is not SHA-256")
+        elif declared_ll_hash != ll_hash:
+            fail(errors, directory / "artifact.json", "derived LLVM IR hash mismatch")
+        if identity.get("schema_version") != "sps-artifact-candidate-v1":
+            fail(errors, directory / "artifact.json", "unsupported candidate schema")
+        if identity.get("artifact_role") != "checked-in-bitcode-candidate":
+            fail(errors, directory / "artifact.json", "artifact role must remain an explicit candidate")
+        if "canonical_bitcode_sha256" in identity or "NFConforms" in identity:
+            fail(errors, directory / "artifact.json", "candidate envelope contains a forbidden conformance claim")
+        profile = identity.get("rev4_profile")
+        if not isinstance(profile, dict) or profile.get("required_llvm_version") != "22.1.8":
+            fail(errors, directory / "artifact.json", "Rev4 LLVM 22.1.8 requirement is missing")
+        elif (
+            profile.get("not_authoritative") is not True
+            or profile.get("promotion_requires_complete_rev4_replacement") is not True
+            or not profile.get("missing")
+        ):
+            fail(errors, directory / "artifact.json", "candidate anti-overclaim profile is incomplete")
+        producer = identity.get("producer")
+        produced_by_required = (
+            isinstance(profile, dict)
+            and isinstance(producer, dict)
+            and producer.get("llvm_version") == profile.get("required_llvm_version")
+        )
+        if isinstance(profile, dict) and profile.get("producer_matches_required_version") is not produced_by_required:
+            fail(errors, directory / "artifact.json", "producer/profile version flag is inconsistent")
+        source_name = identity.get("source_mlir")
+        if not isinstance(source_name, str):
+            fail(errors, directory / "artifact.json", "source_mlir is missing")
+        else:
+            source = (directory / source_name).resolve()
+            try:
+                source.relative_to(MLIR_DIR.resolve())
+            except ValueError:
+                fail(errors, directory / "artifact.json", "source_mlir must resolve inside mlir/")
+            else:
+                if not source.is_file() or identity.get("source_mlir_sha256") != digest(source):
+                    fail(errors, directory / "artifact.json", "source MLIR hash mismatch")
+        for sidecar_path, sidecar in (
+            (directory / "policy.json", policy),
+            (directory / "abi.json", abi),
+            (directory / "contracts.json", contracts),
+            (directory / "release-table.json", release_table),
+            (directory / "expected-report.json", report),
+        ):
+            if sidecar.get("candidate_bitcode_sha256") != bc_hash:
+                fail(errors, sidecar_path, "sidecar is not bound to artifact.bc")
+        sidecar_hashes = identity.get("candidate_sidecar_sha256")
+        if not isinstance(sidecar_hashes, dict):
+            fail(errors, directory / "artifact.json", "candidate sidecar digests are missing")
+        else:
+            for filename in ("policy.json", "abi.json", "contracts.json", "release-table.json", "expected-report.json"):
+                if sidecar_hashes.get(filename) != digest(directory / filename):
+                    fail(errors, directory / "artifact.json", f"candidate digest mismatch for {filename}")
+        if policy.get("schema_version") != "sps-fixture-policy-v0":
+            fail(errors, directory / "policy.json", "unsupported fixture policy schema")
+        if abi.get("schema_version") != "sps-fixture-abi-v0":
+            fail(errors, directory / "abi.json", "unsupported fixture ABI schema")
+        if contracts.get("schema_version") != "sps-fixture-contracts-v0":
+            fail(errors, directory / "contracts.json", "unsupported fixture contracts schema")
+        if release_table.get("schema_version") != "sps-fixture-release-table-v0":
+            fail(errors, directory / "release-table.json", "unsupported fixture release-table schema")
+        if report.get("schema_version") != "sps-fixture-oracle-v0":
+            fail(errors, directory / "expected-report.json", "unsupported fixture oracle schema")
+        if report.get("claimable_from_checked_in_pair") is not False:
+            fail(errors, directory / "expected-report.json", "LLVM17 candidate cannot claim a Rev4 result")
+        current = report.get("current_harness_status")
+        if (
+            not isinstance(current, dict)
+            or current.get("kind") != "Pending"
+            or not current.get("reasons")
+        ):
+            fail(errors, directory / "expected-report.json", "current harness status must remain Pending with reasons")
+        oracle = report.get("oracle")
+        if not isinstance(oracle, dict):
+            fail(errors, directory / "expected-report.json", "oracle object is missing")
+            continue
+        entry = oracle.get("entry")
+        if not isinstance(entry, str) or abi.get("entry") != entry:
+            fail(errors, directory, "ABI and report must bind the same entry")
+        if isinstance(entry, str):
+            llvm_ir = (directory / "artifact.ll").read_text()
+            entry_definitions = [
+                function
+                for function in llvm_functions(llvm_ir, entry)
+                if function["kind"] == "define"
+            ]
+            if len(entry_definitions) != 1:
                 fail(
                     errors,
-                    path,
-                    "bad fixture must have exactly one active --verify-diagnostics RUN",
+                    directory / "artifact.ll",
+                    f"ABI entry {entry!r} must be defined exactly once",
                 )
-            if len(expected_errors) != error_count:
-                fail(
-                    errors,
-                    path,
-                    "each confidentiality error must have one adjacent expected-error",
-                )
-            allowed = EXPECTED_SCENARIOS[path.name].reason_ids
-            for actual_reason in expected_errors:
-                if actual_reason not in allowed:
+            else:
+                parameters = entry_definitions[0]["parameters"]
+                arguments = abi.get("arguments")
+                if not isinstance(arguments, list) or any(
+                    not isinstance(argument, dict) for argument in arguments
+                ):
+                    fail(errors, directory / "abi.json", "ABI arguments must be objects")
+                else:
+                    indices = [argument.get("index") for argument in arguments]
+                    if indices != list(range(len(arguments))):
+                        fail(
+                            errors,
+                            directory / "abi.json",
+                            "ABI argument indices must be contiguous and ordered",
+                        )
+                    if len(arguments) != len(parameters):
+                        fail(
+                            errors,
+                            directory / "abi.json",
+                            "ABI argument count does not match the entry signature",
+                        )
+                    else:
+                        for position, (argument, parameter) in enumerate(
+                            zip(arguments, parameters)
+                        ):
+                            kind = argument.get("kind")
+                            pointer_typed = parameter == "ptr"
+                            if kind == "root" and not pointer_typed:
+                                fail(
+                                    errors,
+                                    directory / "abi.json",
+                                    f"ABI root argument {position} is not pointer-typed",
+                                )
+                            elif kind == "scalar" and pointer_typed:
+                                fail(
+                                    errors,
+                                    directory / "abi.json",
+                                    f"ABI scalar argument {position} is pointer-typed",
+                                )
+
+                release_entries = release_table.get("entries")
+                mechanism_contracts = contracts.get("mechanism_contracts")
+                if not isinstance(release_entries, list) or any(
+                    not isinstance(release, dict) for release in release_entries
+                ):
                     fail(
                         errors,
-                        path,
-                        f"expected-error reason is {actual_reason!r}; "
-                        f"scenario rows carry {sorted(allowed)}",
+                        directory / "release-table.json",
+                        "release entries must be objects",
                     )
-        elif error_count:
-            fail(errors, path, "non-bad fixture contains a confidentiality error block")
-        elif expected_errors or diagnostic_run_count:
-            fail(errors, path, "non-bad fixture contains a bad-fixture diagnostic oracle")
+                    release_entries = []
+                if not isinstance(mechanism_contracts, list) or any(
+                    not isinstance(contract, dict)
+                    for contract in mechanism_contracts
+                ):
+                    fail(
+                        errors,
+                        directory / "contracts.json",
+                        "mechanism contracts must be objects",
+                    )
+                    mechanism_contracts = []
 
-        if is_fixed(path):
-            if outcome not in {"verified", "conditional"}:
-                fail(errors, path, "fixed fixture must have outcome 'verified' or 'conditional'")
-            if error_count:
-                fail(errors, path, "fixed fixture contains a confidentiality error")
-            if repair_count == 0:
-                fail(errors, path, "lacks a complete repair block adjacent to an MLIR op")
-        elif repair_count:
-            fail(errors, path, "non-fixed fixture contains a confidentiality repair block")
+                carrier_callees: set[str] = set()
+                entry_body = str(entry_definitions[0]["body"])
+                for release in release_entries:
+                    carrier = release.get("carrier")
+                    if not isinstance(carrier, dict):
+                        fail(
+                            errors,
+                            directory / "release-table.json",
+                            "release carrier must be an object",
+                        )
+                        continue
+                    callee = carrier.get("callee")
+                    ordinal = carrier.get("ordinal")
+                    multiplicity = release.get("multiplicity")
+                    if not isinstance(callee, str):
+                        fail(
+                            errors,
+                            directory / "release-table.json",
+                            "release carrier callee must be a symbol",
+                        )
+                        continue
+                    carrier_callees.add(callee)
+                    calls = re.findall(
+                        rf"\bcall\s+[^@\n]*@{re.escape(callee)}\s*\(", entry_body
+                    )
+                    if not isinstance(multiplicity, int) or multiplicity != len(calls):
+                        fail(
+                            errors,
+                            directory / "release-table.json",
+                            f"carrier {callee!r} multiplicity does not match direct calls",
+                        )
+                    if (
+                        not isinstance(ordinal, int)
+                        or ordinal < 0
+                        or ordinal >= len(calls)
+                    ):
+                        fail(
+                            errors,
+                            directory / "release-table.json",
+                            f"carrier {callee!r} ordinal does not select a direct call",
+                        )
 
-        if outcome == "unsafe" and not is_bad(path):
-            fail(errors, path, "unsafe outcome requires a bad fixture filename")
-        if outcome == "unknown" and (error_count or repair_count):
-            fail(errors, path, "unknown fixture cannot claim a confidentiality error or repair")
-
-        for snippet in FIXTURE_CONTRACT_SNIPPETS.get(path.name, ()):
-            if snippet not in text:
-                fail(errors, path, f"missing fixture-contract snippet {snippet!r}")
-
-        ordered = ORDERED_FIXTURE_SNIPPETS.get(path.name, ())
-        if ordered and all(snippet in text for snippet in ordered):
-            positions = [text.index(snippet) for snippet in ordered]
-            if positions != sorted(positions):
-                fail(errors, path, "fixture-contract operations are out of order")
-
+                contract_callees: set[str] = set()
+                for contract in mechanism_contracts:
+                    callee = contract.get("callee")
+                    if not isinstance(callee, str):
+                        fail(
+                            errors,
+                            directory / "contracts.json",
+                            "mechanism contract callee must be a symbol",
+                        )
+                        continue
+                    contract_callees.add(callee)
+                    signatures = llvm_functions(llvm_ir, callee)
+                    if len(signatures) != 1:
+                        fail(
+                            errors,
+                            directory / "contracts.json",
+                            f"mechanism callee {callee!r} must have one LLVM signature",
+                        )
+                        continue
+                    contract_abi = contract.get("abi")
+                    if not isinstance(contract_abi, dict):
+                        fail(
+                            errors,
+                            directory / "contracts.json",
+                            f"mechanism callee {callee!r} is missing its ABI",
+                        )
+                        continue
+                    if (
+                        contract_abi.get("arguments") != signatures[0]["parameters"]
+                        or contract_abi.get("result") != signatures[0]["result"]
+                    ):
+                        fail(
+                            errors,
+                            directory / "contracts.json",
+                            f"mechanism callee {callee!r} ABI does not match LLVM",
+                        )
+                if carrier_callees != contract_callees:
+                    fail(
+                        errors,
+                        directory / "contracts.json",
+                        "release carriers and mechanism contracts must name the same callees",
+                    )
+        placements = policy.get("placement")
+        if not isinstance(placements, list) or sum(
+            isinstance(item, dict) and item.get("entry") == entry for item in placements
+        ) != 1:
+            fail(errors, directory / "policy.json", "entry must have exactly one placement")
+        check_status_record(errors, directory / "expected-report.json", oracle, policy)
+    errors.extend(check_conformance_matrix())
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "check", choices=("provenance", "annotations", "all"), default="all", nargs="?"
+        "check",
+        choices=("provenance", "annotations", "artifacts", "all", "update-manifest"),
+        default="all",
+        nargs="?",
     )
     args = parser.parse_args()
+    if args.check == "update-manifest":
+        write_shape_manifest()
+        print(f"wrote {SHAPE_MANIFEST.relative_to(ROOT)}")
+        return 0
 
     errors: list[str] = []
     if args.check in ("provenance", "all"):
         errors.extend(check_provenance())
     if args.check in ("annotations", "all"):
         errors.extend(check_annotations())
-
+    if args.check in ("artifacts", "all"):
+        errors.extend(check_artifacts())
     if errors:
         print("\n".join(f"error: {message}" for message in errors), file=sys.stderr)
         return 1
-
     print(f"{args.check} checks passed")
     return 0
 

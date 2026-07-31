@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: wrong-host FHE reveal
+// entry: wrong_host_fhe_reveal_fixed
 // classification: seeded-semantic-harness
 // c source: ../c/wrong_host_fhe_reveal_fixed.c
 // upstream GitHub source: https://github.com/google/heir
 // upstream revision: none -- this is a policy harness, not a HEIR defect
 // secret: %revealed_plaintext
 // public: ciphertext handle, mailbox addresses, zero sentinel, and host policy
-// expected outcome: verified
-// observer/model: host-authorized-plaintext-sinks
-// reason id: authorized-sink-isolation
-// outstanding obligations: none
+// diagnostic focus: host-authorized-plaintext-sinks
 // evidence boundary: L1 host and release policy; cryptographic correctness is outside this L4 model
 //
 // CHECK-LABEL: llvm.func @wrong_host_fhe_reveal_fixed

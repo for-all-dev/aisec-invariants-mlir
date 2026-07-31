@@ -1,0 +1,20 @@
+{
+  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d",
+  "component_visibility": {},
+  "error_visibility": {},
+  "fixed_observation_model": "Theta_ct",
+  "invocation_scope": "SingleInvocation",
+  "maximal_adversary_coalitions": [
+    []
+  ],
+  "output_visibility": {},
+  "placement": [
+    {
+      "entry": "abi_alias_mayalias_overlap",
+      "host": "host0"
+    }
+  ],
+  "principals": [],
+  "release_bindings": [],
+  "schema_version": "sps-fixture-policy-v0"
+}

@@ -1,17 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: metatheory/MT-CM3-prefix-causal-release
+// entry: prefix_causal_release_bad
 // classification: seeded-semantic-harness
 // c source: ../c/prefix_causal_release_bad.c
 // upstream GitHub source: https://github.com/llvm/llvm-project/blob/173476ea0407cc037134370a651bb71e9f2dac04/mlir/test/Dialect/LLVMIR/roundtrip.mlir
 // upstream revision: 173476ea0407cc037134370a651bb71e9f2dac04
 // secret: %secret, declared by sps.label on the argument
 // public: the sps.sink_class public channel and the release policy identity
-// expected outcome: unsafe
-// observer/model: release-relative-public-channel
-// reason id: pre-release-observation
-// outstanding obligations: none
+// diagnostic focus: release-relative-public-channel
 // evidence boundary: L1 orders the observation before the release carrier; L2
 // replays two secrets whose authorized releases agree while the step-1 channel
 // words differ. No L3 or L4 claim.
@@ -54,7 +51,6 @@ module {
     // observable effect: the public channel word differs between two secrets
     // reason: the prefix-causal ledger cannot let a later release excuse step 1
     // detection boundary: L1 prefix-ordered release ledger over the entry
-    // expected-error @+1 {{pre-release-observation}}
     llvm.store %secret, %public_channel {sps.sink_class = "public"} : i32, !llvm.ptr
     %released = llvm.call @sps_release_policy_h_v1(%secret) : (i32) -> i32
     llvm.return

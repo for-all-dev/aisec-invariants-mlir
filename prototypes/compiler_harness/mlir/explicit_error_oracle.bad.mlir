@@ -1,7 +1,7 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: explicit PKCS#1 padding error oracle
+// entry: explicit_error_oracle_bad
 // classification: seeded-semantic-harness
 // c source: ../c/explicit_error_oracle_bad.c
 // upstream GitHub source: https://github.com/openssl/openssl/blob/1ca61aa56090356bbdbb16cf48916fbd9886c78d/crypto/rsa/rsa_pk1.c#L255-L271
@@ -9,10 +9,7 @@
 // secret: %padding_is_valid and %padding_error_detail
 // input invariant: %padding_is_valid is a well-formed Boolean in {0, 1}
 // public: %authorized_plaintext_length, public status, and public error detail
-// expected outcome: unsafe
-// observer/model: release-relative-padding-oracle
-// reason id: residual-leak-beyond-release
-// outstanding obligations: none
+// diagnostic focus: release-relative-padding-oracle
 // evidence boundary: L1 for the extra detail; L2 holds the sanctioned validity bit fixed
 //
 // CHECK-LABEL: llvm.func @explicit_error_oracle_bad
@@ -41,7 +38,6 @@ module {
     // observable effect: a caller reads the secret diagnostic from %public_error_detail
     // reason: equal validity bits with different padding details produce different public outputs
     // detection boundary: direct L1 output flow; L2 release-relative noninterference holds %status fixed
-    // expected-error @+1 {{residual-leak-beyond-release}}
     llvm.store %padding_error_detail, %public_error_detail : i32, !llvm.ptr
     llvm.return %authorized_plaintext_length : i32
   }

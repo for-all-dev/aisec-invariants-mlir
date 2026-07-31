@@ -1,4 +1,5 @@
 # REQUIRES: make, host-execution
 # RUN: %make -B -C %harness/c BUILD=%t.build HOST_CC=%host-cc check-equivalence | %FileCheck %s
+# RUN: %make -B -C %harness/c BUILD=%t.opt.build HOST_CC=%host-cc COMMON_CFLAGS='-std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -O2' check-equivalence | %FileCheck %s
 
 # CHECK: Equivalence and witness smoke checks passed

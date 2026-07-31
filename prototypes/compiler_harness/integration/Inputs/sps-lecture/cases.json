@@ -1,0 +1,159 @@
+{
+  "schema_version": "sps-lecture-fixture-contracts-v1",
+  "source_suite": "SPS/SPS_Lecture_Notes/artifacts/suite.logical.yaml",
+  "authority": {
+    "claimable": false,
+    "checker_status": "Unimplemented",
+    "current_status": "Pending",
+    "statement": "Expected classes are hand-authored fixture oracles, not current ModelStatus values."
+  },
+  "cases": [
+    {
+      "case_id": "01-secret-branch",
+      "capture_shape": "integration/Inputs/sps-lecture/01-secret-branch/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/01-secret-branch/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Counterexample",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Complete",
+      "coalition_rows": [
+        {"coalition": [], "expected": "CounterexampleCandidate"},
+        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": null,
+        "marker_symbol": null,
+        "ordering": "secret-branch-only"
+      }
+    },
+    {
+      "case_id": "02-branchless-repair",
+      "capture_shape": "integration/Inputs/sps-lecture/02-branchless-repair/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/02-branchless-repair/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Proved",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Complete",
+      "coalition_rows": [
+        {"coalition": [], "expected": "SafeCandidate"},
+        {"coalition": ["observer"], "expected": "SafeCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": null,
+        "marker_symbol": null,
+        "ordering": "branchless"
+      }
+    },
+    {
+      "case_id": "03-missing-placement",
+      "capture_shape": "integration/Inputs/sps-lecture/03-missing-placement/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/03-missing-placement/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Unknown",
+      "expected_reason": "PlacementMismatch",
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "GeneratedLater",
+      "coalition_rows": [
+        {"coalition": [], "expected": "Blocked(PlacementMismatch)"},
+        {"coalition": ["observer"], "expected": "Blocked(PlacementMismatch)"},
+        {"coalition": ["owner"], "expected": "Blocked(PlacementMismatch)"}
+      ],
+      "shape_contract": {
+        "release_id": null,
+        "marker_symbol": null,
+        "ordering": "branchless-return-placement-omitted"
+      }
+    },
+    {
+      "case_id": "04-authorized-release-first",
+      "capture_shape": "integration/Inputs/sps-lecture/04-authorized-release-first/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/04-authorized-release-first/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Proved",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Findings(IdentityReleaseOfHigh)",
+      "coalition_rows": [
+        {"coalition": [], "expected": "SafeCandidate"},
+        {"coalition": ["observer"], "expected": "SafeCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": "q.secret",
+        "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
+        "ordering": "release-before-branch"
+      }
+    },
+    {
+      "case_id": "05-branch-before-release",
+      "capture_shape": "integration/Inputs/sps-lecture/05-branch-before-release/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/05-branch-before-release/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Counterexample",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Findings(IdentityReleaseOfHigh)",
+      "coalition_rows": [
+        {"coalition": [], "expected": "CounterexampleCandidate"},
+        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": "q.secret",
+        "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
+        "ordering": "branch-before-release"
+      }
+    },
+    {
+      "case_id": "06-equal-release-stays-active",
+      "capture_shape": "integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/06-equal-release-stays-active/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Counterexample",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Complete",
+      "coalition_rows": [
+        {"coalition": [], "expected": "CounterexampleCandidate"},
+        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": "q.lowbit",
+        "marker_symbol": "__sps_release_emit_v1_28fe3bc98c4bf216de7f7bb9f982275a4b96866e157ce19cea364d25eda1f7ec",
+        "ordering": "equal-release-before-high-branch"
+      }
+    },
+    {
+      "case_id": "07-wrong-audience-stays-active",
+      "capture_shape": "integration/Inputs/sps-lecture/07-wrong-audience-stays-active/capture-shape.ll",
+      "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/07-wrong-audience-stays-active/frozen.ll.sketch",
+      "claimable": false,
+      "current_status": "Pending",
+      "expected_model_status_class": "Counterexample",
+      "expected_reason": null,
+      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
+      "expected_policy_review_status": "Complete",
+      "coalition_rows": [
+        {"coalition": [], "expected": "CounterexampleCandidate"},
+        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
+        {"coalition": ["owner"], "expected": "SafeCandidate"}
+      ],
+      "shape_contract": {
+        "release_id": "q.secret.owner",
+        "marker_symbol": "__sps_release_emit_v1_5bcbb1188a543432c3390638a0ae396ecc981822bce5ec6f551d7581e6d02779",
+        "ordering": "owner-release-before-branch-at-owner-only-host"
+      }
+    }
+  ]
+}

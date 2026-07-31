@@ -1,0 +1,11 @@
+# REQUIRES: clang, llvm-17.0.6, llvm-as, llvm-dis, x86-target
+#
+# LLVM 17 Clang output requires one textual disassemble/reassemble
+# normalization before it reaches the writer fixpoint. Keep this
+# producer-specific observation separate from the generic canonical-roundtrip
+# test, which must continue to run on newer LLVM versions.
+
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/c/argmax_release_body.c -o %t.b0.bc
+# RUN: %llvm-dis %t.b0.bc -o %t.b0.ll
+# RUN: %llvm-as %t.b0.ll -o %t.b1.bc
+# RUN: not cmp -s %t.b0.bc %t.b1.bc

@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: LeftoverLocals residual scratch model
+// entry: leftoverlocals_scratch_fixed
 // classification: reduced-runtime-model
 // c source: ../c/leftoverlocals_scratch_fixed.c
 // upstream GitHub source: https://github.com/trailofbits/LeftoverLocalsRelease
 // upstream revision: none -- exact behavior is GPU/driver dependent
 // secret: %prior_tenant_secret
 // public: next-tenant value, scratch address, output address, and domain policy
-// expected outcome: verified
-// observer/model: reduced-sequential-cross-tenant-output
-// reason id: cross-domain-state-reinitialized
-// outstanding obligations: none
+// diagnostic focus: reduced-sequential-cross-tenant-output
 // evidence boundary: L1 reduced sequential model; real cross-process GPU applicability remains L4
 //
 // CHECK-LABEL: llvm.func @leftoverlocals_scratch_fixed

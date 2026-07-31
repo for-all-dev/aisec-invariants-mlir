@@ -1,0 +1,68 @@
+{
+  "admission_constraints": [
+    {
+      "kind": "required-alias-realization",
+      "left": "p",
+      "realization": "EqualBase",
+      "right": "q"
+    }
+  ],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "p",
+        "relation": "MayAlias",
+        "right": "q"
+      },
+      {
+        "left": "p",
+        "relation": "Disjoint",
+        "right": "public_output"
+      },
+      {
+        "left": "q",
+        "relation": "Disjoint",
+        "right": "public_output"
+      }
+    ]
+  },
+  "arguments": [
+    {
+      "confidentiality": "High",
+      "index": 0,
+      "kind": "scalar",
+      "name": "secret"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 1,
+      "kind": "root",
+      "name": "p"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 2,
+      "kind": "root",
+      "name": "q"
+    },
+    {
+      "extent_bytes": 4,
+      "index": 3,
+      "kind": "root",
+      "name": "public_output",
+      "output": "world"
+    }
+  ],
+  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d",
+  "entry": "abi_alias_mayalias_overlap",
+  "initialized_regions": [
+    {
+      "offset": 0,
+      "root": "q",
+      "visibility": "world",
+      "width": 4
+    }
+  ],
+  "schema_version": "sps-fixture-abi-v0"
+}

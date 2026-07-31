@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s
 //
 // case: wolfssl/CVE-2026-3579 under a constant-latency helper test profile
+// entry: wolfssl_3579_mul_rv32_constant_latency_model
 // classification: modeled-test-profile
 // c source: ../c/wolfssl_3579_mul_vulnerable.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
 // upstream revision: b6fbfad945d4b98fce619b6e5b6561b3eca1205b
 // secret: %secret_a and %secret_b
 // public: selected target profile constant-latency-muldi3-test-v1
-// expected outcome: verified
-// observer/model: constant-latency-muldi3-test-v1
-// reason id: constant-latency-helper-contract
-// outstanding obligations: none
+// diagnostic focus: constant-latency-muldi3-test-v1
 // evidence boundary: L1 uses an explicit L0 test-profile contract; it makes no real-target L4 claim
 // artifact status: hand-written target-call model under a synthetic test profile
 //

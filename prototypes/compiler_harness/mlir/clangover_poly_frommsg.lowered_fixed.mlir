@@ -1,16 +1,14 @@
 // RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
 //
 // case: clangover/poly_frommsg
+// entry: clangover_poly_frommsg_fixed
 // classification: modeled-fixed-target
 // c source: ../c/clangover_poly_frommsg_fixed.c
 // upstream GitHub source: https://github.com/antoonpurnal/clangover/tree/7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
 // upstream revision: 7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
 // secret: %bit, one bit derived from the message byte
 // public: coefficient constant 1665 and helper arguments
-// expected outcome: verified
-// observer/model: in-module-x86-control-flow-timing
-// reason id: branchless-selection
-// outstanding obligations: none
+// diagnostic focus: in-module-x86-control-flow-timing
 // evidence boundary: L1 checks the in-module helper; L3 backend shape is tested separately
 // artifact status: hand-written target model; the helper body is included in the verified region
 //

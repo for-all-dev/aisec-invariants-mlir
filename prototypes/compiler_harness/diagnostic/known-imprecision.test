@@ -1,0 +1,7 @@
+# REQUIRES: sps-scan-unary
+# The exact product reason is secret-selected block-argument. These two unary
+# findings deliberately pin the current scanner's imprecision, not an SPS result.
+# RUN: %sps-scan --refine-address %harness/mlir/predecessor_choice_blockarg.bad.mlir | %FileCheck %s
+# CHECK: [secret-dependent-branch]
+# CHECK: [secret-to-public-sink]
+# CHECK: findings: 2

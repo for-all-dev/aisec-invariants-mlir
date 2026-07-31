@@ -1,0 +1,37 @@
+{
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880",
+  "component_visibility": {
+    "buffer": [
+      "attacker"
+    ],
+    "fallback": [
+      "attacker"
+    ],
+    "secret": []
+  },
+  "error_visibility": {},
+  "fixed_observation_model": "Theta_ct",
+  "invocation_scope": "SingleInvocation",
+  "maximal_adversary_coalitions": [
+    [
+      "attacker"
+    ]
+  ],
+  "output_visibility": {
+    "owner_private_result": [
+      "owner"
+    ]
+  },
+  "placement": [
+    {
+      "entry": "launder_scan_model_proved",
+      "host": "host0"
+    }
+  ],
+  "principals": [
+    "attacker",
+    "owner"
+  ],
+  "release_bindings": [],
+  "schema_version": "sps-fixture-policy-v0"
+}

@@ -1,0 +1,22 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/definedness.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family definedness | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i32 @asymmetric_udiv_zero(i1 %secret, i32 %x)
+# SHAPE: %divisor = select i1 %secret, i32 0, i32 1
+# SHAPE-NEXT: %quotient = udiv i32 %x, %divisor
+# SHAPE-LABEL: define i32 @aligned_udiv_zero(i32 %x)
+# SHAPE: %quotient = udiv i32 %x, 0
+# SHAPE-LABEL: define i32 @out_of_range_shift(i1 %secret, i32 %x)
+# SHAPE: %amount = select i1 %secret, i32 32, i32 33
+# SHAPE-NEXT: %shifted = shl i32 %x, %amount
+# SHAPE-LABEL: define i8 @uninitialized_load()
+# SHAPE: %slot = alloca i8
+# SHAPE-NEXT: %value = load i8, ptr %slot
+# SHAPE-NOT: store
+
+# CONTRACT: verified definedness: 4 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

@@ -1,0 +1,6 @@
+# REQUIRES: sps-scan-unary
+#
+# Unary diagnostic candidate only: this does not establish an SPS ModelStatus.
+# RUN: %sps-scan --refine-address %harness/mlir/bound_secret_trip_count.bad.mlir | %FileCheck %s
+# CHECK: [secret-dependent-branch] llvm.cond_br
+# CHECK: findings: 1

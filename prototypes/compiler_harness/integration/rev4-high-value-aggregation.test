@@ -1,0 +1,6 @@
+# The checker below executes the strict public-result priority rule over seven
+# hand-authored obligation sets.  It is still a fixture oracle, not SPSRunReportV1.
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family aggregation | %FileCheck %s
+
+# CHECK: verified aggregation: 7 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

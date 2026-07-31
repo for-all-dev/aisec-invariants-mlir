@@ -1,21 +1,18 @@
 // RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --verify-diagnostics
 //
 // case: wolfssl/CVE-2026-3579
+// entry: wolfssl_3579_mul_rv32_bad_model
 // classification: modeled-from-verified-assembly
 // c source: ../c/wolfssl_3579_mul_vulnerable.c
 // upstream GitHub source: https://github.com/wolfSSL/wolfssl/blob/b6fbfad945d4b98fce619b6e5b6561b3eca1205b/wolfcrypt/src/sp_c32.c
 // upstream revision: b6fbfad945d4b98fce619b6e5b6561b3eca1205b
 // secret: %secret_a and %secret_b
 // public: selected target profile affected-rv32i-muldi3-v1
-// expected outcome: unsafe
-// observer/model: affected-rv32i-muldi3-v1
-// reason id: secret-dependent-variable-latency-call
-// outstanding obligations: none
+// diagnostic focus: affected-rv32i-muldi3-v1
 // evidence boundary: L1 under the attached L0 contract; applying the profile to a real helper requires L4 evidence
 // artifact status: hand-written target model; generated RV32I assembly verifies only the __muldi3 call shape
 // contract status: helper latency is an assumed target-profile fact, not a fact derived from this MLIR
-// real-target applicability: conditional until L4 validates the affected helper-timing profile
+// deployment boundary: Open until paired P4 validates the affected helper-timing profile
 //
 // CHECK-LABEL: llvm.func @__muldi3
 // CHECK-SAME: sps.contract_status = "assumed_l0_target_fact"
@@ -42,8 +39,7 @@ module {
     // secret source: both operands to @__muldi3 are secret
     // observable effect: the attached affected-rv32i-muldi3-v1 contract makes helper latency operand-dependent
     // reason: both relevant operands cross into a timing-observable helper under the selected profile
-    // detection boundary: L1 reports unsafe from the attached L0 contract; without any helper summary the result is unknown, while proving it is L4
-    // expected-error @+1 {{secret-dependent-variable-latency-call}}
+    // detection boundary: unary L1 emits a timing-risk finding; ModelStatus remains separate and P4 closes deployment applicability
     %product = llvm.call @__muldi3(%secret_a, %secret_b) : (i64, i64) -> i64
     llvm.return %product : i64
   }
