@@ -1,5 +1,5 @@
 ; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, tier
-; PreflightV1.
+; CandidateOnly.
 ;
 ; The NF-A05 companion that does NOT reach zero. A private, non-escaping
 ; <4 x i32> staging buffer looks like the same lane-wise pattern, and

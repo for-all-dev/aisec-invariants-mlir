@@ -1,5 +1,5 @@
 ; HAND-AUTHORED FUTURE CAPTURE SHAPE. This is LLVM 17-readable source for a
-; Pending PreflightV1 contract, not frozen LLVM 22.1.8 artifact.bc and not an
+; Pending CandidateOnly contract, not frozen LLVM 22.1.8 artifact.bc and not an
 ; SPS theorem input. The future materializer must recapture and bind stable IDs.
 ;
 ; The public selector gives the entry two static top-level return sites. The

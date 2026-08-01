@@ -26,7 +26,7 @@
 # These checks make no ModelStatus claim.
 
 # --- emitted bitcode, and its canonical form -------------------------------
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/c/argmax_release_body.c -o %t.b0.bc
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/integration/Inputs/release-body-fragments/argmax_release_body.c -o %t.b0.bc
 # RUN: %llvm-dis %t.b0.bc -o %t.b0.ll
 # RUN: %llvm-as %t.b0.ll -o %t.b1.bc
 
@@ -52,7 +52,7 @@
 # Canonicalisation is not a filter. A module the audit must reject still
 # round-trips cleanly and still contains the rejected construct afterwards, so a
 # funnel shift cannot be laundered by a serialise/parse cycle.
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/c/sha256_round_release_body.c -o %t.h0.bc
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %harness/integration/Inputs/release-body-fragments/sha256_round_release_body.c -o %t.h0.bc
 # RUN: %llvm-dis %t.h0.bc -o %t.h0.ll
 # RUN: %llvm-as %t.h0.ll -o %t.h1.bc
 # RUN: %llvm-dis %t.h1.bc -o %t.h1.ll

@@ -1,0 +1,49 @@
+// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
+//
+// scope note: preflight diagnostic fixed-mask target model; compiler-conformance evidence separately compares backend output
+// artifact status: hand-written fixed target model
+// annotation boundary: sps.label/sps.sink_class are unary preflight hints;
+// sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
+//
+// CHECK-LABEL: llvm.func @wolfssl_3580_select_fixed
+// CHECK-SAME: %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[SCAN:[a-zA-Z0-9_]+]]: i32, %[[VALUE:[a-zA-Z0-9_]+]]: i32
+// CHECK-NOT: llvm.cond_br
+// CHECK: %[[ZERO:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
+// CHECK: %[[ONE:[0-9]+]] = llvm.mlir.constant(1 : i32) : i32
+// CHECK: %[[SHIFT:[0-9]+]] = llvm.mlir.constant(31 : i32) : i32
+// CHECK: %[[DIFF:[0-9]+]] = llvm.xor %[[SCAN]], %[[SECRET]]
+// CHECK: %[[NEGATED:[0-9]+]] = llvm.sub %[[ZERO]], %[[DIFF]]
+// CHECK: %[[EITHER:[0-9]+]] = llvm.or %[[DIFF]], %[[NEGATED]]
+// CHECK: %[[TOP:[0-9]+]] = llvm.lshr %[[EITHER]], %[[SHIFT]]
+// CHECK-NOT: llvm.cond_br
+// CHECK: %[[IS_ZERO:[0-9]+]] = llvm.xor %[[TOP]], %[[ONE]]
+// CHECK: %[[MASK:[0-9]+]] = llvm.sub %[[ZERO]], %[[IS_ZERO]] {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]}
+// CHECK: %[[SELECTED:[0-9]+]] = llvm.and %[[VALUE]], %[[MASK]]
+// CHECK-NOT: llvm.cond_br
+// CHECK: llvm.return %[[SELECTED]]
+module {
+  llvm.func @wolfssl_3580_select_fixed(
+      %table_index: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},
+      %scan_index: i32,
+      %table_value: i32) -> i32 {
+    %zero = llvm.mlir.constant(0 : i32) : i32
+    %one = llvm.mlir.constant(1 : i32) : i32
+    %thirty_one = llvm.mlir.constant(31 : i32) : i32
+    %x = llvm.xor %scan_index, %table_index : i32
+    %neg_x = llvm.sub %zero, %x : i32
+    %nonzero_bits = llvm.or %x, %neg_x : i32
+    %top = llvm.lshr %nonzero_bits, %thirty_one : i32
+    %is_zero = llvm.xor %top, %one : i32
+    // PREFLIGHT CONTROL: branchless equality mask
+    // secret source: %table_index contributes only to mask dataflow
+    // safe effect: every scan iteration performs the same control flow and table access pattern
+    // reason: equality is converted to a full-word mask instead of selecting a successor
+    // preflight expectation: preflight diagnostic accepts this target model when the target profile gives these ops constant timing
+    %mask = llvm.sub %zero, %is_zero {
+      sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"],
+      sps.observable_candidate = ["control", "timing"]
+    } : i32
+    %selected = llvm.and %table_value, %mask : i32
+    llvm.return %selected : i32
+  }
+}

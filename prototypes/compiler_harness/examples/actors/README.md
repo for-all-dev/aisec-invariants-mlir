@@ -3,7 +3,7 @@
 These MLIR files are live design notes outside the enforced corpus. They parse
 and pin shapes, but their comment rows are not verifier output. The main
 machine-checked future-oracle example is the candidate bundle at
-`../../artifacts/audience-mismatch/`.
+`../../fixtures/audience-mismatch/bad/candidate/`.
 
 ## Why every derived coalition needs a row
 
@@ -56,6 +56,6 @@ maximal coalition. Omitting any derived row is still nonconforming.
 Example rows name the actual workflow boundary: `AuditAll` with raw
 `SAT`/`UNSAT`, `CandidateOnly`/`Discharged`, a separate replay expectation, or
 `NotConstructed` with a closed reason. These are harness expectations, not
-computed `PublicQueryResultRowV1` values. Rev4 has exactly one artifact-scoped
+computed `PublicQueryResultRowV2` values. Rev4.1 has exactly one artifact-scoped
 `ModelStatus`; a candidate becomes `Counterexample(receiptId)` only after exact
 replay reaches `Bad_A`.

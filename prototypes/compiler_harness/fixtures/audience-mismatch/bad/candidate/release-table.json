@@ -1,0 +1,30 @@
+{
+  "format_id": "SPS-Harness-Candidate-Release-Table-v2",
+  "entries": [
+    {
+      "id": "masked_class_candidate",
+      "audience": [
+        "alice"
+      ],
+      "carrier": {
+        "callee": "sps_release_masked_class_candidate",
+        "ordinal": 0
+      },
+      "value_expression": {
+        "kind": "bit-vector-and",
+        "argument": 0,
+        "constant": 255,
+        "width": 32
+      },
+      "guard_expression": {
+        "kind": "boolean-literal",
+        "value": true
+      },
+      "footprint": [
+        "logits"
+      ],
+      "multiplicity": 1
+    }
+  ],
+  "candidate_bitcode_sha256": "cb072a96fe7d7d66e6bb7709b15cd6ee1df4cfe82660466db9636beb798556df"
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Syntactic surface gate for two Rev4 normal-form residue questions.
 
-This is a harness-owned `PreflightV1` scanner. It answers two purely
+This is a harness-owned `CandidateOnly` scanner. It answers two purely
 *syntactic* questions about one textual LLVM module:
 
 `--profile fp-closure`
@@ -19,7 +19,7 @@ This is a harness-owned `PreflightV1` scanner. It answers two purely
 
 WHAT THIS TOOL DOES NOT DO. It does not compute `NFConforms`, a `ModelStatus`,
 a `DeploymentStatus`, or a `PolicyReviewStatus`; it does not build a relational
-product, a replay, or a receipt; it does not read an `ArtifactIdentityV1`; and
+product, a replay, or a receipt; it does not read an `ArtifactIdentityV2`; and
 it has never seen LLVM 22.1.8. An empty rejected set is textual silence about
 one opcode list in one file, not `NoAmbiguousNaNResult_e(T)` and not a proof.
 The reason-class names it prints are *harness expectation* strings recording
@@ -35,7 +35,7 @@ import argparse
 import re
 import sys
 
-FORMAT_ID = "SPS-Harness-Surface-Gate-v1"
+FORMAT_ID = "SPS-Harness-Surface-Gate-v2"
 
 # NF-A02 / Lemma R5.0N rejected surface: FP arithmetic, FP-width conversion,
 # and FP/integer numeric conversion. `fneg` is deliberately absent: R5.0N
@@ -141,7 +141,7 @@ def emit_header(profile: str, path: str) -> None:
 
 def emit_boundary() -> None:
     print(
-        "SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated "
+        "SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated "
         "model_status=NotComputed deployment_status=NotComputed"
     )
     print(

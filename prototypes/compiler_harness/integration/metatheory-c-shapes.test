@@ -7,7 +7,7 @@
 # them as ABI topology, policy semantics, or a ModelStatus; the sidecar checks
 # bind those higher-level facts separately.
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/abi_alias_unproved.c -o %t.alias.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/abi-alias/sources/abi_alias_unproved.c -o %t.alias.ll
 # RUN: %FileCheck %s --check-prefix=ALIAS --implicit-check-not=noalias --input-file=%t.alias.ll
 
 # ALIAS-LABEL: define{{.*}} @abi_alias_missing_binding(
@@ -35,7 +35,7 @@
 # ALIAS: %[[D_OUT:.*]] = load ptr, ptr %public_output.addr
 # ALIAS-NEXT: store i32 %[[D_VALUE]], ptr %[[D_OUT]]
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/alloca_size_models.c -o %t.alloca.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/alloca-size/sources/alloca_size_models.c -o %t.alloca.ll
 # RUN: %FileCheck %s --check-prefixes=ALLOCA-HIGH,ALLOCA-PUBLIC --input-file=%t.alloca.ll
 
 # ALLOCA-HIGH-LABEL: define{{.*}} @alloca_size_high_count(
@@ -54,12 +54,12 @@
 # ALLOCA-PUBLIC: %vla = alloca i8, i64 %[[PUBLIC64]]
 # ALLOCA-PUBLIC: store volatile ptr %vla, ptr @scratch_escape
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/audience_mismatch_bad.c -o %t.audience.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/audience-mismatch/sources/audience_mismatch_bad.c -o %t.audience.ll
 # RUN: %FileCheck %s --check-prefix=AUDIENCE --input-file=%t.audience.ll
 
 # AUDIENCE-LABEL: define{{.*}} @audience_mismatch_bad(
 # AUDIENCE: %[[LOGITS:.*]] = load i32, ptr %logits.addr
-# AUDIENCE-NEXT: %[[RELEASED:.*]] = call i32 @sps_release_masked_class_v1(i32 {{.*}}%[[LOGITS]])
+# AUDIENCE-NEXT: %[[RELEASED:.*]] = call i32 @sps_release_masked_class_candidate(i32 {{.*}}%[[LOGITS]])
 # AUDIENCE-NEXT: store i32 %[[RELEASED]], ptr %released
 # AUDIENCE-NEXT: %[[ALICE_VALUE:.*]] = load i32, ptr %released
 # AUDIENCE-NEXT: %[[ALICE:.*]] = load ptr, ptr %alice_channel.addr
@@ -68,7 +68,7 @@
 # AUDIENCE-NEXT: %[[BOB:.*]] = load ptr, ptr %bob_channel.addr
 # AUDIENCE-NEXT: store i32 %[[BOB_VALUE]], ptr %[[BOB]]
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/bound_exhausted_loop.c -o %t.bound.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/loop-bounds/sources/bound_exhausted_loop.c -o %t.bound.ll
 # RUN: %FileCheck %s --check-prefix=BOUND --input-file=%t.bound.ll
 
 # BOUND-LABEL: define{{.*}} @bound_secret_trip_count_bad(
@@ -82,7 +82,7 @@
 # BOUND-NEXT: %[[PUBLIC_CMP:.*]] = icmp slt i32 %[[PUBLIC_I]], %[[PUBLIC_COUNT]]
 # BOUND-NEXT: br i1 %[[PUBLIC_CMP]]
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/precision_controls.c -o %t.precision.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/precision-control/sources/precision_controls.c -o %t.precision.ll
 # RUN: %FileCheck %s --check-prefix=PRECISION --input-file=%t.precision.ll
 
 # PRECISION-LABEL: define{{.*}} @identical_successor_control(
@@ -120,7 +120,7 @@
 # PRECISION-NEXT: %[[RELOAD_ADDRESS:.*]] = getelementptr inbounds i8, ptr %[[RELOAD_BUFFER]], i64 8
 # PRECISION-NEXT: %[[RELOADED:.*]] = load i8, ptr %[[RELOAD_ADDRESS]]
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/predecessor_choice_blockarg_bad.c -o %t.predecessor.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/predecessor-choice/sources/predecessor_choice_blockarg_bad.c -o %t.predecessor.ll
 # RUN: %FileCheck %s --check-prefix=PREDECESSOR --input-file=%t.predecessor.ll
 
 # PREDECESSOR-LABEL: define{{.*}} @predecessor_choice_blockarg_bad(
@@ -131,7 +131,7 @@
 # PREDECESSOR: store i32 20, ptr %selected
 # PREDECESSOR: load i32, ptr %selected
 
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %harness/c/prefix_causal_release_bad.c -o %t.prefix.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/prefix-causal-release/sources/prefix_causal_release_bad.c -o %t.prefix.ll
 # RUN: %FileCheck %s --check-prefix=PREFIX --input-file=%t.prefix.ll
 
 # PREFIX-LABEL: define{{.*}} @prefix_causal_release_bad(
@@ -140,4 +140,4 @@
 # PREFIX: %[[CHANNEL:.*]] = load ptr, ptr %public_channel.addr
 # PREFIX-NEXT: store i32 %[[SECRET]], ptr %[[CHANNEL]]
 # PREFIX: %[[RELEASE_INPUT:.*]] = load i32, ptr %secret.addr
-# PREFIX-NEXT: call i32 @sps_release_policy_h_v1(i32 {{.*}}%[[RELEASE_INPUT]])
+# PREFIX-NEXT: call i32 @sps_release_policy_h_candidate(i32 {{.*}}%[[RELEASE_INPUT]])

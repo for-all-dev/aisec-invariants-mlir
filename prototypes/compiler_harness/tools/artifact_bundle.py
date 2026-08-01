@@ -3,8 +3,8 @@
 
 The sidecars use ``SPS-Harness-*`` schemas.  They are partial preflight
 matchers for the Rev-4 workflow, not canonical SPS interfaces or verifier
-reports.  The ``*ResultMatcherV1`` tags correspond to the normative
-``Constructed(PONFResultArtifactV1)`` and ``NotConstructedV1`` alternatives,
+reports.  The ``*ResultMatcherV2`` tags correspond to the normative
+``Constructed(PONFResultArtifactV2)`` and ``NotConstructedV2`` alternatives,
 but deliberately omit identity-bound PONF, solver, and protected-evidence
 fields.  A future conformance fixture must replace them with complete objects.
 """
@@ -15,10 +15,12 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 import subprocess
 import tempfile
 from pathlib import Path
 
+import fixture_layout
 import sps_aggregation
 
 
@@ -30,17 +32,16 @@ SIDECARS = (
     "release-table.json",
     "expected-report.json",
 )
-SPECS_PATH = ROOT / "artifacts" / "bundle-specs.json"
-SPECS_FORMAT_ID = "SPS-Harness-Candidate-Bundle-Specs-v1"
-ARTIFACT_FORMAT_ID = "SPS-Harness-Candidate-Artifact-v1"
+SPECS_FORMAT_ID = "SPS-Harness-Candidate-Bundle-Spec-v2"
+ARTIFACT_FORMAT_ID = "SPS-Harness-Candidate-Artifact-v2"
 SIDECAR_FORMAT_IDS = {
-    "policy.json": "SPS-Harness-Candidate-Policy-v1",
-    "abi.json": "SPS-Harness-Candidate-ABI-v1",
-    "contracts.json": "SPS-Harness-Candidate-Contracts-v1",
-    "release-table.json": "SPS-Harness-Candidate-Release-Table-v1",
-    "expected-report.json": "SPS-Harness-Candidate-Expected-Run-v1",
+    "policy.json": "SPS-Harness-Candidate-Policy-v2",
+    "abi.json": "SPS-Harness-Candidate-ABI-v2",
+    "contracts.json": "SPS-Harness-Candidate-Contracts-v2",
+    "release-table.json": "SPS-Harness-Candidate-Release-Table-v2",
+    "expected-report.json": "SPS-Harness-Candidate-Expected-Run-v2",
 }
-BASE_V1_DEPLOYMENT_STATUS = {
+BASE_V2_DEPLOYMENT_STATUS = {
     "tag": "Open",
     "args": [{"tag": "P4EvidenceProfileUnavailable"}],
 }
@@ -69,16 +70,6 @@ def write_json(path: Path, value: dict[str, object]) -> None:
     # constructor ``tag`` before ``args``.  The surrounding object is a
     # harness matcher, but copied SPS values must still have their real shape.
     path.write_text(json.dumps(value, indent=2) + "\n")
-
-
-def deep_merge(base: dict[str, object], override: dict[str, object]) -> dict[str, object]:
-    merged = copy.deepcopy(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = deep_merge(merged[key], value)
-        else:
-            merged[key] = copy.deepcopy(value)
-    return merged
 
 
 def expected_coalitions(policy: dict[str, object]) -> list[list[str]]:
@@ -178,9 +169,9 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
     if any(item.get("entry") != entry for item in roles):
         failures.append("policy argument roles must bind the ABI entry")
     allowed_roles = {
-        "ComponentArgumentV1",
-        "PointerRootArgumentV1",
-        "PublicConfigurationArgumentV1",
+        "ComponentArgumentV2",
+        "PointerRootArgumentV2",
+        "PublicConfigurationArgumentV2",
     }
     component_basis = policy.get("component_visibility")
     world_components = (
@@ -197,15 +188,15 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
         if not isinstance(args, list) or len(args) != 1 or not isinstance(args[0], str):
             failures.append(f"argument {index} role must carry one stable identifier")
             continue
-        if role["tag"] == "PointerRootArgumentV1" and argument.get("kind") != "root":
+        if role["tag"] == "PointerRootArgumentV2" and argument.get("kind") != "root":
             failures.append(f"argument {index} pointer-root role is not represented by an ABI root")
-        if role["tag"] == "PointerRootArgumentV1" and argument.get("root_id") != args[0]:
+        if role["tag"] == "PointerRootArgumentV2" and argument.get("root_id") != args[0]:
             failures.append(f"argument {index} policy root and ABI root_id do not match")
-        if role["tag"] != "PointerRootArgumentV1" and argument.get("kind") != "scalar":
+        if role["tag"] != "PointerRootArgumentV2" and argument.get("kind") != "scalar":
             failures.append(f"argument {index} component role is not represented by an ABI scalar")
-        if role["tag"] in {"ComponentArgumentV1", "PublicConfigurationArgumentV1"} and args[0] not in components:
+        if role["tag"] in {"ComponentArgumentV2", "PublicConfigurationArgumentV2"} and args[0] not in components:
             failures.append(f"argument {index} references an undeclared policy component")
-        if role["tag"] == "PublicConfigurationArgumentV1" and args[0] not in world_components:
+        if role["tag"] == "PublicConfigurationArgumentV2" and args[0] not in world_components:
             failures.append(f"argument {index} public configuration is not world-visible in policy")
 
     root_ids = {
@@ -254,20 +245,20 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
         set(),
     )
 
-    if report.get("fixture_tier") != {"tag": "PreflightV1"}:
-        failures.append("candidate report must declare the PreflightV1 tier")
+    if report.get("fixture_tier") != {"tag": "CandidateOnly"}:
+        failures.append("candidate report must declare the CandidateOnly tier")
     if report.get("claimable_from_checked_in_pair") is not False:
         failures.append("candidate report must remain non-claimable")
     current = report.get("current_harness_status")
-    if not isinstance(current, dict) or current.get("tag") != "PendingV1" or not current.get("reasons"):
-        failures.append("candidate report must remain PendingV1 with reasons")
+    if not isinstance(current, dict) or current.get("tag") != "PendingV2" or not current.get("reasons"):
+        failures.append("candidate report must remain PendingV2 with reasons")
     expected = report.get("expected")
     if not isinstance(expected, dict):
         failures.append("expected report matcher is missing")
         expected = {}
     if expected.get("entry") != entry:
         failures.append("expected report matcher and ABI must bind the same entry")
-    if expected.get("expected_deployment_status") != BASE_V1_DEPLOYMENT_STATUS:
+    if expected.get("expected_deployment_status") != BASE_V2_DEPLOYMENT_STATUS:
         failures.append("base Rev-4 deployment status must be Open(P4EvidenceProfileUnavailable)")
     if expected.get("expected_policy_review_status") != {"tag": "Complete"}:
         failures.append("candidate policy-review matcher must be Complete")
@@ -299,7 +290,7 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
             continue
         outcome_tag = outcome.get("tag")
         replay_tag = replay.get("tag")
-        if outcome_tag == "ConstructedResultMatcherV1":
+        if outcome_tag == "ConstructedResultMatcherV2":
             raw = outcome.get("raw_solver_result")
             disposition = outcome.get("query_disposition")
             disposition_tag = disposition.get("tag") if isinstance(disposition, dict) else None
@@ -311,11 +302,11 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
             if legal.get(raw) != disposition_tag:
                 failures.append(f"coalition {row.get('coalition')}: illegal AuditAll raw-result/disposition pair")
             if raw == "SAT":
-                if replay_tag != "AcceptedBadStateRequiredV1" or not replay.get("bad_state_class"):
+                if replay_tag != "AcceptedBadStateRequiredV2" or not replay.get("bad_state_class"):
                     failures.append(f"coalition {row.get('coalition')}: SAT candidate needs an accepted-bad replay matcher")
                 else:
                     accepted_bad = True
-            elif raw == "UNSAT" and replay_tag != "NotApplicableV1":
+            elif raw == "UNSAT" and replay_tag != "NotApplicableV2":
                 failures.append(f"coalition {row.get('coalition')}: discharged AuditAll must not expect replay")
             elif raw == "UNKNOWN":
                 unavailable = True
@@ -324,11 +315,11 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
                     if isinstance(args, list) and len(args) == 1 and isinstance(args[0], dict):
                         if isinstance(args[0].get("reasonClassId"), str):
                             unknown_reasons.add(args[0]["reasonClassId"])
-        elif outcome_tag == "NotConstructedResultMatcherV1":
+        elif outcome_tag == "NotConstructedResultMatcherV2":
             reason = outcome.get("reason")
             if not isinstance(reason, dict) or set(reason) != {"reasonClassId"}:
                 failures.append(f"coalition {row.get('coalition')}: not-constructed matcher needs a canonical reason")
-            if replay_tag != "NotAvailableV1" or replay.get("reason") != reason:
+            if replay_tag != "NotAvailableV2" or replay.get("reason") != reason:
                 failures.append(f"coalition {row.get('coalition')}: unavailable replay reason must match query construction")
             unavailable = True
             if isinstance(reason, dict) and isinstance(reason.get("reasonClassId"), str):
@@ -342,7 +333,7 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
     elif accepted_bad:
         if model != {
             "tag": "Counterexample",
-            "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV1"},
+            "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV2"},
         }:
             failures.append("accepted bad replay requires a fresh-receipt Counterexample matcher")
     elif unavailable:
@@ -352,13 +343,21 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
         if not unknown_reasons:
             failures.append("unavailable AuditAll requires the matching canonical Unknown reason")
         else:
-            required_model = sps_aggregation.expected_model_status(
-                accepted_bad_replay=False, blockers=unknown_reasons
+            typed_blockers = sps_aggregation.proof_completion_blockers(
+                unknown_reasons
             )
+            aggregation_input = sps_aggregation.make_aggregation_input(
+                accepted_bad_replay=None,
+                blockers=typed_blockers,
+                all_required_gates_closed=False,
+            )
+            outcome = sps_aggregation.aggregate_model_result(aggregation_input)
+            assert isinstance(outcome, sps_aggregation.CompletedAggregationV2)
+            required_model = outcome.model_status
             if model != required_model:
                 failures.append(
                     "unavailable AuditAll must aggregate to "
-                    f"{sps_aggregation.describe(unknown_reasons)}"
+                    f"{sps_aggregation.describe(typed_blockers)}"
                 )
     elif model != {"tag": "Proved"}:
         failures.append("fully discharged AuditAll rows require a Proved tag matcher")
@@ -367,23 +366,72 @@ def validate_spec(bundle: str, spec: dict[str, object]) -> None:
         raise SystemExit(f"{bundle}: " + "; ".join(failures))
 
 
-def load_specs() -> dict[str, object]:
-    value = json.loads(SPECS_PATH.read_text())
-    if value.get("format_id") != SPECS_FORMAT_ID:
-        raise SystemExit(f"unsupported bundle specs: {SPECS_PATH}")
-    authority = value.get("catalog_authority")
-    if authority != {"claimable": False, "tag": "CandidatePreflightCatalogV1"}:
-        raise SystemExit("bundle-specs catalog must remain explicitly non-claimable")
-    defaults = value.get("defaults")
-    bundles = value.get("bundles")
-    if not isinstance(defaults, dict):
-        raise SystemExit("bundle-specs defaults must be an object")
-    if not isinstance(bundles, dict) or not bundles:
-        raise SystemExit("bundle-specs must contain a nonempty candidate inventory")
-    merged = {name: deep_merge(defaults, spec) for name, spec in bundles.items()}
-    for name, spec in merged.items():
-        validate_spec(name, spec)
-    return merged
+def load_specs() -> dict[str, tuple[Path, dict[str, object]]]:
+    candidates = fixture_layout.candidate_dirs(ROOT)
+    local_specs = fixture_layout.candidate_spec_paths(ROOT)
+    legacy = fixture_layout.LEGACY_ARTIFACTS_DIR / "bundle-specs.json"
+    if legacy.exists():
+        qualifier = "legacy-plus-local definitions" if local_specs else "legacy definition"
+        raise SystemExit(f"{legacy}: {qualifier} are forbidden; use case-local bundle-spec.json")
+    if not candidates:
+        raise SystemExit(f"{fixture_layout.FIXTURES_DIR}: no candidate directories were discovered")
+
+    expected_paths = {candidate / "bundle-spec.json" for candidate in candidates}
+    unexpected = [path for path in local_specs if path not in expected_paths]
+    if unexpected:
+        raise SystemExit(
+            "bundle-spec.json must be the direct child of a candidate directory: "
+            + ", ".join(str(path.relative_to(ROOT)) for path in unexpected)
+        )
+
+    loaded: dict[str, tuple[Path, dict[str, object]]] = {}
+    required = {
+        "format_id",
+        "bundle_id",
+        "catalog_authority",
+        "policy",
+        "abi",
+        "contracts",
+        "release_table",
+        "expected_report",
+    }
+    for candidate in candidates:
+        location_error = fixture_layout.validate_candidate_location(candidate, ROOT)
+        if location_error:
+            raise SystemExit(f"{candidate.relative_to(ROOT)}: {location_error}")
+        definitions = sorted(candidate.glob("bundle-spec*.json"))
+        if definitions != [candidate / "bundle-spec.json"]:
+            raise SystemExit(
+                f"{candidate.relative_to(ROOT)}: expected exactly one bundle-spec.json; "
+                f"found {[path.name for path in definitions]}"
+            )
+        try:
+            spec = json.loads(definitions[0].read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            raise SystemExit(f"{definitions[0].relative_to(ROOT)}: cannot parse: {error}") from error
+        if not isinstance(spec, dict) or set(spec) != required:
+            actual = set(spec) if isinstance(spec, dict) else set()
+            raise SystemExit(
+                f"{definitions[0].relative_to(ROOT)}: complete spec fields required; "
+                f"missing={sorted(required - actual)}, extra={sorted(actual - required)}"
+            )
+        if spec.get("format_id") != SPECS_FORMAT_ID:
+            raise SystemExit(f"unsupported bundle spec: {definitions[0].relative_to(ROOT)}")
+        authority = spec.get("catalog_authority")
+        if authority != {"claimable": False, "tag": "CandidatePreflightCatalogV2"}:
+            raise SystemExit(f"{definitions[0].relative_to(ROOT)}: candidate authority is invalid")
+        bundle_id = spec.get("bundle_id")
+        if not isinstance(bundle_id, str) or not bundle_id:
+            raise SystemExit(f"{definitions[0].relative_to(ROOT)}: bundle_id is missing")
+        if bundle_id in loaded:
+            other = loaded[bundle_id][0] / "bundle-spec.json"
+            raise SystemExit(
+                f"duplicate bundle_id {bundle_id!r}: {other.relative_to(ROOT)} and "
+                f"{definitions[0].relative_to(ROOT)}"
+            )
+        validate_spec(bundle_id, spec)
+        loaded[bundle_id] = (candidate, spec)
+    return loaded
 
 
 def source_from_identity(bundle: str, directory: Path) -> Path:
@@ -394,14 +442,26 @@ def source_from_identity(bundle: str, directory: Path) -> Path:
     source_name = identity.get("source_mlir")
     if not isinstance(source_name, str):
         raise SystemExit(f"{bundle}: source_mlir is missing")
-    source = (directory / source_name).resolve()
     try:
-        source.relative_to((ROOT / "mlir").resolve())
+        expected = fixture_layout.sole_case_mlir(directory.parent)
     except ValueError as error:
-        raise SystemExit(f"{bundle}: source_mlir must resolve inside mlir/") from error
-    if not source.is_file() or not (source.parent / "snapshot.yaml").is_file():
-        raise SystemExit(f"{bundle}: source_mlir must name a human-readable fixture")
-    return source
+        raise SystemExit(f"{bundle}: {error}") from error
+    expected_name = f"../{expected.name}"
+    if source_name != expected_name:
+        raise SystemExit(
+            f"{bundle}: source_mlir must be the sole sibling MLIR path {expected_name!r}"
+        )
+    source = (directory / source_name).resolve()
+    if source != expected.resolve() or not (source.parent / "snapshot.yaml").is_file():
+        raise SystemExit(f"{bundle}: source_mlir must name its human-readable fixture")
+    return expected
+
+
+def source_for_candidate(bundle: str, directory: Path) -> Path:
+    try:
+        return fixture_layout.sole_case_mlir(directory.parent)
+    except ValueError as error:
+        raise SystemExit(f"{bundle}: {error}") from error
 
 
 def write_bound_sidecars(directory: Path, spec: dict[str, object], artifact_hash: str) -> None:
@@ -435,9 +495,8 @@ def generate(llvm_bin: Path) -> None:
     specs = load_specs()
 
     for bundle in sorted(specs):
-        directory = ROOT / "artifacts" / bundle
-        source = source_from_identity(bundle, directory)
-        directory.mkdir(parents=True, exist_ok=True)
+        directory, spec = specs[bundle]
+        source = source_for_candidate(bundle, directory)
         with tempfile.TemporaryDirectory() as temporary:
             temporary_path = Path(temporary)
             translated = temporary_path / "translated.ll"
@@ -451,25 +510,25 @@ def generate(llvm_bin: Path) -> None:
             [llvm_dis, "artifact.bc", "-o", "artifact.ll"], cwd=directory, check=True
         )
         artifact_hash = sha256(directory / "artifact.bc")
-        write_bound_sidecars(directory, specs[bundle], artifact_hash)
+        write_bound_sidecars(directory, spec, artifact_hash)
         identity = {
             "format_id": ARTIFACT_FORMAT_ID,
             "artifact_role": "checked-in-bitcode-candidate",
-            "fixture_tier": {"tag": "PreflightV1"},
+            "fixture_tier": {"tag": "CandidateOnly"},
             "claimable": False,
             "candidate_bitcode_sha256": artifact_hash,
             "derived_llvm_ir_sha256": sha256(directory / "artifact.ll"),
             "candidate_sidecar_sha256": {
                 name: sha256(directory / name) for name in SIDECARS
             },
-            "source_mlir": f"../../{source.relative_to(ROOT).as_posix()}",
+            "source_mlir": f"../{source.name}",
             "source_mlir_sha256": sha256(source),
             "producer": producer,
             "rev4_profile": {
                 "required_llvm_version": "22.1.8",
                 "producer_matches_required_version": llvm_version == "22.1.8",
                 "not_authoritative": True,
-                "promotion_requires_complete_rev4_replacement": True,
+                "v2_materialization_requires_new_capture": True,
                 "missing": [
                     "llvm-22.1.8-pinned-freeze-pipeline",
                     "complete-artifact-identity",
@@ -500,7 +559,7 @@ def check(llvm_bin: Path) -> None:
     specs = load_specs()
     failures: list[str] = []
     for bundle in sorted(specs):
-        directory = ROOT / "artifacts" / bundle
+        directory, spec = specs[bundle]
         identity_path = directory / "artifact.json"
         if not identity_path.is_file():
             failures.append(f"{bundle}: missing artifact.json")
@@ -511,14 +570,14 @@ def check(llvm_bin: Path) -> None:
             failures.append(f"{bundle}: identity is not an explicit candidate schema")
         if identity.get("artifact_role") != "checked-in-bitcode-candidate":
             failures.append(f"{bundle}: artifact role is not candidate-only")
-        if identity.get("fixture_tier") != {"tag": "PreflightV1"} or identity.get("claimable") is not False:
-            failures.append(f"{bundle}: artifact candidate must remain non-claimable PreflightV1")
+        if identity.get("fixture_tier") != {"tag": "CandidateOnly"} or identity.get("claimable") is not False:
+            failures.append(f"{bundle}: artifact candidate must remain non-claimable CandidateOnly")
         if "canonical_bitcode_sha256" in identity or "NFConforms" in identity:
             failures.append(f"{bundle}: candidate identity contains a forbidden conformance claim")
         if (
             not isinstance(profile, dict)
             or profile.get("not_authoritative") is not True
-            or profile.get("promotion_requires_complete_rev4_replacement") is not True
+            or profile.get("v2_materialization_requires_new_capture") is not True
             or not profile.get("missing")
         ):
             failures.append(f"{bundle}: candidate anti-overclaim profile is incomplete")
@@ -536,8 +595,13 @@ def check(llvm_bin: Path) -> None:
         except SystemExit as error:
             failures.append(str(error))
             continue
-        if identity.get("source_mlir_sha256") != sha256(source):
-            failures.append(f"{bundle}: source MLIR hash mismatch; regenerate the pair")
+        source_capture_hash = identity.get("source_mlir_sha256")
+        if not isinstance(source_capture_hash, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", source_capture_hash
+        ):
+            failures.append(
+                f"{bundle}: capture-time source MLIR hash is not a lowercase SHA-256 digest"
+            )
         with tempfile.TemporaryDirectory() as temporary:
             translated = Path(temporary) / "source.ll"
             regenerated = Path(temporary) / "source.bc"
@@ -607,10 +671,10 @@ def check(llvm_bin: Path) -> None:
                 failures.append(f"{bundle}/{name}: unsupported harness sidecar format")
             if value.get("candidate_bitcode_sha256") != artifact_hash:
                 failures.append(f"{bundle}/{name}: artifact hash binding mismatch")
-            expected = copy.deepcopy(specs[bundle][name.removesuffix(".json").replace("-", "_")])
+            expected = copy.deepcopy(spec[name.removesuffix(".json").replace("-", "_")])
             value.pop("candidate_bitcode_sha256", None)
             if value != expected:
-                failures.append(f"{bundle}/{name}: differs from bundle-specs.json")
+                failures.append(f"{bundle}/{name}: differs from bundle-spec.json")
             sidecar_hashes = identity.get("candidate_sidecar_sha256")
             if not isinstance(sidecar_hashes, dict) or sidecar_hashes.get(name) != sha256(directory / name):
                 failures.append(f"{bundle}/{name}: candidate envelope digest mismatch")

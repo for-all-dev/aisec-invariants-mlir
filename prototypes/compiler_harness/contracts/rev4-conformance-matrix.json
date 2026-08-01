@@ -1,8 +1,8 @@
 {
   "schema_version": "SPS-Harness-Rev4-Conformance-Matrix-v2",
-  "authority": "SPS_Rev4_LLVM_Normal_Form_and_Conformance_Profile.md sections 15-16",
-  "status_meaning": "A seed preserves a relevant shape or expected disposition; it is not a passing conformance test until recaptured by LLVM 22.1.8 and executed by the Rev4 verifier.",
-  "tier_rule": "preflight-seed cases preserve review shapes only; only a conformance fixture may exercise NFConforms or match SPSRunReportV1",
+  "authority": "SPS Rev4.1 corrigendum and SPS-LLVM-NF-v2 acceptance/countermodel ledger",
+  "status_meaning": "A seed preserves a relevant shape or expected disposition; a capability-gated seed is UNSUPPORTED until patched LLVM or the exact verifier is present. Neither kind is itself a conformance result.",
+  "tier_rule": "preflight-seed cases preserve review shapes only; only a Rev4.1 conformance fixture may exercise NFConforms or match SPSRunReportV2",
   "required_conformance_fixture_records": [
     "artifact.bc",
     "artifact-identity.sps.json",
@@ -19,8 +19,8 @@
       "title": "Exact byte replay to core ISel",
       "expected": "NFConforms may hold after freeze, fresh parse, equal canonical hash, and mutation-free replay to core ISel",
       "harness_status": "infrastructure-seed",
-      "seeds": ["artifacts/pairs.test"],
-      "gap": "Current pairs prove only exact bc/ll disassembly and reassembly under LLVM 17.0.6; freeze capture, pass trace, LLVM 22.1.8 audit, and ISel replay remain absent"
+      "seeds": ["integration/candidate-bundles/pairs.test", "integration/nfv2-release-codegen.test"],
+      "gap": "Current pairs prove only exact candidate bc/ll disassembly and reassembly. The NFv2 test contracts one-to-one SPS_RELEASE lowering and zero-code removal but is capability-gated until patched LLVM exists; canonical freeze capture, pass trace, full audit, and exact ISel replay remain absent"
     },
     {
       "id": "NF-A02",
@@ -33,9 +33,10 @@
     {
       "id": "NF-A03",
       "title": "Safe annotation weakening",
-      "expected": "Accept the final verified module after only permitted annotation weakening",
-      "harness_status": "pending",
-      "seeds": []
+      "expected": "SPSFinalWeaken_v2 may remove only permitted annotations and must preserve every llvm.sps.release occurrence through subsequent DCE and fresh parse",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/nfv2-release-intrinsic-preservation.test"],
+      "gap": "The executable preservation contract covers O1/O2/O3/Os/Oz, SPSFinalWeaken_v2, DCE, bitcode round-trip, and fresh parse, but remains UNSUPPORTED until patched LLVM provides the intrinsic and weakening pass"
     },
     {
       "id": "NF-A04",
@@ -69,11 +70,11 @@
     },
     {
       "id": "NF-A08",
-      "title": "Outlined release wrapper equivalence",
-      "expected": "Accept an occurrence-preserved release carrier only after exact count, ABI-role, and local expression/guard equivalence checks",
+      "title": "NFv2 release intrinsic binding and equivalence",
+      "expected": "Accept exactly one bound llvm.sps.release occurrence whose variadic integer leaves equal flattened ReleaseType; obtain ReleaseId only through ReleaseImplementationBindingV2.emitMarkerInstructionId and discharge expression/guard equivalence",
       "harness_status": "preflight-seed",
-      "seeds": ["integration/rev4-high-value-release-marker.test"],
-      "gap": "Twenty-one carrier and binding variants are pinned as nonclaimable oracles; exact carrier equivalence, PONF construction, and replay remain unimplemented"
+      "seeds": ["integration/nfv2-release-intrinsic-contract.test", "integration/invalid-callable-high-value-markers.test"],
+      "gap": "Twenty textual NFv2 structural cases now distinguish ReleaseCarrierMismatch from unresolved ReleaseConformanceUnknown. The 21 callable-wrapper cases are retained only as invalid-carrier negative evidence; exact semantic equivalence, PONF construction, and replay remain unimplemented"
     },
     {
       "id": "NF-A09",
@@ -129,7 +130,7 @@
       "title": "Target-bound timing-risk lint",
       "expected": "Emit timing-risk records without changing NFConforms or ModelStatus; leave DeploymentStatus Open absent paired P4 evidence",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/launder-scan", "mlir/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
+      "seeds": ["fixtures/launder-scan/model-clean-p4-open/candidate", "fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
       "gap": "The select and division shapes are seeds only; no normative TimingRiskLintRecord is emitted"
     },
     {
@@ -168,14 +169,14 @@
       "title": "Public-bound exhaustion discarded",
       "expected": "Counterexample after replay for a lane mismatch, otherwise Unknown(LoopRemainder); never Proved",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/bound-exhausted-public"]
+      "seeds": ["fixtures/loop-bounds/public-bound-exhausted-unknown/candidate"]
     },
     {
       "id": "NF-CM06",
       "title": "Divergent controls forced into lockstep",
       "expected": "AuditAll SAT remains CandidateOnly until exact replay reaches Bad_A; the final public result is Counterexample(receiptId)",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/bound-secret-trip-count", "mlir/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir"]
+      "seeds": ["fixtures/loop-bounds/secret-trip-count-bad/candidate", "fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir"]
     },
     {
       "id": "NF-CM07",
@@ -201,7 +202,7 @@
       "title": "ABI separation inferred from LLVM",
       "expected": "Unknown(AliasBindingMismatch)",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/abi-alias-missing-binding", "artifacts/abi-alias-mayalias-overlap", "artifacts/abi-alias-disjoint"]
+      "seeds": ["fixtures/abi-alias/missing-binding-unknown/candidate", "fixtures/abi-alias/mayalias-overlap-bad/candidate", "fixtures/abi-alias/disjoint-control/candidate"]
     },
     {
       "id": "NF-CM10",

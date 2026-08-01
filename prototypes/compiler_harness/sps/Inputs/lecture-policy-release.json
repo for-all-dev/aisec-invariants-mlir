@@ -1,14 +1,14 @@
 {
-  "formatId": "SPS-Harness-Lecture-Policy-Release-v1",
+  "formatId": "SPS-Harness-Lecture-Policy-Release-v2",
   "authority": {
     "tier": {
-      "tag": "PreflightV1"
+      "tag": "CandidateOnly"
     },
     "claimable": false,
     "nf_conforms": "NotEvaluated",
     "model_status": "NotComputed",
     "deployment_status": "NotComputed",
-    "statement": "Harness transcription of the DECLARED policy visibility bases and release audiences shared by the seven lecture cases. It exists so tools/check_sps_run_report.py can DERIVE the exact ReleasePolicyLintV1 list from the normative predicates in specification sections 12 and 19 instead of mirroring a lecture expected.logical.yaml. It is not a canonical SPS PolicyManifest or ReleaseTable, carries no digest, and computes no ModelStatus."
+    "statement": "Harness transcription of the DECLARED policy visibility bases and release audiences shared by the seven lecture cases. It exists so tools/check_sps_run_report.py can DERIVE the exact ReleasePolicyLintV2 list from the normative predicates in specification sections 12 and 19 instead of mirroring a lecture expected.logical.yaml. It is not a canonical SPS PolicyManifest or ReleaseTable, carries no digest, and computes no ModelStatus."
   },
   "transcribed_from": [
     "SPS/SPS_Lecture_Notes/artifacts/common/policy-manifest.logical.yaml",

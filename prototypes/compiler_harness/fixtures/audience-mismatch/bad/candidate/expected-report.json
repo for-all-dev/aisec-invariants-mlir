@@ -1,0 +1,98 @@
+{
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+  "fixture_tier": {
+    "tag": "CandidateOnly"
+  },
+  "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
+  "current_harness_status": {
+    "tag": "PendingV2",
+    "reasons": [
+      "sps-verifier-not-implemented",
+      "llvm-22.1.8-nf-recapture-required"
+    ]
+  },
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV2"
+        }
+      },
+      {
+        "coalition": [
+          "alice"
+        ],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV2"
+        }
+      },
+      {
+        "coalition": [
+          "bob"
+        ],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "SAT",
+          "query_disposition": {
+            "tag": "CandidateOnly"
+          }
+        },
+        "replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV2",
+          "bad_state_class": "bob-visible-output-while-release-obligation-active"
+        }
+      },
+      {
+        "coalition": [
+          "alice",
+          "bob"
+        ],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV2"
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
+      ]
+    },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
+    "entry": "audience_mismatch_bad",
+    "expected_model_status": {
+      "tag": "Counterexample",
+      "receipt_matcher": {
+        "tag": "FreshProtectedReceiptMatcherV2"
+      }
+    }
+  },
+  "candidate_bitcode_sha256": "cb072a96fe7d7d66e6bb7709b15cd6ee1df4cfe82660466db9636beb798556df"
+}

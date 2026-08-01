@@ -10,11 +10,12 @@ LIT_BUILD_ROOT ?= $(HARNESS_DIR)/build/lit
 RISCV_GCC ?=
 SPS_SCAN ?=
 SPS_VERIFIER ?=
-SPS_TEACHING_MATERIALIZED ?=
-SPS_ERROR_MATERIALIZED ?=
+SPS_REV41_MATERIALIZED ?=
+SPS_INTERFACE_ROOT ?=
 
 .PHONY: check check-shape check-mlir check-integration check-diagnostic \
-	check-sps check-artifacts check-p4-risk check-contracts list-tests \
+	check-sps check-candidates check-artifacts check-p4-risk check-contracts \
+	check-interfaces list-tests \
 	list-fixture-status \
 	bootstrap-lit require-lit
 
@@ -22,12 +23,11 @@ check: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
-	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
-	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
+	  SPS_REV41_MATERIALIZED="$(SPS_REV41_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)"
-	@if [ -z "$(SPS_VERIFIER)" ] || { [ -z "$(SPS_TEACHING_MATERIALIZED)" ] && [ -z "$(SPS_ERROR_MATERIALIZED)" ]; }; then \
-	  echo "SKIPPED: no executable Rev4 verifier/materialized conformance bundle; no ModelStatus was computed"; \
+	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_REV41_MATERIALIZED)" ]; then \
+	  echo "SKIPPED: no exact Rev4.1 V2 verifier/materialized bundle; no ModelStatus was computed"; \
 	fi
 
 check-shape: require-lit
@@ -35,7 +35,7 @@ check-shape: require-lit
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/mlir"
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/fixtures"
 
 check-mlir: check-shape
 
@@ -55,23 +55,30 @@ check-diagnostic: require-lit
 check-sps: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
-	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
-	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
+	  SPS_REV41_MATERIALIZED="$(SPS_REV41_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/sps"
-	@if [ -z "$(SPS_VERIFIER)" ] || { [ -z "$(SPS_TEACHING_MATERIALIZED)" ] && [ -z "$(SPS_ERROR_MATERIALIZED)" ]; }; then \
-	  echo "SKIPPED: no executable Rev4 verifier/materialized conformance bundle; no ModelStatus was computed"; \
+	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_REV41_MATERIALIZED)" ]; then \
+	  echo "SKIPPED: no exact Rev4.1 V2 verifier/materialized bundle; no ModelStatus was computed"; \
 	fi
 
-check-artifacts: require-lit
+check-candidates: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
-	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/artifacts"
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/integration/candidate-bundles"
+
+check-artifacts: check-candidates
 
 check-contracts: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/contracts"
+
+check-interfaces: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" SPS_INTERFACE_ROOT="$(SPS_INTERFACE_ROOT)" \
+	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/contracts/sps-interface-drift.test"
 
 check-p4-risk: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
@@ -83,8 +90,7 @@ list-tests: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
-	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
-	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
+	  SPS_REV41_MATERIALIZED="$(SPS_REV41_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) --show-tests "$(HARNESS_DIR)"
 

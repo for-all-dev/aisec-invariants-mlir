@@ -106,6 +106,8 @@ void abi_alias_mayalias_overlap(unsigned secret, unsigned *p, unsigned *q,
                                 unsigned *public_output);
 void abi_alias_disjoint_control(unsigned secret, unsigned *p, unsigned *q,
                                 unsigned *public_output);
+void abi_alias_explicit_same_actual(unsigned secret, unsigned *shared,
+                                    unsigned *public_output);
 void alloca_size_high_count(int secret_bit, unsigned *public_sink);
 void alloca_size_public_control(unsigned public_count, unsigned *public_sink);
 uint32_t argmax_release_body(const int32_t logits[10]);
@@ -124,7 +126,7 @@ unsigned xor_cancellation_control(unsigned secret);
 unsigned overwritten_slot_control(unsigned secret, unsigned public_value);
 unsigned offset_disjoint_control(unsigned char *buffer, unsigned secret_byte,
                                  unsigned public_value);
-uint32_t sps_release_p_v1(uint32_t raw, uint32_t public_mask);
+uint32_t sps_release_invalid_callable(uint32_t raw, uint32_t public_mask);
 void release_carrier(uint32_t raw, uint32_t mask_a, uint32_t mask_b,
                      uint32_t *sink);
 uint32_t sha256_round_release_body(uint32_t e, uint32_t f, uint32_t g,
@@ -313,6 +315,8 @@ static void check_remaining_models(void) {
   expect_u64("ABI missing-binding body overlap behavior", out, 0x1234u);
   abi_alias_mayalias_overlap(0x5678u, &p, &p, &out);
   expect_u64("ABI may-alias overlap witness", out, 0x5678u);
+  abi_alias_explicit_same_actual(0x9abcu, &p, &out);
+  expect_u64("ABI explicit same-actual witness", out, 0x9abcu);
   q = 0x9abcu;
   abi_alias_disjoint_control(0xdef0u, &p, &q, &out);
   expect_u64("ABI disjoint public reload", out, 0x9abcu);
@@ -386,7 +390,7 @@ static void check_remaining_models(void) {
   expect_u64("offset-disjoint secret byte", buffer[4], 0x55u);
   expect_u64("offset-disjoint public byte", buffer[8], 0x66u);
 
-  expect_u64("release wrapper", sps_release_p_v1(0xf3u, 0x3cu), 0x30u);
+  expect_u64("release wrapper", sps_release_invalid_callable(0xf3u, 0x3cu), 0x30u);
   release_carrier(0xf3u, 0x0fu, 0xf0u, carrier);
   expect_u64("release carrier first occurrence", carrier[0], 0x03u);
   expect_u64("release carrier second occurrence", carrier[1], 0xf0u);

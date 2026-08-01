@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: abi_alias_explicit_same_actual
+
+c_evidence:
+  - ../sources/abi_alias_explicit_same_actual.c
+
+secret:
+  - {arg: 0, name: secret}
+
+public:
+  - {memory_at_arg: 2, name: public_output}
+
+expect: violation
+
+because:
+  - the wrapper passes the same shared pointer to both helper pointer slots
+  - the helper reloads the secret through that shared object into public_output
+
+sps: not-run

@@ -33,7 +33,7 @@
 // `authorized_by` policy on its own.
 //
 // CHECK-LABEL: llvm.func @serve_with_auditor
-// CHECK: llvm.call @sps_release_masked_class_v1
+// CHECK: llvm.call @sps_release_masked_class_candidate
 // CHECK-SAME: sps.authorized_by = "alice"
 module attributes {
   sps.principals = ["alice", "auditor"],
@@ -43,32 +43,32 @@ module attributes {
     {item = "logits", visible_to = ["alice"]}
   ],
 
-  // Unchanged from t3: only "auditor" may authorize masked_class_v1.
+  // Unchanged from t3: only "auditor" may authorize masked_class_candidate.
   sps.release_policies = [
-    {id = "masked_class_v1", authorizers = ["auditor"], audience = ["alice"],
-     function = "mask-low-byte", carrier = "@sps_release_masked_class_v1"}
+    {id = "masked_class_candidate", authorizers = ["auditor"], audience = ["alice"],
+     function = "mask-low-byte", carrier = "@sps_release_masked_class_candidate"}
   ],
 
   sps.placement = [{func = "@serve_with_auditor", host = "host_eu"}]
 } {
-  llvm.func @sps_release_masked_class_v1(i32) -> i32
+  llvm.func @sps_release_masked_class_candidate(i32) -> i32
 
   llvm.func @serve_with_auditor(
       %logits: i32 {sps.label = "high", sps.item = "logits"},
       %alice_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["alice"]},
       %auditor_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["auditor"]}) {
 
-    // THE ONLY DIFFERENCE FROM t3: alice is not an authorizer of masked_class_v1, so
+    // THE ONLY DIFFERENCE FROM t3: alice is not an authorizer of masked_class_candidate, so
     // this authorization is invalid and no release is established here.
     //
     // CONFIDENTIALITY ERROR: declassification by a principal with no authority
     // secret source: %logits is declared high and is the sole operand of this carrier call
     // observable effect: raw logits 7 and 9 reach alice_channel unchanged and unequal
-    // reason: alice is absent from masked_class_v1's authorizers in this integrity sketch
+    // reason: alice is absent from masked_class_candidate's authorizers in this integrity sketch
     // extension fixture check: a future integrity semantics must validate
     // authorized_by separately and independently replay the 7/9 candidate
-    %released = llvm.call @sps_release_masked_class_v1(%logits)
-        {sps.release_id = "masked_class_v1", sps.authorized_by = "alice"} : (i32) -> i32
+    %released = llvm.call @sps_release_masked_class_candidate(%logits)
+        {sps.release_id = "masked_class_candidate", sps.authorized_by = "alice"} : (i32) -> i32
 
     // Now unauthorized even for alice: the premise that would have equalized
     // this store never came into existence.

@@ -1,0 +1,19 @@
+# The patched LLVM intrinsic is not required here. A harness-owned structural
+# checker makes the Rev4.1 carrier and failure-class boundary executable on the
+# stock toolchain without claiming NFConforms or a ModelStatus.
+#
+# RUN: %python %harness/tools/check_nfv2_release_contract.py %harness/integration/Inputs/sps-nfv2-release/cases.json | %FileCheck %s
+
+# CHECK: valid-mixed-width: AcceptedPreflight
+# CHECK: release-id-operand-forbidden: ReleaseCarrierMismatch(ReleaseIdOperandForbidden)
+# CHECK: missing-binding: ReleaseCarrierMismatch(MissingInstructionBinding)
+# CHECK: ambiguous-binding: ReleaseCarrierMismatch(AmbiguousInstructionBinding)
+# CHECK: stale-binding: ReleaseCarrierMismatch(StaleInstructionBinding)
+# CHECK: wrong-release-binding: ReleaseCarrierMismatch(WrongReleaseBinding)
+# CHECK: unresolved-equivalence: ReleaseConformanceUnknown(UnresolvedReleaseEquivalence)
+# CHECK: legacy-function-carrier: ReleaseCarrierMismatch(LegacyFunctionCarrier)
+# CHECK: legacy-outlined-wrapper: ReleaseCarrierMismatch(LegacyOutlinedWrapperCarrier)
+# CHECK: legacy-inline-asm: ReleaseCarrierMismatch(LegacyInlineAsmCarrier)
+# CHECK: metadata-only: ReleaseCarrierMismatch(MetadataOnlyCarrier)
+# CHECK: store-only: ReleaseCarrierMismatch(StoreOnlyCarrier)
+# CHECK: verified 20 NFv2 release-carrier contract cases; claimable=false; ModelStatus=not-computed

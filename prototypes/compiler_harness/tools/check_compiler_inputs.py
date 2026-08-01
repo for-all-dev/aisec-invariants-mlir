@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import fixture_layout
 
 ROOT = Path(__file__).resolve().parent.parent
 EXCLUDED_PARTS = frozenset({".git", ".venv", "__pycache__", "build"})
@@ -41,8 +42,8 @@ def check(llvm_bin: Path) -> None:
     mlir_translate = required_tool(llvm_bin, "mlir-translate")
     opt = required_tool(llvm_bin, "opt")
 
-    c_sources = sorted((ROOT / "c").glob("*.c"))
-    mlir_sources = sorted((ROOT / "mlir").rglob("*.mlir"))
+    c_sources = fixture_layout.compiler_c_sources(ROOT)
+    mlir_sources = fixture_layout.fixture_mlir_paths(ROOT)
     llvm_sources = checked_in_files(".ll")
     bitcode_sources = checked_in_files(".bc")
     mir_sources = checked_in_files(".mir")

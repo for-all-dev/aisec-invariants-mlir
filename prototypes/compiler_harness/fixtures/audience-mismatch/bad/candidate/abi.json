@@ -1,0 +1,40 @@
+{
+  "format_id": "SPS-Harness-Candidate-ABI-v2",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "logits",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "alice_channel",
+      "kind": "root",
+      "root_id": "alice-channel",
+      "extent_bytes": 4,
+      "output": "alice-channel"
+    },
+    {
+      "index": 2,
+      "name": "bob_channel",
+      "kind": "root",
+      "root_id": "bob-channel",
+      "extent_bytes": 4,
+      "output": "bob-channel"
+    }
+  ],
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "alice-channel",
+        "right": "bob-channel",
+        "relation": "Disjoint"
+      }
+    ]
+  },
+  "initialized_regions": [],
+  "entry": "audience_mismatch_bad",
+  "candidate_bitcode_sha256": "cb072a96fe7d7d66e6bb7709b15cd6ee1df4cfe82660466db9636beb798556df"
+}

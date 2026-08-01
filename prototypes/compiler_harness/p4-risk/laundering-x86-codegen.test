@@ -2,7 +2,7 @@
 #
 # Laundering: secret-dependent branch introduced in emitted x86 assembly.
 #
-# This is P4-risk evidence for mlir/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir. The
+# This is P4-risk evidence for fixtures/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir. The
 # LLVM ModelStatus is independent; the backend branch keeps DeploymentStatus
 # Open until paired final-binary refinement closes it.
 #
@@ -10,16 +10,16 @@
 #    from unconditional to conditional -- so the memory event trace becomes
 #    secret-dependent as well as the timing.
 
-# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %harness/c/launder_scan_bad.c -o %t.bad.s
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/sources/launder_scan_bad.c -o %t.bad.s
 # RUN: %FileCheck %s --check-prefix=ASM-BAD --input-file=%t.bad.s
 # ASM-BAD: testl
 # ASM-BAD: je
 
-# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %harness/c/launder_scan_folded_bad.c -o %t.folded.s
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/sources/launder_scan_folded_bad.c -o %t.folded.s
 # RUN: %FileCheck %s --check-prefix=ASM-FOLDED --input-file=%t.folded.s
 # ASM-FOLDED: je
 
 # The barrier form has no conditional jump in emitted assembly.
-# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %harness/c/launder_scan_fixed.c -o %t.fixed.s
+# RUN: %clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/sources/launder_scan_fixed.c -o %t.fixed.s
 # RUN: %FileCheck %s --check-prefix=ASM-FIXED --input-file=%t.fixed.s
 # ASM-FIXED-NOT: je

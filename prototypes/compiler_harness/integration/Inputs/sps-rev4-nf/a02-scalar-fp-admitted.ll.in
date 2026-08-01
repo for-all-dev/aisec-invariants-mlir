@@ -1,5 +1,5 @@
 ; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, not a
-; canonical frozen Rev4 artifact.bc. Tier PreflightV1.
+; canonical frozen Rev4 artifact.bc. Tier CandidateOnly.
 ;
 ; NF-A02 "Closed scalar arithmetic surface" admits:
 ;   - flag-free modulo integer arithmetic;

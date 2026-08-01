@@ -1,0 +1,21 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: audience_mismatch_bad
+
+c_evidence:
+  - ../sources/audience_mismatch_bad.c
+
+secret:
+  - {arg: 0, name: logits}
+
+public:
+  - {memory_at_arg: 2, name: bob_channel}
+
+allowed:
+  - only Alice may observe the released class
+
+expect: violation
+
+because:
+  - a release authorized only for Alice is also stored to Bob's channel
+
+sps: not-run

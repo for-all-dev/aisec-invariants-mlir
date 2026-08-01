@@ -1,15 +1,18 @@
 # REQUIRES: mlir-translate
 #
+# RETIRED NFv2-NEGATIVE EXPERIMENT. This test only demonstrates why the old
+# callable surrogate cannot satisfy the Rev4.1 intrinsic-carrier contract.
+#
 # MLIR-only policy attributes are not carried into LLVM IR. The LLVM
 # passthrough pins survive, but the SPS release ID and expression do not. Pin
 # that boundary so no downstream consumer assumes the theorem object contains
 # policy that was already discarded during translation.
 
-# RUN: %mlir-translate --mlir-to-llvmir %harness/mlir/release-carrier/pinned-control/release_carrier_pinned.control.mlir -o %t.ll
+# RUN: %mlir-translate --mlir-to-llvmir %fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir -o %t.ll
 # RUN: %FileCheck %s --check-prefix=LLVM --implicit-check-not='sps.' --input-file=%t.ll
 
-# LLVM-LABEL: define i32 @sps_release_p_v1(
+# LLVM-LABEL: define i32 @sps_release_invalid_callable(
 # LLVM-SAME: #[[ATTRS:[0-9]+]]
 # LLVM-LABEL: define void @release_carrier_pinned_control(
-# LLVM: call i32 @sps_release_p_v1
+# LLVM: call i32 @sps_release_invalid_callable
 # LLVM: attributes #[[ATTRS]] = { nobuiltin noduplicate noinline nomerge }

@@ -1,0 +1,20 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: clangover_poly_frommsg_fixed
+
+c_evidence:
+  - ../sources/clangover_ct_cmov.c
+  - ../sources/clangover_poly_frommsg_fixed.c
+
+secret:
+  - {arg: 0, name: bit}
+
+public:
+  - {observable: control}
+  - {observable: timing}
+
+expect: no-violation
+
+because:
+  - the included helper selects through mask dataflow without a conditional branch
+
+sps: not-run

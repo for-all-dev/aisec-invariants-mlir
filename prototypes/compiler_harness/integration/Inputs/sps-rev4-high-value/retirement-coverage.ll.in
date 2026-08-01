@@ -22,24 +22,26 @@
 ;                              may still differ at bit 7 afterwards.
 ;
 ; The harness records a retirement statistic over these two entries.  It does not
-; compute a ModelStatus for either of them.
+; compute a ModelStatus for either of them.  This is a retired Rev4.0/V2
+; semantic scaffold: its callable markers are NFv2-negative carriers, not a
+; claim that this file conforms to SPS-LLVM-NF-v2.
 
-declare void @__sps_release_emit_v1_1111111111111111111111111111111111111111111111111111111111111111(i64) #1
-declare void @__sps_release_emit_v1_2222222222222222222222222222222222222222222222222222222222222222(i64) #1
+declare void @__sps_invalid_callable_emit_1111111111111111111111111111111111111111111111111111111111111111(i64) #1
+declare void @__sps_invalid_callable_emit_2222222222222222222222222222222222222222222222222222222222222222(i64) #1
 
 ; Pinned outlined release wrappers (five preservation pins, one direct marker
 ; call each).  Carrier conformance is exercised by the release-marker family;
-; these exist so the retirement fixture releases through an admissible shape
-; rather than calling the reserved marker straight from an entry.
+; these retain the formerly admissible V2 shape so the retirement-only model
+; remains readable. They are not admissible NFv2 release carriers.
 define internal void @emit_digest(i64 %value) #0 {
 entry:
-  call ccc void @__sps_release_emit_v1_1111111111111111111111111111111111111111111111111111111111111111(i64 %value) #1
+  call ccc void @__sps_invalid_callable_emit_1111111111111111111111111111111111111111111111111111111111111111(i64 %value) #1
   ret void
 }
 
 define internal void @emit_low_bit(i64 %value) #0 {
 entry:
-  call ccc void @__sps_release_emit_v1_2222222222222222222222222222222222222222222222222222222222222222(i64 %value) #1
+  call ccc void @__sps_invalid_callable_emit_2222222222222222222222222222222222222222222222222222222222222222(i64 %value) #1
   ret void
 }
 

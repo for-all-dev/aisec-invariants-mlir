@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: wolfssl_3580_select_fixed
+
+c_evidence:
+  - ../sources/wolfssl_3580_mask_fixed.c
+
+secret:
+  - {arg: 0, name: table_index}
+
+public:
+  - {observable: control}
+  - {observable: timing}
+
+expect: no-violation
+
+because:
+  - a branchless arithmetic mask keeps target-model control independent of the secret
+
+sps: not-run

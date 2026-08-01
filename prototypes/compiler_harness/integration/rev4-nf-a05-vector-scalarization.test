@@ -72,7 +72,7 @@
 # A05-AFTER-NEXT: summary: masked-memory-intrinsic-call-sites=0
 # A05-AFTER-NEXT: summary: residual-vector-item-count=0
 # A05-AFTER-NEXT: SPS-Harness-Expectation: NF-A05 residual vector inventory is empty for this module; acceptance still requires the Rev4 audit, which this scan does not perform
-# A05-AFTER-NEXT: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# A05-AFTER-NEXT: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
 
 # Independently of the gate: the raw text has no vector type token left.
 # RUN: not grep -qE '<[0-9]+ x ' %t.a05.after.ll

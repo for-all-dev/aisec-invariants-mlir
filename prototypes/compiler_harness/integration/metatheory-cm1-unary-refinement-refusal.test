@@ -26,7 +26,7 @@
 #    section 17 says that until a closed serialization, validation algorithm,
 #    stable failure mapping, and authenticated restricted-storage binding
 #    exist, "`P4EvidenceBundle` is a mathematical metavariable only and
-#    `DeploymentClosed(C,I)` is not an implementable V1 status constructor",
+#    `DeploymentClosed(C,I)` is not an implementable V2 status constructor",
 #    and base-profile tools "must report `Open(P4EvidenceProfileUnavailable)`".
 #    Nothing here validates a P4 bundle -- there is no such validator, and
 #    building one is not what this test is for. It checks the refusal.
@@ -41,7 +41,7 @@
 # RUN: %t.witness > %t.witness.out
 # RUN: %FileCheck %s --check-prefix=WITNESS --input-file=%t.witness.out
 
-# WITNESS: MT-CM1 two-run witness; tier=PreflightV1; no status is computed
+# WITNESS: MT-CM1 two-run witness; tier=CandidateOnly; no status is computed
 # WITNESS: ideal one-run trace set: send_length(64) send_length(128)
 # Each single concrete run is inside the ideal set: unary refinement holds.
 # WITNESS: unary h=0: send_length(64) in-ideal-set=yes
@@ -94,25 +94,26 @@
 # RUN: cp %harness/c/check_harness.py %t.root/c/check_harness.py
 # RUN: cp %harness/tools/check_sps_lecture_cases.py %t.root/tools/check_sps_lecture_cases.py
 # RUN: cp %harness/tools/sps_aggregation.py %t.root/tools/sps_aggregation.py
-# RUN: cp -R %harness/artifacts %t.root/artifacts
+# RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
+# RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
 # RUN: cp -R %harness/contracts %t.root/contracts
-# RUN: cp -R %harness/mlir %t.root/mlir
+# RUN: cp -R %fixtures %t.root/fixtures
 # RUN: cp -R %harness/integration %t.root/integration
 # RUN: cp -R %harness/p4-risk %t.root/p4-risk
 # RUN: %python %t.root/c/check_harness.py artifacts
 
 # A candidate bundle claims Closed(P4EvidenceBundle) and repairs its own
 # recorded sidecar digest, so nothing but the status itself is wrong.
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/artifacts/abi-alias-disjoint'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v1'}]}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/disjoint-control/candidate'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v2'}]}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.root/c/check_harness.py artifacts > %t.closed.out 2>&1
 # RUN: %FileCheck %s --check-prefix=CLOSED --input-file=%t.closed.out
-# CLOSED: artifacts/abi-alias-disjoint/expected-report.json: checked-in candidate deployment must remain Open(P4EvidenceProfileUnavailable)
+# CLOSED: fixtures/abi-alias/disjoint-control/candidate/expected-report.json: checked-in candidate deployment must remain Open(P4EvidenceProfileUnavailable)
 # RUN: grep -c '^error' %t.closed.out | %FileCheck %s --check-prefix=CLOSED-ONLY
 # CLOSED-ONLY: {{^1$}}
 
 # The same assertion in a lecture fixture contract is refused by a different
 # checker, so the rule is not one file's private opinion.
-# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['cases'][0]['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v1'}]}; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['cases'][0]['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v2'}]}; p.write_text(json.dumps(v,indent=2)+'\n')"
 # RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=LECTURE-CLOSED
 # LECTURE-CLOSED: 01-secret-branch: wrong base-profile deployment status
 
@@ -121,4 +122,4 @@
 # RUN: %python %harness/c/check_harness.py artifacts
 # RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness > %t.lecture.out
 # RUN: %FileCheck %s --check-prefix=LECTURE-OK --input-file=%t.lecture.out
-# LECTURE-OK: verified 01-secret-branch: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed
+# LECTURE-OK: verified 01-secret-branch: fixture-contract only; tier=CandidateOnly; claimable=false; ModelStatus=not-computed

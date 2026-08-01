@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: xor_cancellation_control
+
+c_evidence:
+  - ../sources/precision_controls.c
+
+secret:
+  - {arg: 0, name: secret}
+
+public:
+  - {memory_at_arg: 1, name: public_sink}
+
+expect: relational-check
+
+because:
+  - secret xor secret is zero in every run
+
+sps: not-run

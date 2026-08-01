@@ -23,13 +23,13 @@
 # relax this: it moves the funnel shifts into the caller, it does not remove them.
 #
 # This is consistent with the policy side of the same limitation, where
-# SPS-PolicyExpr-NF-v1 has no SHA-256 primitive and an opaque named hash call is
+# SPS-PolicyExpr-NF-v2 has no SHA-256 primitive and an opaque named hash call is
 # not an authorized release expression.
 #
 # These checks make no ModelStatus claim. They assert what the compiler emits.
 
 # --- the rotation idiom becomes a funnel shift ------------------------------
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/c/sha256_round_release_body.c -o %t.hash.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/sha256_round_release_body.c -o %t.hash.ll
 # RUN: %FileCheck %s --check-prefix=IR-HASH --input-file=%t.hash.ll
 
 # Three rotations in Sigma1 become three funnel shifts.
@@ -41,15 +41,15 @@
 # --- the rejection is not an artifact of one optimisation level -------------
 # At -O0 with optnone disabled the same canonicalisation still applies once any
 # instcombine runs, so the fragment boundary is not something -O0 avoids.
-# RUN: %clang -std=c11 -fno-builtin --target=x86_64-unknown-linux-gnu -O1 -S -emit-llvm %harness/c/sha256_round_release_body.c -o %t.hash.o1.ll
+# RUN: %clang -std=c11 -fno-builtin --target=x86_64-unknown-linux-gnu -O1 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/sha256_round_release_body.c -o %t.hash.o1.ll
 # RUN: %FileCheck %s --check-prefix=IR-HASH-O1 --input-file=%t.hash.o1.ll
 # IR-HASH-O1: llvm.fshl.i32
 
 # --- what an admissible release body looks like instead ---------------------
-# Bounded argmax is one of the corpus's V1 release types. Its body is loads at
+# Bounded argmax is one of the corpus's V2 release types. Its body is loads at
 # public offsets, integer compares, and selects -- every one of which is inside
 # the accepted integer surface, with no intrinsic at all.
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/c/argmax_release_body.c -o %t.argmax.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/argmax_release_body.c -o %t.argmax.ll
 # RUN: %FileCheck %s --check-prefix=IR-ARGMAX --input-file=%t.argmax.ll
 # IR-ARGMAX-NOT: @llvm.fsh
 # IR-ARGMAX: icmp

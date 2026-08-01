@@ -13,4 +13,4 @@ RV32_FLAGS := --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32
 AARCH64_FLAGS := --target=aarch64-unknown-linux-gnu
 
 BUILD := ../build
-MLIR_DIR := ../mlir
+FIXTURES_DIR := ../fixtures

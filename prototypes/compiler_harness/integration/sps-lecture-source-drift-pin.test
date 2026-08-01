@@ -24,7 +24,7 @@
 #
 # WHAT THIS TEST DOES NOT CLAIM. A digest match says the mirrored text is the
 # text that was mirrored. It says nothing about NFConforms, ModelStatus,
-# DeploymentStatus, or PolicyReviewStatus, and the fixtures remain PreflightV1
+# DeploymentStatus, or PolicyReviewStatus, and the fixtures remain CandidateOnly
 # and nonclaimable.
 
 # --- 1. offline: the pin is enforced with no corpus present -----------------
@@ -49,6 +49,7 @@
 # RUN: rm -rf %t.root
 # RUN: mkdir -p %t.root/tools %t.root/integration/Inputs
 # RUN: cp %harness/tools/check_sps_lecture_cases.py %t.root/tools/check_sps_lecture_cases.py
+# RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
 # RUN: cp -R %harness/integration/Inputs/sps-lecture %t.root/integration/Inputs/sps-lecture
 # RUN: %python %t.root/tools/check_sps_lecture_cases.py --root %t.root
 
@@ -104,6 +105,6 @@
 # RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=NOBINDING
 # NOBINDING: suite must declare a source_binding block
 
-# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['source_binding']={'formatId':'SPS-Harness-Lecture-Source-Binding-v1','source_root_env':'SPS_LECTURE_SOURCE','upstream_corpus_present_in_repo':False}; del v['cases'][0]['capture_shape_sha256']; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['source_binding']={'formatId':'SPS-Harness-Lecture-Source-Binding-v2','source_root_env':'SPS_LECTURE_SOURCE','upstream_corpus_present_in_repo':False}; del v['cases'][0]['capture_shape_sha256']; p.write_text(json.dumps(v,indent=2)+'\n')"
 # RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=NOHASH
 # NOHASH: 01-secret-branch: capture_shape_sha256 is missing or malformed

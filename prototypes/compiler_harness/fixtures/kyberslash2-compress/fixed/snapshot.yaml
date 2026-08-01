@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: kyberslash2_compress_fixed
+
+c_evidence:
+  - ../sources/kyberslash2_compress_fixed.c
+
+secret:
+  - {arg: 0, name: coefficient}
+
+public:
+  - {observable: timing}
+
+expect: no-violation
+
+because:
+  - reciprocal multiplication and shifting replace division
+
+sps: not-run

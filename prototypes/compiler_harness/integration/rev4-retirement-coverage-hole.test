@@ -39,7 +39,7 @@
 #      is the lecture's claim made executable: the guards pass either way.
 #
 # WHAT THIS TEST DOES NOT CHECK, AND MUST NOT BE READ AS CHECKING.
-#   This is tier PreflightV1. Nothing here evaluates NFConforms, executes the
+#   This is tier CandidateOnly. Nothing here evaluates NFConforms, executes the
 #   relational semantics, runs a solver, replays a witness, or computes a
 #   ModelStatus, a DeploymentStatus or a PolicyReviewStatus -- the three axes
 #   stay independent and all three remain uncomputed. The pair domain is an
@@ -97,7 +97,7 @@
 # LOWBITCOUNT: 1
 
 # Two reserved-marker declarations plus exactly two marker call sites.
-# RUN: grep -c "__sps_release_emit_v1_" %t.ll | %FileCheck %s --check-prefix=MARKERCOUNT
+# RUN: grep -c "__sps_invalid_callable_emit_" %t.ll | %FileCheck %s --check-prefix=MARKERCOUNT
 # MARKERCOUNT: 4
 
 # Both entries select on the SAME secret bit and both reach a public store, so
@@ -117,14 +117,14 @@
 # The collapse. 65280 of 65536 modelled pairs -- every pair with differing
 # secrets -- retire at step 9 of 18, and NOTHING secret-varying survives to the
 # bit-7 divergence at steps 11 to 17.
-# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v1 entry=release_injective_digest coalition=[alice] projection=splitmix64-finalizer admitted_pairs=65536 retired_pairs=65280 retirement_ppm=996094 first_release_step=9/18 post_release_active_pairs=256 post_release_active_varying_pairs=0
+# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v2 entry=release_injective_digest coalition=[alice] projection=splitmix64-finalizer admitted_pairs=65536 retired_pairs=65280 retirement_ppm=996094 first_release_step=9/18 post_release_active_pairs=256 post_release_active_varying_pairs=0
 
 # The contrast. Same tail, one-bit release: half the pairs retire, and 16384
 # secret-varying pairs are still Active when the divergence is reached, so that
 # difference is inside the theorem's active prefix.
-# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v1 entry=release_low_bit coalition=[alice] projection=bit-mask admitted_pairs=65536 retired_pairs=32768 retirement_ppm=500000 first_release_step=2/11 post_release_active_pairs=32768 post_release_active_varying_pairs=16384
+# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v2 entry=release_low_bit coalition=[alice] projection=bit-mask admitted_pairs=65536 retired_pairs=32768 retirement_ppm=500000 first_release_step=2/11 post_release_active_pairs=32768 post_release_active_varying_pairs=16384
 
-# CONTRACT-NEXT: SPS-Harness-Retirement-Coverage-Note-v1 all-four-coverage-queries=Satisfied collapsing-entry=release_injective_digest contrast-entry=release_low_bit model_status=NotComputed nf_conforms=NotEvaluated
+# CONTRACT-NEXT: SPS-Harness-Retirement-Coverage-Note-v2 all-four-coverage-queries=Satisfied collapsing-entry=release_injective_digest contrast-entry=release_low_bit model_status=NotComputed nf_conforms=NotEvaluated
 
 # ============================================================================
 # NEGATIVE ARMS. Each copies the fixture tree, mutates one property, and shows

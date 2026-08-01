@@ -1,5 +1,5 @@
 ; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, not a
-; canonical frozen Rev4 artifact.bc. Tier PreflightV1.
+; canonical frozen Rev4 artifact.bc. Tier CandidateOnly.
 ;
 ; NF-CM02 "Residual target-legal masked/vector operation": the stock masked-
 ; memory scalarizer leaves an intrinsic because the TARGET SUPPORTS IT, or the

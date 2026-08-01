@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: alloca_size_high_count
+
+c_evidence:
+  - ../sources/alloca_size_models.c
+
+secret:
+  - {arg: 0, name: secret_bit}
+
+public:
+  - {observable: allocation-size}
+
+expect: unknown
+
+because:
+  - the secret selects allocation count 64 or 128, so the structural-size premise is unavailable
+
+sps: not-run

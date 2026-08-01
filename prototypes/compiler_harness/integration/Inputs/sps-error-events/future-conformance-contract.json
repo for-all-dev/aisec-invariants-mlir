@@ -1,10 +1,10 @@
 {
-  "formatId": "SPS-Harness-Future-Conformance-Error-Contract-v1",
+  "formatId": "SPS-Harness-Future-Conformance-Error-Contract-v2",
   "fixtureTier": {
-    "tag": "PreflightV1"
+    "tag": "CandidateOnly"
   },
   "targetTier": {
-    "tag": "ConformanceV1"
+    "tag": "ConformanceV2"
   },
   "claimable": false,
   "currentStatus": {
@@ -20,6 +20,8 @@
     "artifact-identity.sps.json",
     "identity-evidence.sps.json",
     "sps-manifest.sps.json",
+    "proof-configuration.sps.json",
+    "aggregation-input.sps.json",
     "sps-report.sps.json"
   ],
   "policyIntent": {
@@ -51,7 +53,7 @@
     "components": {
       "public.fail": {
         "valueType": {
-          "tag": "BoolValueV1"
+          "tag": "BoolValueV2"
         },
         "lifecycle": "DerivedPublic",
         "applicableEntries": [
@@ -60,7 +62,7 @@
       },
       "secret.detail": {
         "valueType": {
-          "tag": "BVValueV1",
+          "tag": "BVValueV2",
           "bitWidth": 8
         },
         "lifecycle": "EntryInput",
@@ -70,7 +72,7 @@
       },
       "public.divisor": {
         "valueType": {
-          "tag": "BVValueV1",
+          "tag": "BVValueV2",
           "bitWidth": 8
         },
         "lifecycle": "DerivedPublic",
@@ -169,7 +171,7 @@
     },
     "carriers": {
       "fixture.error-entry/public.fail": {
-        "tag": "ScalarArgumentCarrierV1",
+        "tag": "ScalarArgumentCarrierV2",
         "entryId": "fixture.error-entry",
         "argumentIndex": 0,
         "scalarType": "I1",
@@ -182,7 +184,7 @@
         }
       },
       "fixture.error-entry/secret.detail": {
-        "tag": "ScalarArgumentCarrierV1",
+        "tag": "ScalarArgumentCarrierV2",
         "entryId": "fixture.error-entry",
         "argumentIndex": 1,
         "scalarType": "I8",
@@ -195,7 +197,7 @@
         }
       },
       "fixture.error-entry/public.divisor": {
-        "tag": "ScalarArgumentCarrierV1",
+        "tag": "ScalarArgumentCarrierV2",
         "entryId": "fixture.error-entry",
         "argumentIndex": 2,
         "scalarType": "I8",
@@ -213,7 +215,7 @@
       "return.byte": {
         "outputId": "return.byte",
         "source": {
-          "tag": "ReturnBitsV1",
+          "tag": "ReturnBitsV2",
           "entryId": "fixture.error-entry",
           "bitOffset": 0,
           "bitWidth": 8,
@@ -227,42 +229,42 @@
         },
         "footprint": [
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 0
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 1
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 2
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 3
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 4
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 5
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 6
           },
           {
-            "tag": "ReturnBitV1",
+            "tag": "ReturnBitV2",
             "entryId": "fixture.error-entry",
             "bitIndex": 7
           }
@@ -316,11 +318,11 @@
       "app.error": {
         "errorFieldId": "app.error",
         "payloadType": {
-          "tag": "BVValueV1",
+          "tag": "BVValueV2",
           "bitWidth": 8
         },
         "source": {
-          "tag": "ReturnBitsAtFailureV1",
+          "tag": "ReturnBitsAtFailureV2",
           "entryId": "fixture.error-entry",
           "returnClass": {
             "tag": "DeclaredFailure",
@@ -349,26 +351,26 @@
       "verifier.ub-risk": {
         "errorFieldId": "verifier.ub-risk",
         "payloadType": {
-          "tag": "TupleValueV1",
+          "tag": "TupleValueV2",
           "fields": [
             {
               "fieldId": "kind",
               "valueType": {
-                "tag": "BVValueV1",
+                "tag": "BVValueV2",
                 "bitWidth": 8
               }
             },
             {
               "fieldId": "reasonClass",
               "valueType": {
-                "tag": "BVValueV1",
+                "tag": "BVValueV2",
                 "bitWidth": 4
               }
             }
           ]
         },
         "source": {
-          "tag": "VerifierUBRiskPayloadV1"
+          "tag": "VerifierUBRiskPayloadV2"
         },
         "encoding": {
           "bitWidth": 16,
@@ -433,21 +435,16 @@
       },
       {
         "tag": "Failure",
-        "class": {
-          "tag": "UBRisk",
-          "args": [
-            "DivisorZero"
-          ]
-        }
+        "class": "UBRisk",
+        "reasonClass": "DivisorZero"
       },
       {
         "tag": "Error",
         "errorFieldId": "verifier.ub-risk",
-        "class": {
-          "tag": "UBRisk",
-          "args": [
-            "DivisorZero"
-          ]
+        "class": "UBRisk",
+        "payload": {
+          "kind": 1,
+          "reasonClass": "DivisorZero"
         }
       },
       {
@@ -504,7 +501,7 @@
       "tag": "Counterexample",
       "args": [
         {
-          "tag": "FreshProtectedReceiptMatcherV1"
+          "tag": "FreshProtectedReceiptMatcherV2"
         }
       ]
     },
@@ -522,7 +519,7 @@
     "negativeCases": [
       {
         "caseId": "missing-error-fields",
-        "targetOutcome": "ConfigurationRejectedV1(NoncanonicalInterface); NoModelStatus"
+        "targetOutcome": "ConfigurationRejectedV2(NoncanonicalInterface); NoModelStatus"
       },
       {
         "caseId": "dangling-declared-error-id",

@@ -10,20 +10,91 @@ The checked-in pairs here are deliberately weaker: LLVM 17.0.6 candidate
 bitcode used to develop fixtures while the LLVM 22.1.8 normalizer, freeze
 pipeline, exact relational verifier, and replay engine are still absent.
 
-For a priority-ordered, piece-by-piece manual review, use the
-[fixture review guide](FIXTURE_REVIEW_GUIDE.md).
+## Recommended reading paths
+
+Do not learn this harness by reading its directories alphabetically. Start
+with the evidence boundary, then follow one fixture family vertically. Within
+each family, read `snapshot.yaml`, the sibling MLIR, the bad/fixed or control
+comparison, the C provenance, any candidate bindings, and finally the linked
+supporting tests. The snapshots and MLIR are preflight evidence; every current
+snapshot remains `sps: not-run`.
+
+### 1. Learn the evidence boundary
+
+Read [the Rev4 preflight workflow](fixtures/REV4_PREFLIGHT_WORKFLOW.md), then
+[the fixture format and authority boundary](fixtures/README.md). These explain
+the different roles of C provenance, review-sized MLIR, candidate bitcode,
+authoritative SPS inputs, and final-machine evidence.
+
+### 2. Learn the core confidentiality concepts through preflight fixtures
+
+Use [the common family-review workflow](FIXTURE_REVIEW_GUIDE.md#review-workflow-for-every-family),
+then review these families in order:
+
+1. [Rank 1: recipient, host, and release-audience authorization](FIXTURE_REVIEW_GUIDE.md#1-recipient-host-and-release-audience-authorization):
+   [wrong-party plaintext](fixtures/wrong-party-plaintext/),
+   [wrong-host FHE reveal](fixtures/wrong-host-fhe-reveal/), then
+   [audience mismatch](fixtures/audience-mismatch/). This establishes that
+   payload equality does not imply that the recipient, host, or coalition is
+   authorized.
+2. [Rank 2: release causality, sanitization, and explicit oracles](FIXTURE_REVIEW_GUIDE.md#2-release-causality-sanitization-and-explicit-oracles):
+   [prefix-causal release](fixtures/prefix-causal-release/),
+   [explicit error oracle](fixtures/explicit-error-oracle/), then
+   [CKKS release](fixtures/ckks-release/). This adds what may be released, the
+   required guard or sanitizer, and when that release becomes effective.
+
+### 3. Review the real-world-derived ML-KEM case studies
+
+These are faithful minimal reductions and compiler-pipeline regressions, not a
+full Kyber or ML-KEM application test suite.
+
+1. **KyberSlash1 and KyberSlash2.** Read the bad and fixed snapshots and MLIR
+   under [KyberSlash1 `poly_tomsg`](fixtures/kyberslash1-poly-tomsg/) and
+   [KyberSlash2 `poly_compress`](fixtures/kyberslash2-compress/), followed by
+   each family's `sources/` directory. Then read
+   [the LLVM code-generation test](integration/kyberslash-codegen.test) and
+   [the C behavior-equivalence test](integration/equivalence.test). The direct
+   secret-derived `udiv` is the simplest timing case: the repair preserves the
+   tested result over coefficients `0..3328` while replacing division with
+   reciprocal multiplication and shifting. The optional
+   [unary latency diagnostic](diagnostic/latency.test) is scanner triage only,
+   not theorem evidence or target-level timing closure.
+2. **Clangover / ML-KEM.** Read the
+   [source fixture](fixtures/clangover-poly-frommsg/source/), then the
+   [pre-instruction-selection LLVM test](integration/clangover-frozen-ir-branchless.test),
+   and then the [x86 code-generation test](p4-risk/clangover-x86-codegen.test).
+   Only after seeing that evidence, compare the
+   [bad target model](fixtures/clangover-poly-frommsg/lowered-bad/) and
+   [fixed target model](fixtures/clangover-poly-frommsg/lowered-fixed/). These
+   are hand-written models derived from the reviewed assembly, not the frozen
+   LLVM module. This is the capstone because frozen LLVM can have
+   secret-independent control while instruction selection creates a
+   secret-dependent target branch. An LLVM model result and deployment
+   evidence are therefore separate claims. The same
+   [C behavior-equivalence test](integration/equivalence.test) exercises the
+   reduced Clangover repair.
+
+### 4. Complete the full review
+
+Return to [the ranked review queue](FIXTURE_REVIEW_GUIDE.md#ranked-review-queue)
+at rank 3 and continue through rank 12. Finish with the
+[cross-cutting artifact review](FIXTURE_REVIEW_GUIDE.md#cross-cutting-artifact-review)
+and the
+[representation and coverage review](FIXTURE_REVIEW_GUIDE.md#cross-cutting-representation-and-coverage-review).
+The application path above is an onboarding shortcut; it does not change the
+guide's ranking or imply a severity order.
 
 ## Test strata
 
 | Directory | What it checks | What it cannot claim |
 | --- | --- | --- |
-| `mlir/` | One MLIR file plus one readable boundary snapshot per family/case | Any `ModelStatus` |
+| `fixtures/` | Family-local MLIR/snapshot cases, C provenance under `sources/`, and optional case-local candidate bundles | Any `ModelStatus` |
 | `diagnostic/` | The current unary scanner's five finding classes | Relational proof, replay, or proof from silence |
-| `artifacts/` | Candidate `.bc`/derived `.ll` integrity and harness-namespaced matcher consistency | `NFConforms` or a current verifier report |
-| `integration/` | C provenance, concrete witnesses, import, LLVM shape, the seven digest-pinned SPS lecture fixture contracts, executable MT-CM1/MT-CM4 countermodel witnesses, NF-A02/NF-A05/NF-CM02 normal-form surfaces, and the retirement-coverage observation | Whole-entry noninterference or a current `ModelStatus` |
+| `integration/candidate-bundles/` | Candidate `.bc`/derived `.ll` integrity and harness-namespaced matcher consistency | `NFConforms` or a current verifier report |
+| `integration/` | C provenance, concrete witnesses, import, LLVM shape, candidate-bundle checks, the ungated NFv2 release-carrier structural contract, capability-gated NFv2 preservation/codegen contracts, invalid callable-marker negatives, the seven digest-pinned SPS lecture fixture contracts, executable MT-CM1/MT-CM4 countermodel witnesses, NF-A02/NF-A05/NF-CM02 surfaces, and retirement coverage | Whole-entry noninterference or a current `ModelStatus` |
 | `p4-risk/` | Target-specific assembly/code-generation risk evidence | Model proof or closed deployment refinement |
-| `sps/` | Future exact-verifier tests plus executable machine-interface contracts | Semantic tests are feature-gated `UNSUPPORTED` until the verifier and canonical LLVM 22.1.8 bundles exist |
-| `contracts/` | Cross-file `WFInputs` binding completeness and the shared `ModelStatus` blocker-cardinality collapse | Any `ModelStatus`; these validate harness *expectations*, not verifier output |
+| `sps/` | The capability-gated Rev4.1 V2 exact-verifier contract | No result without the exact V2 verifier and materialized bundle |
+| `contracts/` | The digest-locked SPS Rev4.1 interface package, stage-report refusal boundary, cross-file `WFInputs` binding completeness, and typed replay/blocker aggregation | Any fixture `ModelStatus`; these validate interfaces and harness *expectations*, not verifier output |
 
 Design-only coalition examples live under `examples/`; post-MVP authorization
 and robust-declassification examples live under `examples/integrity/`. Neither
@@ -35,14 +106,19 @@ Every current checked-in semantic seed is preflight-only. Its human snapshot
 says `sps: not-run`; it may preserve MLIR/LLVM shape or candidate policy
 bindings, but it cannot assert `NFConforms` or a computed `ModelStatus`.
 
-`ConformanceV1` is reserved for a future per-case directory containing frozen
-`artifact.bc`, exact `ArtifactIdentityV1` identity evidence, a canonical
-`SPSLLVMNFManifest`, the complete query schedule, protected-evidence bindings,
-and an `SPSRunReportV1` matcher. Review-only `artifact.ll` must always be
-derived from that frozen bitcode. Harness matcher records use `SPS-Harness-*`
-format identifiers so they cannot be confused with normative SPS objects.
-The complete packaging and promotion contract is
+A future claim requires a new per-case Rev4.1 V2 materialization
+containing frozen `artifact.bc`, exact `ArtifactIdentityV2` evidence, a
+canonical `SPSLLVMNFManifestV2`, the complete derived query schedule,
+protected-evidence bindings, and an `SPSRunReportV2`. Review-only `artifact.ll`
+must always be derived from that frozen bitcode. Harness matcher records use
+`SPS-Harness-*` format identifiers so they cannot be confused with normative
+SPS objects.
+The complete packaging and rematerialization contract is
 [`contracts/FIXTURE_TIERS.md`](contracts/FIXTURE_TIERS.md).
+
+Rev4.1 accepts only the V2 interface package. `CandidateOnly` fixture and
+candidate labels identify nonclaimable harness evidence; they are not SPS
+inputs and cannot produce a verifier result.
 
 ## Commands
 
@@ -52,14 +128,19 @@ Run from this directory:
 make check             # every executable test, then an explicit SPS skip notice
 make check-shape       # recursive MLIR/FileCheck plus snapshot validation
 make check-diagnostic  # unary scanner tests; skipped unless SPS_SCAN is explicit
-make check-artifacts   # exact candidate .bc/.ll pairs and descriptor/oracle checks
+make check-candidates  # exact candidate .bc/.ll pairs and descriptor/oracle checks
+make check-artifacts   # target alias for check-candidates
 make check-integration # C provenance, witnesses, import, and LLVM shape
 make check-p4-risk     # target-bound risk evidence only
 make check-sps         # runs the feature-gated semantic suite (unsupported today)
 make check-contracts   # WFInputs binding completeness and the aggregation collapse
+make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled drift
 make list-tests        # discovery audit
-make list-fixture-status # concise expect/sps/entry inventory for all 53 cases
+make list-fixture-status # concise expect/sps/entry inventory for all 54 cases
 ```
+
+Only the capability-probed V2 verifier path is active. Supplying a V2 report or
+materialized directory cannot enable an SPS test.
 
 The local runner uses `lit==17.0.6`. Create it explicitly if needed:
 
@@ -94,27 +175,98 @@ skipped and the re-verified paths itself, using its own stand-in corpus.
 avoids silently running a stale, unversioned prototype binary. Missing optional
 targets or tools produce `UNSUPPORTED`, not a fabricated success.
 
+## SPS-owned Rev4.1 interfaces
+
+SPS owns the Rev4.1 serialized records, unions, literals, reason classes, and
+canonical field order under `SPS/interfaces/rev4.1/`. This harness consumes a
+generated, digest-locked copy under `contracts/vendor/sps-rev4.1/`; it does not
+maintain a second normative table. `contracts/sps-interface.lock.json` binds
+the schema set, upstream revision, bundle digest, and registry digest.
+
+Normal CI is offline and validates the vendored package and its canonical,
+schema-invalid, byte-invalid, and cross-field vectors. Coupled CI sets
+`SPS_INTERFACE_ROOT` to the upstream `SPS/interfaces/rev4.1` directory and
+requires byte-for-byte equality. An intentional update uses:
+
+```sh
+python3 tools/sync_sps_interfaces.py \
+  --source /path/to/SPS/interfaces/rev4.1 \
+  --expected-source-revision SPS-Rev4.1-V2-2026-08-01
+make check-interfaces SPS_INTERFACE_ROOT=/path/to/SPS/interfaces/rev4.1
+```
+
+The sync tool verifies the upstream manifest, complete digest closure, closed
+schema references, canonical bytes, and requested source revision before it
+atomically replaces the vendor directory. Cross-field mathematics remains in
+cited validators under stable `XF-*` rule IDs.
+
+Once a Rev4.1 run is materialized, `tools/check_sps_v2_bundle.py BUNDLE
+--report REPORT` checks the six required bundle files (`artifact.bc`, artifact
+identity, identity evidence, NF manifest, proof configuration, and aggregation
+input) plus a separate `SPSRunReportV2`. It requires strict canonical interface
+bytes, the vendored schemas and semantic rules, exact nested objects and digest
+bindings, and exact bitcode bytes. It constructs and validates the closed
+`AggregationDecisionV2` for every report arm, with the complete identity,
+proof, and schedule bindings required for `CompletedV2`. This is a file-boundary
+check; it does not run the verifier, establish `NFConforms`, or authenticate the
+reported `ModelStatus`.
+
+## Rev4.1 NFv2 release carrier
+
+`SPS-LLVM-NF-v2` has one carrier: the zero-result, variadic-integer
+`llvm.sps.release` intrinsic. Its operands are exactly the flattened
+`ReleaseType` leaves in declared order and width. A `ReleaseId` is never an IR
+operand; `ReleaseImplementationBindingV2.emitMarkerInstructionId` binds the
+release-table entry to the stable intrinsic instruction ID.
+
+The compiler-side contract requires `IntrHasSideEffects`, `IntrNoMem`,
+`IntrNoDuplicate`, and `IntrNoMerge`, with no speculation. The intrinsic maps
+one-for-one to `SPS_RELEASE` in MIR, remains present at the selected machine
+capture boundaries, and is erased before MC emission without a call, symbol,
+relocation, or instruction byte.
+
+Lit does not enable this contract based on the intrinsic spelling or LLVM
+version. Stock LLVM accepts an unknown `llvm.*` declaration as an ordinary
+external call, so `lit.cfg.py` probes generated attributes, optimizer and
+`SPSFinalWeaken_v2` survival before adding `sps-nfv2-intrinsic`. It separately
+probes the MIR pseudo and final object before adding `sps-nfv2-codegen`. The
+feature-gated tests remain `UNSUPPORTED` until those capabilities really exist.
+
+The old callable wrapper, pinned wrapper, inline-assembly, metadata, and
+store-only shapes remain executable as invalid-carrier negative evidence. Survival of
+one of those forms does not establish an NFv2 carrier.
+
 ## The `.bc` / `.ll` ownership contract
 
-The nine quarantined legacy candidate bundles contain both forms requested for
-compiler-pipeline review. They remain under global `artifacts/` and are never
-copied into a human case folder:
+Nine fixture cases contain a local `candidate/` bundle with both forms requested
+for compiler-pipeline review. Each bundle is colocated with the MLIR/snapshot
+case it describes:
 
 - `artifact.bc` is the exact candidate byte sequence and the source of truth
   inside that pair;
 - `artifact.ll` is generated by `llvm-dis artifact.bc`, never authored as an
   independent input;
 - `artifact.json` is an explicitly nonnormative
-  `SPS-Harness-Candidate-Artifact-v1` envelope with hashes for the bitcode, derived
-  text, source MLIR, and every prototype sidecar;
+  `SPS-Harness-Candidate-Artifact-v2` envelope with hashes for the bitcode, derived
+  text, capture-time source MLIR, and every prototype sidecar. The source hash
+  records the readable bytes used when the candidate was captured; it is not a
+  live content pin for the evolving human-readable fixture;
 - `policy.json`, `abi.json`, `contracts.json`, `release-table.json`, and
   `expected-report.json` are `SPS-Harness-Candidate-*` fixture descriptors and
   partial result matchers bound to the candidate bitcode hash. They are not
   canonical section-2 SPS interfaces.
+- `bundle-spec.json` is the local generation and binding recipe for that one
+  case; there is no global bundle registry. The sibling snapshot's
+  `c_evidence` entries record provenance only, not a claim that those C files
+  compile to the MLIR or `artifact.bc`.
 
-`tools/artifact_bundle.py check` verifies the hashes, reproduces the exact
-disassembly, and verifies that the checked-in `.ll` reassembles to the exact
-`.bc` bytes with the recorded producer toolchain. Regenerate intentionally:
+`tools/artifact_bundle.py check` verifies the frozen-artifact and sidecar
+hashes, the capture-source hash's SHA-256 shape, and the exact disassembly. It
+also requires `source_mlir` to name the sole sibling MLIR file and lowers that
+current file with the recorded producer toolchain: the result must still equal
+`artifact.bc` byte for byte. Readable comments and harness annotations may
+therefore evolve without rewriting a candidate only while lowering stays
+identical; lowering-affecting drift is rejected. Regenerate intentionally:
 
 ```sh
 python3 tools/artifact_bundle.py generate --llvm-bin /path/to/llvm/bin
@@ -132,9 +284,9 @@ Rev4 has three independent result axes:
 
 ```text
 ModelStatus       = Proved | Counterexample(receiptId)
-                  | Unknown(PublicDispositionReasonV1)
+                  | Unknown(PublicDispositionReasonV2)
 DeploymentStatus  = Open(P4EvidenceProfileUnavailable) | Closed(P4EvidenceBundle)
-PolicyReviewStatus = Complete | Findings(finite set) | Incomplete(Reason)
+PolicyReviewStatusV2 = Complete | Findings(finite set) | Incomplete(Reason)
 ```
 
 The public counterexample constructor carries a fresh restricted-evidence
@@ -149,7 +301,7 @@ filenames, and backend risk never directly determine the model result.
 The files named `expected-report.json` are non-claimable harness matchers. Their
 `expected` records separate `AuditAll` raw solver results, exact query
 dispositions, replay prerequisites, and final status tags; they never fabricate
-a public receipt. Each file records `PreflightV1`, `PendingV1`, and
+a public receipt. Each file records `CandidateOnly`, `PendingV2`, and
 `claimable_from_checked_in_pair: false`. These candidate descriptors are useful
 test intent, not replacements for canonical Rev4 policy, ABI, release,
 contract, placement, or observation interfaces.
@@ -187,23 +339,19 @@ itself a closed `DeploymentStatus` result.
 The seven hand-authored teaching instances from
 `SPS/SPS_Lecture_Notes/artifacts/` are mirrored under
 `integration/Inputs/sps-lecture/`. Their integration tests assemble and
-round-trip the LLVM capture shapes, check the current reserved release-marker
-model and prefix order, and validate the complete three-coalition fixture
-matchers. They are explicitly `PreflightV1` and `claimable: false`; these checks do not execute
-the relational semantics.
+round-trip the LLVM capture shapes and check the invalid callable-marker model
+and prefix order, and validate the complete three-coalition fixture matchers.
+They are explicitly `CandidateOnly` and `claimable: false`; these checks do not
+execute the relational semantics and their marker is an NFv2 negative.
 
-Matching tests under `sps/` state the future exact semantic expectations and
-validate the canonical machine `SPSRunReportV1`, rather than human-rendered
-verdict text.
-They use `REQUIRES: sps-verifier, llvm-22.1.8,
-sps-teaching-materialized`, so the current harness reports them as
-`UNSUPPORTED`, never as passing or expected failures.
+The former V2 report tests have been removed. Rev4.1 teaching bundles must be
+materialized anew against the V2 interfaces and `llvm.sps.release`; they cannot
+reuse V2 identities.
 
 The error-event fixture is deliberately split in two. The checked-in
 `integration/Inputs/sps-error-events/future-conformance-contract.json` is a
-nonclaimable `PreflightV1` contract whose validator pins `DeclaredFailure`, the
+nonclaimable `CandidateOnly` contract whose validator pins `DeclaredFailure`, the
 mandatory verifier-UB error field, payload projection, and both exact event
-orders. `sps/error-events-conformance.test` is the future semantic arm; set
-`SPS_ERROR_MATERIALIZED` to the real `ConformanceV1` case directory only after
-LLVM 22.1.8 materialization and the exact verifier exist. The nine legacy
-candidate ABIs under `artifacts/` are unchanged and are not promotion inputs.
+orders. It is not an SPS report input. Rev4.1 requires a separately
+materialized V2 bundle. The nine case-local candidate ABIs under
+`fixtures/*/*/candidate/` are not V2 materialization inputs.

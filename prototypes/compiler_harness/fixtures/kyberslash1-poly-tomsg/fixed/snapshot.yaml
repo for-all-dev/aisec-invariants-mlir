@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: kyberslash1_poly_tomsg_fixed
+
+c_evidence:
+  - ../sources/kyberslash1_poly_tomsg_fixed.c
+
+secret:
+  - {arg: 0, name: coefficient}
+
+public:
+  - {observable: timing}
+
+expect: no-violation
+
+because:
+  - reciprocal multiplication and shifting replace division
+
+sps: not-run

@@ -38,9 +38,9 @@
 // semantic companion therefore needs only the {bob} counterexample row.
 //
 // CHECK-LABEL: llvm.func @serve_logits
-// CHECK: llvm.call @sps_release_masked_class_v1
+// CHECK: llvm.call @sps_release_masked_class_candidate
 // CHECK-SAME: sps.authorized_by = "auditor"
-// CHECK-SAME: sps.release_id = "masked_class_v1"
+// CHECK-SAME: sps.release_id = "masked_class_candidate"
 // CHECK: llvm.store %{{.*}} {sps.audience = ["alice"]}
 // CHECK: llvm.store %{{.*}} {sps.audience = ["bob"]}
 module attributes {
@@ -58,8 +58,8 @@ module attributes {
   // authorizers and audience are deliberately different sets: the auditor may
   // authorize this release but is not one of its recipients.
   sps.release_policies = [
-    {id = "masked_class_v1", authorizers = ["auditor"], audience = ["alice"],
-     function = "mask-low-byte", carrier = "@sps_release_masked_class_v1"}
+    {id = "masked_class_candidate", authorizers = ["auditor"], audience = ["alice"],
+     function = "mask-low-byte", carrier = "@sps_release_masked_class_candidate"}
   ],
 
   sps.placement = [{func = "@serve_logits", host = "host_eu"}]
@@ -67,25 +67,25 @@ module attributes {
   // The release rides a direct call to a manifest-named outlined carrier, not an
   // attribute on a store. That gives a stable site identity and a countable call
   // occurrence; release identity is not established by a name alone.
-  llvm.func @sps_release_masked_class_v1(i32) -> i32
+  llvm.func @sps_release_masked_class_candidate(i32) -> i32
 
   llvm.func @serve_logits(
       %logits: i32 {sps.label = "high", sps.item = "logits"},
       %alice_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["alice"]},
       %bob_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["bob"]}) {
 
-    %released = llvm.call @sps_release_masked_class_v1(%logits)
-        {sps.release_id = "masked_class_v1", sps.authorized_by = "auditor"} : (i32) -> i32
+    %released = llvm.call @sps_release_masked_class_candidate(%logits)
+        {sps.release_id = "masked_class_candidate", sps.authorized_by = "auditor"} : (i32) -> i32
 
-    // Authorized: alice is the declared audience of masked_class_v1.
+    // Authorized: alice is the declared audience of masked_class_candidate.
     llvm.store %released, %alice_channel {sps.audience = ["alice"]} : i32, !llvm.ptr
 
     // NOT authorized for {bob}. Byte-identical operation, different verdict.
     //
     // CONFIDENTIALITY ERROR: released value delivered outside its declared audience
-    // secret source: %released is derived from high %logits by masked_class_v1
+    // secret source: %released is derived from high %logits by masked_class_candidate
     // observable effect: bob_channel receives class indices 3 and 5 for two logit vectors
-    // reason: masked_class_v1 stays concealed from bob, so its obligation remains active
+    // reason: masked_class_candidate stays concealed from bob, so its obligation remains active
     // fixture check: audience-specific ledger remains active; an AuditAll SAT
     // candidate using values 3/5 must independently replay to Bad_A
     llvm.store %released, %bob_channel {sps.audience = ["bob"]} : i32, !llvm.ptr

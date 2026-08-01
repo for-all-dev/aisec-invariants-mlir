@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: wolfssl_3579_mul_rv32_unknown_model
+
+c_evidence:
+  - ../sources/wolfssl_3579_mul_vulnerable.c
+
+secret:
+  - {arg: 0, name: secret_a}
+  - {arg: 1, name: secret_b}
+
+public:
+  - {observable: timing}
+
+expect: unknown
+
+because:
+  - the helper is called with secrets but has no timing contract
+
+sps: not-run

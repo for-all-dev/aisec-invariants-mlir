@@ -1,0 +1,21 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: wrong_party_plaintext_bad
+
+c_evidence:
+  - ../sources/wrong_party_plaintext_bad.c
+
+secret:
+  - {arg: 0, name: plaintext}
+
+public:
+  - {memory_at_arg: 2, name: unauthorized_mailbox}
+
+allowed:
+  - plaintext may be written only to authorized_mailbox
+
+expect: violation
+
+because:
+  - plaintext is copied across the audience boundary
+
+sps: not-run

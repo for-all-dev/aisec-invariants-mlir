@@ -1,0 +1,40 @@
+# REQUIRES: sps-rev4.1-verifier, sps-rev4.1-materialized
+#
+# FUTURE EXACT-VERIFIER CONTRACT.  lit enables this only when SPS_VERIFIER
+# advertises the complete Rev4.1 capability set and SPS_REV41_MATERIALIZED
+# names operator-supplied, canonical V2 bundles.  Stock LLVM and the current
+# unimplemented verifier path therefore report UNSUPPORTED, never success.
+
+# Missing diagnostic health gates Proved with the precise public reason.
+# RUN: %sps-verifier verify --bundle %sps-rev41-materialized/diagnostic-health-missing > %t.diagnostic.json
+# RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %t.diagnostic.json
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %sps-rev41-materialized/diagnostic-health-missing --report %t.diagnostic.json
+# RUN: %FileCheck %s --check-prefix=DIAGNOSTIC --input-file=%t.diagnostic.json
+# DIAGNOSTIC: "modelStatus":{"tag":"Unknown","args":[{"reasonClassId":"DiagnosticHealthFailure"}]}
+
+# A schedule missing a required observation or latency query cannot Prove.
+# RUN: %sps-verifier verify --bundle %sps-rev41-materialized/incomplete-observation-latency > %t.incomplete.json
+# RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %t.incomplete.json
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %sps-rev41-materialized/incomplete-observation-latency --report %t.incomplete.json
+# RUN: %FileCheck %s --check-prefix=INCOMPLETE --input-file=%t.incomplete.json
+# INCOMPLETE: "modelStatus":{"tag":"Unknown","args":[{"reasonClassId":"OpenModelObligations"}]}
+
+# Once that exact schedule is complete, a healthy diagnostic conclusion of
+# RelationalRequired remains advisory and cannot veto a safe exact product.
+# RUN: %sps-verifier verify --bundle %sps-rev41-materialized/complete-relational-required-safe > %t.safe.json
+# RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %t.safe.json
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %sps-rev41-materialized/complete-relational-required-safe --report %t.safe.json
+# RUN: %FileCheck %s --check-prefix=SAFE --input-file=%t.safe.json
+# SAFE: "modelStatus":{"tag":"Proved"}
+
+# Accepted replay outranks an unrelated ProofCompletion timeout.
+# RUN: %sps-verifier verify --bundle %sps-rev41-materialized/replay-with-proof-timeout > %t.replay.json
+# RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %t.replay.json
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %sps-rev41-materialized/replay-with-proof-timeout --report %t.replay.json
+# RUN: %FileCheck %s --check-prefix=REPLAY --input-file=%t.replay.json
+# REPLAY: "modelStatus":{"tag":"Counterexample","args":["{{[0-9a-f]{64}}}"]}
+
+# The same token may never outrank a ReplayInvalidating failure.  This is an
+# invalid internal state and must be rejected before a public report exists.
+# RUN: not %sps-verifier verify --bundle %sps-rev41-materialized/replay-with-invalidating-blocker 2>&1 | %FileCheck %s --check-prefix=INVALID
+# INVALID: AcceptedReplayConflictsWithReplayInvalidatingBlocker

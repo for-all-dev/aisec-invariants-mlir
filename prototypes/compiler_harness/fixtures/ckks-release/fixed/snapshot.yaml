@@ -1,0 +1,21 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: ckks_unsafe_release_fixed
+
+c_evidence:
+  - ../sources/ckks_unsafe_release_fixed.c
+
+secret:
+  - {arg: 0, name: raw_approximate_plaintext}
+
+public:
+  - {memory_at_arg: 3, name: public_release}
+
+allowed:
+  - public_release may reveal only a sanitizer-approved value with a valid certificate
+
+expect: no-violation
+
+because:
+  - the public sink receives the sanitizer result instead of raw plaintext
+
+sps: not-run

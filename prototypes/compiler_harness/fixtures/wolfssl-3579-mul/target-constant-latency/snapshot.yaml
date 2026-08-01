@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: wolfssl_3579_mul_rv32_constant_latency_model
+
+c_evidence:
+  - ../sources/wolfssl_3579_mul_vulnerable.c
+
+secret:
+  - {arg: 0, name: secret_a}
+  - {arg: 1, name: secret_b}
+
+public:
+  - {observable: timing}
+
+expect: shape-only
+
+because:
+  - the synthetic test profile declares helper latency constant
+
+sps: not-run

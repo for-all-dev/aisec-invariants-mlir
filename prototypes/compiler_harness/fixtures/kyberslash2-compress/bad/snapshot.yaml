@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: kyberslash2_compress_bad
+
+c_evidence:
+  - ../sources/kyberslash2_compress_vulnerable.c
+
+secret:
+  - {arg: 0, name: coefficient}
+
+public:
+  - {observable: timing}
+
+expect: target-risk
+
+because:
+  - a secret-derived numerator reaches llvm.udiv before the four-bit mask
+
+sps: not-run

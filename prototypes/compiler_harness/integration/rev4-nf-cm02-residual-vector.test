@@ -8,7 +8,7 @@
 # Unknown(ResidualVector). Running a scalarizer pass is not evidence of
 # closure."
 #
-# `ResidualVector` is a member of the closed PublicReasonClassesV1 inventory in
+# `ResidualVector` is a member of the closed PublicReasonClassesV2 inventory in
 # section 13.2. Below it appears only inside `SPS-Harness-Expectation:` lines --
 # it is what the harness records this fixture as a seed FOR, not a status this
 # harness computed. The three result axes are independent and this test moves
@@ -56,7 +56,7 @@
 # CM02-AVX2-NEXT: summary: masked-memory-intrinsic-call-sites=2
 # CM02-AVX2-NEXT: summary: residual-vector-item-count=32
 # CM02-AVX2-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector) -- a nonzero residual vector inventory refutes the NF-A05 zero-item criterion and is the NF-CM02 case; running a scalarizer pass is not evidence of closure
-# CM02-AVX2-NEXT: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# CM02-AVX2-NEXT: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
 # CM02-AVX2-NEXT: SPS-Harness-Note: syntactic opcode/type scan of one textual module under LLVM 17.0.6; not the Rev4 normal-form audit and not a proof
 
 # ===========================================================================

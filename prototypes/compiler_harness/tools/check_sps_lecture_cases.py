@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 SOURCE_ROOT_ENV = "SPS_LECTURE_SOURCE"
-SOURCE_BINDING_FORMAT_ID = "SPS-Harness-Lecture-Source-Binding-v1"
+SOURCE_BINDING_FORMAT_ID = "SPS-Harness-Lecture-Source-Binding-v2"
 SOURCE_RELATIVE_NAME = "frozen.ll.sketch"
 
 CASE_IDS = (
@@ -32,7 +32,7 @@ def status_matcher(tag: str, reason: str | None = None) -> dict[str, object]:
     if tag == "Counterexample":
         return {
             "tag": "Counterexample",
-            "args": [{"tag": "FreshProtectedReceiptMatcherV1"}],
+            "args": [{"tag": "FreshProtectedReceiptMatcherV2"}],
         }
     if tag == "Unknown":
         assert reason is not None
@@ -51,22 +51,22 @@ def audit_expectation(
     if raw_result is None:
         assert reason is not None
         row["query_outcome_matcher"] = {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {"reasonClassId": reason},
         }
         row["final_replay_expectation"] = {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {"reasonClassId": reason},
         }
         return row
     candidate = raw_result == "SAT"
     row["query_outcome_matcher"] = {
-        "tag": "ConstructedResultMatcherV1",
+        "tag": "ConstructedResultMatcherV2",
         "raw_solver_result": raw_result,
         "query_disposition": {"tag": "CandidateOnly" if candidate else "Discharged"},
     }
     row["final_replay_expectation"] = {
-        "tag": "AcceptedBadStateRequiredV1" if candidate else "NotApplicableV1"
+        "tag": "AcceptedBadStateRequiredV2" if candidate else "NotApplicableV2"
     }
     return row
 
@@ -105,11 +105,11 @@ EXPECTED_POLICY_REVIEW = {
     "02-branchless-repair": {"tag": "Complete"},
     "03-missing-placement": {"tag": "Complete"},
     "04-authorized-release-first": {
-        "tag": "FindingsMatcherV1",
+        "tag": "FindingsMatcherV2",
         "required_lint_classes": ["IdentityReleaseOfHigh"],
     },
     "05-branch-before-release": {
-        "tag": "FindingsMatcherV1",
+        "tag": "FindingsMatcherV2",
         "required_lint_classes": ["IdentityReleaseOfHigh"],
     },
     "06-equal-release-stays-active": {"tag": "Complete"},
@@ -263,7 +263,7 @@ def check_shape(case: dict[str, object], root: Path) -> None:
     entry = function_body(text, "fixture_entry")
     marker = case["shape_contract"]["marker_symbol"]
     if marker is None:
-        if "__sps_release_emit_v1_" in text:
+        if "@llvm.sps.release" in text:
             fail(f"{case_id}: unexpected release marker")
         if case_id == "01-secret-branch" and "br i1 " not in entry:
             fail(f"{case_id}: missing secret-dependent branch")
@@ -277,12 +277,10 @@ def check_shape(case: dict[str, object], root: Path) -> None:
     wrapper_body = function_body(text, wrapper)
     if text.count(f"@{marker}") != 2:
         fail(f"{case_id}: marker must have one declaration and one call")
-    if f"call ccc void @{marker}" not in wrapper_body:
-        fail(f"{case_id}: marker is not a direct ccc call inside its wrapper")
+    if f"call void (...) @{marker}" not in wrapper_body:
+        fail(f"{case_id}: marker is not a direct variadic call inside its wrapper")
     if 'attributes #0 = { noinline noduplicate nomerge nobuiltin "nooutline" }' not in text:
         fail(f"{case_id}: wrapper Class-B attribute set is incomplete")
-    if "attributes #1 = { nounwind willreturn memory(none) }" not in text:
-        fail(f"{case_id}: marker attribute set is not exact")
     wrapper_call = f"call ccc void @{wrapper}"
     if entry.count(wrapper_call) != 1:
         fail(f"{case_id}: entry must contain one direct ccc wrapper call")
@@ -300,8 +298,8 @@ def check_case(case: dict[str, object], root: Path) -> None:
     case_id = str(case.get("case_id"))
     if case.get("claimable") is not False or case.get("current_status") != "Pending":
         fail(f"{case_id}: fixture must remain nonclaimable and Pending")
-    if case.get("tier") != {"tag": "PreflightV1"}:
-        fail(f"{case_id}: lecture shape must remain a PreflightV1 fixture")
+    if case.get("tier") != {"tag": "CandidateOnly"}:
+        fail(f"{case_id}: lecture shape must remain a CandidateOnly fixture")
     model_matcher, rows = EXPECTED[case_id]
     if case.get("expected_model_status_matcher") != model_matcher:
         fail(f"{case_id}: wrong expected ModelStatus matcher")
@@ -335,7 +333,7 @@ def main() -> None:
     authority = inventory.get("authority")
     if not isinstance(authority, dict) or authority.get("claimable") is not False:
         fail("suite authority must be explicitly nonclaimable")
-    if authority.get("tier") != {"tag": "PreflightV1"}:
+    if authority.get("tier") != {"tag": "CandidateOnly"}:
         fail("suite authority must identify the preflight tier")
     if authority.get("checker_status") != "Unimplemented":
         fail("suite must not imply that the SPS checker exists")
@@ -361,7 +359,7 @@ def main() -> None:
             expected += f"({matcher['args'][0]['reasonClassId']})"
         print(
             f"verified {case['case_id']}: fixture-contract only; "
-            f"tier=PreflightV1; claimable=false; ModelStatus=not-computed; "
+            f"tier=CandidateOnly; claimable=false; ModelStatus=not-computed; "
             f"expected-matcher={expected}; capture-shape-sha256=verified"
         )
 

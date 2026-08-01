@@ -1,19 +1,19 @@
 {
-  "schema_version": "SPS-Harness-Rev4-High-Value-Fixtures-v2",
+  "schema_version": "SPS-Harness-Rev4-High-Value-Fixtures-v3",
   "authority": {
     "tier": {
-      "tag": "PreflightV1"
+      "tag": "CandidateOnly"
     },
     "claimable": false,
     "checker_status": "Unimplemented",
     "current_status": "Pending",
-    "statement": "Expectations are harness-scoped prerequisites and stage outcomes; no SPSRunReportV1 or ModelStatus has been computed."
+    "statement": "Expectations are harness-scoped prerequisites and stage reports; no SPS run report or ModelStatus has been computed."
   },
   "inputs": {
     "definedness": "integration/Inputs/sps-rev4-high-value/definedness.ll.in",
     "release-marker": "integration/Inputs/sps-rev4-high-value/release-markers.ll.in",
     "output-closure": "integration/Inputs/sps-rev4-high-value/output-closure.ll.in",
-    "aggregation": null,
+    "aggregation": "integration/Inputs/sps-rev4-high-value/aggregation-inputs.json",
     "external-contract": "integration/Inputs/sps-rev4-high-value/external-memory.ll.in",
     "exact-memory": "integration/Inputs/sps-rev4-high-value/external-memory.ll.in",
     "artifact-freeze": "integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in",
@@ -33,17 +33,17 @@
         "replay_required": true
       },
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -58,7 +58,7 @@
         "counterexample_forbidden": true
       },
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -79,7 +79,7 @@
         "counterexample_forbidden": true
       },
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -101,7 +101,7 @@
         "counterexample_forbidden": true
       },
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -119,10 +119,19 @@
       "function": "release_conforming",
       "mutation": "none",
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "ReleaseCarrierValidationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "ReleaseCarrierValidationV2",
+        "completedChecks": [
+          "InvalidCallableCarrierShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -133,7 +142,7 @@
       "function": "release_missing_marker",
       "mutation": "missing-marker",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -151,7 +160,7 @@
       "function": "release_duplicate_marker",
       "mutation": "duplicate-marker",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -169,7 +178,7 @@
       "function": "release_wrong_symbol",
       "mutation": "wrong-symbol",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -187,7 +196,7 @@
       "function": "release_wrong_type",
       "mutation": "wrong-type",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -205,7 +214,7 @@
       "function": "release_tail_marker",
       "mutation": "tail-call",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -223,7 +232,7 @@
       "function": "release_varargs_marker",
       "mutation": "varargs",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -241,7 +250,7 @@
       "function": "release_operand_bundle",
       "mutation": "operand-bundle",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -259,7 +268,7 @@
       "function": "release_wrong_cc",
       "mutation": "wrong-calling-convention",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -277,7 +286,7 @@
       "function": "release_missing_noinline",
       "mutation": "missing-noinline",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -295,7 +304,7 @@
       "function": "release_missing_nooutline",
       "mutation": "missing-nooutline",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -313,7 +322,7 @@
       "function": "release_missing_noduplicate",
       "mutation": "missing-noduplicate",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -331,7 +340,7 @@
       "function": "release_missing_nomerge",
       "mutation": "missing-nomerge",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -349,7 +358,7 @@
       "function": "release_missing_nobuiltin",
       "mutation": "missing-nobuiltin",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -367,17 +376,17 @@
       "function": "release_wrong_value",
       "mutation": "wrong-value",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -388,17 +397,17 @@
       "function": "release_guarded",
       "mutation": "binding-guard-negated",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -409,17 +418,17 @@
       "function": "release_conforming",
       "mutation": "binding-footprint-mismatch",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -430,17 +439,17 @@
       "function": "release_conforming",
       "mutation": "binding-site-mismatch",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -451,17 +460,17 @@
       "function": "release_conforming",
       "mutation": "binding-ordinal-mismatch",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -472,17 +481,17 @@
       "function": "release_conforming",
       "mutation": "binding-count-mismatch",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -500,10 +509,19 @@
         "emitted_ordinal": 1
       },
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "ReleaseCarrierValidationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "ReleaseCarrierValidationV2",
+        "completedChecks": [
+          "InvalidCallableCarrierOrdinalShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -513,17 +531,17 @@
       "title": "High ABI return",
       "function": "high_abi_return",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -533,12 +551,12 @@
       "title": "constant ABI return control",
       "function": "constant_abi_return",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -548,17 +566,17 @@
       "title": "High pointer writeback",
       "function": "high_pointer_writeback",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -569,7 +587,7 @@
       "function": "two_byte_writeback",
       "mutation": "omit-byte-1",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -587,7 +605,7 @@
       "function": "two_byte_writeback",
       "mutation": "bind-byte-0-twice",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -605,7 +623,7 @@
       "function": "uninitialized_terminal_byte",
       "mutation": "sample-two-byte-footprint",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -622,46 +640,36 @@
       "title": "one lane returns while the other continues",
       "function": "one_lane_returns",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
     {
       "id": "AGG-01",
       "family": "aggregation",
-      "title": "counterexample beats unrelated timeout",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": true,
-        "blockers": [
-          "SolverTimeout"
-        ]
-      },
-      "private_reasons": [
-        "SolverTimeout"
-      ],
+      "title": "accepted replay outranks unrelated proof-completion timeout",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -669,18 +677,8 @@
       "id": "AGG-02",
       "family": "aggregation",
       "title": "single blocker remains precise",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": false,
-        "blockers": [
-          "SolverTimeout"
-        ]
-      },
-      "private_reasons": [
-        "SolverTimeout"
-      ],
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -695,20 +693,8 @@
       "id": "AGG-03",
       "family": "aggregation",
       "title": "multiple blockers are publicly collapsed",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": false,
-        "blockers": [
-          "PossibleUB",
-          "SolverTimeout"
-        ]
-      },
-      "private_reasons": [
-        "PossibleUB",
-        "SolverTimeout"
-      ],
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -723,63 +709,39 @@
       "id": "AGG-04",
       "family": "aggregation",
       "title": "all products and obligations closed",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": false,
-        "blockers": []
-      },
-      "private_reasons": [],
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
     {
       "id": "AGG-05",
       "family": "aggregation",
-      "title": "apparent leak in nonconformant IR stays preflight-only",
-      "inputs": {
-        "conformant": false,
-        "replayed_counterexample": false,
-        "preflight_leak_finding": true,
-        "blockers": []
-      },
-      "private_reasons": [
-        "PipelineMismatch"
-      ],
+      "title": "FP-unsupported apparent leak cannot produce a replay token",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
             {
-              "reasonClassId": "PipelineMismatch"
+              "reasonClassId": "PONFFPArithmeticUnsupported"
             }
           ]
         }
-      }
+      },
+      "preflight_leak_finding": true
     },
     {
       "id": "AGG-06",
       "family": "aggregation",
       "title": "contradictory admission is non-vacuous unknown",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": false,
-        "blockers": [
-          "VacuousAdmission"
-        ]
-      },
-      "private_reasons": [
-        "VacuousAdmission"
-      ],
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -794,18 +756,8 @@
       "id": "AGG-07",
       "family": "aggregation",
       "title": "expected High variation is absent",
-      "inputs": {
-        "conformant": true,
-        "replayed_counterexample": false,
-        "blockers": [
-          "ExpectedHighVariationAbsent"
-        ]
-      },
-      "private_reasons": [
-        "ExpectedHighVariationAbsent"
-      ],
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -817,16 +769,137 @@
       }
     },
     {
+      "id": "AGG-08",
+      "family": "aggregation",
+      "title": "accepted replay plus replay-invalidating blocker is inconsistent",
+      "expectation": {
+        "tag": "SPS-Harness-AggregationInputRejected-v2",
+        "errorClass": "AcceptedReplayConflictsWithReplayInvalidatingBlocker"
+      }
+    },
+    {
+      "id": "AGG-09",
+      "family": "aggregation",
+      "title": "run-finalization failure outranks accepted replay",
+      "expectation": {
+        "tag": "SPS-Harness-ReportingFailureExpectation-v2",
+        "expected_run_state": {
+          "tag": "ReportingFailed"
+        },
+        "model_status_field_forbidden": true
+      }
+    },
+    {
+      "id": "AGG-10",
+      "family": "aggregation",
+      "title": "FP-invalidating and proof blockers collapse without replay",
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV2",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "OpenModelObligations"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "AGG-11",
+      "family": "aggregation",
+      "title": "accepted replay outranks diagnostic health completion failure",
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV2",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV2"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV2"
+        }
+      }
+    },
+    {
+      "id": "AGG-12",
+      "family": "aggregation",
+      "title": "diagnostic health failure blocks proof without replay",
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV2",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "DiagnosticHealthFailure"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "AGG-13",
+      "family": "aggregation",
+      "title": "diagnostic and exact-product disagreement invalidates replay",
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV2",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ToolInconsistency"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "AGG-14",
+      "family": "aggregation",
+      "title": "accepted replay cannot coexist with tool inconsistency",
+      "expectation": {
+        "tag": "SPS-Harness-AggregationInputRejected-v2",
+        "errorClass": "AcceptedReplayConflictsWithReplayInvalidatingBlocker"
+      }
+    },
+    {
+      "id": "AGG-15",
+      "family": "aggregation",
+      "title": "diagnostic finding does not vote against an exact proof",
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV2",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV2"
+        }
+      },
+      "diagnostic_finding": "RelationalRequired"
+    },
+    {
       "id": "EXT-01",
       "family": "external-contract",
       "title": "complete deterministic scalar contract",
       "function": "call_contracted_scalar",
       "contract_variant": "complete-total-single-valued",
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "MechanismContractValidationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "MechanismContractValidationV2",
+        "completedChecks": [
+          "MechanismContractShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -837,7 +910,7 @@
       "function": "call_contracted_scalar",
       "contract_variant": "missing-functional-row",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -855,7 +928,7 @@
       "function": "call_contracted_scalar",
       "contract_variant": "two-unequal-results",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -873,7 +946,7 @@
       "function": "call_contracted_allocate",
       "contract_variant": "returns-fresh-pointer",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -890,17 +963,17 @@
       "title": "coalition-visible host transfer",
       "function": "visible_host_transfer",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       }
     },
@@ -910,12 +983,12 @@
       "title": "coalition-hidden host transfer control",
       "function": "hidden_host_transfer",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -925,12 +998,12 @@
       "title": "loop initializes every output byte",
       "function": "whole_loop_init",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -940,7 +1013,7 @@
       "title": "early exit skips terminal byte",
       "function": "early_exit_init",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -957,7 +1030,7 @@
       "title": "memcpy propagates uninitialized byte",
       "function": "memcpy_uninitialized_byte",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -974,12 +1047,12 @@
       "title": "overlapping memmove",
       "function": "overlapping_memmove",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -989,12 +1062,12 @@
       "title": "zero-length memory operation",
       "function": "zero_length_copy",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -1004,7 +1077,7 @@
       "title": "partial overwrite leaves bytes uninitialized",
       "function": "partial_overwrite",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1021,12 +1094,12 @@
       "title": "exact full overwrite control",
       "function": "full_overwrite",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       }
     },
@@ -1036,7 +1109,7 @@
       "title": "IR mutation after frozen-byte capture",
       "function": "post_capture_mutation_seed",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1053,10 +1126,19 @@
       "title": "safe freeze erasure",
       "function": "freeze_defined",
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "NormalFormNormalizationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "NormalFormNormalizationV2",
+        "completedChecks": [
+          "SafeFreezeErasureShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -1066,7 +1148,7 @@
       "title": "freeze undef may choose",
       "function": "freeze_undef",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1083,7 +1165,7 @@
       "title": "stack-protector semantics enter artifact",
       "function": "stack_protector_fixture",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1100,10 +1182,19 @@
       "title": "same-root canonical GEP equality",
       "function": "same_root_gep_equal",
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "PointerComparisonValidationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "PointerComparisonValidationV2",
+        "completedChecks": [
+          "SameRootPointerShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -1113,7 +1204,7 @@
       "title": "one-past object A versus base of object B",
       "function": "adjacent_one_past_vs_base",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1130,7 +1221,7 @@
       "title": "wrapping GEP versus null",
       "function": "wrapping_gep_vs_null",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1147,10 +1238,19 @@
       "title": "outside-lifetime non-dereference control",
       "function": "outside_lifetime_compare",
       "expectation": {
-        "tag": "StageOutcomeV1",
-        "stage": "PointerComparisonValidationV1",
-        "outcome": {
-          "tag": "AcceptedV1"
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {
+          "tag": "CandidateOnly"
+        },
+        "stageId": "PointerComparisonValidationV2",
+        "completedChecks": [
+          "OutsideLifetimePointerShapeCheckedV2"
+        ],
+        "findings": [],
+        "blockers": [],
+        "claimable": false,
+        "modelStatus": {
+          "tag": "NotComputed"
         }
       }
     },
@@ -1160,17 +1260,17 @@
       "title": "joint visibility",
       "source": "examples/actors/t2_joint_visibility.mlir",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       },
       "audit_all_expectations": [
@@ -1181,14 +1281,14 @@
           "entry": "serve_kv_cache",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1200,14 +1300,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1219,14 +1319,14 @@
             "bob"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1239,14 +1339,14 @@
             "bob"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         }
       ]
@@ -1257,17 +1357,17 @@
       "title": "per-item closed-world clearance",
       "source": "examples/actors/t5_clearance_violation.mlir",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       },
       "audit_all_expectations": [
@@ -1278,14 +1378,14 @@
           "entry": "serve_two_items",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1297,14 +1397,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         }
       ]
@@ -1315,17 +1415,17 @@
       "title": "three-principal downward closure",
       "source": "examples/actors/t6_downward_closure.mlir",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Counterexample",
           "args": [
             {
-              "tag": "FreshProtectedReceiptMatcherV1"
+              "tag": "FreshProtectedReceiptMatcherV2"
             }
           ]
         },
         "final_replay_expectation": {
-          "tag": "AcceptedBadStateRequiredV1"
+          "tag": "AcceptedBadStateRequiredV2"
         }
       },
       "audit_all_expectations": [
@@ -1336,14 +1436,14 @@
           "entry": "serve_carol_item",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1355,14 +1455,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1374,14 +1474,14 @@
             "bob"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1393,14 +1493,14 @@
             "carol"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -1413,14 +1513,14 @@
             "bob"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1433,14 +1533,14 @@
             "carol"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -1453,14 +1553,14 @@
             "carol"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -1474,14 +1574,14 @@
             "carol"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         }
       ]
@@ -1492,7 +1592,7 @@
       "title": "incomplete side of placement pair",
       "source": "examples/actors/t9_placement_incomplete.mlir",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Unknown",
           "args": [
@@ -1510,14 +1610,14 @@
           "entry": "serve_placed",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1529,14 +1629,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1546,13 +1646,13 @@
           "entry": "serve_unplaced",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
@@ -1567,13 +1667,13 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
@@ -1587,12 +1687,12 @@
       "title": "complete side of placement pair",
       "source": "integration/Inputs/sps-rev4-high-value/actor-placement-complete.mlir.in",
       "expectation": {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": {
           "tag": "Proved"
         },
         "completion_expectation": {
-          "tag": "AllScheduledModelObligationsClosedV1"
+          "tag": "AllScheduledModelObligationsClosedV2"
         }
       },
       "audit_all_expectations": [
@@ -1603,14 +1703,14 @@
           "entry": "serve_placed",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1622,14 +1722,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1639,14 +1739,14 @@
           "entry": "serve_unplaced",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -1658,14 +1758,14 @@
             "alice"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -1686,7 +1786,7 @@
         "SPS_Rev4_Normative_Specification.md section 9 universal coverage obligations"
       ],
       "pair_domain_model": {
-        "format": "SPS-Harness-Retirement-PairDomain-v1",
+        "format": "SPS-Harness-Retirement-PairDomain-v2",
         "secret_bits": 8,
         "scope": "An enumerated harness model over an 8-bit secret carrier. It is not LLVM semantics and not a solver result. The released projection, the post-release selector bit and both step indices are parsed out of the entry's own LLVM text, so mutating the module moves the statistic."
       },
@@ -1721,7 +1821,7 @@
         }
       ],
       "retirement_statistic": {
-        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "format": "SPS-Harness-Retirement-Statistic-v2",
         "entry": "release_injective_digest",
         "coalition": [
           "alice"
@@ -1740,15 +1840,15 @@
       },
       "vacuous_proved_note": "A verdict of Proved for (release_injective_digest, [alice]) would be vacuous-by-retirement. 99.6 percent of admitted pairs, 65280 of 65536, retire at the first release, step 9 of 18, under section 12 transition 1. The bit-7 divergence at steps 11 to 17 is therefore outside Secure^1_{A,e} for every secret-varying pair, and a reader of a bare verdict cannot tell that apart from a covered proof. This harness does not compute a ModelStatus, an NFConforms judgment, or a receipt; it records the statistic that part5-soundness.tex:210-219 says could ship now and stops there.",
       "expectation": {
-        "tag": "SPS-Harness-RetirementCoverageObservationV1",
+        "tag": "SPS-Harness-RetirementCoverageObservationV2",
         "model_status_expectation": {
-          "tag": "NotComputedV1"
+          "tag": "NotComputed"
         },
         "coverage_query_expectation": {
-          "tag": "AllFourCoverageQueriesSatisfiedV1"
+          "tag": "AllFourCoverageQueriesSatisfiedV2"
         },
         "statistic_expectation": {
-          "tag": "SPS-Harness-Retirement-Statistic-v1"
+          "tag": "SPS-Harness-Retirement-Statistic-v2"
         }
       }
     },
@@ -1768,7 +1868,7 @@
         "SPS_Rev4_Normative_Specification.md section 9 universal coverage obligations"
       ],
       "pair_domain_model": {
-        "format": "SPS-Harness-Retirement-PairDomain-v1",
+        "format": "SPS-Harness-Retirement-PairDomain-v2",
         "secret_bits": 8,
         "scope": "The same enumerated harness model and the same post-release tail as RET-01. The only difference is the released projection, so the two statistics isolate the release rather than the program tail."
       },
@@ -1803,7 +1903,7 @@
         }
       ],
       "retirement_statistic": {
-        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "format": "SPS-Harness-Retirement-Statistic-v2",
         "entry": "release_low_bit",
         "coalition": [
           "alice"
@@ -1822,15 +1922,15 @@
       },
       "vacuous_proved_note": "This is the contrast side. Lanes that agree on bit 0 take section 12 transition 2, EqualAuthorized, and stay Active, so only 50.0 percent of admitted pairs retire and 16384 secret-varying pairs are still Active when the identical bit-7 divergence is reached. A verdict here would not be vacuous-by-retirement, which is the whole point of keeping the pair: without it the statistic could not be distinguished from a constant. This harness does not compute a ModelStatus for either side.",
       "expectation": {
-        "tag": "SPS-Harness-RetirementCoverageObservationV1",
+        "tag": "SPS-Harness-RetirementCoverageObservationV2",
         "model_status_expectation": {
-          "tag": "NotComputedV1"
+          "tag": "NotComputed"
         },
         "coverage_query_expectation": {
-          "tag": "AllFourCoverageQueriesSatisfiedV1"
+          "tag": "AllFourCoverageQueriesSatisfiedV2"
         },
         "statistic_expectation": {
-          "tag": "SPS-Harness-Retirement-Statistic-v1"
+          "tag": "SPS-Harness-Retirement-Statistic-v2"
         }
       }
     }

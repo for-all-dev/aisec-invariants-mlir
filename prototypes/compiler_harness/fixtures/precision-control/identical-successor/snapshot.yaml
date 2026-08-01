@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: identical_successor_control
+
+c_evidence:
+  - ../sources/precision_controls.c
+
+secret:
+  - {arg: 0, name: high_condition}
+
+public:
+  - {observable: control}
+  - {memory_at_arg: 1, name: public_sink}
+
+expect: relational-check
+
+because:
+  - both secret branch arms reach the same successor and store the same constant
+
+sps: not-run

@@ -27,7 +27,7 @@
 # These checks make no ModelStatus claim.
 
 # --- vulnerable form: the secret-dependent op is a select, not a branch -----
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %harness/c/clangover_poly_frommsg_vulnerable.c -o %t.bad.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c -o %t.bad.ll
 # RUN: %FileCheck %s --check-prefix=IR-BAD --input-file=%t.bad.ll
 
 # The message bit selects between 0 and the coefficient, branchlessly.
@@ -42,7 +42,7 @@
 # BAD-BRCOUNT: 2
 
 # --- fixed form: branchless at IR level too, via an outlined cmov -----------
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %harness/c/clangover_poly_frommsg_fixed.c -o %t.fixed.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_fixed.c -o %t.fixed.ll
 # RUN: %FileCheck %s --check-prefix=IR-FIXED --input-file=%t.fixed.ll
 # IR-FIXED-DAG: @clangover_ct_cmov
 # IR-FIXED-NOT: select i1
@@ -54,7 +54,7 @@
 # Same translation unit, same flags, one step further down the pipeline: the
 # branch appears. This pair of facts is what locates the defect below the freeze
 # point rather than inside the frozen module.
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %harness/c/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
 # RUN: %FileCheck %s --check-prefix=ASM-BAD --input-file=%t.bad.s
 # ASM-BAD-LABEL: clangover_poly_frommsg_vulnerable:
 # ASM-BAD: btl
@@ -62,7 +62,7 @@
 
 # CONSEQUENCE FOR FIXTURE CLASSIFICATION.
 #
-# mlir/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir models this case as an
+# fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir models this case as an
 # `llvm.cond_br` at LLVM-dialect level. Its own header is scrupulous about this
 # -- "classification: modeled-from-verified-assembly", "artifact status:
 # hand-written target model derived from verified assembly" -- and that labelling
@@ -72,6 +72,6 @@
 #
 # INCIDENTAL OBSERVATION, not asserted here. The fixed form's call is emitted as
 # `tail call`. Profile section 8.4 rejects `tail`, `musttail`, `notail`, `invoke`
-# and `callbr` in v1, so the fixed artifact would need the marker removed or the
+# and `callbr` in the current profile, so the fixed artifact would need the marker removed or the
 # call re-emitted before it could enter the normal form. That is a normal-form
 # question rather than a confidentiality one.

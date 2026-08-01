@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: alloca_size_public_control
+
+c_evidence:
+  - ../sources/alloca_size_models.c
+
+secret: []
+
+public:
+  - {arg: 0, name: public_count}
+  - {observable: allocation-size}
+
+expect: no-violation
+
+because:
+  - allocation size is derived only from the declared public count
+
+sps: not-run

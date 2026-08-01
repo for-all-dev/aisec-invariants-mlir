@@ -7,7 +7,7 @@ set -eu
 #   1. compiles the vulnerable and fixed C reductions to LLVM IR and x86 asm;
 #   2. imports the real LLVM IR into LLVM-dialect MLIR;
 #   3. checks the decisive vulnerable/fixed assembly patterns; and
-#   4. emits small, explicitly scoped PreflightV1 target-model shapes.
+#   4. emits small, explicitly scoped CandidateOnly target-model shapes.
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 HARNESS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
@@ -19,6 +19,7 @@ MLIR_OPT=${MLIR_OPT:-$LLVM_BIN/mlir-opt}
 
 OUTPUT_DIR=${1:-$HARNESS_DIR/build/clangover-generated}
 EVIDENCE_DIR=$HARNESS_DIR/build/clangover-evidence
+SOURCE_DIR=$HARNESS_DIR/fixtures/clangover-poly-frommsg/sources
 
 for tool in "$CLANG" "$MLIR_TRANSLATE" "$MLIR_OPT"; do
   if test ! -x "$tool"; then
@@ -34,23 +35,23 @@ TARGET_FLAGS="--target=x86_64-unknown-linux-gnu"
 OPT_FLAGS="-Os -fno-vectorize -fno-slp-vectorize"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S -emit-llvm \
-  "$SCRIPT_DIR/clangover_poly_frommsg_vulnerable.c" \
+  "$SOURCE_DIR/clangover_poly_frommsg_vulnerable.c" \
   -o "$EVIDENCE_DIR/vulnerable.ll"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SCRIPT_DIR/clangover_poly_frommsg_vulnerable.c" \
+  "$SOURCE_DIR/clangover_poly_frommsg_vulnerable.c" \
   -o "$EVIDENCE_DIR/vulnerable.s"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S -emit-llvm \
-  "$SCRIPT_DIR/clangover_poly_frommsg_fixed.c" \
+  "$SOURCE_DIR/clangover_poly_frommsg_fixed.c" \
   -o "$EVIDENCE_DIR/fixed.ll"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SCRIPT_DIR/clangover_poly_frommsg_fixed.c" \
+  "$SOURCE_DIR/clangover_poly_frommsg_fixed.c" \
   -o "$EVIDENCE_DIR/fixed.s"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SCRIPT_DIR/clangover_ct_cmov.c" \
+  "$SOURCE_DIR/clangover_ct_cmov.c" \
   -o "$EVIDENCE_DIR/ct_cmov.s"
 
 "$MLIR_TRANSLATE" --import-llvm "$EVIDENCE_DIR/vulnerable.ll" \
@@ -85,7 +86,7 @@ FIXED_OUT=$OUTPUT_DIR/clangover_poly_frommsg.lowered_fixed.mlir
 
 cat >"$BAD_OUT" <<'MLIR'
 // Generated target model, not a fixture snapshot.
-// Promotion into mlir/ requires a human-authored sibling snapshot.yaml.
+// Promotion into fixtures/ requires a human-authored sibling snapshot.yaml.
 // scope note: candidate target control-flow shape; no ModelStatus is computed
 module {
   // observed x86: btl %ecx, %r8d; jae .Lclear; movl $1665, %edx
@@ -108,7 +109,7 @@ MLIR
 
 cat >"$FIXED_OUT" <<'MLIR'
 // Generated target model, not a fixture snapshot.
-// Promotion into mlir/ requires a human-authored sibling snapshot.yaml.
+// Promotion into fixtures/ requires a human-authored sibling snapshot.yaml.
 // scope note: candidate branchless caller shape; helper evidence remains separate
 module {
   llvm.func @clangover_ct_cmov(%zero: i16, %one: i16, %bit: i16) -> i16

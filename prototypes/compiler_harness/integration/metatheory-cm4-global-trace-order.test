@@ -29,7 +29,7 @@
 # WHAT IT DOES NOT CHECK: nothing here executes relational semantics, aligns
 # events, or computes a status. There is no ModelStatus, no NFConforms, no
 # receipt, and no claim about the 22.1.8 normative boundary. This is a
-# PreflightV1 shape pin for a per-row event checker that does not exist yet.
+# CandidateOnly shape pin for a per-row event checker that does not exist yet.
 
 # RUN: %llvm-as %harness/integration/Inputs/metatheory-cm4/order_swap.ll -o %t.bc
 # RUN: %llvm-dis %t.bc -o %t.ll

@@ -1,6 +1,5 @@
-# The checker below executes the strict public-result priority rule over seven
-# hand-authored obligation sets.  It is still a fixture oracle, not SPSRunReportV1.
+# The checker below executes the strict public-result priority rule over fifteen
+# hand-authored typed input sets. It is still a fixture oracle, not an SPS run.
 # RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family aggregation | %FileCheck %s
 
-# CHECK: verified aggregation: 7 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
-
+# CHECK: verified aggregation: 15 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed

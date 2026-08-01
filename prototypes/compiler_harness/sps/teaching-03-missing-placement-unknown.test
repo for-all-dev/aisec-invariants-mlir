@@ -1,5 +1,0 @@
-# REQUIRES: sps-verifier, llvm-22.1.8, sps-teaching-materialized
-# Future exact-verifier contract; unsupported until the checker and bundle exist.
-# RUN: %sps-verifier verify --bundle %sps-teaching-materialized/03-missing-placement > %t.report.json
-# RUN: %python %harness/tools/check_sps_run_report.py --root %harness --case 03-missing-placement --report %t.report.json | %FileCheck %s
-# CHECK: verified 03-missing-placement: canonical CompletedV1 SPSRunReportV1

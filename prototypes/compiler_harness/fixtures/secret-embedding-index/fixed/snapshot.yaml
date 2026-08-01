@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: secret_embedding_index_fixed
+
+c_evidence:
+  - ../sources/secret_embedding_index_fixed.c
+
+secret:
+  - {arg: 1, name: secret_index}
+
+public:
+  - {observable: address}
+
+expect: no-violation
+
+because:
+  - every run scans all 16 public addresses in the same order
+
+sps: not-run

@@ -1,0 +1,50 @@
+# The snapshot catalog is one closed, human-readable schema. YAML shortcuts,
+# stale argument references, orphaned files, and premature SPS claims fail
+# before any semantic claim.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root
+# RUN: cp -R %harness/c %t.root/c
+# RUN: mkdir -p %t.root/tools
+# RUN: cp %harness/tools/sps_aggregation.py %t.root/tools/sps_aggregation.py
+# RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
+# RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
+# RUN: cp -R %harness/contracts %t.root/contracts
+# RUN: cp -R %fixtures %t.root/fixtures
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/dynamic-kv-length/bad/snapshot.yaml'); p.write_text(p.read_text() + 'sps: not-run\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/dynamic-kv-length/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'extra: true\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/breach-compressed-length/bad/snapshot.yaml'); p.write_text(p.read_text() + 'x: &shared value\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/breach-compressed-length/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'x: !custom value\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/clangover-poly-frommsg/source/snapshot.yaml'); p.write_text(p.read_text().replace('expect: shape-only', 'expect: impossible'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/kyberslash1-poly-tomsg/bad/snapshot.yaml'); p.write_text(p.read_text().replace('sps: not-run', 'sps: proved'))"
+# RUN: rm %t.root/fixtures/secret-logging-checkpoint/fixed/snapshot.yaml
+# RUN: cp %t.root/fixtures/redis-pool-reuse/bad/redis_pool_reuse.bad.mlir %t.root/fixtures/redis-pool-reuse/bad/duplicate.mlir
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/redis-pool-reuse/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'finding: violation\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/alloca-size/high-count-unknown/snapshot.yaml'); p.write_text(p.read_text().replace('arg: 0', 'arg: 99'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/alloca-size/public-control/snapshot.yaml'); p.write_text(p.read_text().replace('../sources/alloca_size_models.c', '../../audience-mismatch/sources/audience_mismatch_bad.c'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/audience-mismatch/bad/snapshot.yaml'); p.write_text(p.read_text().replace('../sources/audience_mismatch_bad.c', '../sources/missing.c').replace('name: logits', 'name: stale_name'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/prefix-causal-release/bad/snapshot.yaml'); p.write_text(p.read_text().replace('\nc_evidence:\n  - ../sources/prefix_causal_release_bad.c\n', ''))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/secret-logging-checkpoint/bad/snapshot.yaml'); p.write_text(p.read_text().replace('{memory_at_arg: 2, name: public_log}', '{memory_at_arg: 0, name: service_account_token}'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir'); p.write_text(p.read_text() + '// model status: Proved\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/wolfssl-3579-mul/target-unknown/snapshot.yaml'); p.write_text(p.read_text().replace('SPS-Harness-Fixture-Snapshot-v2', 'SPS-Run-Report-v2'))"
+# RUN: not %python %t.root/c/check_harness.py snapshots 2>&1 | %FileCheck %s
+
+# CHECK: fixtures/secret-logging-checkpoint/fixed/secret_logging_checkpoint.fixed.mlir: fixture MLIR has no sibling snapshot.yaml
+# CHECK: fixtures/alloca-size/high-count-unknown/snapshot.yaml: secret[0] argument index 99 is out of range
+# CHECK: fixtures/alloca-size/public-control/snapshot.yaml: c_evidence[0] escapes its fixture family
+# CHECK: fixtures/audience-mismatch/bad/snapshot.yaml: c_evidence[0] does not exist
+# CHECK: fixtures/audience-mismatch/bad/snapshot.yaml: secret[0] name must match argument 0 ('logits')
+# CHECK: fixtures/breach-compressed-length/bad/snapshot.yaml: cannot parse strict snapshot YAML: aliases, anchors, and explicit tags are not allowed
+# CHECK: fixtures/breach-compressed-length/fixed/snapshot.yaml: cannot parse strict snapshot YAML: aliases, anchors, and explicit tags are not allowed
+# CHECK: fixtures/clangover-poly-frommsg/source/snapshot.yaml: expect has an unknown value
+# CHECK: fixtures/dynamic-kv-length/bad/snapshot.yaml: cannot parse strict snapshot YAML:
+# CHECK: fixtures/dynamic-kv-length/fixed/snapshot.yaml: snapshot fields must contain exactly
+# CHECK: fixtures/kyberslash1-poly-tomsg/bad/snapshot.yaml: a completed SPS state requires bitcode, manifest, and report
+# CHECK: fixtures/kyberslash1-poly-tomsg/bad/snapshot.yaml: non-not-run SPS states remain disabled until the production verifier validates the report
+# CHECK: fixtures/prefix-causal-release/bad/snapshot.yaml: snapshot fields must contain exactly
+# CHECK: fixtures/redis-pool-reuse/bad/snapshot.yaml: snapshot must have exactly one sibling .mlir file
+# CHECK: fixtures/redis-pool-reuse/fixed/snapshot.yaml: finding: violation requires expect: unknown
+# CHECK: fixtures/redis-pool-reuse/fixed/snapshot.yaml: finding: violation requires a PREFLIGHT FINDING block
+# CHECK: fixtures/secret-logging-checkpoint/bad/snapshot.yaml: public[0] argument 0 is not pointer-typed
+# CHECK: fixtures/wolfssl-3579-mul/target-unknown/snapshot.yaml: format_id must be the literal 'SPS-Harness-Fixture-Snapshot-v2'
+# CHECK: fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir: preflight fixture forbids authoritative field '// model status:'

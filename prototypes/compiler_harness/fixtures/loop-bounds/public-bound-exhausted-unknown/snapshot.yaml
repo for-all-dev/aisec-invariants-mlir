@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: bound_exhausted_public_loop
+
+c_evidence:
+  - ../sources/bound_exhausted_loop.c
+
+secret: []
+
+public:
+  - {arg: 0, name: public_count}
+  - {observable: control}
+
+expect: unknown
+
+because:
+  - the public loop may exceed the configured proof bound and cannot be filtered away
+
+sps: not-run

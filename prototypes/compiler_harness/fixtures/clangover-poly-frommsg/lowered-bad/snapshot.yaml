@@ -1,0 +1,19 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: clangover_poly_frommsg_x86_bad_model
+
+c_evidence:
+  - ../sources/clangover_poly_frommsg_vulnerable.c
+
+secret:
+  - {arg: 0, name: bit}
+
+public:
+  - {observable: control}
+  - {observable: timing}
+
+expect: target-risk
+
+because:
+  - the secret bit selects different target-model successors
+
+sps: not-run

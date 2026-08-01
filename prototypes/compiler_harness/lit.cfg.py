@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shlex
 import shutil
 import subprocess
@@ -75,6 +76,8 @@ _opt = _tool_in_llvm_bin("opt")
 _llvm_as = _tool_in_llvm_bin("llvm-as")
 _llvm_dis = _tool_in_llvm_bin("llvm-dis")
 _llvm_config = _tool_in_llvm_bin("llvm-config")
+_llvm_objdump = _tool_in_llvm_bin("llvm-objdump")
+_llvm_readobj = _tool_in_llvm_bin("llvm-readobj")
 _mlir_opt = _required_tool("mlir-opt")
 _mlir_translate = _tool_in_llvm_bin("mlir-translate")
 _filecheck = _required_tool("FileCheck")
@@ -232,13 +235,13 @@ def _matches_candidate_producer_toolchain():
     if any(path is None for path in tools.values()):
         return False
 
-    artifacts_root = os.path.join(_root, "artifacts")
+    fixtures_root = os.path.join(_root, "fixtures")
     try:
-        identities = sorted(
-            os.path.join(artifacts_root, name, "artifact.json")
-            for name in os.listdir(artifacts_root)
-            if os.path.isfile(os.path.join(artifacts_root, name, "artifact.json"))
-        )
+        identities = []
+        for directory, _, filenames in os.walk(fixtures_root):
+            if os.path.basename(directory) == "candidate" and "artifact.json" in filenames:
+                identities.append(os.path.join(directory, "artifact.json"))
+        identities.sort()
         if not identities:
             return False
         expected = None
@@ -257,14 +260,168 @@ def _matches_candidate_producer_toolchain():
         return False
 
 
+def _probe_output(command):
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except OSError:
+        return None
+    return completed.stdout if completed.returncode == 0 else None
+
+
+def _probe_sps_nfv2_intrinsic():
+    """Reject stock LLVM's ordinary-external-call interpretation of the name."""
+
+    if not _llvm_as or not _llvm_dis or not _opt:
+        return False
+    source = """\
+declare void @llvm.sps.release(...)
+define void @probe(i32 %payload) {
+entry:
+  call void (...) @llvm.sps.release(i32 %payload)
+  call void (...) @llvm.sps.release(i32 %payload)
+  ret void
+}
+"""
+    try:
+        with tempfile.TemporaryDirectory(dir=config.test_exec_root) as probe_dir:
+            source_path = os.path.join(probe_dir, "nfv2-probe.ll")
+            bitcode_path = os.path.join(probe_dir, "nfv2-probe.bc")
+            with open(source_path, "w", encoding="utf-8") as stream:
+                stream.write(source)
+            if _probe_output([_llvm_as, source_path, "-o", bitcode_path]) is None:
+                return False
+            rendered = _probe_output([_llvm_dis, bitcode_path, "-o", "-"])
+            if rendered is None:
+                return False
+            required_attributes = ("memory(none)", "noduplicate", "nomerge")
+            if any(attribute not in rendered for attribute in required_attributes):
+                return False
+            if "speculatable" in rendered:
+                return False
+            marker = re.compile(
+                r"\bcall\s+void\s+\(\.\.\.\)\s+@llvm\.sps\.release\("
+            )
+            pipelines = (
+                "default<O2>",
+                "sps-final-weaken-v2,function(dce),globaldce",
+            )
+            for pipeline in pipelines:
+                optimized = _probe_output(
+                    [_opt, f"-passes={pipeline}", "-S", bitcode_path, "-o", "-"]
+                )
+                if optimized is None or len(marker.findall(optimized)) != 2:
+                    return False
+            return True
+    except OSError:
+        return False
+
+
+def _probe_sps_nfv2_codegen(intrinsic_available):
+    if (
+        not intrinsic_available
+        or not _llc
+        or not _llvm_as
+        or not _llvm_objdump
+        or not _llvm_readobj
+    ):
+        return False
+    source = """\
+declare void @llvm.sps.release(...)
+define i32 @nfv2_marked(i32 %payload) {
+entry:
+  call void (...) @llvm.sps.release(i32 %payload)
+  ret i32 %payload
+}
+define i32 @nfv2_control(i32 %payload) {
+entry:
+  ret i32 %payload
+}
+"""
+    try:
+        with tempfile.TemporaryDirectory(dir=config.test_exec_root) as probe_dir:
+            source_path = os.path.join(probe_dir, "nfv2-codegen-probe.ll")
+            bitcode_path = os.path.join(probe_dir, "nfv2-codegen-probe.bc")
+            object_path = os.path.join(probe_dir, "nfv2-codegen-probe.o")
+            with open(source_path, "w", encoding="utf-8") as stream:
+                stream.write(source)
+            if _probe_output([_llvm_as, source_path, "-o", bitcode_path]) is None:
+                return False
+            common = [_llc, "-mtriple=x86_64-unknown-linux-gnu", "-O2"]
+            for boundary in ("finalize-isel", "prologepilog"):
+                machine_ir = _probe_output(
+                    [*common, f"-stop-after={boundary}", bitcode_path, "-o", "-"]
+                )
+                if machine_ir is None or machine_ir.count("SPS_RELEASE") != 1:
+                    return False
+            assembly = _probe_output([*common, "-filetype=asm", bitcode_path, "-o", "-"])
+            if assembly is None:
+                return False
+            if "llvm.sps.release" in assembly or "SPS_RELEASE" in assembly:
+                return False
+            if _probe_output(
+                [*common, "-filetype=obj", bitcode_path, "-o", object_path]
+            ) is None:
+                return False
+            object_inventory = _probe_output(
+                [_llvm_readobj, "--symbols", "--relocations", object_path]
+            )
+            disassembly = _probe_output([_llvm_objdump, "-d", object_path])
+            if object_inventory is None or disassembly is None:
+                return False
+            if "llvm.sps.release" in object_inventory or "SPS_RELEASE" in object_inventory:
+                return False
+            return "<nfv2_marked>:" in disassembly and "<nfv2_control>:" in disassembly
+    except OSError:
+        return False
+
+
+_has_sps_nfv2_intrinsic = _probe_sps_nfv2_intrinsic()
+_has_sps_nfv2_codegen = _probe_sps_nfv2_codegen(_has_sps_nfv2_intrinsic)
+
+
 _sps_scan = _configured_executable("SPS_SCAN")
 _sps_verifier = _configured_executable("SPS_VERIFIER")
-_sps_teaching_materialized = os.environ.get("SPS_TEACHING_MATERIALIZED", "")
-if _sps_teaching_materialized:
-    _sps_teaching_materialized = os.path.abspath(_sps_teaching_materialized)
-_sps_error_materialized = os.environ.get("SPS_ERROR_MATERIALIZED", "")
-if _sps_error_materialized:
-    _sps_error_materialized = os.path.abspath(_sps_error_materialized)
+_sps_rev41_materialized = os.environ.get("SPS_REV41_MATERIALIZED", "")
+if _sps_rev41_materialized:
+    _sps_rev41_materialized = os.path.abspath(_sps_rev41_materialized)
+
+
+def _probe_sps_rev41_verifier(path):
+    """Enable V2 tests only for a verifier that advertises the exact contract."""
+
+    if not path:
+        return False
+    output = _probe_output([path, "capabilities", "--format=json"])
+    if output is None:
+        return False
+    try:
+        value = json.loads(output)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    required_features = {
+        "accepted-bad-replay-v2",
+        "complete-observation-latency-schedule-v2",
+        "diagnostic-health-v2",
+        "module-requiredness-v2",
+        "sps-run-report-v2",
+    }
+    return (
+        isinstance(value, dict)
+        and value.get("formatId") == "SPS-Exact-Verifier-Capabilities-v2"
+        and value.get("specRevision") == "4.1"
+        and value.get("profileId") == "SPS-LLVM-NF-v2"
+        and isinstance(value.get("features"), list)
+        and required_features <= set(value["features"])
+    )
+
+
+_has_sps_rev41_verifier = _probe_sps_rev41_verifier(_sps_verifier)
 
 
 def _optional_command(path, unavailable):
@@ -284,22 +441,24 @@ config.substitutions.extend(
         ("%opt", _optional_command(_opt, "opt-unavailable")),
         ("%llvm-as", _optional_command(_llvm_as, "llvm-as-unavailable")),
         ("%llvm-dis", _optional_command(_llvm_dis, "llvm-dis-unavailable")),
+        (
+            "%llvm-objdump",
+            _optional_command(_llvm_objdump, "llvm-objdump-unavailable"),
+        ),
+        (
+            "%llvm-readobj",
+            _optional_command(_llvm_readobj, "llvm-readobj-unavailable"),
+        ),
         ("%sps-scan", _optional_command(_sps_scan, "sps-scan-unavailable")),
         (
             "%sps-verifier",
             _optional_command(_sps_verifier, "sps-verifier-unavailable"),
         ),
         (
-            "%sps-teaching-materialized",
-            _quote(_sps_teaching_materialized)
-            if _sps_teaching_materialized
-            else "sps-teaching-materialized-unavailable",
-        ),
-        (
-            "%sps-error-materialized",
-            _quote(_sps_error_materialized)
-            if _sps_error_materialized
-            else "sps-error-materialized-unavailable",
+            "%sps-rev41-materialized",
+            _quote(_sps_rev41_materialized)
+            if _sps_rev41_materialized
+            else "sps-rev41-materialized-unavailable",
         ),
         ("%python", _quote(sys.executable)),
         ("%make", _optional_command(_make, "make-unavailable")),
@@ -317,6 +476,7 @@ config.substitutions.extend(
             _optional_command(_host_llvm_profdata, "host-llvm-profdata-unavailable"),
         ),
         ("%llvm_bin", _quote(_llvm_bin)),
+        ("%fixtures", _quote(os.path.join(_root, "fixtures"))),
         ("%harness", _quote(_root)),
     ]
 )
@@ -357,6 +517,10 @@ if _llvm_dis:
     config.available_features.add("llvm-dis")
 if _llvm_config:
     config.available_features.add("llvm-config")
+if _llvm_objdump:
+    config.available_features.add("llvm-objdump")
+if _llvm_readobj:
+    config.available_features.add("llvm-readobj")
 if _mlir_translate:
     config.available_features.add("mlir-translate")
 if _make:
@@ -367,10 +531,14 @@ if _sps_scan:
     config.available_features.add("sps-scan-unary")
 if _sps_verifier:
     config.available_features.add("sps-verifier")
-if _sps_teaching_materialized and os.path.isdir(_sps_teaching_materialized):
-    config.available_features.add("sps-teaching-materialized")
-if _sps_error_materialized and os.path.isdir(_sps_error_materialized):
-    config.available_features.add("sps-error-materialized")
+if _has_sps_rev41_verifier:
+    config.available_features.add("sps-rev4.1-verifier")
+if _sps_rev41_materialized and os.path.isdir(_sps_rev41_materialized):
+    config.available_features.add("sps-rev4.1-materialized")
+if _has_sps_nfv2_intrinsic:
+    config.available_features.add("sps-nfv2-intrinsic")
+if _has_sps_nfv2_codegen:
+    config.available_features.add("sps-nfv2-codegen")
 
 if _llvm_config:
     try:

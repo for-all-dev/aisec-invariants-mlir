@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://sps.dev/interfaces/rev4.1/schemas/package.schema.json","title":"SPS Rev4.1 interface roots: SPSInterfaceManifestV2","$ref":"https://sps.dev/interfaces/rev4.1/schemas/sps-rev4.1.bundle.schema.json#/$defs/SPSInterfaceManifestV2"}

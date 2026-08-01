@@ -3,7 +3,7 @@
   "source_suite": "SPS/SPS_Lecture_Notes/artifacts/suite.logical.yaml",
   "authority": {
     "tier": {
-      "tag": "PreflightV1"
+      "tag": "CandidateOnly"
     },
     "claimable": false,
     "checker_status": "Unimplemented",
@@ -11,7 +11,7 @@
     "statement": "Expected matchers describe future Rev4 prerequisites; these LLVM shape fixtures do not compute ModelStatus."
   },
   "source_binding": {
-    "formatId": "SPS-Harness-Lecture-Source-Binding-v1",
+    "formatId": "SPS-Harness-Lecture-Source-Binding-v2",
     "source_root_env": "SPS_LECTURE_SOURCE",
     "source_root_hint": "SPS/SPS_Lecture_Notes/artifacts",
     "source_relative_path": "<case_id>/frozen.ll.sketch",
@@ -35,13 +35,13 @@
         "ordering": "secret-branch-only"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Counterexample",
         "args": [
           {
-            "tag": "FreshProtectedReceiptMatcherV1"
+            "tag": "FreshProtectedReceiptMatcherV2"
           }
         ]
       },
@@ -64,14 +64,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -83,14 +83,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -102,14 +102,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -128,7 +128,7 @@
         "ordering": "branchless"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Proved"
@@ -152,14 +152,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -171,14 +171,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -190,14 +190,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -216,7 +216,7 @@
         "ordering": "branchless-return-placement-omitted"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Unknown",
@@ -245,13 +245,13 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
@@ -266,13 +266,13 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
@@ -287,13 +287,13 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {
               "reasonClassId": "PlacementMismatch"
             }
@@ -304,18 +304,18 @@
     {
       "case_id": "04-authorized-release-first",
       "capture_shape": "integration/Inputs/sps-lecture/04-authorized-release-first/capture-shape.ll",
-      "capture_shape_sha256": "6501305678e2861d2e9390faf9057d12ef28848d78abe4c0d97d6df3341a60cb",
+      "capture_shape_sha256": "f3adad7259d0d83e39fc4a4102a2662ee6f9bde59411559e72aa91b576939a4c",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/04-authorized-release-first/frozen.ll.sketch",
-      "source_artifact_sha256": "6501305678e2861d2e9390faf9057d12ef28848d78abe4c0d97d6df3341a60cb",
+      "source_artifact_sha256": "f3adad7259d0d83e39fc4a4102a2662ee6f9bde59411559e72aa91b576939a4c",
       "claimable": false,
       "current_status": "Pending",
       "shape_contract": {
         "release_id": "q.secret",
-        "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
+        "marker_symbol": "llvm.sps.release",
         "ordering": "release-before-branch"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Proved"
@@ -329,7 +329,7 @@
         ]
       },
       "expected_policy_review_status_matcher": {
-        "tag": "FindingsMatcherV1",
+        "tag": "FindingsMatcherV2",
         "required_lint_classes": [
           "IdentityReleaseOfHigh"
         ]
@@ -342,14 +342,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -361,14 +361,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         },
         {
@@ -380,14 +380,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -395,24 +395,24 @@
     {
       "case_id": "05-branch-before-release",
       "capture_shape": "integration/Inputs/sps-lecture/05-branch-before-release/capture-shape.ll",
-      "capture_shape_sha256": "aa6407a97930c7f50dbceb90e7c08428577b7ff6ac94936befcf1e8dd6a29fa2",
+      "capture_shape_sha256": "9f13337db89f4e8ad0b3839e808cca938c7b0a4a3f5eacd61a85fa86f8fd676c",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/05-branch-before-release/frozen.ll.sketch",
-      "source_artifact_sha256": "aa6407a97930c7f50dbceb90e7c08428577b7ff6ac94936befcf1e8dd6a29fa2",
+      "source_artifact_sha256": "9f13337db89f4e8ad0b3839e808cca938c7b0a4a3f5eacd61a85fa86f8fd676c",
       "claimable": false,
       "current_status": "Pending",
       "shape_contract": {
         "release_id": "q.secret",
-        "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
+        "marker_symbol": "llvm.sps.release",
         "ordering": "branch-before-release"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Counterexample",
         "args": [
           {
-            "tag": "FreshProtectedReceiptMatcherV1"
+            "tag": "FreshProtectedReceiptMatcherV2"
           }
         ]
       },
@@ -425,7 +425,7 @@
         ]
       },
       "expected_policy_review_status_matcher": {
-        "tag": "FindingsMatcherV1",
+        "tag": "FindingsMatcherV2",
         "required_lint_classes": [
           "IdentityReleaseOfHigh"
         ]
@@ -438,14 +438,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -457,14 +457,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -476,14 +476,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -491,24 +491,24 @@
     {
       "case_id": "06-equal-release-stays-active",
       "capture_shape": "integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll",
-      "capture_shape_sha256": "f9df849023e2d32b5676754c1c805d745859d542d75f5954132b41facc52e00f",
+      "capture_shape_sha256": "f78981001d442bf6d4021aeba0f83d726bffbcc28f46b4814dca4e0f02a13954",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/06-equal-release-stays-active/frozen.ll.sketch",
-      "source_artifact_sha256": "f9df849023e2d32b5676754c1c805d745859d542d75f5954132b41facc52e00f",
+      "source_artifact_sha256": "f78981001d442bf6d4021aeba0f83d726bffbcc28f46b4814dca4e0f02a13954",
       "claimable": false,
       "current_status": "Pending",
       "shape_contract": {
         "release_id": "q.lowbit",
-        "marker_symbol": "__sps_release_emit_v1_28fe3bc98c4bf216de7f7bb9f982275a4b96866e157ce19cea364d25eda1f7ec",
+        "marker_symbol": "llvm.sps.release",
         "ordering": "equal-release-before-high-branch"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Counterexample",
         "args": [
           {
-            "tag": "FreshProtectedReceiptMatcherV1"
+            "tag": "FreshProtectedReceiptMatcherV2"
           }
         ]
       },
@@ -531,14 +531,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -550,14 +550,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -569,14 +569,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]
@@ -584,24 +584,24 @@
     {
       "case_id": "07-wrong-audience-stays-active",
       "capture_shape": "integration/Inputs/sps-lecture/07-wrong-audience-stays-active/capture-shape.ll",
-      "capture_shape_sha256": "7cad1a175518ba4911c5bf7bb1971f649f34265cb3b77e02a3483e3a09a8e1a3",
+      "capture_shape_sha256": "f3adad7259d0d83e39fc4a4102a2662ee6f9bde59411559e72aa91b576939a4c",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/07-wrong-audience-stays-active/frozen.ll.sketch",
-      "source_artifact_sha256": "7cad1a175518ba4911c5bf7bb1971f649f34265cb3b77e02a3483e3a09a8e1a3",
+      "source_artifact_sha256": "f3adad7259d0d83e39fc4a4102a2662ee6f9bde59411559e72aa91b576939a4c",
       "claimable": false,
       "current_status": "Pending",
       "shape_contract": {
         "release_id": "q.secret.owner",
-        "marker_symbol": "__sps_release_emit_v1_5bcbb1188a543432c3390638a0ae396ecc981822bce5ec6f551d7581e6d02779",
+        "marker_symbol": "llvm.sps.release",
         "ordering": "owner-release-before-branch-at-owner-only-host"
       },
       "tier": {
-        "tag": "PreflightV1"
+        "tag": "CandidateOnly"
       },
       "expected_model_status_matcher": {
         "tag": "Counterexample",
         "args": [
           {
-            "tag": "FreshProtectedReceiptMatcherV1"
+            "tag": "FreshProtectedReceiptMatcherV2"
           }
         ]
       },
@@ -624,14 +624,14 @@
           "entry": "fixture_entry",
           "coalition": [],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -643,14 +643,14 @@
             "observer"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "SAT",
             "query_disposition": {
               "tag": "CandidateOnly"
             }
           },
           "final_replay_expectation": {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
           }
         },
         {
@@ -662,14 +662,14 @@
             "owner"
           ],
           "query_outcome_matcher": {
-            "tag": "ConstructedResultMatcherV1",
+            "tag": "ConstructedResultMatcherV2",
             "raw_solver_result": "UNSAT",
             "query_disposition": {
               "tag": "Discharged"
             }
           },
           "final_replay_expectation": {
-            "tag": "NotApplicableV1"
+            "tag": "NotApplicableV2"
           }
         }
       ]

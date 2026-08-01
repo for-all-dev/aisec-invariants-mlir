@@ -1,12 +1,12 @@
 # CROSS-FILE IDENTIFIER BINDING FOR THE CANDIDATE BUNDLES (WFInputs section 3).
 #
-# The nine bundles under artifacts/<case>/ carry {policy,abi,contracts,
+# The nine case-local candidate bundles carry {policy,abi,contracts,
 # release-table,expected-report}.json bound by sha256 into artifact.json.
 # c/check_harness.py validates each sidecar in isolation. It does NOT check
 # that an identifier written in one sidecar resolves in another, so a policy
 # could bind a release id that no release table declares, name an audience
 # principal that no policy declares, or replace the one fixed observation
-# model, and every existing artifacts/ test would still pass.
+# model, and every existing candidate-bundle test would still pass.
 #
 # tools/check_wfinputs.py implements the resolvable-reference fragment of
 # WFInputs(M,ABI,R,K,TE,FPT,I,T) that is expressible against these mirrors:
@@ -19,14 +19,14 @@
 #   section 7 the single fixed observation model Theta_ct
 #   section 2.5.1 the REQUIRED explicit empty TimingEnvironmentContract
 #
-# WHAT A GREEN RUN HERE DOES NOT MEAN. This is tier PreflightV1. It does not
+# WHAT A GREEN RUN HERE DOES NOT MEAN. This is tier CandidateOnly. It does not
 # establish WFInputs (items 4, 5, 9, 10, 12 and 14 quantify over the frozen
 # reparsed module and a satisfiability obligation that do not exist here), does
 # not establish NFConforms, and computes no ModelStatus, DeploymentStatus,
 # PolicyReviewStatus, receipt, or witness. The local toolchain is LLVM 17.0.6;
 # the normative boundary is 22.1.8 and is absent. Silence proves nothing.
 #
-# The negative arms follow artifacts/interfaces-negative.test: copy the tree
+# The negative arms follow integration/candidate-bundles/interfaces-negative.test: copy the tree
 # into a per-arm isolated root (%t.a .. %t.e), mutate exactly one field, REPAIR
 # the artifact.json sidecar digest so the envelope binding is not what fails,
 # and assert the specific diagnostic. Each arm gets its own root so one
@@ -41,13 +41,13 @@
 # Non-vacuity for the timing migration: the explicit empty contract is present
 # in ALL NINE bundles, not merely somewhere. Pinned as a count, because
 # presence is the easy half.
-# RUN: grep -l '"latencyClassId": "lat.fixed.1"' %harness/artifacts/*/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=TIMINGCOUNT
+# RUN: grep -l '"latencyClassId": "lat.fixed.1"' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=TIMINGCOUNT
 # TIMINGCOUNT: {{^9$}}
 # And every one of them is the EMPTY contract: an empty choice domain,
 # occurrence map, latency table and coupling map (spec section 2.5.1). Four
 # empty fields across nine bundles is exactly 36 lines; a bundle that dropped
 # or populated any one of them moves the count.
-# RUN: grep -hE '"(choiceDomain|latencyMeaning)": \[\]|"(occurrences|pairedChoiceCoupling)": \{\}' %harness/artifacts/*/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=EMPTYTE
+# RUN: grep -hE '"(choiceDomain|latencyMeaning)": \[\]|"(occurrences|pairedChoiceCoupling)": \{\}' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=EMPTYTE
 # EMPTYTE: {{^36$}}
 
 # --- shared tree setup for the negative arms ---------------------------------
@@ -60,12 +60,13 @@
 # that reason class as reporting text and still emits no ModelStatus.
 # RUN: mkdir -p %t.a/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.a/tools/check_wfinputs.py
-# RUN: cp -R %harness/artifacts %t.a/artifacts
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.a/artifacts/audience-mismatch'); side=root/'policy.json'; value=json.loads(side.read_text()); value['release_bindings']=['totally_bogus_release_id_not_in_table']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: cp %harness/tools/fixture_layout.py %t.a/tools/fixture_layout.py
+# RUN: cp -R %fixtures %t.a/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.a/fixtures/audience-mismatch/bad/candidate'); side=root/'policy.json'; value=json.loads(side.read_text()); value['release_bindings']=['totally_bogus_release_id_not_in_table']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.a/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=BINDDOM
 # Both inclusions are reported: the dangling binding and the now-unbound entry.
-# BINDDOM: artifacts/audience-mismatch/policy.json: release_bindings[0]: release id 'totally_bogus_release_id_not_in_table' does not resolve to any release-table entries id; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
-# BINDDOM: artifacts/audience-mismatch/release-table.json: entries[0].id: release id 'masked_class_v1' is not bound by policy release_bindings; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
+# BINDDOM: fixtures/audience-mismatch/bad/candidate/policy.json: release_bindings[0]: release id 'totally_bogus_release_id_not_in_table' does not resolve to any release-table entries id; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
+# BINDDOM: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].id: release id 'masked_class_candidate' is not bound by policy release_bindings; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
 # The reason class is quoted as reporting text, never issued as a result.
 # BINDDOM: no ModelStatus, DeploymentStatus, PolicyReviewStatus, receipt, or witness is computed
 # Pinned as a cardinality: exactly the two domain-equality violations name a
@@ -80,10 +81,11 @@
 # authored overrides; item 3 requires the reference to resolve).
 # RUN: mkdir -p %t.b/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.b/tools/check_wfinputs.py
-# RUN: cp -R %harness/artifacts %t.b/artifacts
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.b/artifacts/audience-mismatch'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['audience']=['mallory']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: cp %harness/tools/fixture_layout.py %t.b/tools/fixture_layout.py
+# RUN: cp -R %fixtures %t.b/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.b/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['audience']=['mallory']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.b/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=AUDIENCE
-# AUDIENCE: artifacts/audience-mismatch/release-table.json: entries[0].audience[0]: principal 'mallory' is not declared in policy principals, so it belongs to no coalition derived from the policy basis (WFInputs items 2, 3 and 8)
+# AUDIENCE: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].audience[0]: principal 'mallory' is not declared in policy principals, so it belongs to no coalition derived from the policy basis (WFInputs items 2, 3 and 8)
 # AUDIENCE: wfinputs binding checks failed
 
 # --- (c) a release footprint names an undeclared component -------------------
@@ -92,10 +94,11 @@
 # be shown to cover it exactly once.
 # RUN: mkdir -p %t.c/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.c/tools/check_wfinputs.py
-# RUN: cp -R %harness/artifacts %t.c/artifacts
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.c/artifacts/audience-mismatch'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['footprint']=['ghost_component']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: cp %harness/tools/fixture_layout.py %t.c/tools/fixture_layout.py
+# RUN: cp -R %fixtures %t.c/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.c/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['footprint']=['ghost_component']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.c/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=FOOTPRINT
-# FOOTPRINT: artifacts/audience-mismatch/release-table.json: entries[0].footprint[0]: component 'ghost_component' is not declared in policy components (WFInputs items 3 and 4)
+# FOOTPRINT: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].footprint[0]: component 'ghost_component' is not declared in policy components (WFInputs items 3 and 4)
 # FOOTPRINT: wfinputs binding checks failed
 
 # --- (d) the fixed observation model is replaced -----------------------------
@@ -103,13 +106,14 @@
 # removing or coarsening an event kind or field is not configuration. There is
 # no second legal value for this field, so a swapped name is not a variant
 # profile, it is an unmodelled one. No reason class is quoted here, because the
-# corpus does not state which PublicReasonClassesV1 member applies.
+# corpus does not state which PublicReasonClassesV2 member applies.
 # RUN: mkdir -p %t.d/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.d/tools/check_wfinputs.py
-# RUN: cp -R %harness/artifacts %t.d/artifacts
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.d/artifacts/abi-alias-disjoint'); side=root/'policy.json'; value=json.loads(side.read_text()); value['fixed_observation_model']='Theta_something_else_entirely'; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: cp %harness/tools/fixture_layout.py %t.d/tools/fixture_layout.py
+# RUN: cp -R %fixtures %t.d/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.d/fixtures/abi-alias/disjoint-control/candidate'); side=root/'policy.json'; value=json.loads(side.read_text()); value['fixed_observation_model']='Theta_something_else_entirely'; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.d/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=THETA
-# THETA: artifacts/abi-alias-disjoint/policy.json: fixed_observation_model: 'Theta_something_else_entirely' is not the single Rev-4 observation model 'Theta_ct'; coarsening or replacing an event kind is not configuration (spec section 7 and WFInputs item 1)
+# THETA: fixtures/abi-alias/disjoint-control/candidate/policy.json: fixed_observation_model: 'Theta_something_else_entirely' is not the single Rev-4 observation model 'Theta_ct'; coarsening or replacing an event kind is not configuration (spec section 7 and WFInputs item 1)
 # THETA: wfinputs binding checks failed
 
 # --- (e) the explicit empty TimingEnvironmentContract is deleted -------------
@@ -120,11 +124,12 @@
 # absence as an empty model.
 # RUN: mkdir -p %t.e/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.e/tools/check_wfinputs.py
-# RUN: cp -R %harness/artifacts %t.e/artifacts
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.e/artifacts/launder-scan'); side=root/'contracts.json'; value=json.loads(side.read_text()); del value['timing_environment']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['contracts.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: cp %harness/tools/fixture_layout.py %t.e/tools/fixture_layout.py
+# RUN: cp -R %fixtures %t.e/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.e/fixtures/launder-scan/model-clean-p4-open/candidate'); side=root/'contracts.json'; value=json.loads(side.read_text()); del value['timing_environment']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['contracts.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.e/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=NOTIMING
-# NOTIMING: artifacts/launder-scan/contracts.json: timing_environment: the explicit empty TimingEnvironmentContract is absent; an empty timing_contracts array is the absence of the required object, not an instance of it (spec section 2.5.1 and WFInputs item 11)
+# NOTIMING: fixtures/launder-scan/model-clean-p4-open/candidate/contracts.json: timing_environment: the explicit empty TimingEnvironmentContract is absent; an empty timing_contracts array is the absence of the required object, not an instance of it (spec section 2.5.1 and WFInputs item 11)
 # NOTIMING: wfinputs binding checks failed
 # The surviving empty timing_contracts array is still there and did not rescue it.
-# RUN: grep -c '"timing_contracts": \[\]' %t.e/artifacts/launder-scan/contracts.json | %FileCheck %s --check-prefix=STALETC
+# RUN: grep -c '"timing_contracts": \[\]' %t.e/fixtures/launder-scan/model-clean-p4-open/candidate/contracts.json | %FileCheck %s --check-prefix=STALETC
 # STALETC: {{^1$}}

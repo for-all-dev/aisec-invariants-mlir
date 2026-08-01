@@ -83,7 +83,7 @@
 # the summary line, so the rejected list is pinned EMPTY by adjacency rather
 # than by a CHECK-NOT that could pass vacuously.
 # RUN: %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.admitted.ll | %FileCheck %s --check-prefix=A02-ADMIT
-# A02-ADMIT: SPS-Harness-Surface-Gate-v1
+# A02-ADMIT: SPS-Harness-Surface-Gate-v2
 # A02-ADMIT: profile: fp-closure
 # A02-ADMIT: admitted-bit-preserving-fp-items:
 # A02-ADMIT-NEXT: load 1
@@ -96,7 +96,7 @@
 # A02-ADMIT-NEXT: rejected-fp-items:
 # A02-ADMIT-NEXT: summary: rejected-fp-item-count=0
 # A02-ADMIT-NEXT: SPS-Harness-Expectation: NF-A02 rejected-FP surface is textually empty in this module; the NoAmbiguousNaNResult_e(T) gate is NOT thereby established
-# A02-ADMIT-NEXT: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# A02-ADMIT-NEXT: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
 # A02-ADMIT-NEXT: SPS-Harness-Note: syntactic opcode/type scan of one textual module under LLVM 17.0.6; not the Rev4 normal-form audit and not a proof
 
 # ===========================================================================
@@ -113,7 +113,7 @@
 # A02-FADD-NEXT: line {{[0-9]+}} in @unreachable_fadd: fadd (fp-arithmetic): %sum = fadd double %left, %right
 # A02-FADD-NEXT: summary: rejected-fp-item-count=2
 # A02-FADD-NEXT: SPS-Harness-Expectation: Unknown(PONFFPArithmeticUnsupported) -- NF-A02 admits no residual FP arithmetic, FP-width conversion, or FP/integer numeric conversion (Lemma R5.0N)
-# A02-FADD: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# A02-FADD: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
 
 # The dead branch really is still in the module the gate scanned; the arm would
 # be trivial if llvm-as had folded it away.

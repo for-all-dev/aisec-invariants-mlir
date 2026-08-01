@@ -32,7 +32,7 @@
  * WHAT THIS IS NOT.
  *   This program computes no ModelStatus, no DeploymentStatus, and no
  *   PolicyReviewStatus. It is a concrete two-run witness for one arithmetic
- *   fact about refinement, at the PreflightV1 tier.
+ *   fact about refinement, at the CandidateOnly tier.
  *
  * Canonical compiler command:
  *   clang -std=c11 -O2 --target=x86_64-unknown-linux-gnu -S -emit-llvm \
@@ -72,7 +72,7 @@ int main(void) {
   unsigned int ideal_coupled_one_lane1 = mt_cm1_ideal_send_length(0u, 1u);
   unsigned int ideal_coupled_one_lane2 = mt_cm1_ideal_send_length(1u, 1u);
 
-  printf("MT-CM1 two-run witness; tier=PreflightV1; no status is computed\n");
+  printf("MT-CM1 two-run witness; tier=CandidateOnly; no status is computed\n");
   printf("ideal one-run trace set: send_length(64) send_length(128)\n");
 
   printf("unary h=0: send_length(%u) in-ideal-set=%s\n", concrete_low,

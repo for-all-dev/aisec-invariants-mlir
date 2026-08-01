@@ -1,0 +1,18 @@
+format_id: SPS-Harness-Fixture-Snapshot-v2
+entry: clangover_poly_frommsg_source
+
+c_evidence:
+  - ../sources/clangover_poly_frommsg_vulnerable.c
+
+secret:
+  - {arg: 0, name: bit}
+
+public:
+  - {observable: timing}
+
+expect: shape-only
+
+because:
+  - the source operation is branchless, while target behavior is not represented here
+
+sps: not-run

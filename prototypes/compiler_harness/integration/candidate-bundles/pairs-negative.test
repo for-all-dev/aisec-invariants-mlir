@@ -1,0 +1,107 @@
+# REQUIRES: candidate-producer-toolchain, llvm-as, llvm-config, llvm-dis, mlir-translate
+#
+# Malformed frozen bytes must fail with bundle-scoped diagnostics. The checker
+# used to leak a subprocess traceback and abort before reporting the remaining
+# integrity failures.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root
+# RUN: cp -R %harness/tools %t.root/tools
+# RUN: cp -R %harness/contracts %t.root/contracts
+# RUN: cp -R %fixtures %t.root/fixtures
+# RUN: head -c 16 %t.root/fixtures/abi-alias/disjoint-control/candidate/artifact.bc > %t.truncated.bc
+# RUN: mv %t.truncated.bc %t.root/fixtures/abi-alias/disjoint-control/candidate/artifact.bc
+# RUN: not %python %t.root/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s
+
+# CHECK-NOT: Traceback
+# CHECK: abi-alias-disjoint: bitcode hash mismatch
+# CHECK: abi-alias-disjoint: artifact.bc is not the exact lowering of source MLIR
+# CHECK: abi-alias-disjoint: invalid LLVM bitcode
+# CHECK: abi-alias-disjoint: artifact.ll does not reassemble to exact artifact.bc bytes
+
+# A lowering-inert readable edit may move the live source hash away from the
+# capture-time provenance hash. Exercise that policy independently of the nine
+# already-drifted checked-in fixtures.
+
+# RUN: rm -rf %t.lowering-inert-drift
+# RUN: mkdir -p %t.lowering-inert-drift
+# RUN: cp -R %harness/tools %t.lowering-inert-drift/tools
+# RUN: cp -R %harness/contracts %t.lowering-inert-drift/contracts
+# RUN: cp -R %fixtures %t.lowering-inert-drift/fixtures
+# RUN: %python -c "import hashlib,json,pathlib; case=pathlib.Path(r'%t.lowering-inert-drift/fixtures/abi-alias/disjoint-control'); source=case/'abi_alias_disjoint.control.mlir'; identity_path=case/'candidate/artifact.json'; identity=json.loads(identity_path.read_text()); identity['source_mlir_sha256']=hashlib.sha256(source.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n'); source.write_text(source.read_text()+'\n// lowering-inert readable review note\n')"
+# RUN: %python %t.lowering-inert-drift/tools/artifact_bundle.py check --llvm-bin %llvm_bin
+
+# source_mlir_sha256 is capture-time provenance, so readable-source hash drift
+# is not itself a failure. Lowering drift is: changing the current sole sibling
+# while leaving the frozen capture untouched must still reject the bundle.
+
+# RUN: rm -rf %t.source-drift
+# RUN: mkdir -p %t.source-drift
+# RUN: cp -R %harness/tools %t.source-drift/tools
+# RUN: cp -R %harness/contracts %t.source-drift/contracts
+# RUN: cp -R %fixtures %t.source-drift/fixtures
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source-drift/fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir'); p.write_text(p.read_text().replace('@abi_alias_disjoint_control', '@abi_alias_disjoint_control_drift'))"
+# RUN: not %python %t.source-drift/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=SOURCE-DRIFT
+# SOURCE-DRIFT: abi-alias-disjoint: artifact.bc is not the exact lowering of source MLIR
+# SOURCE-DRIFT-NOT: source MLIR hash mismatch
+
+# Capture provenance remains required and must retain an unambiguous digest
+# representation even though it is not compared with today's readable source.
+
+# RUN: rm -rf %t.bad-capture-hash
+# RUN: mkdir -p %t.bad-capture-hash
+# RUN: cp -R %harness/tools %t.bad-capture-hash/tools
+# RUN: cp -R %harness/contracts %t.bad-capture-hash/contracts
+# RUN: cp -R %fixtures %t.bad-capture-hash/fixtures
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad-capture-hash/fixtures/abi-alias/disjoint-control/candidate/artifact.json'); v=json.loads(p.read_text()); v['source_mlir_sha256']='not-a-digest'; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.bad-capture-hash/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=BAD-CAPTURE-HASH
+# BAD-CAPTURE-HASH: abi-alias-disjoint: capture-time source MLIR hash is not a lowercase SHA-256 digest
+
+# Candidate discovery is strict: every candidate has exactly one local spec,
+# IDs are globally unique, candidates occupy family/case depth, and the retired
+# global definition cannot coexist with local definitions.
+
+# RUN: rm -rf %t.missing
+# RUN: mkdir -p %t.missing
+# RUN: cp -R %harness/tools %t.missing/tools
+# RUN: cp -R %harness/contracts %t.missing/contracts
+# RUN: cp -R %fixtures %t.missing/fixtures
+# RUN: rm %t.missing/fixtures/abi-alias/disjoint-control/candidate/bundle-spec.json
+# RUN: not %python %t.missing/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=MISSING-SPEC
+# MISSING-SPEC: fixtures/abi-alias/disjoint-control/candidate: expected exactly one bundle-spec.json; found []
+
+# RUN: rm -rf %t.duplicate
+# RUN: mkdir -p %t.duplicate
+# RUN: cp -R %harness/tools %t.duplicate/tools
+# RUN: cp -R %harness/contracts %t.duplicate/contracts
+# RUN: cp -R %fixtures %t.duplicate/fixtures
+# RUN: cp %t.duplicate/fixtures/abi-alias/disjoint-control/candidate/bundle-spec.json %t.duplicate/fixtures/abi-alias/disjoint-control/candidate/bundle-spec-copy.json
+# RUN: not %python %t.duplicate/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=DUPLICATE-SPEC
+# DUPLICATE-SPEC: fixtures/abi-alias/disjoint-control/candidate: expected exactly one bundle-spec.json; found ['bundle-spec-copy.json', 'bundle-spec.json']
+
+# RUN: rm -rf %t.ids
+# RUN: mkdir -p %t.ids
+# RUN: cp -R %harness/tools %t.ids/tools
+# RUN: cp -R %harness/contracts %t.ids/contracts
+# RUN: cp -R %fixtures %t.ids/fixtures
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.ids/fixtures/abi-alias/mayalias-overlap-bad/candidate/bundle-spec.json'); v=json.loads(p.read_text()); v['bundle_id']='abi-alias-disjoint'; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.ids/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=DUPLICATE-ID
+# DUPLICATE-ID: duplicate bundle_id 'abi-alias-disjoint': fixtures/abi-alias/disjoint-control/candidate/bundle-spec.json and fixtures/abi-alias/mayalias-overlap-bad/candidate/bundle-spec.json
+
+# RUN: rm -rf %t.malformed
+# RUN: mkdir -p %t.malformed
+# RUN: cp -R %harness/tools %t.malformed/tools
+# RUN: cp -R %harness/contracts %t.malformed/contracts
+# RUN: cp -R %fixtures %t.malformed/fixtures
+# RUN: mkdir -p %t.malformed/fixtures/orphan/candidate
+# RUN: not %python %t.malformed/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=MALFORMED
+# MALFORMED: fixtures/orphan/candidate: candidate must live at fixtures/<family>/<case>/candidate/
+
+# RUN: rm -rf %t.legacy
+# RUN: mkdir -p %t.legacy/artifacts
+# RUN: cp -R %harness/tools %t.legacy/tools
+# RUN: cp -R %harness/contracts %t.legacy/contracts
+# RUN: cp -R %fixtures %t.legacy/fixtures
+# RUN: cp %t.legacy/fixtures/abi-alias/disjoint-control/candidate/bundle-spec.json %t.legacy/artifacts/bundle-specs.json
+# RUN: not %python %t.legacy/tools/artifact_bundle.py check --llvm-bin %llvm_bin 2>&1 | %FileCheck %s --check-prefix=LEGACY
+# LEGACY: artifacts/bundle-specs.json: legacy-plus-local definitions are forbidden; use case-local bundle-spec.json

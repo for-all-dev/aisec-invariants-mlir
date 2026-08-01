@@ -19,24 +19,25 @@ import sys
 from pathlib import Path
 
 BUNDLE = "audience-mismatch"
-# Two distinct PublicReasonClassesV1 members, neither of them the collapse class.
+CANDIDATE_RELATIVE = Path("fixtures/audience-mismatch/bad/candidate")
+# Two distinct PublicReasonClassesV2 members, neither of them the collapse class.
 BLOCKERS = ("SolverTimeout", "PossibleUB")
 
 
 def blocked_rows(rows: list[dict]) -> None:
     for row, reason in zip(rows[1:3], BLOCKERS, strict=True):
         row["query_outcome"] = {
-            "tag": "NotConstructedResultMatcherV1",
+            "tag": "NotConstructedResultMatcherV2",
             "reason": {"reasonClassId": reason},
         }
         row["replay_expectation"] = {
-            "tag": "NotAvailableV1",
+            "tag": "NotAvailableV2",
             "reason": {"reasonClassId": reason},
         }
 
 
 def mutate_fixture(root: Path, model_reason: str) -> None:
-    directory = root / "artifacts" / BUNDLE
+    directory = root / CANDIDATE_RELATIVE
     report_path = directory / "expected-report.json"
     report = json.loads(report_path.read_text())
     expected = report["expected"]
@@ -60,10 +61,10 @@ def mutate_fixture(root: Path, model_reason: str) -> None:
 
 
 def check_specs(root: Path) -> None:
-    """Write the same shape into bundle-specs.json and re-run its validator."""
-    specs_path = root / "artifacts" / "bundle-specs.json"
+    """Write the same shape into the local bundle spec and re-run its validator."""
+    specs_path = root / CANDIDATE_RELATIVE / "bundle-spec.json"
     specs = json.loads(specs_path.read_text())
-    expected = specs["bundles"][BUNDLE]["expected_report"]["expected"]
+    expected = specs["expected_report"]["expected"]
     blocked_rows(expected["audit_all_expectations"])
     expected["expected_model_status"] = {
         "tag": "Unknown",
@@ -74,9 +75,8 @@ def check_specs(root: Path) -> None:
     sys.path.insert(0, str(root / "tools"))
     import artifact_bundle
 
-    artifact_bundle.SPECS_PATH = specs_path
     artifact_bundle.load_specs()
-    raise SystemExit("bundle-specs validator accepted a narrow Unknown for two blockers")
+    raise SystemExit("bundle-spec validator accepted a narrow Unknown for two blockers")
 
 
 def main() -> None:

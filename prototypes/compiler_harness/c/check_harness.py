@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Structural checks for SPS preflight fixtures and candidate bitcode bundles.
 
-MLIR files in ``mlir/`` are deliberately shape-only.  They do not carry a
-ModelStatus. Non-claimable future oracles live beside LLVM-17 candidate
-``artifact.bc`` files under ``artifacts/``. They preserve the normative result
+MLIR files in ``fixtures/`` are deliberately shape-only. They do not carry a
+ModelStatus. Non-claimable future oracles live in case-local ``candidate/``
+directories beside the readable fixture. They preserve the normative result
 domains without pretending that the prototype descriptors are Rev4 interfaces.
 """
 
@@ -21,13 +21,14 @@ import yaml
 from yaml.tokens import AliasToken, AnchorToken, TagToken
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import fixture_layout  # noqa: E402  (shared fixture discovery)
 import sps_aggregation  # noqa: E402  (shared normative aggregation rule)
+import sps_interfaces  # noqa: E402  (SPS-owned wire registry)
 
 
 ROOT = Path(__file__).resolve().parent.parent
-C_DIR = ROOT / "c"
-MLIR_DIR = ROOT / "mlir"
-ARTIFACTS_DIR = ROOT / "artifacts"
+SUPPORT_C_DIR = ROOT / "c"
+FIXTURES_DIR = ROOT / "fixtures"
 CONFORMANCE_MATRIX = ROOT / "contracts" / "rev4-conformance-matrix.json"
 
 PROVENANCE_FIELDS = (
@@ -84,6 +85,7 @@ IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 MLIR_SYMBOL = re.compile(r"[A-Za-z_.$][A-Za-z0-9_.$-]*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 LEGACY_LEVEL = re.compile(r"\bL[0-4]\b")
+SNAPSHOT_FORMAT_ID = "SPS-Harness-Fixture-Snapshot-v2"
 SNAPSHOT_EXPECTATIONS = frozenset(
     {
         "violation",
@@ -100,58 +102,9 @@ SNAPSHOT_OBSERVABLES = frozenset(
 SNAPSHOT_SPS_STATES = frozenset(
     {"not-run", "proved", "counterexample", "unknown", "error"}
 )
-PUBLIC_REASON_CLASSES_V1 = frozenset(
-    {
-        "AliasBindingMismatch",
-        "AllocaSizeNotWorldStructural",
-        "ArtifactMismatch",
-        "ContractAllocationUnsupported",
-        "ContractReleaseUnsupported",
-        "CouplingFiberCoverageFailure",
-        "DiagnosticHealthFailure",
-        "ExpectedHighVariationAbsent",
-        "FreezeMayChoose",
-        "HorizonDerivationMismatch",
-        "HorizonDerivationUnsupported",
-        "IndirectCall",
-        "InvalidDiagnosticShortcut",
-        "LayoutDependentPointerComparison",
-        "LoopRemainder",
-        "ManifestMismatch",
-        "MechanismNondeterminismUnsupported",
-        "NormalizerMismatch",
-        "OpenModelObligations",
-        "OutputBindingIncomplete",
-        "OutputBindingOverlap",
-        "OutputClosureMismatch",
-        "PONFFPArithmeticUnsupported",
-        "PONFIntrinsicUnsupported",
-        "PersistentInvariantEncodingUnsupported",
-        "PipelineMismatch",
-        "PlacementMismatch",
-        "PoisonSemanticsUnsupported",
-        "PossibleUB",
-        "PublicBoundBindingMismatch",
-        "Recursion",
-        "ReleaseActivationMismatch",
-        "ReleaseCarrierMismatch",
-        "ReleaseConformanceMismatch",
-        "ReleaseConformanceUnknown",
-        "ResidualVector",
-        "ResourceLimit",
-        "SolverTimeout",
-        "StableIdentityMismatch",
-        "ToolInconsistency",
-        "UnclassifiedAnnotation",
-        "UnclassifiedIR",
-        "UninitializedLoadProducesUndef",
-        "UninitializedOutputByte",
-        "UnsupportedAddressObservationProfile",
-        "UnsupportedOpcode",
-        "UnsupportedStackProtector",
-        "UnsupportedType",
-        "VacuousAdmission",
-    }
+INTERFACE_REGISTRY = sps_interfaces.load_default_registry()
+PUBLIC_REASON_CLASS_IDS = frozenset(
+    INTERFACE_REGISTRY.enum_values("PublicReasonClassesV2")
 )
 REQUIRED_CONFORMANCE_IDS = {
     *(f"NF-A{index:02d}" for index in range(1, 16)),
@@ -259,13 +212,19 @@ def field_values(text: str, field: str) -> list[str]:
 
 
 def c_sources() -> list[Path]:
-    return sorted(path for path in C_DIR.glob("*.c") if path.name != "equivalence_driver.c")
+    return fixture_layout.provenance_c_sources(ROOT)
 
 
 def check_provenance() -> list[str]:
     errors: list[str] = []
     mutable = re.compile(r"github\.com/[^/]+/[^/]+/(?:blob|tree)/(?:main|master)(?:/|$)")
     revision = re.compile(r"github\.com/[^/]+/[^/]+/(?:blob|tree)/([^/#?]+)(?:/|$)")
+
+    unexpected_support_c = sorted(
+        path for path in SUPPORT_C_DIR.glob("*.c") if path.name != "equivalence_driver.c"
+    )
+    for path in unexpected_support_c:
+        fail(errors, path, "fixture C sources must live in fixtures/<family>/sources/")
 
     for path in c_sources():
         text = path.read_text()
@@ -337,7 +296,16 @@ def read_snapshot(errors: list[str], path: Path) -> dict[str, object] | None:
     if not isinstance(value, dict):
         fail(errors, path, "top-level snapshot must be a mapping")
         return None
-    required = {"entry", "secret", "public", "expect", "because", "sps"}
+    required = {
+        "format_id",
+        "entry",
+        "c_evidence",
+        "secret",
+        "public",
+        "expect",
+        "because",
+        "sps",
+    }
     allowed = required | {"allowed", "finding"}
     actual = set(value)
     if not required <= actual or not actual <= allowed:
@@ -347,6 +315,13 @@ def read_snapshot(errors: list[str], path: Path) -> dict[str, object] | None:
             "snapshot fields must contain exactly the required fields plus optional "
             f"allowed/finding; missing={sorted(required - actual)}, "
             f"extra={sorted(actual - allowed)}",
+        )
+        return None
+    if value["format_id"] != SNAPSHOT_FORMAT_ID:
+        fail(
+            errors,
+            path,
+            f"format_id must be the literal {SNAPSHOT_FORMAT_ID!r}",
         )
         return None
     return value
@@ -449,11 +424,11 @@ def _argument_reference(
 def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
     errors: list[str] = []
     records: list[dict[str, object]] = []
-    snapshot_paths = sorted(MLIR_DIR.rglob("snapshot.yaml"))
-    mlir_paths = sorted(MLIR_DIR.rglob("*.mlir"))
+    snapshot_paths = sorted(FIXTURES_DIR.rglob("snapshot.yaml"))
+    mlir_paths = fixture_layout.fixture_mlir_paths(ROOT)
 
     if not snapshot_paths:
-        fail(errors, MLIR_DIR, "no snapshot.yaml fixtures were discovered")
+        fail(errors, FIXTURES_DIR, "no snapshot.yaml fixtures were discovered")
     for mlir_path in mlir_paths:
         if not (mlir_path.parent / "snapshot.yaml").is_file():
             fail(errors, mlir_path, "fixture MLIR has no sibling snapshot.yaml")
@@ -461,12 +436,12 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
     entries: dict[str, Path] = {}
     for snapshot_path in snapshot_paths:
         try:
-            relative_parent = snapshot_path.parent.relative_to(MLIR_DIR)
+            relative_parent = snapshot_path.parent.relative_to(FIXTURES_DIR)
         except ValueError:
-            fail(errors, snapshot_path, "snapshot is outside mlir/")
+            fail(errors, snapshot_path, "snapshot is outside fixtures/")
             continue
         if len(relative_parent.parts) != 2:
-            fail(errors, snapshot_path, "snapshot must live at mlir/<family>/<case>/")
+            fail(errors, snapshot_path, "snapshot must live at fixtures/<family>/<case>/")
         siblings = sorted(snapshot_path.parent.glob("*.mlir"))
         if len(siblings) != 1:
             fail(errors, snapshot_path, "snapshot must have exactly one sibling .mlir file")
@@ -475,6 +450,38 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
         value = read_snapshot(errors, snapshot_path)
         if value is None:
             continue
+
+        evidence = _string_list(
+            errors,
+            snapshot_path,
+            value.get("c_evidence"),
+            "c_evidence",
+            allow_empty=False,
+        )
+        if evidence is not None:
+            if evidence != sorted(set(evidence)):
+                fail(errors, snapshot_path, "c_evidence must be sorted and duplicate-free")
+            family = snapshot_path.parent.parent.resolve()
+            resolved_evidence: list[Path] = []
+            for position, evidence_name in enumerate(evidence):
+                evidence_path = Path(evidence_name)
+                if evidence_path.is_absolute():
+                    fail(errors, snapshot_path, f"c_evidence[{position}] must be relative")
+                    continue
+                resolved = (snapshot_path.parent / evidence_path).resolve()
+                try:
+                    resolved.relative_to(family)
+                except ValueError:
+                    fail(errors, snapshot_path, f"c_evidence[{position}] escapes its fixture family")
+                    continue
+                if resolved.suffix != ".c":
+                    fail(errors, snapshot_path, f"c_evidence[{position}] must name a .c file")
+                elif not resolved.is_file():
+                    fail(errors, snapshot_path, f"c_evidence[{position}] does not exist")
+                else:
+                    resolved_evidence.append(resolved)
+            if len(resolved_evidence) != len(set(resolved_evidence)):
+                fail(errors, snapshot_path, "c_evidence resolves to duplicate C files")
 
         entry = value.get("entry")
         if not isinstance(entry, str) or not MLIR_SYMBOL.fullmatch(entry):
@@ -617,6 +624,7 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
                 "path": snapshot_path,
                 "mlir": mlir_path,
                 "entry": entry,
+                "c_evidence": resolved_evidence if evidence is not None else [],
                 "secret": value.get("secret"),
                 "public": value.get("public"),
                 "allowed": value.get("allowed", []),
@@ -644,6 +652,16 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
                     fixed["path"],
                     f"paired bad/fixed {field} boundary differs from {bad['path'].relative_to(ROOT)}",
                 )
+
+    referenced_c = {
+        path.resolve()
+        for record in records
+        for path in record.get("c_evidence", [])
+        if isinstance(path, Path)
+    }
+    for source in fixture_layout.family_source_paths(ROOT):
+        if source.resolve() not in referenced_c:
+            fail(errors, source, "family C source is not referenced by any snapshot c_evidence")
     return records, errors
 
 
@@ -715,9 +733,9 @@ def reason_class_id(
         not isinstance(value, dict)
         or set(value) != {"reasonClassId"}
         or not isinstance(value.get("reasonClassId"), str)
-        or value.get("reasonClassId") not in PUBLIC_REASON_CLASSES_V1
+        or value.get("reasonClassId") not in PUBLIC_REASON_CLASS_IDS
     ):
-        fail(errors, path, f"{context} must name one exact PublicReasonClassesV1 member")
+        fail(errors, path, f"{context} must name one exact PublicReasonClassesV2 member")
         return None
     return str(value["reasonClassId"])
 
@@ -778,10 +796,10 @@ def check_expected_run(
         },
         "candidate expected-run record",
     )
-    if report.get("format_id") != "SPS-Harness-Candidate-Expected-Run-v1":
+    if report.get("format_id") != "SPS-Harness-Candidate-Expected-Run-v2":
         fail(errors, path, "unsupported candidate expected-run format")
-    if report.get("fixture_tier") != {"tag": "PreflightV1"}:
-        fail(errors, path, "candidate expected-run fixture tier must be PreflightV1")
+    if report.get("fixture_tier") != {"tag": "CandidateOnly"}:
+        fail(errors, path, "candidate expected-run fixture tier must be CandidateOnly")
     if report.get("claimable_from_checked_in_pair") is not False:
         fail(errors, path, "candidate pair cannot claim a Rev4 result")
     if report.get("required_checker_feature") != "sps-verifier":
@@ -791,12 +809,12 @@ def check_expected_run(
     if (
         not isinstance(current, dict)
         or set(current) != {"tag", "reasons"}
-        or current.get("tag") != "PendingV1"
+        or current.get("tag") != "PendingV2"
         or not isinstance(current.get("reasons"), list)
         or not current.get("reasons")
         or any(not isinstance(reason, str) or not reason for reason in current["reasons"])
     ):
-        fail(errors, path, "current harness status must be PendingV1 with stable reasons")
+        fail(errors, path, "current harness status must be PendingV2 with stable reasons")
 
     expected = report.get("expected")
     if not isinstance(expected, dict):
@@ -853,7 +871,7 @@ def check_expected_run(
 
         query_tag = query.get("tag")
         replay_tag = replay.get("tag")
-        if query_tag == "ConstructedResultMatcherV1":
+        if query_tag == "ConstructedResultMatcherV2":
             exact_keys(
                 errors,
                 path,
@@ -866,8 +884,8 @@ def check_expected_run(
             if raw == "UNSAT":
                 if disposition != {"tag": "Discharged"}:
                     fail(errors, path, f"audit-all row {index} UNSAT must be Discharged")
-                if replay != {"tag": "NotApplicableV1"}:
-                    fail(errors, path, f"audit-all row {index} UNSAT replay must be NotApplicableV1")
+                if replay != {"tag": "NotApplicableV2"}:
+                    fail(errors, path, f"audit-all row {index} UNSAT replay must be NotApplicableV2")
             elif raw == "SAT":
                 if disposition != {"tag": "CandidateOnly"}:
                     fail(errors, path, f"audit-all row {index} SAT must remain CandidateOnly")
@@ -878,7 +896,7 @@ def check_expected_run(
                     {"bad_state_class", "tag"},
                     f"audit-all row {index} accepted replay matcher",
                 )
-                if replay_tag != "AcceptedBadStateRequiredV1" or not isinstance(
+                if replay_tag != "AcceptedBadStateRequiredV2" or not isinstance(
                     replay.get("bad_state_class"), str
                 ) or not IDENTIFIER.fullmatch(str(replay.get("bad_state_class"))):
                     fail(errors, path, f"audit-all row {index} SAT requires a canonical accepted-bad-state matcher")
@@ -914,13 +932,13 @@ def check_expected_run(
                     f"audit-all row {index} unavailable replay",
                 )
                 replay_reason = reason_class_id(errors, path, replay.get("reason"), "replay reason")
-                if replay_tag != "NotAvailableV1" or replay_reason != disposition_reason:
+                if replay_tag != "NotAvailableV2" or replay_reason != disposition_reason:
                     fail(errors, path, f"audit-all row {index} UNKNOWN query and replay reasons must agree")
                 if disposition_reason is not None:
                     unavailable_reasons.add(disposition_reason)
             else:
                 fail(errors, path, f"audit-all row {index} has unsupported raw solver result")
-        elif query_tag == "NotConstructedResultMatcherV1":
+        elif query_tag == "NotConstructedResultMatcherV2":
             exact_keys(
                 errors,
                 path,
@@ -937,7 +955,7 @@ def check_expected_run(
                 f"audit-all row {index} unavailable replay",
             )
             replay_reason = reason_class_id(errors, path, replay.get("reason"), "replay reason")
-            if replay_tag != "NotAvailableV1" or query_reason != replay_reason:
+            if replay_tag != "NotAvailableV2" or query_reason != replay_reason:
                 fail(errors, path, f"audit-all row {index} not-constructed query and replay reasons must agree")
             if query_reason is not None:
                 unavailable_reasons.add(query_reason)
@@ -968,7 +986,7 @@ def check_expected_run(
             exact_keys(errors, path, model, {"tag"}, "Proved matcher")
         elif tag == "Counterexample":
             exact_keys(errors, path, model, {"receipt_matcher", "tag"}, "Counterexample matcher")
-            if model.get("receipt_matcher") != {"tag": "FreshProtectedReceiptMatcherV1"}:
+            if model.get("receipt_matcher") != {"tag": "FreshProtectedReceiptMatcherV2"}:
                 fail(errors, path, "Counterexample must match a fresh protected receipt, not expose a witness")
         elif tag == "Unknown":
             exact_keys(errors, path, model, {"args", "tag"}, "Unknown matcher")
@@ -981,15 +999,23 @@ def check_expected_run(
             # which is never itself a row reason. A subset test against the row
             # reasons therefore rejected the mandated answer and admitted a
             # narrower one. Shared rule: tools/sps_aggregation.py.
-            required_model = sps_aggregation.expected_model_status(
-                accepted_bad_replay=False, blockers=unavailable_reasons
+            typed_blockers = sps_aggregation.proof_completion_blockers(
+                unavailable_reasons
             )
+            aggregation_input = sps_aggregation.make_aggregation_input(
+                accepted_bad_replay=None,
+                blockers=typed_blockers,
+                all_required_gates_closed=False,
+            )
+            outcome = sps_aggregation.aggregate_model_result(aggregation_input)
+            assert isinstance(outcome, sps_aggregation.CompletedAggregationV2)
+            required_model = outcome.model_status
             if model != required_model:
                 fail(
                     errors,
                     path,
                     "expected_model_status must aggregate to "
-                    f"{sps_aggregation.describe(unavailable_reasons)}",
+                    f"{sps_aggregation.describe(typed_blockers)}",
                 )
         else:
             fail(errors, path, "unsupported expected_model_status tag")
@@ -1055,14 +1081,35 @@ def check_conformance_matrix() -> list[str]:
 
 def check_artifacts() -> list[str]:
     errors: list[str] = []
-    candidate_dirs = (
-        sorted(path for path in ARTIFACTS_DIR.iterdir() if path.is_dir())
-        if ARTIFACTS_DIR.exists()
-        else []
-    )
+    candidate_dirs = fixture_layout.candidate_dirs(ROOT)
+    local_specs = fixture_layout.candidate_spec_paths(ROOT)
+    legacy = ROOT / "artifacts"
+    if legacy.exists():
+        fail(errors, legacy, "legacy global artifacts/ is forbidden")
+    if not candidate_dirs:
+        fail(errors, FIXTURES_DIR, "no candidate bundles were discovered")
+
+    expected_specs = {directory / "bundle-spec.json" for directory in candidate_dirs}
+    for spec_path in local_specs:
+        if spec_path not in expected_specs:
+            fail(errors, spec_path, "bundle-spec.json must be a direct child of candidate/")
+
+    bundle_ids: dict[str, Path] = {}
 
     for directory in candidate_dirs:
+        location_error = fixture_layout.validate_candidate_location(directory, ROOT)
+        if location_error:
+            fail(errors, directory, location_error)
+        definitions = sorted(directory.glob("bundle-spec*.json"))
+        if definitions != [directory / "bundle-spec.json"]:
+            fail(
+                errors,
+                directory,
+                "candidate must contain exactly one bundle-spec.json; "
+                f"found {[path.name for path in definitions]}",
+            )
         required = (
+            "bundle-spec.json",
             "artifact.bc",
             "artifact.ll",
             "artifact.json",
@@ -1077,14 +1124,45 @@ def check_artifacts() -> list[str]:
                 fail(errors, directory / filename, "required bundle member is missing")
         if any(not (directory / filename).is_file() for filename in required):
             continue
+        spec = read_json(errors, directory / "bundle-spec.json")
         identity = read_json(errors, directory / "artifact.json")
         policy = read_json(errors, directory / "policy.json")
         abi = read_json(errors, directory / "abi.json")
         contracts = read_json(errors, directory / "contracts.json")
         release_table = read_json(errors, directory / "release-table.json")
         report = read_json(errors, directory / "expected-report.json")
-        if any(value is None for value in (identity, policy, abi, contracts, release_table, report)):
+        if any(value is None for value in (spec, identity, policy, abi, contracts, release_table, report)):
             continue
+        assert spec is not None
+        spec_fields = {
+            "format_id",
+            "bundle_id",
+            "catalog_authority",
+            "policy",
+            "abi",
+            "contracts",
+            "release_table",
+            "expected_report",
+        }
+        exact_keys(errors, directory / "bundle-spec.json", spec, spec_fields, "candidate spec")
+        if spec.get("format_id") != "SPS-Harness-Candidate-Bundle-Spec-v2":
+            fail(errors, directory / "bundle-spec.json", "unsupported candidate bundle spec")
+        if spec.get("catalog_authority") != {
+            "tag": "CandidatePreflightCatalogV2",
+            "claimable": False,
+        }:
+            fail(errors, directory / "bundle-spec.json", "candidate authority must remain non-claimable")
+        bundle_id = spec.get("bundle_id")
+        if not isinstance(bundle_id, str) or not IDENTIFIER.fullmatch(bundle_id):
+            fail(errors, directory / "bundle-spec.json", "bundle_id must be lower-kebab")
+        elif bundle_id in bundle_ids:
+            fail(
+                errors,
+                directory / "bundle-spec.json",
+                f"bundle_id duplicates {bundle_ids[bundle_id].relative_to(ROOT)}",
+            )
+        else:
+            bundle_ids[bundle_id] = directory / "bundle-spec.json"
         bc_hash = digest(directory / "artifact.bc")
         ll_hash = digest(directory / "artifact.ll")
         declared_bc_hash = identity.get("candidate_bitcode_sha256")
@@ -1097,12 +1175,12 @@ def check_artifacts() -> list[str]:
             fail(errors, directory / "artifact.json", "derived LLVM IR digest is not SHA-256")
         elif declared_ll_hash != ll_hash:
             fail(errors, directory / "artifact.json", "derived LLVM IR hash mismatch")
-        if identity.get("format_id") != "SPS-Harness-Candidate-Artifact-v1":
+        if identity.get("format_id") != "SPS-Harness-Candidate-Artifact-v2":
             fail(errors, directory / "artifact.json", "unsupported candidate artifact format")
         if identity.get("artifact_role") != "checked-in-bitcode-candidate":
             fail(errors, directory / "artifact.json", "artifact role must remain an explicit candidate")
-        if identity.get("fixture_tier") != {"tag": "PreflightV1"}:
-            fail(errors, directory / "artifact.json", "candidate artifact tier must be PreflightV1")
+        if identity.get("fixture_tier") != {"tag": "CandidateOnly"}:
+            fail(errors, directory / "artifact.json", "candidate artifact tier must be CandidateOnly")
         if identity.get("claimable") is not False:
             fail(errors, directory / "artifact.json", "candidate artifact must remain non-claimable")
         if "canonical_bitcode_sha256" in identity or "NFConforms" in identity:
@@ -1112,7 +1190,7 @@ def check_artifacts() -> list[str]:
             fail(errors, directory / "artifact.json", "Rev4 LLVM 22.1.8 requirement is missing")
         elif (
             profile.get("not_authoritative") is not True
-            or profile.get("promotion_requires_complete_rev4_replacement") is not True
+            or profile.get("v2_materialization_requires_new_capture") is not True
             or not profile.get("missing")
         ):
             fail(errors, directory / "artifact.json", "candidate anti-overclaim profile is incomplete")
@@ -1128,14 +1206,29 @@ def check_artifacts() -> list[str]:
         if not isinstance(source_name, str):
             fail(errors, directory / "artifact.json", "source_mlir is missing")
         else:
-            source = (directory / source_name).resolve()
             try:
-                source.relative_to(MLIR_DIR.resolve())
-            except ValueError:
-                fail(errors, directory / "artifact.json", "source_mlir must resolve inside mlir/")
+                expected_source = fixture_layout.sole_case_mlir(directory.parent)
+            except ValueError as error:
+                fail(errors, directory / "artifact.json", str(error))
             else:
-                if not source.is_file() or identity.get("source_mlir_sha256") != digest(source):
-                    fail(errors, directory / "artifact.json", "source MLIR hash mismatch")
+                expected_name = f"../{expected_source.name}"
+                source = (directory / source_name).resolve()
+                if source_name != expected_name or source != expected_source.resolve():
+                    fail(
+                        errors,
+                        directory / "artifact.json",
+                        f"source_mlir must bind the sole sibling MLIR as {expected_name!r}",
+                    )
+                source_capture_hash = identity.get("source_mlir_sha256")
+                if (
+                    not isinstance(source_capture_hash, str)
+                    or not SHA256.fullmatch(source_capture_hash)
+                ):
+                    fail(
+                        errors,
+                        directory / "artifact.json",
+                        "capture-time source MLIR digest is not SHA-256",
+                    )
         for sidecar_path, sidecar in (
             (directory / "policy.json", policy),
             (directory / "abi.json", abi),
@@ -1153,17 +1246,17 @@ def check_artifacts() -> list[str]:
                 if sidecar_hashes.get(filename) != digest(directory / filename):
                     fail(errors, directory / "artifact.json", f"candidate digest mismatch for {filename}")
         expected_formats = (
-            (directory / "policy.json", policy, "SPS-Harness-Candidate-Policy-v1"),
-            (directory / "abi.json", abi, "SPS-Harness-Candidate-ABI-v1"),
+            (directory / "policy.json", policy, "SPS-Harness-Candidate-Policy-v2"),
+            (directory / "abi.json", abi, "SPS-Harness-Candidate-ABI-v2"),
             (
                 directory / "contracts.json",
                 contracts,
-                "SPS-Harness-Candidate-Contracts-v1",
+                "SPS-Harness-Candidate-Contracts-v2",
             ),
             (
                 directory / "release-table.json",
                 release_table,
-                "SPS-Harness-Candidate-Release-Table-v1",
+                "SPS-Harness-Candidate-Release-Table-v2",
             ),
         )
         for sidecar_path, sidecar, expected_format in expected_formats:
@@ -1370,7 +1463,7 @@ def main() -> int:
             print("\n".join(f"error: {message}" for message in errors), file=sys.stderr)
             return 1
         for record in records:
-            case = record["path"].parent.relative_to(MLIR_DIR)
+            case = record["path"].parent.relative_to(FIXTURES_DIR)
             print(
                 f"{case}: expect={record['expect']} sps={record['sps']} "
                 f"entry={record['entry']}"

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Cross-file identifier binding for the candidate `artifacts/` bundles.
+"""Cross-file identifier binding for case-local candidate bundles.
 
 WHAT THIS CHECKS
 ----------------
 Rev-4 spec section 3 defines `WFInputs(M,ABI,R,K,TE,FPT,I,T)`.  The candidate
-bundles under ``artifacts/<case>/`` carry harness mirrors of the policy,
-ABI, contract, and release-table interfaces.  ``c/check_harness.py`` already
+bundles under ``fixtures/<family>/<case>/candidate/`` carry harness mirrors of
+the policy, ABI, contract, and release-table interfaces. ``c/check_harness.py`` already
 validates each sidecar in isolation plus its digest binding to ``artifact.bc``;
 it does **not** check that identifiers mentioned in one sidecar resolve in
 another.  This tool implements the resolvable-reference fragment of `WFInputs`
@@ -14,7 +14,7 @@ that is expressible against those mirrors, plus the explicit empty
 
 WHAT THIS DOES NOT CHECK, AND CANNOT
 ------------------------------------
-This is a ``PreflightV1`` tool.  A clean run is *not*:
+This is a ``CandidateOnly`` tool.  A clean run is *not*:
 
 * `WFInputs` itself.  Items 4, 5, 9, 10, 12 and 14 quantify over the frozen
   reparsed module, the exact data layout, and a satisfiability obligation.
@@ -40,9 +40,9 @@ import json
 import sys
 from pathlib import Path
 
+import fixture_layout
 
 ROOT = Path(__file__).resolve().parent.parent
-ARTIFACTS_DIR = ROOT / "artifacts"
 SIDECARS = (
     "policy.json",
     "abi.json",
@@ -60,7 +60,7 @@ FIXED_OBSERVATION_MODEL = "Theta_ct"
 # choice domain, occurrence map, latency table, and coupling map - is required
 # when no ideal timing choice is modeled."  The six mirrored contract fields,
 # per SPS_Lecture_Notes/artifacts/common/timing-environment.logical.yaml.
-TIMING_ENVIRONMENT_FORMAT_ID = "SPS-Harness-Candidate-Timing-Environment-v1"
+TIMING_ENVIRONMENT_FORMAT_ID = "SPS-Harness-Candidate-Timing-Environment-v2"
 TIMING_ENVIRONMENT_FIELDS = (
     "choiceDomain",
     "occurrences",
@@ -70,7 +70,7 @@ TIMING_ENVIRONMENT_FIELDS = (
     "versionAndObservationBoundary",
 )
 
-# Exact `PublicReasonClassesV1` spellings copied from the specification.  A
+# Exact `PublicReasonClassesV2` spellings selected from the active specification.  A
 # diagnostic may only quote a member of this closed set, and quoting one is
 # reporting text, never computing a `ModelStatus`.  Inventing a plausible
 # reason-class name would be indistinguishable from a normative claim, so
@@ -79,8 +79,8 @@ QUOTABLE_REASON_CLASSES = frozenset({"ManifestMismatch"})
 
 VISIBILITY_BASES = ("component_visibility", "output_visibility", "error_visibility")
 
-COMPONENT_ROLE_TAGS = ("ComponentArgumentV1", "PublicConfigurationArgumentV1")
-POINTER_ROLE_TAG = "PointerRootArgumentV1"
+COMPONENT_ROLE_TAGS = ("ComponentArgumentV2", "PublicConfigurationArgumentV2")
+POINTER_ROLE_TAG = "PointerRootArgumentV2"
 
 
 class Report:
@@ -106,7 +106,7 @@ class Report:
         if reason_class is not None:
             if reason_class not in QUOTABLE_REASON_CLASSES:
                 raise AssertionError(
-                    f"{reason_class!r} is not a copied PublicReasonClassesV1 spelling"
+                    f"{reason_class!r} is not an active PublicReasonClassesV2 spelling"
                 )
             line += f" (would-be disposition reason class: {reason_class})"
         self.failures.append(line)
@@ -137,7 +137,7 @@ def check_envelope_digests(report: Report, bundle: Path, identity: dict[str, obj
     This is the candidate analogue of `WFInputs` item 13 (every digest in
     `ArtifactIdentity` equals the canonical serialization of the referenced
     object).  It is deliberately weaker: `artifact.json` is an
-    `SPS-Harness-Candidate-Artifact-v1` envelope, not an `ArtifactIdentityV1`,
+    `SPS-Harness-Candidate-Artifact-v2` envelope, not an `ArtifactIdentityV2`,
     and sha256-over-file-bytes is not canonical SPS serialization.
     """
     digests = identity.get("candidate_sidecar_sha256")
@@ -579,7 +579,7 @@ def check_timing_environment(report: Report, bundle: Path, contracts: dict[str, 
             "contracts.json",
             "timing_environment.claimable",
             "candidate timing environment must remain explicitly non-claimable",
-            "PreflightV1 tier rule",
+            "CandidateOnly tier rule",
         )
     for field in TIMING_ENVIRONMENT_FIELDS:
         if field not in environment:
@@ -663,12 +663,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.parse_args()
 
-    if not ARTIFACTS_DIR.is_dir():
-        print(f"{ARTIFACTS_DIR}: candidate artifacts directory is missing", file=sys.stdout)
-        return 1
-    bundles = sorted(path for path in ARTIFACTS_DIR.iterdir() if path.is_dir())
+    bundles = fixture_layout.candidate_dirs(ROOT)
     if not bundles:
-        print(f"{ARTIFACTS_DIR}: no candidate bundles were discovered", file=sys.stdout)
+        print(f"{ROOT / 'fixtures'}: no candidate bundles were discovered", file=sys.stdout)
         return 1
 
     report = Report()
@@ -697,7 +694,7 @@ def main() -> int:
     print(
         "not checked: WFInputs items 4, 5, 9, 10, 12, 14 over a frozen module; "
         "NFConforms; ModelStatus; DeploymentStatus; PolicyReviewStatus; "
-        "this is PreflightV1 and silence here proves nothing"
+        "this is CandidateOnly and silence here proves nothing"
     )
     return 0
 

@@ -1,0 +1,309 @@
+{
+  "format_id": "SPS-Harness-Candidate-Bundle-Spec-v2",
+  "bundle_id": "audience-mismatch",
+  "catalog_authority": {
+    "tag": "CandidatePreflightCatalogV2",
+    "claimable": false
+  },
+  "policy": {
+    "format_id": "SPS-Harness-Candidate-Policy-v2",
+    "fixed_observation_model": "Theta_ct",
+    "principals": [
+      "alice",
+      "bob"
+    ],
+    "maximal_adversary_coalitions": [
+      [
+        "alice",
+        "bob"
+      ]
+    ],
+    "components": [
+      "logits"
+    ],
+    "component_visibility": {
+      "world_visible": [],
+      "member_visible": {
+        "alice": [],
+        "bob": []
+      },
+      "minimally_joint_visible": []
+    },
+    "output_visibility": {
+      "world_visible": [],
+      "member_visible": {
+        "alice": [
+          "alice-channel"
+        ],
+        "bob": [
+          "bob-channel"
+        ]
+      },
+      "minimally_joint_visible": []
+    },
+    "error_visibility": {
+      "world_visible": [],
+      "member_visible": {
+        "alice": [],
+        "bob": []
+      },
+      "minimally_joint_visible": []
+    },
+    "argument_roles": [
+      {
+        "entry": "audience_mismatch_bad",
+        "argument_index": 0,
+        "role": {
+          "tag": "ComponentArgumentV2",
+          "args": [
+            "logits"
+          ]
+        }
+      },
+      {
+        "entry": "audience_mismatch_bad",
+        "argument_index": 1,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "alice-channel"
+          ]
+        }
+      },
+      {
+        "entry": "audience_mismatch_bad",
+        "argument_index": 2,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "bob-channel"
+          ]
+        }
+      }
+    ],
+    "release_bindings": [
+      "masked_class_candidate"
+    ],
+    "invocation_scope": "SingleInvocation",
+    "placement": [
+      {
+        "entry": "audience_mismatch_bad",
+        "host": "host0"
+      }
+    ]
+  },
+  "abi": {
+    "format_id": "SPS-Harness-Candidate-ABI-v2",
+    "arguments": [
+      {
+        "index": 0,
+        "name": "logits",
+        "kind": "scalar"
+      },
+      {
+        "index": 1,
+        "name": "alice_channel",
+        "kind": "root",
+        "root_id": "alice-channel",
+        "extent_bytes": 4,
+        "output": "alice-channel"
+      },
+      {
+        "index": 2,
+        "name": "bob_channel",
+        "kind": "root",
+        "root_id": "bob-channel",
+        "extent_bytes": 4,
+        "output": "bob-channel"
+      }
+    ],
+    "admission_constraints": [],
+    "alias_topology": {
+      "complete": true,
+      "relations": [
+        {
+          "left": "alice-channel",
+          "right": "bob-channel",
+          "relation": "Disjoint"
+        }
+      ]
+    },
+    "initialized_regions": [],
+    "entry": "audience_mismatch_bad"
+  },
+  "contracts": {
+    "format_id": "SPS-Harness-Candidate-Contracts-v2",
+    "mechanism_contracts": [
+      {
+        "callee": "sps_release_masked_class_candidate",
+        "abi": {
+          "arguments": [
+            "i32"
+          ],
+          "result": "i32"
+        },
+        "relation": {
+          "kind": "bit-vector-and",
+          "argument": 0,
+          "constant": 255,
+          "width": 32
+        },
+        "reads": [],
+        "writes": [],
+        "events": [
+          "release-carrier"
+        ],
+        "termination": "returns",
+        "faults": "none"
+      }
+    ],
+    "timing_contracts": [],
+    "target_profile": null,
+    "timing_environment": {
+      "format_id": "SPS-Harness-Candidate-Timing-Environment-v2",
+      "claimable": false,
+      "explicit_empty_timing_choice_contract": true,
+      "choiceDomain": [],
+      "occurrences": {},
+      "latencyMeaning": [],
+      "latencyClasses": [
+        {
+          "latencyClassId": "lat.fixed.1"
+        }
+      ],
+      "pairedChoiceCoupling": {},
+      "versionAndObservationBoundary": "generated-later-not-a-canonical-digest",
+      "notes": [
+        "Spec section 2.5.1 requires an explicit empty timing-choice contract when no ideal timing choice is modeled; an omitted or absent object is not that instance.",
+        "Every instruction transition is assigned the one fixed public latency class lat.fixed.1; that assignment introduces no timing choice.",
+        "This is a CandidateOnly harness mirror of TimingEnvironmentContract, not a canonical SPS-TimingEnvironment interface: timingEnvironmentId and versionAndObservationBoundary digests do not exist for a candidate bundle."
+      ]
+    }
+  },
+  "release_table": {
+    "format_id": "SPS-Harness-Candidate-Release-Table-v2",
+    "entries": [
+      {
+        "id": "masked_class_candidate",
+        "audience": [
+          "alice"
+        ],
+        "carrier": {
+          "callee": "sps_release_masked_class_candidate",
+          "ordinal": 0
+        },
+        "value_expression": {
+          "kind": "bit-vector-and",
+          "argument": 0,
+          "constant": 255,
+          "width": 32
+        },
+        "guard_expression": {
+          "kind": "boolean-literal",
+          "value": true
+        },
+        "footprint": [
+          "logits"
+        ],
+        "multiplicity": 1
+      }
+    ]
+  },
+  "expected_report": {
+    "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+    "fixture_tier": {
+      "tag": "CandidateOnly"
+    },
+    "claimable_from_checked_in_pair": false,
+    "required_checker_feature": "sps-verifier",
+    "current_harness_status": {
+      "tag": "PendingV2",
+      "reasons": [
+        "sps-verifier-not-implemented",
+        "llvm-22.1.8-nf-recapture-required"
+      ]
+    },
+    "expected": {
+      "audit_all_expectations": [
+        {
+          "coalition": [],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotApplicableV2"
+          }
+        },
+        {
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotApplicableV2"
+          }
+        },
+        {
+          "coalition": [
+            "bob"
+          ],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV2",
+            "bad_state_class": "bob-visible-output-while-release-obligation-active"
+          }
+        },
+        {
+          "coalition": [
+            "alice",
+            "bob"
+          ],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotApplicableV2"
+          }
+        }
+      ],
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status": {
+        "tag": "Complete"
+      },
+      "entry": "audience_mismatch_bad",
+      "expected_model_status": {
+        "tag": "Counterexample",
+        "receipt_matcher": {
+          "tag": "FreshProtectedReceiptMatcherV2"
+        }
+      }
+    }
+  }
+}

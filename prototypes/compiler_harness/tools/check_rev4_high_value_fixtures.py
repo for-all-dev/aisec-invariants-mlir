@@ -14,6 +14,7 @@ from pathlib import Path
 
 from typing import Any
 
+import check_sps_stage_report
 import sps_aggregation
 
 
@@ -21,7 +22,7 @@ def status_matcher(tag: str, reason: str | None = None) -> dict[str, Any]:
     if tag == "Counterexample":
         return {
             "tag": "Counterexample",
-            "args": [{"tag": "FreshProtectedReceiptMatcherV1"}],
+            "args": [{"tag": "FreshProtectedReceiptMatcherV2"}],
         }
     if tag == "Unknown":
         assert reason is not None
@@ -31,25 +32,45 @@ def status_matcher(tag: str, reason: str | None = None) -> dict[str, Any]:
 
 def model_expectation(tag: str, reason: str | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
-        "tag": "ModelStatusPrerequisitesV1",
+        "tag": "ModelStatusPrerequisitesV2",
         "expected_model_status": status_matcher(tag, reason),
     }
     if tag == "Counterexample":
         result["final_replay_expectation"] = {
-            "tag": "AcceptedBadStateRequiredV1"
+            "tag": "AcceptedBadStateRequiredV2"
         }
     elif tag == "Proved":
         result["completion_expectation"] = {
-            "tag": "AllScheduledModelObligationsClosedV1"
+            "tag": "AllScheduledModelObligationsClosedV2"
         }
     return result
 
 
-def accepted_stage(stage: str) -> dict[str, Any]:
+def stage_report(stage: str, completed_check: str) -> dict[str, Any]:
     return {
-        "tag": "StageOutcomeV1",
-        "stage": stage,
-        "outcome": {"tag": "AcceptedV1"},
+        "formatId": "SPS-Harness-Stage-Report-v2",
+        "fixtureTier": {"tag": "CandidateOnly"},
+        "stageId": stage,
+        "completedChecks": [completed_check],
+        "findings": [],
+        "blockers": [],
+        "claimable": False,
+        "modelStatus": {"tag": "NotComputed"},
+    }
+
+
+def reporting_failure_expectation() -> dict[str, Any]:
+    return {
+        "tag": "SPS-Harness-ReportingFailureExpectation-v2",
+        "expected_run_state": {"tag": "ReportingFailed"},
+        "model_status_field_forbidden": True,
+    }
+
+
+def aggregation_rejected_expectation(error_class: str) -> dict[str, Any]:
+    return {
+        "tag": "SPS-Harness-AggregationInputRejected-v2",
+        "errorClass": error_class,
     }
 
 
@@ -58,14 +79,14 @@ def retirement_expectation() -> dict[str, Any]:
 
     part5-soundness.tex:210-219 asks for a retirement statistic in the report
     only; it explicitly requires no change to the theorem.  So the expectation
-    object here pins `NotComputedV1` rather than any ModelStatus constructor.
+    object here pins `NotComputed` rather than any ModelStatus constructor.
     """
 
     return {
-        "tag": "SPS-Harness-RetirementCoverageObservationV1",
-        "model_status_expectation": {"tag": "NotComputedV1"},
-        "coverage_query_expectation": {"tag": "AllFourCoverageQueriesSatisfiedV1"},
-        "statistic_expectation": {"tag": "SPS-Harness-Retirement-Statistic-v1"},
+        "tag": "SPS-Harness-RetirementCoverageObservationV2",
+        "model_status_expectation": {"tag": "NotComputed"},
+        "coverage_query_expectation": {"tag": "AllFourCoverageQueriesSatisfiedV2"},
+        "statistic_expectation": {"tag": "SPS-Harness-Retirement-Statistic-v2"},
     }
 
 
@@ -74,7 +95,12 @@ EXPECTED: dict[str, tuple[str, dict[str, Any]]] = {
     "DEF-02": ("definedness", model_expectation("Unknown", "PossibleUB")),
     "DEF-03": ("definedness", model_expectation("Unknown", "PoisonSemanticsUnsupported")),
     "DEF-04": ("definedness", model_expectation("Unknown", "UninitializedLoadProducesUndef")),
-    "REL-01": ("release-marker", accepted_stage("ReleaseCarrierValidationV1")),
+    "REL-01": (
+        "release-marker",
+        stage_report(
+            "ReleaseCarrierValidationV2", "InvalidCallableCarrierShapeCheckedV2"
+        ),
+    ),
     **{
         f"REL-{index:02d}": (
             "release-marker",
@@ -86,7 +112,12 @@ EXPECTED: dict[str, tuple[str, dict[str, Any]]] = {
         f"REL-{index:02d}": ("release-marker", model_expectation("Counterexample"))
         for index in range(15, 21)
     },
-    "REL-21": ("release-marker", accepted_stage("ReleaseCarrierValidationV1")),
+    "REL-21": (
+        "release-marker",
+        stage_report(
+            "ReleaseCarrierValidationV2", "InvalidCallableCarrierOrdinalShapeCheckedV2"
+        ),
+    ),
     "OUT-01": ("output-closure", model_expectation("Counterexample")),
     "OUT-02": ("output-closure", model_expectation("Proved")),
     "OUT-03": ("output-closure", model_expectation("Counterexample")),
@@ -98,10 +129,45 @@ EXPECTED: dict[str, tuple[str, dict[str, Any]]] = {
     "AGG-02": ("aggregation", model_expectation("Unknown", "SolverTimeout")),
     "AGG-03": ("aggregation", model_expectation("Unknown", "OpenModelObligations")),
     "AGG-04": ("aggregation", model_expectation("Proved")),
-    "AGG-05": ("aggregation", model_expectation("Unknown", "PipelineMismatch")),
+    "AGG-05": (
+        "aggregation",
+        model_expectation("Unknown", "PONFFPArithmeticUnsupported"),
+    ),
     "AGG-06": ("aggregation", model_expectation("Unknown", "VacuousAdmission")),
     "AGG-07": ("aggregation", model_expectation("Unknown", "ExpectedHighVariationAbsent")),
-    "EXT-01": ("external-contract", accepted_stage("MechanismContractValidationV1")),
+    "AGG-08": (
+        "aggregation",
+        aggregation_rejected_expectation(
+            sps_aggregation.ACCEPTED_REPLAY_INVALIDATING_ERROR
+        ),
+    ),
+    "AGG-09": ("aggregation", reporting_failure_expectation()),
+    "AGG-10": (
+        "aggregation",
+        model_expectation("Unknown", "OpenModelObligations"),
+    ),
+    "AGG-11": ("aggregation", model_expectation("Counterexample")),
+    "AGG-12": (
+        "aggregation",
+        model_expectation("Unknown", "DiagnosticHealthFailure"),
+    ),
+    "AGG-13": (
+        "aggregation",
+        model_expectation("Unknown", "ToolInconsistency"),
+    ),
+    "AGG-14": (
+        "aggregation",
+        aggregation_rejected_expectation(
+            sps_aggregation.ACCEPTED_REPLAY_INVALIDATING_ERROR
+        ),
+    ),
+    "AGG-15": ("aggregation", model_expectation("Proved")),
+    "EXT-01": (
+        "external-contract",
+        stage_report(
+            "MechanismContractValidationV2", "MechanismContractShapeCheckedV2"
+        ),
+    ),
     "EXT-02": ("external-contract", model_expectation("Unknown", "MechanismNondeterminismUnsupported")),
     "EXT-03": ("external-contract", model_expectation("Unknown", "MechanismNondeterminismUnsupported")),
     "EXT-04": ("external-contract", model_expectation("Unknown", "ContractAllocationUnsupported")),
@@ -115,13 +181,26 @@ EXPECTED: dict[str, tuple[str, dict[str, Any]]] = {
     "MEM-06": ("exact-memory", model_expectation("Unknown", "UninitializedOutputByte")),
     "MEM-07": ("exact-memory", model_expectation("Proved")),
     "FRZ-01": ("artifact-freeze", model_expectation("Unknown", "PipelineMismatch")),
-    "FRZ-02": ("artifact-freeze", accepted_stage("NormalFormNormalizationV1")),
+    "FRZ-02": (
+        "artifact-freeze",
+        stage_report("NormalFormNormalizationV2", "SafeFreezeErasureShapeCheckedV2"),
+    ),
     "FRZ-03": ("artifact-freeze", model_expectation("Unknown", "FreezeMayChoose")),
     "FRZ-04": ("artifact-freeze", model_expectation("Unknown", "UnsupportedStackProtector")),
-    "PTR-01": ("pointer-layout", accepted_stage("PointerComparisonValidationV1")),
+    "PTR-01": (
+        "pointer-layout",
+        stage_report(
+            "PointerComparisonValidationV2", "SameRootPointerShapeCheckedV2"
+        ),
+    ),
     "PTR-02": ("pointer-layout", model_expectation("Unknown", "LayoutDependentPointerComparison")),
     "PTR-03": ("pointer-layout", model_expectation("Unknown", "LayoutDependentPointerComparison")),
-    "PTR-04": ("pointer-layout", accepted_stage("PointerComparisonValidationV1")),
+    "PTR-04": (
+        "pointer-layout",
+        stage_report(
+            "PointerComparisonValidationV2", "OutsideLifetimePointerShapeCheckedV2"
+        ),
+    ),
     "ACT-01": ("actor-policy", model_expectation("Counterexample")),
     "ACT-02": ("actor-policy", model_expectation("Counterexample")),
     "ACT-03": ("actor-policy", model_expectation("Counterexample")),
@@ -145,7 +224,7 @@ FAMILY_ORDER = (
 )
 
 MARKER_A = (
-    "__sps_release_emit_v1_"
+    "__sps_invalid_callable_emit_"
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
 
@@ -256,13 +335,13 @@ def check_release_markers(cases: list[dict[str, Any]], text: str) -> None:
     expected_marker_counts = {"REL-02": 0, "REL-03": 2}
     for case_id, count in expected_marker_counts.items():
         _, body = function_definition(text, by_id[case_id]["function"])
-        if body.count("__sps_release_emit_v1_") != count:
+        if body.count("__sps_invalid_callable_emit_") != count:
             fail(f"{case_id}: wrong marker occurrence count")
 
     _, wrong_symbol = function_definition(text, "release_wrong_symbol")
-    require(wrong_symbol, "__sps_release_emit_v1_bbbbb", "REL-04")
+    require(wrong_symbol, "__sps_invalid_callable_emit_bbbbb", "REL-04")
     _, wrong_type = function_definition(text, "release_wrong_type")
-    require(wrong_type, "call ccc i8 @__sps_release_emit_v1_cccccc", "REL-05")
+    require(wrong_type, "call ccc i8 @__sps_invalid_callable_emit_cccccc", "REL-05")
     _, tail = function_definition(text, "release_tail_marker")
     require(tail, "tail call ccc void", "REL-06")
     _, varargs = function_definition(text, "release_varargs_marker")
@@ -331,37 +410,86 @@ def check_output_closure(cases: list[dict[str, Any]], text: str) -> None:
     require(bodies["OUT-07"], "ret i8 0", "OUT-07")
 
 
-def aggregate(inputs: dict[str, Any]) -> tuple[dict[str, Any], tuple[str, ...]]:
-    """Execute only the strict ModelStatus priority over fixture prerequisites."""
-
-    if inputs.get("conformant") is not True:
-        return model_expectation("Unknown", "PipelineMismatch"), ("PipelineMismatch",)
-
-    blockers = tuple(str(reason) for reason in inputs.get("blockers", ()))
-    if inputs.get("replayed_counterexample") is True:
-        return model_expectation("Counterexample"), blockers
-    # spec:4192-4196 blocker-cardinality collapse; shared with
-    # tools/artifact_bundle.py and c/check_harness.py via tools/sps_aggregation.py
-    # so the three checkers cannot drift apart again.
-    collapsed = sps_aggregation.collapse_blockers(blockers)
-    if collapsed is None:
-        return model_expectation("Proved"), ()
-    return model_expectation("Unknown", collapsed), blockers
+def parse_aggregation_input(value: object, case_id: str) -> sps_aggregation.AggregationInputV2:
+    try:
+        return sps_aggregation.AggregationInputV2.from_json(value)
+    except sps_aggregation.AggregationInputError as error:
+        fail(f"{case_id}: invalid authoritative AggregationInputV2: {error}")
 
 
-def check_aggregation(cases: list[dict[str, Any]]) -> None:
+def aggregation_expectation(
+    outcome: sps_aggregation.AggregationOutcomeV2,
+) -> dict[str, Any]:
+    """Translate a typed result into this catalog's nonclaimable matcher."""
+
+    if isinstance(outcome, sps_aggregation.ReportingFailedAggregationV2):
+        return reporting_failure_expectation()
+
+    status = outcome.model_status
+    tag = status.get("tag")
+    if tag == "Counterexample":
+        args = status.get("args")
+        if (
+            not isinstance(args, list)
+            or len(args) != 1
+            or not isinstance(args[0], str)
+            or not re.fullmatch(r"[0-9a-f]{64}", args[0])
+        ):
+            fail("accepted replay must produce one protected receipt id")
+        return model_expectation("Counterexample")
+    if tag == "Proved":
+        return model_expectation("Proved")
+    if tag == "Unknown":
+        args = status.get("args")
+        if (
+            not isinstance(args, list)
+            or len(args) != 1
+            or not isinstance(args[0], dict)
+            or not isinstance(args[0].get("reasonClassId"), str)
+        ):
+            fail("typed aggregation produced a malformed Unknown matcher")
+        return model_expectation("Unknown", args[0]["reasonClassId"])
+    fail(f"typed aggregation produced unsupported ModelStatus matcher {status!r}")
+
+
+def check_aggregation(cases: list[dict[str, Any]], catalog: object) -> None:
+    if (
+        not isinstance(catalog, dict)
+        or list(catalog) != ["formatId", "authority", "cases"]
+        or catalog.get("formatId") != "SPS-Harness-Rev4.1-Aggregation-Inputs-v2"
+        or catalog.get("authority")
+        != {"tag": "SyntheticInterfaceVectorV2", "claimable": False}
+        or not isinstance(catalog.get("cases"), dict)
+    ):
+        fail("aggregation input catalog has the wrong harness envelope")
+    inputs = catalog["cases"]
+    expected_ids = [case["id"] for case in cases]
+    if list(inputs) != expected_ids:
+        fail("aggregation input catalog must cover every AGG case in fixture order")
     for case in cases:
-        public, private = aggregate(case.get("inputs", {}))
+        aggregation_input = parse_aggregation_input(inputs[case["id"]], case["id"])
+        try:
+            outcome = sps_aggregation.aggregate_model_result(aggregation_input)
+        except sps_aggregation.AggregationInputError as error:
+            expected = aggregation_rejected_expectation(error.code)
+            if expected != case["expectation"]:
+                fail(
+                    f"{case['id']}: aggregation rejected with {error.code!r}, "
+                    f"expected {case['expectation']!r}"
+                )
+            continue
+        public = aggregation_expectation(outcome)
         if public != case["expectation"]:
             fail(
                 f"{case['id']}: aggregation prerequisites produced {public!r}, "
                 f"expected {case['expectation']!r}"
             )
-        if list(private) != case.get("private_reasons"):
-            fail(f"{case['id']}: private blocker ledger was not preserved exactly")
-    nonconformant = next(case for case in cases if case["id"] == "AGG-05")
-    if nonconformant["inputs"].get("preflight_leak_finding") is not True:
-        fail("AGG-05: nonconformant apparent leak must remain an explicit preflight finding")
+    fp_unsupported = next(case for case in cases if case["id"] == "AGG-05")
+    if fp_unsupported.get("preflight_leak_finding") is not True:
+        fail("AGG-05: FP-unsupported apparent leak must remain a preflight finding")
+    diagnostic = next(case for case in cases if case["id"] == "AGG-15")
+    if diagnostic.get("diagnostic_finding") != "RelationalRequired":
+        fail("AGG-15: the non-voting diagnostic finding was not preserved")
 
 
 def check_external_contract(cases: list[dict[str, Any]], text: str) -> None:
@@ -463,8 +591,8 @@ def check_actor_policy(cases: list[dict[str, Any]], root: Path) -> None:
                 fail(f"{case_id}: actor row lacks an entry/coalition scope")
             outcome = row.get("query_outcome_matcher", {})
             if outcome.get("tag") not in {
-                "ConstructedResultMatcherV1",
-                "NotConstructedResultMatcherV1",
+                "ConstructedResultMatcherV2",
+                "NotConstructedResultMatcherV2",
             }:
                 fail(f"{case_id}: actor row has an invalid query-outcome matcher")
 
@@ -594,7 +722,7 @@ def retirement_statistic(case: dict[str, Any], shape: dict[str, Any]) -> dict[st
 
     admitted = size * size
     return {
-        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "format": "SPS-Harness-Retirement-Statistic-v2",
         "entry": case["function"],
         "coalition": case["coalition"],
         "secret_bits": bits,
@@ -678,7 +806,7 @@ def check_retirement_coverage(cases: list[dict[str, Any]], text: str) -> list[st
             )
 
         report.append(
-            "SPS-Harness-Retirement-Statistic-v1 "
+            "SPS-Harness-Retirement-Statistic-v2 "
             f"entry={derived['entry']} coalition=[{','.join(derived['coalition'])}] "
             f"projection={derived['released_projection']} "
             f"admitted_pairs={derived['admitted_pairs']} "
@@ -722,7 +850,7 @@ def check_retirement_coverage(cases: list[dict[str, Any]], text: str) -> list[st
         )
 
     report.append(
-        "SPS-Harness-Retirement-Coverage-Note-v1 "
+        "SPS-Harness-Retirement-Coverage-Note-v2 "
         "all-four-coverage-queries=Satisfied "
         "collapsing-entry=release_injective_digest "
         "contrast-entry=release_low_bit "
@@ -745,6 +873,13 @@ def check_case_inventory(cases: Any) -> list[dict[str, Any]]:
         family, expectation = EXPECTED[case_id]
         if case.get("family") != family or case.get("expectation") != expectation:
             fail(f"{case_id}: wrong family or expected Rev4 prerequisite")
+        if expectation.get("formatId") == check_sps_stage_report.FORMAT_ID:
+            try:
+                check_sps_stage_report.validate_stage_report(
+                    expectation, source=f"{case_id}.expectation"
+                )
+            except check_sps_stage_report.StageReportError as error:
+                fail(str(error))
         if not isinstance(case.get("title"), str) or not case["title"]:
             fail(f"{case_id}: missing review title")
     return cases
@@ -759,17 +894,17 @@ def main() -> None:
     root = args.root.resolve()
     catalog_path = root / "integration" / "Inputs" / "sps-rev4-high-value" / "cases.json"
     catalog = json.loads(catalog_path.read_text())
-    if catalog.get("schema_version") != "SPS-Harness-Rev4-High-Value-Fixtures-v2":
+    if catalog.get("schema_version") != "SPS-Harness-Rev4-High-Value-Fixtures-v3":
         fail("unsupported high-value fixture schema")
     authority = catalog.get("authority")
     if authority != {
-        "tier": {"tag": "PreflightV1"},
+        "tier": {"tag": "CandidateOnly"},
         "claimable": False,
         "checker_status": "Unimplemented",
         "current_status": "Pending",
         "statement": (
-            "Expectations are harness-scoped prerequisites and stage outcomes; "
-            "no SPSRunReportV1 or ModelStatus has been computed."
+            "Expectations are harness-scoped prerequisites and stage reports; "
+            "no SPS run report or ModelStatus has been computed."
         ),
     }:
         fail("suite authority must remain exactly nonclaimable and Pending")
@@ -788,7 +923,7 @@ def main() -> None:
     check_definedness(grouped["definedness"], texts["definedness"])
     check_release_markers(grouped["release-marker"], texts["release-marker"])
     check_output_closure(grouped["output-closure"], texts["output-closure"])
-    check_aggregation(grouped["aggregation"])
+    check_aggregation(grouped["aggregation"], json.loads(texts["aggregation"]))
     check_external_contract(grouped["external-contract"], texts["external-contract"])
     check_exact_memory(grouped["exact-memory"], texts["exact-memory"])
     check_artifact_freeze(grouped["artifact-freeze"], texts["artifact-freeze"])

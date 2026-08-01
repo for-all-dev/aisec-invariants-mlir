@@ -20,15 +20,15 @@ target.
 ## Authority and result boundary
 
 Before reviewing individual fixtures, read
-[the Rev4 preflight workflow](mlir/REV4_PREFLIGHT_WORKFLOW.md) and keep these
+[the Rev4 preflight workflow](fixtures/REV4_PREFLIGHT_WORKFLOW.md) and keep these
 boundaries explicit:
 
 - C is provenance, executable behavior, and source-shape evidence.
 - Each family/case folder pairs a review-sized MLIR shape with one small
   `snapshot.yaml` containing the relevant boundary and expected interpretation.
-- Global `artifacts/` bitcode is a quarantined LLVM-17 candidate sequence;
-  `artifact.ll` is its derived review form. It is not case-local frozen SPS
-  bitcode.
+- A case-local `candidate/` directory is a quarantined LLVM-17 candidate
+  sequence; `artifact.ll` is its derived review form. It is not frozen SPS
+  bitcode. Its local `bundle-spec.json` records generation and binding inputs.
 - Prototype sidecars describe fixture intent but are not canonical Rev4
   interfaces.
 - P4 and assembly tests expose deployment risk but do not change LLVM
@@ -136,9 +136,9 @@ distinction between payload equality and coalition authorization.
 
 | Situation | C evidence | MLIR evidence | Bundle | Intended distinction |
 | --- | --- | --- | --- | --- |
-| Release visible outside its declared audience | [audience_mismatch_bad.c](c/audience_mismatch_bad.c) | [audience_mismatch.bad.mlir](mlir/audience-mismatch/bad/audience_mismatch.bad.mlir) | [audience-mismatch](artifacts/audience-mismatch/) | Alice is authorized; Bob sees the same payload without being in the release audience. The future `{bob}` product row is the counterexample row. |
-| Plaintext sent to the wrong party | [bad](c/wrong_party_plaintext_bad.c), [fixed](c/wrong_party_plaintext_fixed.c) | [bad](mlir/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir), [fixed](mlir/wrong-party-plaintext/fixed/wrong_party_plaintext.fixed.mlir) | — | The bad case writes both mailboxes; the fixed case preserves the authorized mailbox and redacts only the unauthorized one. |
-| FHE plaintext revealed on the wrong host | [bad](c/wrong_host_fhe_reveal_bad.c), [fixed](c/wrong_host_fhe_reveal_fixed.c) | [bad](mlir/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal.bad.mlir), [fixed](mlir/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal.fixed.mlir) | — | The ciphertext handle remains public; only the authorized client may receive revealed plaintext. |
+| Release visible outside its declared audience | [audience_mismatch_bad.c](fixtures/audience-mismatch/sources/audience_mismatch_bad.c) | [audience_mismatch.bad.mlir](fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir) | [candidate](fixtures/audience-mismatch/bad/candidate/) | Alice is authorized; Bob sees the same payload without being in the release audience. The future `{bob}` product row is the counterexample row. |
+| Plaintext sent to the wrong party | [bad](fixtures/wrong-party-plaintext/sources/wrong_party_plaintext_bad.c), [fixed](fixtures/wrong-party-plaintext/sources/wrong_party_plaintext_fixed.c) | [bad](fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir), [fixed](fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext.fixed.mlir) | — | The bad case writes both mailboxes; the fixed case preserves the authorized mailbox and redacts only the unauthorized one. |
+| FHE plaintext revealed on the wrong host | [bad](fixtures/wrong-host-fhe-reveal/sources/wrong_host_fhe_reveal_bad.c), [fixed](fixtures/wrong-host-fhe-reveal/sources/wrong_host_fhe_reveal_fixed.c) | [bad](fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal.bad.mlir), [fixed](fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal.fixed.mlir) | — | The ciphertext handle remains public; only the authorized client may receive revealed plaintext. |
 
 ### Manual checks
 
@@ -162,8 +162,8 @@ distinction between payload equality and coalition authorization.
 
 - [integration/equivalence.test](integration/equivalence.test)
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
-- [artifacts/interfaces-negative.test](artifacts/interfaces-negative.test)
-- [artifacts/metadata.test](artifacts/metadata.test)
+- [integration/candidate-bundles/interfaces-negative.test](integration/candidate-bundles/interfaces-negative.test)
+- [integration/candidate-bundles/metadata.test](integration/candidate-bundles/metadata.test)
 
 **Accept when:** each destination has an independently justified authorization
 decision, and the fixed twins preserve the authorized behavior.
@@ -181,9 +181,9 @@ released” analysis misses.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Observation occurs before an authorized release | [prefix_causal_release_bad.c](c/prefix_causal_release_bad.c) | [prefix_causal_release.bad.mlir](mlir/prefix-causal-release/bad/prefix_causal_release.bad.mlir) | A later legitimate release cannot retroactively authorize an earlier public store. |
-| Padding validity is sanctioned but error detail is not | [bad](c/explicit_error_oracle_bad.c), [fixed](c/explicit_error_oracle_fixed.c) | [bad](mlir/explicit-error-oracle/bad/explicit_error_oracle.bad.mlir), [fixed](mlir/explicit-error-oracle/fixed/explicit_error_oracle.fixed.mlir) | Hold the authorized validity/status release equal; the bad case still reveals secret error detail. |
-| CKKS plaintext is released before validation/sanitization | [bad](c/ckks_unsafe_release_bad.c), [fixed](c/ckks_unsafe_release_fixed.c) | [bad](mlir/ckks-release/bad/ckks_unsafe_release.bad.mlir), [fixed](mlir/ckks-release/fixed/ckks_unsafe_release.fixed.mlir) | The fixed reduction applies the public mask and certificate guard before the public sink. |
+| Observation occurs before an authorized release | [prefix_causal_release_bad.c](fixtures/prefix-causal-release/sources/prefix_causal_release_bad.c) | [prefix_causal_release.bad.mlir](fixtures/prefix-causal-release/bad/prefix_causal_release.bad.mlir) | A later legitimate release cannot retroactively authorize an earlier public store. |
+| Padding validity is sanctioned but error detail is not | [bad](fixtures/explicit-error-oracle/sources/explicit_error_oracle_bad.c), [fixed](fixtures/explicit-error-oracle/sources/explicit_error_oracle_fixed.c) | [bad](fixtures/explicit-error-oracle/bad/explicit_error_oracle.bad.mlir), [fixed](fixtures/explicit-error-oracle/fixed/explicit_error_oracle.fixed.mlir) | Hold the authorized validity/status release equal; the bad case still reveals secret error detail. |
+| CKKS plaintext is released before validation/sanitization | [bad](fixtures/ckks-release/sources/ckks_unsafe_release_bad.c), [fixed](fixtures/ckks-release/sources/ckks_unsafe_release_fixed.c) | [bad](fixtures/ckks-release/bad/ckks_unsafe_release.bad.mlir), [fixed](fixtures/ckks-release/fixed/ckks_unsafe_release.fixed.mlir) | The fixed reduction applies the public mask and certificate guard before the public sink. |
 
 ### Manual checks
 
@@ -221,8 +221,8 @@ memory, ownership changes, lifecycle state, and public outputs.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Prior GPU tenant remains in shared scratch | [bad](c/leftoverlocals_scratch_bad.c), [fixed](c/leftoverlocals_scratch_fixed.c) | [bad](mlir/leftoverlocals-scratch/bad/leftoverlocals_scratch.bad.mlir), [fixed](mlir/leftoverlocals-scratch/fixed/leftoverlocals_scratch.fixed.mlir) | The fixed case overwrites shared scratch with the next tenant's value before it is observed. |
-| Canceled Redis response is reused by another request | [bad](c/redis_pool_reuse_bad.c), [fixed](c/redis_pool_reuse_fixed.c) | [bad](mlir/redis-pool-reuse/bad/redis_pool_reuse.bad.mlir), [fixed](mlir/redis-pool-reuse/fixed/redis_pool_reuse.fixed.mlir) | Cancellation must not make actor A's response become actor B's response. |
+| Prior GPU tenant remains in shared scratch | [bad](fixtures/leftoverlocals-scratch/sources/leftoverlocals_scratch_bad.c), [fixed](fixtures/leftoverlocals-scratch/sources/leftoverlocals_scratch_fixed.c) | [bad](fixtures/leftoverlocals-scratch/bad/leftoverlocals_scratch.bad.mlir), [fixed](fixtures/leftoverlocals-scratch/fixed/leftoverlocals_scratch.fixed.mlir) | The fixed case overwrites shared scratch with the next tenant's value before it is observed. |
+| Canceled Redis response is reused by another request | [bad](fixtures/redis-pool-reuse/sources/redis_pool_reuse_bad.c), [fixed](fixtures/redis-pool-reuse/sources/redis_pool_reuse_fixed.c) | [bad](fixtures/redis-pool-reuse/bad/redis_pool_reuse.bad.mlir), [fixed](fixtures/redis-pool-reuse/fixed/redis_pool_reuse.fixed.mlir) | Cancellation must not make actor A's response become actor B's response. |
 
 ### Manual checks
 
@@ -250,21 +250,22 @@ reuse path establishes the new owner's value before observation.
 ## 4. ABI alias-topology honesty
 
 **Why this is fourth:** pointer arguments are ubiquitous, and assuming
-separation from distinct SSA names is an unsound shortcut. The three fixtures
-share the same load/store shape; only the independently bound ABI topology
-changes the future disposition.
+separation from distinct SSA names is an unsound shortcut. The four fixtures
+separate an explicit same-actual call from three identical load/store bodies
+whose independently bound ABI topology changes the future disposition.
 
-### Review the complete triad
+### Review the complete quartet
 
 | Case | C evidence | MLIR evidence | Bundle | Future matcher intent |
 | --- | --- | --- | --- | --- |
-| Missing topology | [abi_alias_unproved.c](c/abi_alias_unproved.c) | [abi_alias_missing_binding.unknown.mlir](mlir/abi-alias/missing-binding-unknown/abi_alias_missing_binding.unknown.mlir) | [abi-alias-missing-binding](artifacts/abi-alias-missing-binding/) | `Unknown(AliasBindingMismatch)` |
-| `MayAlias` with equal-base realization | same source | [abi_alias_mayalias_overlap.bad.mlir](mlir/abi-alias/mayalias-overlap-bad/abi_alias_mayalias_overlap.bad.mlir) | [abi-alias-mayalias-overlap](artifacts/abi-alias-mayalias-overlap/) | `AuditAll` SAT remains `CandidateOnly`; accepted exact replay yields `Counterexample(receiptId)`. |
-| Proved `Disjoint` control | same source | [abi_alias_disjoint.control.mlir](mlir/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir) | [abi-alias-disjoint](artifacts/abi-alias-disjoint/) | `Proved`, after all still-missing Rev4 premises are implemented |
+| Explicit same actual | [abi_alias_explicit_same_actual.c](fixtures/abi-alias/sources/abi_alias_explicit_same_actual.c) | [abi_alias_explicit_same_actual.bad.mlir](fixtures/abi-alias/explicit-same-actual-bad/abi_alias_explicit_same_actual.bad.mlir) | — | Direct preflight witness: the caller passes one object for both pointer parameters. |
+| Missing topology | [abi_alias_unproved.c](fixtures/abi-alias/sources/abi_alias_unproved.c) | [abi_alias_missing_binding.unknown.mlir](fixtures/abi-alias/missing-binding-unknown/abi_alias_missing_binding.unknown.mlir) | [candidate](fixtures/abi-alias/missing-binding-unknown/candidate/) | `Unknown(AliasBindingMismatch)` |
+| `MayAlias` with equal-base realization | same source | [abi_alias_mayalias_overlap.bad.mlir](fixtures/abi-alias/mayalias-overlap-bad/abi_alias_mayalias_overlap.bad.mlir) | [candidate](fixtures/abi-alias/mayalias-overlap-bad/candidate/) | `AuditAll` SAT remains `CandidateOnly`; accepted exact replay yields `Counterexample(receiptId)`. |
+| Proved `Disjoint` control | same source | [abi_alias_disjoint.control.mlir](fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir) | [candidate](fixtures/abi-alias/disjoint-control/candidate/) | `Proved`, after all still-missing Rev4 premises are implemented |
 
 ### Manual checks
 
-- [ ] Confirm all three entries store the secret through `p`, load through
+- [ ] Confirm the three candidate entries store the secret through `p`, load through
   `q`, and publish the loaded value.
 - [ ] Verify no LLVM `noalias` attribute or distinct SSA name is treated as the
   independent ABI proof.
@@ -274,19 +275,20 @@ changes the future disposition.
   changes with the secret.
 - [ ] In the disjoint control, confirm initialized memory for `q` and complete
   pairwise topology are represented.
-- [ ] Ensure an implementation distinguishes all three results; always-refuse
+- [ ] Ensure an implementation distinguishes all four cases; always-refuse
   and always-assume-disjoint are both wrong.
 
 ### Supporting tests
 
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
-- [artifacts/pairs.test](artifacts/pairs.test)
-- [artifacts/generate-reproducible.test](artifacts/generate-reproducible.test)
-- [artifacts/pairs-negative.test](artifacts/pairs-negative.test)
-- [artifacts/interfaces-negative.test](artifacts/interfaces-negative.test)
+- [integration/candidate-bundles/pairs.test](integration/candidate-bundles/pairs.test)
+- [integration/candidate-bundles/generate-reproducible.test](integration/candidate-bundles/generate-reproducible.test)
+- [integration/candidate-bundles/pairs-negative.test](integration/candidate-bundles/pairs-negative.test)
+- [integration/candidate-bundles/interfaces-negative.test](integration/candidate-bundles/interfaces-negative.test)
 
-**Accept when:** the reviewer can explain why identical LLVM bodies have three
-different intended outcomes solely from independently bound ABI facts.
+**Accept when:** the reviewer can explain the explicit same-actual witness and
+why identical LLVM bodies have three different intended outcomes solely from
+independently bound ABI facts.
 
 ---
 
@@ -301,9 +303,9 @@ release model.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Secret logged and exported to a checkpoint | [bad](c/secret_logging_checkpoint_bad.c), [fixed](c/secret_logging_checkpoint_fixed.c) | [bad](mlir/secret-logging-checkpoint/bad/secret_logging_checkpoint.bad.mlir), [fixed](mlir/secret-logging-checkpoint/fixed/secret_logging_checkpoint.fixed.mlir) | The private state keeps the token; public log and checkpoint are redacted. |
-| BREACH-style compressed wire length | [bad](c/breach_compressed_length_bad.c), [fixed](c/breach_compressed_length_fixed.c) | [bad](mlir/breach-compressed-length/bad/breach_compressed_length.bad.mlir), [fixed](mlir/breach-compressed-length/fixed/breach_compressed_length.fixed.mlir) | The bad length distinguishes a secret/guess match; the fixed wire length is constant. |
-| Secret-dependent tensor/KV-cache size | [bad](c/dynamic_kv_length_bad.c), [fixed](c/dynamic_kv_length_fixed.c) | [bad](mlir/dynamic-kv-length/bad/dynamic_kv_length.bad.mlir), [fixed](mlir/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir) | Public allocation and work counts are secret-dependent in the bad case and fixed at 64 in the repair. |
+| Secret logged and exported to a checkpoint | [bad](fixtures/secret-logging-checkpoint/sources/secret_logging_checkpoint_bad.c), [fixed](fixtures/secret-logging-checkpoint/sources/secret_logging_checkpoint_fixed.c) | [bad](fixtures/secret-logging-checkpoint/bad/secret_logging_checkpoint.bad.mlir), [fixed](fixtures/secret-logging-checkpoint/fixed/secret_logging_checkpoint.fixed.mlir) | The private state keeps the token; public log and checkpoint are redacted. |
+| BREACH-style compressed wire length | [bad](fixtures/breach-compressed-length/sources/breach_compressed_length_bad.c), [fixed](fixtures/breach-compressed-length/sources/breach_compressed_length_fixed.c) | [bad](fixtures/breach-compressed-length/bad/breach_compressed_length.bad.mlir), [fixed](fixtures/breach-compressed-length/fixed/breach_compressed_length.fixed.mlir) | The bad length distinguishes a secret/guess match; the fixed wire length is constant. |
+| Secret-dependent tensor/KV-cache size | [bad](fixtures/dynamic-kv-length/sources/dynamic_kv_length_bad.c), [fixed](fixtures/dynamic-kv-length/sources/dynamic_kv_length_fixed.c) | [bad](fixtures/dynamic-kv-length/bad/dynamic_kv_length.bad.mlir), [fixed](fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir) | Public allocation and work counts are secret-dependent in the bad case and fixed at 64 in the repair. |
 
 ### Manual checks
 
@@ -338,8 +340,8 @@ addresses safe under the fixed `Theta_ct` observation semantics.
 
 | Case | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Direct secret table lookup | [secret_embedding_index_bad.c](c/secret_embedding_index_bad.c) | [secret_embedding_index.bad.mlir](mlir/secret-embedding-index/bad/secret_embedding_index.bad.mlir) | The secret chooses the GEP/load address. |
-| Full public-index scan | [secret_embedding_index_fixed.c](c/secret_embedding_index_fixed.c) | [secret_embedding_index.fixed.mlir](mlir/secret-embedding-index/fixed/secret_embedding_index.fixed.mlir) | All 16 public addresses are visited; mask selection changes values, not addresses. |
+| Direct secret table lookup | [secret_embedding_index_bad.c](fixtures/secret-embedding-index/sources/secret_embedding_index_bad.c) | [secret_embedding_index.bad.mlir](fixtures/secret-embedding-index/bad/secret_embedding_index.bad.mlir) | The secret chooses the GEP/load address. |
+| Full public-index scan | [secret_embedding_index_fixed.c](fixtures/secret-embedding-index/sources/secret_embedding_index_fixed.c) | [secret_embedding_index.fixed.mlir](fixtures/secret-embedding-index/fixed/secret_embedding_index.fixed.mlir) | All 16 public addresses are visited; mask selection changes values, not addresses. |
 
 ### Manual checks
 
@@ -375,10 +377,10 @@ actual secret-selected sizes or reachable remainder states are equal.
 
 | Case | C evidence | MLIR evidence | Bundle | Future oracle intent |
 | --- | --- | --- | --- | --- |
-| Secret loop trip count | [bound_exhausted_loop.c](c/bound_exhausted_loop.c) | [bound_secret_trip_count.bad.mlir](mlir/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir) | [bound-secret-trip-count](artifacts/bound-secret-trip-count/) | Replay counts 0 and 1 as a control counterexample. |
-| Public loop exceeds proof bound | same source | [bound_exhausted_loop.unknown.mlir](mlir/loop-bounds/public-bound-exhausted-unknown/bound_exhausted_loop.unknown.mlir) | [bound-exhausted-public](artifacts/bound-exhausted-public/) | Retain aligned reachable exhaustion as `Unknown(LoopRemainder)`; never delete it into a proof. |
-| Secret-selected VLA size | [alloca_size_models.c](c/alloca_size_models.c) | [alloca_size_high_count.unknown.mlir](mlir/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir) | [alloca-size-high](artifacts/alloca-size-high/) | `Unknown(AllocaSizeNotWorldStructural)` |
-| Public, validated VLA size control | same source | [alloca_size_public.control.mlir](mlir/alloca-size/public-control/alloca_size_public.control.mlir) | [alloca-size-public](artifacts/alloca-size-public/) | Positive control, with range, overflow, and stack-feasibility obligations. |
+| Secret loop trip count | [bound_exhausted_loop.c](fixtures/loop-bounds/sources/bound_exhausted_loop.c) | [bound_secret_trip_count.bad.mlir](fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir) | [candidate](fixtures/loop-bounds/secret-trip-count-bad/candidate/) | Replay counts 0 and 1 as a control counterexample. |
+| Public loop exceeds proof bound | same source | [bound_exhausted_loop.unknown.mlir](fixtures/loop-bounds/public-bound-exhausted-unknown/bound_exhausted_loop.unknown.mlir) | [candidate](fixtures/loop-bounds/public-bound-exhausted-unknown/candidate/) | Retain aligned reachable exhaustion as `Unknown(LoopRemainder)`; never delete it into a proof. |
+| Secret-selected VLA size | [alloca_size_models.c](fixtures/alloca-size/sources/alloca_size_models.c) | [alloca_size_high_count.unknown.mlir](fixtures/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir) | [candidate](fixtures/alloca-size/high-count-unknown/candidate/) | `Unknown(AllocaSizeNotWorldStructural)` |
+| Public, validated VLA size control | same source | [alloca_size_public.control.mlir](fixtures/alloca-size/public-control/alloca_size_public.control.mlir) | [candidate](fixtures/alloca-size/public-control/candidate/) | Positive control, with range, overflow, and stack-feasibility obligations. |
 
 ### Manual checks
 
@@ -400,52 +402,64 @@ actual secret-selected sizes or reachable remainder states are equal.
 - [diagnostic/alloca.test](diagnostic/alloca.test)
 - [diagnostic/public-control.test](diagnostic/public-control.test)
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
-- [artifacts/metadata.test](artifacts/metadata.test)
+- [integration/candidate-bundles/metadata.test](integration/candidate-bundles/metadata.test)
 
 **Accept when:** secret divergence, aligned exhaustion, and proved-public bounds
 produce three distinguishable review conclusions.
 
 ---
 
-## 8. Release-carrier preservation and conformance
+## 8. NFv2 release-carrier binding and legacy failures
 
 **Why this is eighth:** declassification cannot be bound reliably after the
-compiler has erased, merged, duplicated, or replaced its carrier. This family
-has broad theorem impact but applies specifically to systems with explicit
-release APIs.
+compiler has erased, merged, duplicated, or replaced its carrier. Rev4.1 makes
+the carrier a dedicated intrinsic so compiler preservation, release identity,
+semantic equivalence, and final zero-code lowering are separate obligations.
 
-### Review the complete carrier triad
+### Review the legacy carrier triad alongside the NFv2 contract
 
 | Case | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Carrier lost to inlining | [release_carrier.c](c/release_carrier.c) | [release_carrier_lost.bad.mlir](mlir/release-carrier/lost-bad/release_carrier_lost.bad.mlir) | Bare release-shaped arithmetic/stores cannot recover stable site identity or multiplicity. Expected refusal, not a leak verdict. |
-| Marker-only workaround | same source | [release_carrier_marker_only.bad.mlir](mlir/release-carrier/marker-only-bad/release_carrier_marker_only.bad.mlir) | A policy string on a store is not authority, and the raw stored value is not the declared release expression. |
-| Pinned outlined carrier | same source | [release_carrier_pinned.control.mlir](mlir/release-carrier/pinned-control/release_carrier_pinned.control.mlir) | Direct wrapper call survives with `noinline`, `nomerge`, `noduplicate`, and `nobuiltin`. |
+| Carrier lost to inlining | [release_carrier.c](fixtures/release-carrier/sources/release_carrier.c) | [release_carrier_lost.bad.mlir](fixtures/release-carrier/lost-bad/release_carrier_lost.bad.mlir) | Bare release-shaped arithmetic/stores cannot recover stable site identity or multiplicity. Expected refusal, not a leak verdict. |
+| Marker-only workaround | same source | [release_carrier_marker_only.bad.mlir](fixtures/release-carrier/marker-only-bad/release_carrier_marker_only.bad.mlir) | A policy string on a store is not authority, and the raw stored value is not the declared release expression. |
+| Pinned outlined carrier | same source | [release_carrier_pinned.control.mlir](fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir) | Legacy V2 control: the wrapper survives with four pins, but is still structurally nonconforming under NFv2. |
 
 ### Manual checks
 
-- [ ] Identify the call occurrence as the carrier; the later store is an
-  ordinary output event.
-- [ ] Verify exact static multiplicity and ordinal against the manifest.
-- [ ] Verify argument roles, result type, expression, and guard.
-- [ ] Confirm `tail`, `musttail`, `notail`, `invoke`, and `callbr` are not
-  silently accepted by a direct-call-only profile.
-- [ ] Confirm all four optimizer pins survive in LLVM IR.
-- [ ] Treat marker-only recovery as two independent failures: missing carrier
-  and wrong extensional expression.
+- [ ] Identify exactly one zero-result `llvm.sps.release` occurrence as the
+  carrier; a later store remains an ordinary output event.
+- [ ] Verify every variadic operand is an integer leaf and that leaf count,
+  order, and width exactly equal flattened `ReleaseType`.
+- [ ] Confirm no `ReleaseId` is encoded as an intrinsic operand.
+- [ ] Resolve the stable instruction only through the singular
+  `ReleaseImplementationBindingV2.emitMarkerInstructionId` binding and verify
+  that the bound release-table entry is the intended one.
+- [ ] Classify missing, duplicate, malformed, stale, ambiguous, and wrongly
+  bound carriers as `ReleaseCarrierMismatch`; reserve
+  `ReleaseConformanceUnknown` for a structurally valid carrier whose semantic
+  equivalence remains unresolved.
+- [ ] Verify one intrinsic becomes one `SPS_RELEASE` MIR pseudo, survives the
+  required machine capture, and contributes no final code, symbol, or
+  relocation.
+- [ ] Treat function calls, outlined wrappers, inline assembly, metadata, and
+  store-only markers as legacy negative evidence even when optimization
+  preserves their shape.
 - [ ] Verify `sps.*` MLIR attributes disappear during MLIR-to-LLVM translation;
   downstream authority must come from sidecars, not those attributes.
-- [ ] Remember that a C `noinline` wrapper alone cannot express the full pin set.
 
 ### Supporting tests
 
-- [integration/release-carrier-inline-survival.test](integration/release-carrier-inline-survival.test)
-- [integration/bitcode-carrier-survival.test](integration/bitcode-carrier-survival.test)
-- [integration/release-marker-lowering.test](integration/release-marker-lowering.test)
+- [integration/nfv2-release-intrinsic-contract.test](integration/nfv2-release-intrinsic-contract.test)
+- [integration/nfv2-release-intrinsic-preservation.test](integration/nfv2-release-intrinsic-preservation.test)
+- [integration/nfv2-release-codegen.test](integration/nfv2-release-codegen.test)
+- [integration/invalid-callable-mlir-survival.test](integration/invalid-callable-mlir-survival.test)
+- [integration/invalid-callable-bitcode-survival.test](integration/invalid-callable-bitcode-survival.test)
+- [integration/invalid-callable-lowering.test](integration/invalid-callable-lowering.test)
 - [integration/policy-carrier-loss.test](integration/policy-carrier-loss.test)
 
-**Accept when:** the reviewer can bind a stable direct call occurrence and can
-explain why both a missing carrier and a hand-added marker must fail closed.
+**Accept when:** the reviewer can bind a stable intrinsic occurrence without
+placing release identity in IR, distinguish structural failure from unresolved
+equivalence, and explain why every retained V2 carrier fails NFv2 closed.
 
 ---
 
@@ -460,11 +474,11 @@ shortcut.
 
 | Case | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| Secret predecessor chooses public constants | [predecessor_choice_blockarg_bad.c](c/predecessor_choice_blockarg_bad.c) | [predecessor_choice_blockarg.bad.mlir](mlir/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir) | The leak is carried by predecessor choice/block arguments even though the arm constants are public. |
-| Identical successor control | [precision_controls.c](c/precision_controls.c) | [precision_identical_successor.control.mlir](mlir/precision-control/identical-successor/precision_identical_successor.control.mlir) | Both edges reach the same continuation without differing block arguments. |
-| XOR cancellation | same source | [precision_xor_cancellation.control.mlir](mlir/precision-control/xor-cancellation/precision_xor_cancellation.control.mlir) | `secret ^ secret` is equal across lanes despite unary High dependence. |
-| Public overwrite before reload | same source | [precision_overwritten_slot.control.mlir](mlir/precision-control/overwritten-slot/precision_overwritten_slot.control.mlir) | The secret store is fully overwritten before observation. |
-| Offset-disjoint public reload | same source | [precision_offset_disjoint.control.mlir](mlir/precision-control/offset-disjoint/precision_offset_disjoint.control.mlir) | Secret byte 4 does not affect public byte 8. |
+| Secret predecessor chooses public constants | [predecessor_choice_blockarg_bad.c](fixtures/predecessor-choice/sources/predecessor_choice_blockarg_bad.c) | [predecessor_choice_blockarg.bad.mlir](fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir) | The leak is carried by predecessor choice/block arguments even though the arm constants are public. |
+| Identical successor control | [precision_controls.c](fixtures/precision-control/sources/precision_controls.c) | [precision_identical_successor.control.mlir](fixtures/precision-control/identical-successor/precision_identical_successor.control.mlir) | Both edges reach the same continuation without differing block arguments. |
+| XOR cancellation | same source | [precision_xor_cancellation.control.mlir](fixtures/precision-control/xor-cancellation/precision_xor_cancellation.control.mlir) | `secret ^ secret` is equal across lanes despite unary High dependence. |
+| Public overwrite before reload | same source | [precision_overwritten_slot.control.mlir](fixtures/precision-control/overwritten-slot/precision_overwritten_slot.control.mlir) | The secret store is fully overwritten before observation. |
+| Offset-disjoint public reload | same source | [precision_offset_disjoint.control.mlir](fixtures/precision-control/offset-disjoint/precision_offset_disjoint.control.mlir) | Secret byte 4 does not affect public byte 8. |
 
 ### Manual checks
 
@@ -500,8 +514,8 @@ constant-time code, but its conclusions are target- and stage-specific.
 
 | Situation | Main evidence | Intended distinction |
 | --- | --- | --- |
-| LLVM select becomes an x86 branch | [launder MLIR](mlir/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir), [bad C](c/launder_scan_bad.c), [folded C](c/launder_scan_folded_bad.c), [barrier C](c/launder_scan_fixed.c), [candidate bundle](artifacts/launder-scan/) | The modeled LLVM trace can be safe while x86 introduces secret control; AArch64 retains `csel`. Deployment remains open. |
-| Clangover source mask becomes target control | [source MLIR](mlir/clangover-poly-frommsg/source/clangover_poly_frommsg.source.mlir), [lowered bad](mlir/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir), [lowered fixed](mlir/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg.lowered_fixed.mlir), [vulnerable C](c/clangover_poly_frommsg_vulnerable.c), [fixed C](c/clangover_poly_frommsg_fixed.c), [helper C](c/clangover_ct_cmov.c) | The separately compiled helper provides the reviewed boundary; source value equivalence alone is insufficient. |
+| LLVM select becomes an x86 branch | [launder MLIR](fixtures/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir), [bad C](fixtures/launder-scan/sources/launder_scan_bad.c), [folded C](fixtures/launder-scan/sources/launder_scan_folded_bad.c), [barrier C](fixtures/launder-scan/sources/launder_scan_fixed.c), [candidate bundle](fixtures/launder-scan/model-clean-p4-open/candidate/) | The modeled LLVM trace can be safe while x86 introduces secret control; AArch64 retains `csel`. Deployment remains open. |
+| Clangover source mask becomes target control | [source MLIR](fixtures/clangover-poly-frommsg/source/clangover_poly_frommsg.source.mlir), [lowered bad](fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir), [lowered fixed](fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg.lowered_fixed.mlir), [vulnerable C](fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c), [fixed C](fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_fixed.c), [helper C](fixtures/clangover-poly-frommsg/sources/clangover_ct_cmov.c) | The separately compiled helper provides the reviewed boundary; source value equivalence alone is insufficient. |
 | Register allocation introduces stack traffic | [source](ext/spill.c), [opaque support](ext/spill_opaque.c), [LLVM input](ext/spill.ll), [debug LLVM input](ext/spillg.ll), [MIR snapshots](ext/) | Frozen LLVM has no local stores, but register allocation and frame lowering introduce spill stores, reloads, and stack offsets. |
 
 ### Manual checks
@@ -548,8 +562,8 @@ target-dependent.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| `poly_tomsg` secret division | [bad](c/kyberslash1_poly_tomsg_vulnerable.c), [fixed](c/kyberslash1_poly_tomsg_fixed.c) | [bad](mlir/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir), [fixed](mlir/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg.fixed.mlir) | Replace secret `udiv` with reviewed reciprocal/shift arithmetic. |
-| `poly_compress` secret division | [bad](c/kyberslash2_compress_vulnerable.c), [fixed](c/kyberslash2_compress_fixed.c) | [bad](mlir/kyberslash2-compress/bad/kyberslash2_compress.bad.mlir), [fixed](mlir/kyberslash2-compress/fixed/kyberslash2_compress.fixed.mlir) | Same operation-class distinction under a different rounding expression. |
+| `poly_tomsg` secret division | [bad](fixtures/kyberslash1-poly-tomsg/sources/kyberslash1_poly_tomsg_vulnerable.c), [fixed](fixtures/kyberslash1-poly-tomsg/sources/kyberslash1_poly_tomsg_fixed.c) | [bad](fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir), [fixed](fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg.fixed.mlir) | Replace secret `udiv` with reviewed reciprocal/shift arithmetic. |
+| `poly_compress` secret division | [bad](fixtures/kyberslash2-compress/sources/kyberslash2_compress_vulnerable.c), [fixed](fixtures/kyberslash2-compress/sources/kyberslash2_compress_fixed.c) | [bad](fixtures/kyberslash2-compress/bad/kyberslash2_compress.bad.mlir), [fixed](fixtures/kyberslash2-compress/fixed/kyberslash2_compress.fixed.mlir) | Same operation-class distinction under a different rounding expression. |
 
 ### Manual checks
 
@@ -582,8 +596,8 @@ properties above.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| CVE-2026-3580 table-selection lowering | [bad](c/wolfssl_3580_mask_vulnerable.c), [fixed](c/wolfssl_3580_mask_fixed.c) | [source](mlir/wolfssl-3580-mask/source/wolfssl_3580_mask.source.mlir), [target bad](mlir/wolfssl-3580-mask/target-bad/wolfssl_3580_mask.target_bad.mlir), [target fixed](mlir/wolfssl-3580-mask/target-fixed/wolfssl_3580_mask.target_fixed.mlir) | Source masking does not by itself prove the RV32 target lacks a secret branch. |
-| CVE-2026-3579 multiply on RV32I without M | [bad](c/wolfssl_3579_mul_vulnerable.c), [fixed](c/wolfssl_3579_mul_fixed.c) | [source](mlir/wolfssl-3579-mul/source/wolfssl_3579_mul.source.mlir), [unknown helper](mlir/wolfssl-3579-mul/target-unknown/wolfssl_3579_mul.target_unknown.mlir), [affected helper contract](mlir/wolfssl-3579-mul/target-bad/wolfssl_3579_mul.target_bad.mlir), [constant-latency test profile](mlir/wolfssl-3579-mul/target-constant-latency/wolfssl_3579_mul.target_constant_latency.mlir), [fixed loop](mlir/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul.target_fixed.mlir) | A helper call is unknown without a contract; different explicit target profiles lead to different review conclusions. |
+| CVE-2026-3580 table-selection lowering | [bad](fixtures/wolfssl-3580-mask/sources/wolfssl_3580_mask_vulnerable.c), [fixed](fixtures/wolfssl-3580-mask/sources/wolfssl_3580_mask_fixed.c) | [source](fixtures/wolfssl-3580-mask/source/wolfssl_3580_mask.source.mlir), [target bad](fixtures/wolfssl-3580-mask/target-bad/wolfssl_3580_mask.target_bad.mlir), [target fixed](fixtures/wolfssl-3580-mask/target-fixed/wolfssl_3580_mask.target_fixed.mlir) | Source masking does not by itself prove the RV32 target lacks a secret branch. |
+| CVE-2026-3579 multiply on RV32I without M | [bad](fixtures/wolfssl-3579-mul/sources/wolfssl_3579_mul_vulnerable.c), [fixed](fixtures/wolfssl-3579-mul/sources/wolfssl_3579_mul_fixed.c) | [source](fixtures/wolfssl-3579-mul/source/wolfssl_3579_mul.source.mlir), [unknown helper](fixtures/wolfssl-3579-mul/target-unknown/wolfssl_3579_mul.target_unknown.mlir), [affected helper contract](fixtures/wolfssl-3579-mul/target-bad/wolfssl_3579_mul.target_bad.mlir), [constant-latency test profile](fixtures/wolfssl-3579-mul/target-constant-latency/wolfssl_3579_mul.target_constant_latency.mlir), [fixed loop](fixtures/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul.target_fixed.mlir) | A helper call is unknown without a contract; different explicit target profiles lead to different review conclusions. |
 
 ### Manual checks
 
@@ -618,14 +632,16 @@ Review bundle members in this order:
 
 1. `artifact.json`
    - candidate-only schema and role;
-   - source MLIR path and hash;
+   - sole-sibling source MLIR path and the well-formed capture-time source hash,
+     which is provenance rather than a live content pin;
    - candidate bitcode and derived LLVM hashes;
    - exact recorded producer tools;
    - `not_authoritative: true` and the complete missing-premise list.
 2. `artifact.bc` and `artifact.ll`
    - `.bc` is the source of truth;
    - `.ll` is exact `llvm-dis` output;
-   - source MLIR lowers to the exact candidate bytes;
+   - the current source MLIR lowers to the exact candidate bytes, even when its
+     readable hash has moved since capture;
    - fresh parsing and canonical-writer expectations are not confused with
      Rev4 `NFConforms`.
 3. `abi.json`
@@ -662,11 +678,11 @@ python3 tools/artifact_bundle.py check --llvm-bin /path/to/recorded/llvm/bin
 
 Supporting tests:
 
-- [artifacts/metadata.test](artifacts/metadata.test)
-- [artifacts/pairs.test](artifacts/pairs.test)
-- [artifacts/generate-reproducible.test](artifacts/generate-reproducible.test)
-- [artifacts/pairs-negative.test](artifacts/pairs-negative.test)
-- [artifacts/interfaces-negative.test](artifacts/interfaces-negative.test)
+- [integration/candidate-bundles/metadata.test](integration/candidate-bundles/metadata.test)
+- [integration/candidate-bundles/pairs.test](integration/candidate-bundles/pairs.test)
+- [integration/candidate-bundles/generate-reproducible.test](integration/candidate-bundles/generate-reproducible.test)
+- [integration/candidate-bundles/pairs-negative.test](integration/candidate-bundles/pairs-negative.test)
+- [integration/candidate-bundles/interfaces-negative.test](integration/candidate-bundles/interfaces-negative.test)
 
 ## Cross-cutting representation and coverage review
 
@@ -678,7 +694,7 @@ families to confirm that no representation silently escapes the harness.
 | Every C fixture executes and the bad/fixed values are asserted | [c-function-coverage.test](integration/c-function-coverage.test), [equivalence.test](integration/equivalence.test) |
 | Every checked-in C, MLIR, LL, BC, and MIR input is parsed or explicitly refused | [corpus-representation-coverage.test](integration/corpus-representation-coverage.test) |
 | Target-specific C producer DAG creates ten LL and ten imported MLIR outputs | [generated-import-pipeline.test](integration/generated-import-pipeline.test) |
-| C provenance and MLIR annotation manifests remain complete | [integration metadata](integration/metadata.test), [MLIR metadata](mlir/metadata.test) |
+| C provenance and MLIR annotation manifests remain complete | [integration metadata](integration/metadata.test), [fixture metadata](fixtures/metadata.test) |
 | Direct Clang bitcode and canonical-writer boundaries remain explicit | [bitcode-canonical-roundtrip.test](integration/bitcode-canonical-roundtrip.test), [bitcode-producer-normalization.test](integration/bitcode-producer-normalization.test) |
 | Accepted and rejected normal-form fragments remain separated | [hash-release-fragment-boundary.test](integration/hash-release-fragment-boundary.test) |
 | Textual LLVM observation/refusal parsing covers calls, atomics, and debug provenance | [refusal-rate.test](integration/refusal-rate.test) |
@@ -687,10 +703,10 @@ families to confirm that no representation silently escapes the harness.
 
 Review these non-scenario fixtures as an accepted/refused fragment pair:
 
-- [argmax_release_body.c](c/argmax_release_body.c) is the positive control. Its
+- [argmax_release_body.c](integration/Inputs/release-body-fragments/argmax_release_body.c) is the positive control. Its
   bounded loop, public-offset loads, comparisons, and selects remain inside the
   intended integer surface.
-- [sha256_round_release_body.c](c/sha256_round_release_body.c) is not a leak
+- [sha256_round_release_body.c](integration/Inputs/release-body-fragments/sha256_round_release_body.c) is not a leak
   case. Rotation canonicalizes to `llvm.fshl.i32`, so it is deliberately
   outside the current fragment and must be refused.
 - [hash-release-fragment-boundary.test](integration/hash-release-fragment-boundary.test)
@@ -725,14 +741,14 @@ to passed.
 
 ## Completeness ledger
 
-The ranked semantic queue accounts for all 53 checked-in MLIR fixture files:
+The ranked semantic queue accounts for all 54 checked-in MLIR fixture files:
 
 | Rank | Family | MLIR files |
 | ---: | --- | ---: |
 | 1 | Recipient/host/audience authorization | 5 |
 | 2 | Release causality/sanitization/oracles | 5 |
 | 3 | Cross-tenant residual state | 4 |
-| 4 | ABI alias topology | 3 |
+| 4 | ABI alias topology | 4 |
 | 5 | Direct public outputs | 6 |
 | 6 | Secret-dependent addresses | 2 |
 | 7 | Bounds and allocation sizes | 4 |
@@ -741,20 +757,23 @@ The ranked semantic queue accounts for all 53 checked-in MLIR fixture files:
 | 10 | Backend-created observations | 4 |
 | 11 | Variable-latency arithmetic | 4 |
 | 12 | Target-profile helpers | 8 |
-|  | **Total** | **53** |
+|  | **Total** | **54** |
 
 The cross-cutting review additionally covers:
 
-- 44 C reduction/helper files plus the equivalence driver;
+- 45 C evidence/helper files plus the equivalence driver (46 compiled C inputs);
 - 9 candidate semantic bundles and their 9 `.bc`/derived `.ll` pairs;
 - 2 additional checked-in LLVM inputs and 1 release-marker LLVM input;
+- 2 NFv2 textual/feature-gated release-intrinsic inputs;
 - 7 MIR snapshots;
 - generated target-specific LL/MLIR outputs; and
-- the artifact, integration, diagnostic, and P4 test strata.
+- the candidate-bundle integration, general integration, diagnostic, and P4
+  test strata.
 
-The complete lit inventory is 114 tests: 53 MLIR shapes, 2 MLIR snapshot tests,
-35 integration tests, 5 artifact tests, 5 P4-risk tests, 6 diagnostic tests,
-and 8 SPS report/future-verifier tests.
+The complete lit inventory is 133 tests: 54 MLIR shapes, 2 fixture metadata
+tests, 51 integration tests (including 5 candidate-bundle tests), 5 P4-risk
+tests, 6 diagnostic tests, 11 SPS report/future-verifier tests, and 4 contract
+tests.
 
 ### Known out-of-inventory evidence
 
@@ -767,7 +786,8 @@ file under `ext/`. Review these manually before using them as evidence:
   experiments, not theorem inputs.
 - Any accompanying dSYM data is likewise outside the harness inventory.
 - [spill.c](ext/spill.c) and [spill_opaque.c](ext/spill_opaque.c) explain the
-  experiment but are outside the automatic `c/*.c` coverage glob.
+  experiment but are outside the automatic recursive coverage of family
+  `sources/` directories.
 
 Treat the dynamically regenerated `virtregrewriter` and `prologepilog` MIR in
 [register-allocation-spill.test](p4-risk/register-allocation-spill.test) as the

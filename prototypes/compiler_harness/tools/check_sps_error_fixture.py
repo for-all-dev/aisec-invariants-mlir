@@ -7,7 +7,7 @@ LLVM 22.1.8 materializer and exact Rev-4 verifier exist. It does not establish
 name the target conforming disposition as fixture documentation only.
 
 Normative anchors in ``SPS_Rev4_Normative_Specification.md``:
-  * ABISchema fields and ErrorFieldBindingV1: 578-596 and 642-652;
+  * ABISchema fields and ErrorFieldBindingV2: 578-596 and 642-652;
   * exact error binding rules: 828-854;
   * Error projection: 3229-3232 and 3267-3276;
   * DeclaredFailure event order: 6601;
@@ -90,15 +90,15 @@ ENCODING_I8 = {
 }
 
 UB_PAYLOAD_TYPE = {
-    "tag": "TupleValueV1",
+    "tag": "TupleValueV2",
     "fields": [
         {
             "fieldId": "kind",
-            "valueType": {"tag": "BVValueV1", "bitWidth": 8},
+            "valueType": {"tag": "BVValueV2", "bitWidth": 8},
         },
         {
             "fieldId": "reasonClass",
-            "valueType": {"tag": "BVValueV1", "bitWidth": 4},
+            "valueType": {"tag": "BVValueV2", "bitWidth": 4},
         },
     ],
 }
@@ -114,7 +114,7 @@ UB_ENCODING = {
 NEGATIVE_CASES = [
     {
         "caseId": "missing-error-fields",
-        "targetOutcome": "ConfigurationRejectedV1(NoncanonicalInterface); NoModelStatus",
+        "targetOutcome": "ConfigurationRejectedV2(NoncanonicalInterface); NoModelStatus",
     },
     {
         "caseId": "dangling-declared-error-id",
@@ -322,12 +322,12 @@ def validate_source_shape(root: Path, contract: dict[str, Any]) -> None:
 
 def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
     contract = require_fields(load_json(contract_path), CONTRACT_FIELDS, "contract")
-    if contract["formatId"] != "SPS-Harness-Future-Conformance-Error-Contract-v1":
+    if contract["formatId"] != "SPS-Harness-Future-Conformance-Error-Contract-v2":
         fail("contract has the wrong harness formatId")
-    if contract["fixtureTier"] != {"tag": "PreflightV1"} or contract[
+    if contract["fixtureTier"] != {"tag": "CandidateOnly"} or contract[
         "targetTier"
-    ] != {"tag": "ConformanceV1"}:
-        fail("contract must remain PreflightV1 with targetTier ConformanceV1")
+    ] != {"tag": "ConformanceV2"}:
+        fail("contract must remain CandidateOnly with targetTier ConformanceV2")
     if contract["claimable"] is not False:
         fail("future error contract must remain claimable=false")
     if contract["currentStatus"] != {
@@ -344,9 +344,11 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         "artifact-identity.sps.json",
         "identity-evidence.sps.json",
         "sps-manifest.sps.json",
+        "proof-configuration.sps.json",
+        "aggregation-input.sps.json",
         "sps-report.sps.json",
     ]:
-        fail("requiredMaterializedFiles does not match the ConformanceV1 tier contract")
+        fail("requiredMaterializedFiles does not match the ConformanceV2 tier contract")
 
     validate_source_shape(root, contract)
 
@@ -387,7 +389,10 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
     declared_class = {"tag": "DeclaredFailure", "args": [declared_id]}
     normal_class = {"tag": "NormalValue"}
     allowed_keys = {class_key(value) for value in allowed_classes}
-    if allowed_keys != {class_key(normal_class), class_key(declared_class)}:
+    if len(allowed_classes) != 2 or allowed_keys != {
+        class_key(normal_class),
+        class_key(declared_class),
+    }:
         fail("allowedReturnClasses must be exactly NormalValue and one DeclaredFailure")
     for identifier in sorted(declared_ids):
         if identifier not in error_fields:
@@ -400,7 +405,7 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
     )
     if set(declared_error_fields) != declared_ids:
         fail(
-            "EntryABIV1.declaredErrorFields must equal exactly the application "
+            "EntryABIV2.declaredErrorFields must equal exactly the application "
             "DeclaredFailure IDs; the verifier UB-risk field is not an application ID"
         )
 
@@ -417,7 +422,7 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         "outputBindings['return.byte'].source",
     )
     if output_source != {
-        "tag": "ReturnBitsV1",
+        "tag": "ReturnBitsV2",
         "entryId": entry_id,
         "bitOffset": 0,
         "bitWidth": 8,
@@ -425,7 +430,7 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
     }:
         fail("return.byte must bind the exact eight return bits with canonical BV8 encoding")
     expected_footprint = [
-        {"tag": "ReturnBitV1", "entryId": entry_id, "bitIndex": bit_index}
+        {"tag": "ReturnBitV2", "entryId": entry_id, "bitIndex": bit_index}
         for bit_index in range(8)
     ]
     footprint = output_binding["footprint"]
@@ -434,7 +439,7 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
     for index, row in enumerate(footprint):
         require_fields(row, RETURN_BIT_FIELDS, f"return.byte.footprint[{index}]")
     if footprint != expected_footprint:
-        fail("return.byte footprint must be the exact ordered ReturnBitV1 range 0..7")
+        fail("return.byte footprint must be the exact ordered ReturnBitV2 range 0..7")
 
     for identifier, binding in error_fields.items():
         binding = require_fields(
@@ -462,16 +467,21 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         for identifier, binding in error_fields.items()
         if isinstance(binding, dict)
         and isinstance(binding.get("source"), dict)
-        and binding["source"].get("tag") == "VerifierUBRiskPayloadV1"
+        and binding["source"].get("tag") == "VerifierUBRiskPayloadV2"
     ]
     if verifier_sources != [ub_id]:
         fail(
-            "VerifierUBRiskPayloadV1 must be the source of exactly one error field, "
+            "VerifierUBRiskPayloadV2 must be the source of exactly one error field, "
             f"found {len(verifier_sources)} (target: Unknown(OutputBindingIncomplete))"
         )
-    if ub_binding["source"] != {"tag": "VerifierUBRiskPayloadV1"}:
+    if set(error_fields) != {declared_id, ub_id}:
         fail(
-            "ubRiskErrorFieldId must use the exact VerifierUBRiskPayloadV1 source "
+            "errorFields must contain exactly the application field and the mandatory "
+            "verifier UB-risk field"
+        )
+    if ub_binding["source"] != {"tag": "VerifierUBRiskPayloadV2"}:
+        fail(
+            "ubRiskErrorFieldId must use the exact VerifierUBRiskPayloadV2 source "
             "(target: Unknown(OutputBindingIncomplete))"
         )
     if ub_binding["payloadType"] != UB_PAYLOAD_TYPE or ub_binding["encoding"] != UB_ENCODING:
@@ -511,11 +521,11 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         binding = error_fields[identifier]
         payload_type = binding["payloadType"]
         source = binding["source"]
-        if not isinstance(payload_type, dict) or payload_type.get("tag") != "BVValueV1":
-            fail(f"errorFields[{identifier!r}] application payload must be BVValueV1")
-        if not isinstance(source, dict) or source.get("tag") != "ReturnBitsAtFailureV1":
+        if not isinstance(payload_type, dict) or payload_type.get("tag") != "BVValueV2":
+            fail(f"errorFields[{identifier!r}] application payload must be BVValueV2")
+        if not isinstance(source, dict) or source.get("tag") != "ReturnBitsAtFailureV2":
             fail(
-                f"errorFields[{identifier!r}] must use ReturnBitsAtFailureV1 "
+                f"errorFields[{identifier!r}] must use ReturnBitsAtFailureV2 "
                 "(target: Unknown(OutputBindingIncomplete))"
             )
         require_fields(
@@ -645,12 +655,14 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         {"tag": "UBRisk", "reasonClass": UB_REASON_CLASS},
         {
             "tag": "Failure",
-            "class": {"tag": "UBRisk", "args": [UB_REASON_CLASS]},
+            "class": "UBRisk",
+            "reasonClass": UB_REASON_CLASS,
         },
         {
             "tag": "Error",
             "errorFieldId": ub_id,
-            "class": {"tag": "UBRisk", "args": [UB_REASON_CLASS]},
+            "class": "UBRisk",
+            "payload": {"kind": 1, "reasonClass": UB_REASON_CLASS},
         },
         {
             "tag": "Termination",
@@ -665,7 +677,7 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
 
     expected_counterexample = {
         "tag": "Counterexample",
-        "args": [{"tag": "FreshProtectedReceiptMatcherV1"}],
+        "args": [{"tag": "FreshProtectedReceiptMatcherV2"}],
     }
     if expected.get("expectedModelStatus") != expected_counterexample:
         fail(
@@ -687,14 +699,14 @@ def validate_contract(root: Path, contract_path: Path) -> dict[str, Any]:
         )
 
     print(
-        f"validated {contract['caseId']}: future ConformanceV1 error contract "
+        f"validated {contract['caseId']}: future ConformanceV2 error contract "
         f"({len(error_fields)} error fields)"
     )
     print(
         "checked contract: DeclaredFailure and verifier-UB bindings, payload visibility, "
         "exact constructor/output order"
     )
-    print("claim boundary: PreflightV1 Pending; ModelStatus=NotComputed")
+    print("claim boundary: CandidateOnly Pending; ModelStatus=NotComputed")
     return contract
 
 
@@ -710,22 +722,42 @@ def validate_materialized(
         if not (bundle / name).is_file()
     ]
     if missing:
-        fail(f"materialized bundle is missing required ConformanceV1 file: {missing[0]}")
+        fail(f"materialized bundle is missing required ConformanceV2 file: {missing[0]}")
     report_path = report_path or bundle / "sps-report.sps.json"
     sys.path.insert(0, str(root / "tools"))
-    import check_sps_run_report as report_checker
+    import check_sps_v2_bundle
+    import sps_interfaces
 
-    raw, run = report_checker.read_report_json(report_path)
-    report_checker.require_exact_keys(run, ("tag", "report"), "SPSRunReportV1")
-    report_checker.validate_shape(run, report_checker.sum_("SPSRunReportV1"), "SPSRunReportV1")
-    report_checker.require_canonical_bytes(raw, run)
-    if run.get("tag") != "CompletedV1":
-        fail(f"future positive error fixture expected CompletedV1, got {run.get('tag')!r}")
+    try:
+        check_sps_v2_bundle.check_bundle(bundle, report_path)
+        run = sps_interfaces.require_canonical(report_path.read_bytes())
+        registry = sps_interfaces.load_default_registry()
+        registry.validate_root(run, "SPSRunReportV2")
+    except (OSError, check_sps_v2_bundle.BoundaryError, sps_interfaces.InterfaceError) as error:
+        fail(f"invalid Rev4.1 V2 materialized bundle/report: {error}")
+    if not isinstance(run, dict) or run.get("tag") != "CompletedV2":
+        actual = run.get("tag") if isinstance(run, dict) else type(run).__name__
+        fail(f"future positive error fixture expected CompletedV2, got {actual!r}")
     expected = contract["expectedSemantics"]
     report = run["report"]
-    report_checker.check_model_status(
-        report.get("modelStatus"), expected["expectedModelStatus"]
-    )
+    expected_matcher = expected["expectedModelStatus"]
+    if expected_matcher != {
+        "tag": "Counterexample",
+        "args": [{"tag": "FreshProtectedReceiptMatcherV2"}],
+    }:
+        fail("future error contract has a non-V2 model-status matcher")
+    status = report.get("modelStatus")
+    receipt = status.get("args", [None])[0] if isinstance(status, dict) else None
+    if (
+        not isinstance(status, dict)
+        or status.get("tag") != "Counterexample"
+        or not isinstance(status.get("args"), list)
+        or len(status["args"]) != 1
+        or not isinstance(receipt, str)
+        or len(receipt) != 64
+        or any(character not in "0123456789abcdef" for character in receipt)
+    ):
+        fail("materialized error fixture must report Counterexample(receiptId)")
     if report.get("deploymentStatus") != expected["expectedDeploymentStatus"]:
         fail("materialized error fixture DeploymentStatus disagrees with the future contract")
     if report.get("policyReviewStatus") != expected["expectedPolicyReviewStatus"]:

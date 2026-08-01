@@ -31,7 +31,7 @@
 // robust-declassification/integrity extension, not SPS Rev4 confidentiality.
 //
 // CHECK-LABEL: llvm.func @serve_with_auditor
-// CHECK: llvm.call @sps_release_masked_class_v1
+// CHECK: llvm.call @sps_release_masked_class_candidate
 // CHECK-SAME: sps.authorized_by = "auditor"
 // CHECK: llvm.store %{{.*}} {sps.audience = ["alice"]}
 // CHECK: llvm.store %{{.*}} {sps.audience = ["auditor"]}
@@ -47,22 +47,22 @@ module attributes {
   // auditor is an authorizer but NOT in the audience. These are different sets
   // on purpose; collapsing them is exactly the bug this example guards against.
   sps.release_policies = [
-    {id = "masked_class_v1", authorizers = ["auditor"], audience = ["alice"],
-     function = "mask-low-byte", carrier = "@sps_release_masked_class_v1"}
+    {id = "masked_class_candidate", authorizers = ["auditor"], audience = ["alice"],
+     function = "mask-low-byte", carrier = "@sps_release_masked_class_candidate"}
   ],
 
   sps.placement = [{func = "@serve_with_auditor", host = "host_eu"}]
 } {
-  llvm.func @sps_release_masked_class_v1(i32) -> i32
+  llvm.func @sps_release_masked_class_candidate(i32) -> i32
 
   llvm.func @serve_with_auditor(
       %logits: i32 {sps.label = "high", sps.item = "logits"},
       %alice_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["alice"]},
       %auditor_channel: !llvm.ptr {sps.sink_class = "principal", sps.audience = ["auditor"]}) {
 
-    // Legitimate in this post-MVP integrity sketch: auditor authorizes masked_class_v1.
-    %released = llvm.call @sps_release_masked_class_v1(%logits)
-        {sps.release_id = "masked_class_v1", sps.authorized_by = "auditor"} : (i32) -> i32
+    // Legitimate in this post-MVP integrity sketch: auditor authorizes masked_class_candidate.
+    %released = llvm.call @sps_release_masked_class_candidate(%logits)
+        {sps.release_id = "masked_class_candidate", sps.authorized_by = "auditor"} : (i32) -> i32
 
     // Authorized: alice is the declared audience.
     llvm.store %released, %alice_channel {sps.audience = ["alice"]} : i32, !llvm.ptr
@@ -71,9 +71,9 @@ module attributes {
     // reader of the item nor a member of the audience.
     //
     // CONFIDENTIALITY ERROR: authorizer receives a value it has no authority to read
-    // secret source: %released is derived from high %logits by masked_class_v1
+    // secret source: %released is derived from high %logits by masked_class_candidate
     // observable effect: auditor_channel receives class indices 3 and 5 for two logit vectors
-    // reason: auditor authorizes masked_class_v1 but appears in no visibility entry or audience
+    // reason: auditor authorizes masked_class_candidate but appears in no visibility entry or audience
     // extension fixture check: a future integrity semantics must keep
     // authorization distinct from read visibility and independently validate 3/5
     llvm.store %released, %auditor_channel {sps.audience = ["auditor"]} : i32, !llvm.ptr

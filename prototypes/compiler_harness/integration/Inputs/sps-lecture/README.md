@@ -10,9 +10,10 @@ The integration tests establish only:
 - `claimable: false` and `current_status: Pending`;
 - LLVM assembly/disassembly viability;
 - absence of mutable globals and obsolete value/ordinal release carriers;
-- presence of the reserved marker call inside each release wrapper; and
+- presence of the reserved `llvm.sps.release` call inside each release wrapper; and
 - the decisive branch/release prefix order.
 
 LLVM 17 may assemble these inputs during harness testing. That candidate
-round-trip is not the LLVM 22.1.8 artifact identity, PONF/SMT proof, replay, or
-`SPSRunReportV1`.
+round-trip is neither a V2 artifact identity nor a PONF/SMT proof, replay, or
+`SPSRunReportV2`; stock-LLVM parsing of the intrinsic spelling does not establish
+its required preservation or lowering semantics.

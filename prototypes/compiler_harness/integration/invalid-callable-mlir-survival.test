@@ -1,0 +1,56 @@
+# REQUIRES: mlir-translate
+#
+# INVALID CALLABLE-WRAPPER SURVIVAL EXPERIMENT. This is a differential MLIR shape
+# check, not an NFv2 release-carrier acceptance test and not a ModelStatus
+# claim. NFv2 uses `llvm.sps.release` plus an external stable instruction
+# binding; an outlined wrapper is structurally nonconforming even when pinned.
+#
+# The NF-A08 attribute set keeps a
+# wrapper occurrence findable after the MLIR inliner runs. The same fixture is
+# tested with and without those attributes so this compiler fact
+# remains reproducible without granting the wrapper NFv2 status.
+#
+# The two arms differ ONLY in the passthrough attribute list. Everything else --
+# the wrapper body, the caller, the store -- is byte-identical, so any difference
+# in outcome is attributable to the attributes alone.
+#
+# RESULT THIS ENCODES. `mlir-opt --inline --cse` honours `passthrough
+# ["noinline", ...]` on an `llvm.func`. The carrier survives when pinned and is
+# spliced away when not. That is worth having as a regression, because the whole
+# invalid wrapper-binding experiment depends on it. This is a property of the
+# MLIR inliner rather than evidence for the current SPS carrier.
+
+# RUN: not grep -F 'llvm.sps.release' %fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir
+
+# --- pinned arm: the call must survive -------------------------------------
+# RUN: %mlir-opt %fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir --inline --cse -o %t.pinned.mlir
+# RUN: %FileCheck %s --check-prefix=PINNED --input-file=%t.pinned.mlir
+
+# PINNED-LABEL: llvm.func @release_carrier_pinned_control
+# PINNED: llvm.call @sps_release_invalid_callable
+# PINNED: llvm.store
+
+# --- unpinned arm: the call must be gone ------------------------------------
+# Strip only the pinning attributes; keep the module otherwise identical.
+# RUN: sed 's/"noinline", "nomerge", "noduplicate", "nobuiltin"/"nounwind"/' %fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir > %t.unpinned.mlir
+# RUN: %mlir-opt %t.unpinned.mlir --inline --cse -o %t.unpinned.out.mlir
+# RUN: %FileCheck %s --check-prefix=UNPINNED --input-file=%t.unpinned.out.mlir
+
+# UNPINNED-LABEL: llvm.func @release_carrier_pinned_control
+# UNPINNED-NOT: llvm.call @sps_release_invalid_callable
+# UNPINNED: llvm.and
+# UNPINNED: llvm.store
+
+# INTERPRETATION, so this is not over-read.
+#
+# The unpinned arm is NOT a leak. Its arithmetic is identical and it publishes
+# the same value. What it has lost is the ability to be BOUND: there is no direct
+# call to the manifest-named wrapper, so no stable SiteId, no ABI-role mapping,
+# and no call-occurrence cardinality to match against the manifest. The correct
+# disposition is a refusal, not a counterexample. See
+# fixtures/release-carrier/lost-bad/release_carrier_lost.bad.mlir.
+#
+# NOTE ON SCOPE. This shows only that the MLIR inliner honours the attribute.
+# The wrapper is an NFv2 negative regardless of survival. Current intrinsic
+# preservation is tested separately and is feature-gated until patched LLVM is
+# available.

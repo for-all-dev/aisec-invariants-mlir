@@ -1,10 +1,10 @@
 ; PEDAGOGICAL CAPTURE SHAPE ONLY: not canonical frozen.bc.
 
-declare void @__sps_release_emit_v1_5bcbb1188a543432c3390638a0ae396ecc981822bce5ec6f551d7581e6d02779(i8) #1
+declare void @llvm.sps.release(...)
 
 define internal void @release_secret(i8 %value) #0 {
 entry:
-  call ccc void @__sps_release_emit_v1_5bcbb1188a543432c3390638a0ae396ecc981822bce5ec6f551d7581e6d02779(i8 %value) #1
+  call void (...) @llvm.sps.release(i8 %value)
   ret void
 }
 
@@ -26,4 +26,3 @@ join:
 }
 
 attributes #0 = { noinline noduplicate nomerge nobuiltin "nooutline" }
-attributes #1 = { nounwind willreturn memory(none) }
