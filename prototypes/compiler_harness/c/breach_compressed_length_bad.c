@@ -28,7 +28,8 @@
  * Relationship to upstream:
  *   Inlines an abstract match-to-length relation: the public length is one
  *   byte shorter when a public guess matches a secret byte. It contains no
- *   compressor call or compression event; that connection is L4.
+ *   compressor call or compression event; source-to-runtime compressor
+ *   correspondence is outside this reduced fixture's claim.
  *
  * Secret inputs:
  *   secret_byte

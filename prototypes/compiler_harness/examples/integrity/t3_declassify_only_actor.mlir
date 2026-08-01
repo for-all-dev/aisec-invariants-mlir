@@ -74,7 +74,8 @@ module attributes {
     // secret source: %released is derived from high %logits by masked_class_v1
     // observable effect: auditor_channel receives class indices 3 and 5 for two logit vectors
     // reason: auditor authorizes masked_class_v1 but appears in no visibility entry or audience
-    // detection boundary: L1 separates authorization from visibility; L2 supplies the 3/5 witness at {auditor}
+    // extension fixture check: a future integrity semantics must keep
+    // authorization distinct from read visibility and independently validate 3/5
     llvm.store %released, %auditor_channel {sps.audience = ["auditor"]} : i32, !llvm.ptr
 
     llvm.return

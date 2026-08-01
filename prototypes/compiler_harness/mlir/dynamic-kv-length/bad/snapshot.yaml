@@ -1,0 +1,16 @@
+entry: dynamic_kv_length_bad
+
+secret:
+  - {arg: 0, name: secret_length}
+
+public:
+  - {memory_at_arg: 2, name: public_allocation_count}
+  - {memory_at_arg: 3, name: public_iteration_count}
+
+expect: violation
+
+because:
+  - secret_length is stored into public_allocation_count
+  - secret_length is stored into public_iteration_count
+
+sps: not-run

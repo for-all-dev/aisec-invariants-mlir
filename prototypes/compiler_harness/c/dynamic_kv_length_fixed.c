@@ -28,7 +28,8 @@
  * Relationship to upstream:
  *   Models two constant public count outputs while preserving the private
  *   logical result. It contains no allocation, dynamic shape, loop, or
- *   scheduler event; mapping the fields to those real effects is L4.
+ *   scheduler event; allocation and scheduling applicability are outside this
+ *   reduced fixture's claim.
  *
  * Secret inputs:
  *   secret_length and private_result; private_result is returned only through

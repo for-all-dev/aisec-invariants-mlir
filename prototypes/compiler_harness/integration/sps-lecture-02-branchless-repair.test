@@ -10,4 +10,4 @@
 # SHAPE-NOT: br i1
 # SHAPE-NOT: global
 
-# CONTRACT: verified 02-branchless-repair: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Proved
+# CONTRACT: verified 02-branchless-repair: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed; expected-matcher=Proved

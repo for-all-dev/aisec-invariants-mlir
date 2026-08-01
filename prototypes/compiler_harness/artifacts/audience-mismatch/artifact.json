@@ -1,40 +1,44 @@
 {
+  "format_id": "SPS-Harness-Candidate-Artifact-v1",
   "artifact_role": "checked-in-bitcode-candidate",
-  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
-  "candidate_sidecar_sha256": {
-    "abi.json": "41b3954ed1ae12f92bdd7f0fabaef17df52d4bbbc7be9d9c906de7f3bb61c532",
-    "contracts.json": "ff544861f2fdf88c04ea84c757ff327ff44f8588ddd58efb3cf13316c7d8e1fa",
-    "expected-report.json": "27ee4baf1dffe8e368378dbce0e428f177e13ce7b1d83b17fa12f77003f088f6",
-    "policy.json": "261064ef1846bbf436b7d36d98fccd88b10d9353cff6de04c9c89a041e4ec672",
-    "release-table.json": "83c580ab5797e4e7e57bc38a59babf7f88fe12578497cb314a701bca81e186ad"
+  "fixture_tier": {
+    "tag": "PreflightV1"
   },
+  "claimable": false,
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
   "derived_llvm_ir_sha256": "083be3973e9a841798944c8c2f8a0e85454b89ce98bd191f739430f0d3babbf0",
+  "candidate_sidecar_sha256": {
+    "policy.json": "7756c3e909923a4d6af4f6ef882f8f4baa2a17352e592d185c6967d18c99e487",
+    "abi.json": "b480de7ccd6425927547522da7d908f1468894bbf9b64bdddba328c9fdbb70b8",
+    "contracts.json": "1e325765ff01a4d020ccea4352e32c20fd8157f5fb2f9109a3281005e99b370e",
+    "release-table.json": "0eca34674137eedd2b41122caf6a366d6d64106fbd25d483bcbe27cd88895815",
+    "expected-report.json": "03a1c55c17f14060a085e9d6f58362534a9c81e07fe3f3b9580f597c9f40c6ae"
+  },
+  "source_mlir": "../../mlir/audience-mismatch/bad/audience_mismatch.bad.mlir",
+  "source_mlir_sha256": "3adbaf359c578f107297214b0f77f4aa729ddb2a13afd6b772f6382b0254047d",
   "producer": {
-    "llvm_as": "Homebrew LLVM version 17.0.6",
-    "llvm_dis": "Homebrew LLVM version 17.0.6",
     "llvm_version": "17.0.6",
     "mlir_translate": "Homebrew LLVM version 17.0.6",
+    "llvm_as": "Homebrew LLVM version 17.0.6",
+    "llvm_dis": "Homebrew LLVM version 17.0.6",
     "tool_sha256": {
+      "mlir-translate": "a1a1439c8725fcc975260c08bb18476e3015c25f8790bfb5e82b132503bc9c9f",
       "llvm-as": "8701c4def94000cad744ca2ad51b14bb858d3cb7c9e49c32023e02ae9aca4a2f",
-      "llvm-config": "402af15e8debee2c65e2985e4cf78dbd28156e81bc4e93fc9b25219c62817868",
       "llvm-dis": "35d596c47478a215db9afab1e8a4d5c25908f865295be88f93ddf6a59278e71b",
-      "mlir-translate": "a1a1439c8725fcc975260c08bb18476e3015c25f8790bfb5e82b132503bc9c9f"
+      "llvm-config": "402af15e8debee2c65e2985e4cf78dbd28156e81bc4e93fc9b25219c62817868"
     }
   },
   "rev4_profile": {
+    "required_llvm_version": "22.1.8",
+    "producer_matches_required_version": false,
+    "not_authoritative": true,
+    "promotion_requires_complete_rev4_replacement": true,
     "missing": [
       "llvm-22.1.8-pinned-freeze-pipeline",
       "complete-artifact-identity",
       "canonical-rev4-interfaces",
       "normal-form-audit-and-fresh-reparse",
       "whole-entry-product-and-exact-replay"
-    ],
-    "not_authoritative": true,
-    "producer_matches_required_version": false,
-    "promotion_requires_complete_rev4_replacement": true,
-    "required_llvm_version": "22.1.8"
-  },
-  "schema_version": "sps-artifact-candidate-v1",
-  "source_mlir": "../../mlir/audience_mismatch.bad.mlir",
-  "source_mlir_sha256": "5e739c279b7dab89934ad9a412cf3f8aca14c6cd7be8a56ae340ce7f2e0f8698"
+    ]
+  }
 }

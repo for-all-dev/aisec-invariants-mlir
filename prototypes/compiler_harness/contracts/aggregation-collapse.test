@@ -1,0 +1,108 @@
+# Blocker-cardinality collapse: one rule, three consumers.
+#
+# Step 11(b) of the aggregation algorithm is exact:
+#   SPS_Rev4_Normative_Specification.md:4192-4196 -- if `Blockers={r}` return
+#   `Unknown(r)`; if it contains multiple reasons return
+#   `Unknown({"reasonClassId":"OpenModelObligations"})`.
+#   SPS_Rev4_LLVM_Normal_Form_and_Conformance_Profile.md:2908-2910 -- "If
+#   exactly one blocker remains ... If two or more remain, it carries
+#   `OpenModelObligations` ... Empty blockers yield `Proved`."
+#
+# Three harness checkers used to implement this independently and disagreed:
+# tools/artifact_bundle.py kept only the last unavailable row's reason, and
+# c/check_harness.py accepted any nonempty subset of the row reasons -- which
+# both admits a narrower tag than the rule allows and rejects the tag the rule
+# mandates, since `OpenModelObligations` is never itself a row reason. Only
+# tools/check_rev4_high_value_fixtures.py was correct. They now share
+# tools/sps_aggregation.py.
+#
+# This is a PreflightV1 fixture. It checks a harness EXPECTATION rule. Nothing
+# here computes NFConforms, a ModelStatus, a DeploymentStatus, or a receipt.
+
+# RUN: %python %S/../tools/sps_aggregation.py --self-test | %FileCheck %s --check-prefix=RULE
+
+# RULE: 0 blockers -> Proved
+# RULE: 1 blocker SolverTimeout -> Unknown(SolverTimeout)
+# RULE: duplicates collapse: 1 blocker SolverTimeout -> Unknown(SolverTimeout)
+# RULE: 2 distinct blockers ['PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
+# RULE: 3 distinct blockers ['PlacementMismatch', 'PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
+# RULE: counterexample outranks 2 open blockers -> Counterexample
+
+# The three consumers must all route through the shared module, so the rule
+# cannot silently fork again.
+# RUN: grep -c "^import sps_aggregation" %S/../tools/artifact_bundle.py %S/../tools/check_rev4_high_value_fixtures.py | %FileCheck %s --check-prefix=SHARED
+# RUN: grep -c "^import sps_aggregation" %S/../c/check_harness.py | %FileCheck %s --check-prefix=SHARED-HARNESS
+
+# SHARED: artifact_bundle.py:1
+# SHARED: check_rev4_high_value_fixtures.py:1
+# SHARED-HARNESS: 1
+
+# Differential arm: the high-value checker wraps the rule in its own
+# `aggregate()`, so pin that its answers still agree with the shared module over
+# a blocker table spanning 0, 1, duplicate, and 2-distinct cases. Importing both
+# and comparing is the anti-drift property; a grep for the literal reason class
+# would not be one, since it also appears in comments, in the closed
+# PublicReasonClassesV1 enumeration, and in AGG-03's expectation data.
+# RUN: %python -c "import sys; sys.path.insert(0, r'%S/../tools'); import sps_aggregation as A, check_rev4_high_value_fixtures as H; \
+# RUN:   tables = [(), ('SolverTimeout',), ('SolverTimeout','SolverTimeout'), ('SolverTimeout','PossibleUB'), ('SolverTimeout','PossibleUB','PlacementMismatch')]; \
+# RUN:   [print('agree', b, H.aggregate({'conformant': True, 'replayed_counterexample': False, 'blockers': b})[0]['expected_model_status'] == (H.status_matcher('Proved') if A.collapse_blockers(b) is None else H.status_matcher('Unknown', A.collapse_blockers(b)))) for b in tables]" \
+# RUN:   | %FileCheck %s --check-prefix=AGREE
+
+# AGREE-NOT: agree {{.*}} False
+# AGREE: agree () True
+# AGREE: agree ('SolverTimeout',) True
+# AGREE: agree ('SolverTimeout', 'SolverTimeout') True
+# AGREE: agree ('SolverTimeout', 'PossibleUB') True
+# AGREE: agree ('SolverTimeout', 'PossibleUB', 'PlacementMismatch') True
+
+# ---------------------------------------------------------------- negative arms
+#
+# Two AuditAll rows blocked for DISTINCT reasons, with a narrow
+# `Unknown(SolverTimeout)` naming only one of them. Before the repair this was
+# accepted by c/check_harness.py (subset test) and demanded by
+# tools/artifact_bundle.py (last-row-wins). Both must now refuse it.
+
+# RUN: rm -rf %t.narrow
+# RUN: mkdir -p %t.narrow
+# RUN: cp -R %harness/artifacts %t.narrow/artifacts
+# RUN: cp -R %harness/c %t.narrow/c
+# RUN: cp -R %harness/tools %t.narrow/tools
+# RUN: cp -R %harness/mlir %t.narrow/mlir
+# RUN: cp -R %harness/contracts %t.narrow/contracts
+# RUN: cp -R %harness/integration %t.narrow/integration
+# RUN: cp -R %harness/p4-risk %t.narrow/p4-risk
+# RUN: %python %S/../tools/mutate_aggregation_fixture.py --root %t.narrow --model-reason SolverTimeout
+# RUN: not %python %t.narrow/c/check_harness.py artifacts 2>&1 | %FileCheck %s --check-prefix=NARROW
+
+# NARROW: expected_model_status must aggregate to 2 distinct blockers ['PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
+
+# The same two-blocker shape written into the bundle-specs source of truth must
+# be refused by the generator's spec validator, not only by the fixture reader.
+# RUN: not %python %S/../tools/mutate_aggregation_fixture.py --root %t.narrow --check-specs 2>&1 | %FileCheck %s --check-prefix=SPECS
+
+# SPECS: audience-mismatch: unavailable AuditAll must aggregate to 2 distinct blockers ['PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
+
+# The rule must be satisfiable, not a blanket refusal: the same two-blocker
+# fixture with the mandated collapse is accepted.
+# RUN: rm -rf %t.collapsed
+# RUN: mkdir -p %t.collapsed
+# RUN: cp -R %harness/artifacts %t.collapsed/artifacts
+# RUN: cp -R %harness/c %t.collapsed/c
+# RUN: cp -R %harness/tools %t.collapsed/tools
+# RUN: cp -R %harness/mlir %t.collapsed/mlir
+# RUN: cp -R %harness/contracts %t.collapsed/contracts
+# RUN: cp -R %harness/integration %t.collapsed/integration
+# RUN: cp -R %harness/p4-risk %t.collapsed/p4-risk
+# RUN: %python %S/../tools/mutate_aggregation_fixture.py --root %t.collapsed --model-reason OpenModelObligations
+# RUN: %python %t.collapsed/c/check_harness.py artifacts | %FileCheck %s --check-prefix=COLLAPSED
+
+# COLLAPSED: artifacts checks passed
+
+# The unmutated tree still aggregates, so the arms above are not passing merely
+# because the checker is broken.
+# RUN: %python %harness/c/check_harness.py artifacts | %FileCheck %s --check-prefix=BASELINE
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness | %FileCheck %s --check-prefix=HIGHVALUE
+
+# BASELINE: artifacts checks passed
+# HIGHVALUE: verified aggregation: {{[0-9]+}} nonclaimable fixture cases
+# HIGHVALUE: verified high-value suite: {{[0-9]+}} cases across {{[0-9]+}} families

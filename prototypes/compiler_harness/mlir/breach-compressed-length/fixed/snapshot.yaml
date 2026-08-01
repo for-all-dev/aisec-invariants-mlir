@@ -1,0 +1,14 @@
+entry: breach_compressed_length_fixed
+
+secret:
+  - {arg: 0, name: secret_byte}
+
+public:
+  - {memory_at_arg: 3, name: public_wire_length}
+
+expect: no-violation
+
+because:
+  - every run stores fixed wire length 32
+
+sps: not-run

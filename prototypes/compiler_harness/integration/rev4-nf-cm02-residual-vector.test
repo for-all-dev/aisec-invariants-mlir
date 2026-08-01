@@ -1,0 +1,148 @@
+# REQUIRES: llvm-as, llvm-dis, opt, x86-target, llvm-17.0.6
+#
+# NF-CM02 -- RESIDUAL TARGET-LEGAL MASKED/VECTOR OPERATION (countermodel seed).
+#
+# WHAT THE PROFILE ACTUALLY SAYS (NF-CM02, section 16). "The stock masked-memory
+# scalarizer leaves an intrinsic because the target supports it, or the stock
+# scalarizer leaves a vector operation it cannot split. Required result:
+# Unknown(ResidualVector). Running a scalarizer pass is not evidence of
+# closure."
+#
+# `ResidualVector` is a member of the closed PublicReasonClassesV1 inventory in
+# section 13.2. Below it appears only inside `SPS-Harness-Expectation:` lines --
+# it is what the harness records this fixture as a seed FOR, not a status this
+# harness computed. The three result axes are independent and this test moves
+# none of them.
+#
+# NF-CM02 names two independent failure modes, and both are exercised here.
+#
+# WHAT IT DOES NOT CHECK: NFConforms, any ModelStatus, DeploymentStatus, or
+# PolicyReviewStatus; the Rev4 residual audit inventory; anything about LLVM
+# 22.1.8, which does not exist on this machine. Every measurement below is
+# LLVM 17.0.6 `opt` behaviour on one textual module.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/cm02-residual-vector.ll.in -o %t.cm02.bc
+# RUN: %opt -passes=verify -disable-output %t.cm02.bc
+
+# ===========================================================================
+# MODE 1 -- the scalarizer leaves an intrinsic BECAUSE THE TARGET SUPPORTS IT
+# ===========================================================================
+# masked.load/masked.store of <4 x i32> are AVX2-legal (vpmaskmov), so
+# ScalarizeMaskedMemIntrin declines to expand them. masked.scatter needs
+# AVX-512, so it IS expanded. The pass ran to completion and reported success.
+# RUN: %opt -mtriple=x86_64-unknown-linux-gnu -mattr=+avx2 -passes=scalarize-masked-mem-intrin %t.cm02.bc -o %t.avx2.bc
+# RUN: %opt -passes=verify -disable-output %t.avx2.bc
+# RUN: %llvm-dis %t.avx2.bc -o %t.avx2.ll
+
+# Exactly two masked intrinsic CALL SITES survive, and they are the two the
+# target declared legal.
+# RUN: grep -cE '^ +(%[^ ]+ = )?call .*@llvm\.masked\.' %t.avx2.ll | %FileCheck %s --check-prefix=CM02-AVX2-COUNT
+# CM02-AVX2-COUNT: 2
+# RUN: %FileCheck %s --check-prefix=CM02-AVX2-IR --input-file=%t.avx2.ll
+# CM02-AVX2-IR: call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %src, i32 4, <4 x i1> %mask, <4 x i32> zeroinitializer)
+# CM02-AVX2-IR-NEXT: call void @llvm.masked.store.v4i32.p0(<4 x i32> %loaded, ptr %dst, i32 4, <4 x i1> %mask)
+# The scatter, by contrast, is gone from the call sites; only its declaration
+# is left behind.
+# RUN: not grep -qE '^ +call void @llvm\.masked\.scatter' %t.avx2.ll
+# RUN: grep -q '^declare void @llvm.masked.scatter' %t.avx2.ll
+
+# The harness gate records the required disposition. Exit is 1.
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.avx2.ll 2>&1 | %FileCheck %s --check-prefix=CM02-AVX2
+# CM02-AVX2: residual-masked-memory-intrinsic-call-sites:
+# CM02-AVX2-NEXT: line {{[0-9]+}} in @cm02_masked_roundtrip: llvm.masked.load.v4i32.p0
+# CM02-AVX2-NEXT: line {{[0-9]+}} in @cm02_masked_roundtrip: llvm.masked.store.v4i32.p0
+# CM02-AVX2-NEXT: summary: signature-vector-type-occurrences=13
+# CM02-AVX2-NEXT: summary: body-vector-type-occurrences=17
+# CM02-AVX2-NEXT: summary: masked-memory-intrinsic-call-sites=2
+# CM02-AVX2-NEXT: summary: residual-vector-item-count=32
+# CM02-AVX2-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector) -- a nonzero residual vector inventory refutes the NF-A05 zero-item criterion and is the NF-CM02 case; running a scalarizer pass is not evidence of closure
+# CM02-AVX2-NEXT: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# CM02-AVX2-NEXT: SPS-Harness-Note: syntactic opcode/type scan of one textual module under LLVM 17.0.6; not the Rev4 normal-form audit and not a proof
+
+# ===========================================================================
+# THE POINT -- residue is a function of -mattr, and removing every intrinsic
+# does not shrink it
+# ===========================================================================
+# Same module, same pass, no -mattr. Now zero masked intrinsics survive,
+# because baseline x86-64 declares none of them legal. If "the masked
+# intrinsics are gone" were the criterion, this arm would be the accepting one.
+# RUN: %opt -mtriple=x86_64-unknown-linux-gnu -passes=scalarize-masked-mem-intrin %t.cm02.bc -o %t.base.bc
+# RUN: %opt -passes=verify -disable-output %t.base.bc
+# RUN: %llvm-dis %t.base.bc -o %t.base.ll
+# RUN: not grep -qE '^ +(%[^ ]+ = )?call .*@llvm\.masked\.' %t.base.ll
+
+# It is not. The residual vector inventory went UP, from 32 to 39, because the
+# lane expansion introduced more vector-typed extractelements than the two
+# surviving calls cost. Two runs of the same pass on the same module, differing
+# only in target features, are both Unknown(ResidualVector) -- which is exactly
+# why "running a scalarizer pass is not evidence of closure".
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.base.ll 2>&1 | %FileCheck %s --check-prefix=CM02-BASE
+# CM02-BASE: residual-masked-memory-intrinsic-call-sites:
+# CM02-BASE-NEXT: summary: signature-vector-type-occurrences=13
+# CM02-BASE-NEXT: summary: body-vector-type-occurrences=26
+# CM02-BASE-NEXT: summary: masked-memory-intrinsic-call-sites=0
+# CM02-BASE-NEXT: summary: residual-vector-item-count=39
+# CM02-BASE-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector)
+
+# ===========================================================================
+# MODE 2 -- the stock scalarizer leaves a vector operation it cannot split
+# ===========================================================================
+# `@lanewise` takes and returns <4 x i32>, so the vector type escapes through
+# the ABI. `opt -passes=scalarizer` splits the body and then reassembles the
+# return value; the vector-typed signature is untouchable.
+# RUN: %opt -passes=scalarizer %t.cm02.bc -o %t.scalarizer.bc
+# RUN: %opt -passes=verify -disable-output %t.scalarizer.bc
+# RUN: %llvm-dis %t.scalarizer.bc -o %t.scalarizer.ll
+
+# The signature survives verbatim.
+# RUN: %FileCheck %s --check-prefix=CM02-LANEWISE --input-file=%t.scalarizer.ll
+# CM02-LANEWISE: define <4 x i32> @lanewise(<4 x i32> %a, <4 x i32> %b)
+# CM02-LANEWISE: ret <4 x i32> %p
+
+# The body is scalar arithmetic bracketed by lane traffic that exists only to
+# satisfy the vector ABI: 8 extractelement in, 4 insertelement out, plus the
+# vector-typed `ret`.
+# RUN: grep -cE '^  %[^ ]+ = extractelement <4 x i32>' %t.scalarizer.ll | %FileCheck %s --check-prefix=CM02-EXTRACT
+# CM02-EXTRACT: 8
+# RUN: grep -cE '^  %[^ ]+ = insertelement <4 x i32>' %t.scalarizer.ll | %FileCheck %s --check-prefix=CM02-INSERT
+# CM02-INSERT: 4
+# RUN: not grep -qE '^  %[^ ]+ = (add|mul) <4 x i32>' %t.scalarizer.ll
+
+# This pass does not touch masked intrinsics at all, so all three call sites
+# remain -- a third distinct residue from the same source module.
+# RUN: grep -cE '^ +(%[^ ]+ = )?call .*@llvm\.masked\.' %t.scalarizer.ll | %FileCheck %s --check-prefix=CM02-SCAL-MASKED
+# CM02-SCAL-MASKED: 3
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.scalarizer.ll 2>&1 | %FileCheck %s --check-prefix=CM02-SCAL
+# CM02-SCAL: residual-vector-typed-function-signatures:
+# CM02-SCAL: line {{[0-9]+}}: define @lanewise vector-type-occurrences=3
+# CM02-SCAL: summary: masked-memory-intrinsic-call-sites=3
+# CM02-SCAL-NEXT: summary: residual-vector-item-count=37
+# CM02-SCAL-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector)
+
+# ===========================================================================
+# CONTRAST -- what the accepting side of the same machinery looks like
+# ===========================================================================
+# integration/rev4-nf-a05-vector-scalarization.test runs the same
+# `opt -passes=scalarizer` on a module whose ABI is scalar-only and reaches
+# residual-vector-item-count=0. The difference is the escape, not the pass.
+# Re-pinned here so the two tests cannot drift apart silently.
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a05-vector-scalarization.ll.in -o %t.escapefree.bc
+# RUN: %opt -passes=scalarizer %t.escapefree.bc -o %t.escapefree.scalarized.bc
+# RUN: %llvm-dis %t.escapefree.scalarized.bc -o %t.escapefree.ll
+# RUN: %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.escapefree.ll | %FileCheck %s --check-prefix=CM02-CONTRAST
+# CM02-CONTRAST: summary: residual-vector-item-count=0
+# CM02-CONTRAST-NOT: Unknown(ResidualVector)
+
+# INTERPRETATION.
+#
+# A green run means: under LLVM 17.0.6 there are three distinct residues
+# reachable from one source module -- 2 target-legal masked call sites with
+# `-mattr=+avx2`, 0 masked call sites but a LARGER vector inventory at
+# baseline, and an unsplittable vector-ABI function under the plain scalarizer.
+# All three are seeds for Unknown(ResidualVector), and none of them is
+# distinguishable from the others by the sentence "we ran the scalarizer".
+#
+# It does not mean any ModelStatus was computed. `Unknown(ResidualVector)` is
+# recorded here as a harness EXPECTATION for a future Rev4 run over a canonical
+# LLVM 22.1.8 artifact. Nothing in this harness can issue a public disposition,
+# and DeploymentStatus and PolicyReviewStatus are untouched by all of it.

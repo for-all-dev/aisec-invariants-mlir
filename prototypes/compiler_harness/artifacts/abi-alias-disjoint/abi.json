@@ -1,61 +1,62 @@
 {
+  "format_id": "SPS-Harness-Candidate-ABI-v1",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "p",
+      "kind": "root",
+      "root_id": "p",
+      "extent_bytes": 4
+    },
+    {
+      "index": 2,
+      "name": "q",
+      "kind": "root",
+      "root_id": "q",
+      "extent_bytes": 4
+    },
+    {
+      "index": 3,
+      "name": "public_output",
+      "kind": "root",
+      "root_id": "public-output",
+      "extent_bytes": 4,
+      "output": "world"
+    }
+  ],
   "admission_constraints": [],
   "alias_topology": {
     "complete": true,
     "relations": [
       {
         "left": "p",
-        "relation": "Disjoint",
-        "right": "q"
+        "right": "q",
+        "relation": "Disjoint"
       },
       {
         "left": "p",
-        "relation": "Disjoint",
-        "right": "public_output"
+        "right": "public-output",
+        "relation": "Disjoint"
       },
       {
         "left": "q",
-        "relation": "Disjoint",
-        "right": "public_output"
+        "right": "public-output",
+        "relation": "Disjoint"
       }
     ]
   },
-  "arguments": [
-    {
-      "confidentiality": "High",
-      "index": 0,
-      "kind": "scalar",
-      "name": "secret"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 1,
-      "kind": "root",
-      "name": "p"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 2,
-      "kind": "root",
-      "name": "q"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 3,
-      "kind": "root",
-      "name": "public_output",
-      "output": "world"
-    }
-  ],
-  "candidate_bitcode_sha256": "262ed2d0e1e2f78e47b5913f31c8dde8657139202b0cde0de8e505b774f183cf",
-  "entry": "abi_alias_disjoint_control",
   "initialized_regions": [
     {
-      "offset": 0,
       "root": "q",
-      "visibility": "world",
+      "offset": 0,
       "width": 4
     }
   ],
-  "schema_version": "sps-fixture-abi-v0"
+  "entry": "abi_alias_disjoint_control",
+  "candidate_bitcode_sha256": "262ed2d0e1e2f78e47b5913f31c8dde8657139202b0cde0de8e505b774f183cf"
 }

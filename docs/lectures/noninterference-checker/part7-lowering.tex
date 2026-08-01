@@ -1,0 +1,454 @@
+\section{A checker that survives lowering}
+\label{part:lowering}
+
+Everything up to here analyses \emph{one} artifact. This part asks what happens
+when that artifact is compiled further, and derives the architecture the
+measurements force. The short version: single-point analysis is not salvageable,
+and the fix is to stop pushing policy downward.
+
+\subsection{What the measurements found}
+
+Twenty semantics-preserving transformations were reproduced against LLVM 17.0.6.
+They sort into three gaps, and it is worth naming them separately because they
+fail in different directions.
+
+\paragraph{The level gap.} The transformation happens \emph{below} LLVM IR, so an
+IR-level verdict describes a program that does not run. The sharpest instance:
+\code{x86-cmov-converter} turns a conditional move back into a branch. Composed
+with mid-end speculation, which turns a branch into a select, the pipeline
+produces the worst possible sequence --- \textbf{leaky source, clean \code{-O2}
+IR, leaky binary}. The same IR yields opposite verdicts on x86-64,
+aarch64-generic, aarch64-neoverse-n2, and riscv64. Related: \code{StackColoring}
+merges two lifetime-bracketed allocations onto one frame offset, with
+runtime-confirmed residue.
+
+\paragraph{The annotation gap.} The policy does not survive. \code{combineMetadata}
+discards custom metadata when merging; every signature-changing pass drops
+parameter attributes; \code{mlir-translate} drops MLIR attributes entirely, with
+no diagnostic. Combined with the convention that an unlabelled value is public,
+each of these is a false negative rather than a refusal.
+
+\paragraph{The counting gap.} Occurrence cardinality moves in \emph{both}
+directions under plain \code{-O2} --- sinking merges two sites into one, jump
+threading splits one into two. So no exact-count policy is an artifact
+invariant.
+
+\begin{remark}[The finding underneath all twenty]
+\label{rem:notnormative}
+The artifact the checker reads is not the artifact that runs, and nothing in the
+system says which one is normative. Every other problem in this part is a
+consequence.
+\end{remark}
+
+\subsection{Why single-point analysis cannot be repaired}
+
+There are only two places to put a single analysis, and the measurements close
+both.
+
+\textbf{Analyse early}, where the policy is meaningful and the structure is
+intact. Then the level gap applies in full: the binary can leak through a channel
+that does not exist at that level, and the laundering sequence above produces a
+clean verdict on a leaky program.
+
+\textbf{Analyse late}, close to the machine, where the observations are real.
+Then the annotation gap applies: the policy is gone. Worse, it is gone
+\emph{silently}, so the analysis does not refuse --- it sees unlabelled code and,
+under the usual convention, calls it public.
+
+The obvious repair is to carry the policy downward so that late analysis has
+something to read. \cref{sec:carriers} shows every known carrier has a silent-loss
+path. That is what makes this an architectural problem rather than an engineering
+one.
+
+\subsection{Every carrier leaks}
+\label{sec:carriers}
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\linewidth} p{0.60\linewidth}@{}}
+\toprule
+Carrier & Measured failure \\
+\midrule
+MLIR \code{sps.*} attributes
+  & \code{mlir-translate --mlir-to-llvmir} drops all of them; zero survive, no
+    diagnostic \\
+LLVM metadata
+  & \code{combineMetadata} discards unknown kinds when merging two sites \\
+Parameter attributes
+  & dropped by every pass that rewrites a signature \\
+Opaque marker call
+  & must have no visible definition to survive, but then it does not link;
+    once the definition is visible it is inlined away \\
+Debug info
+  & explicitly non-semantic; passes may drop or coarsen it \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Note what these have in common. They are all attempts to make a \emph{policy
+fact} travel alongside the code, through a pipeline whose passes have no
+obligation to preserve anything except semantics. The pipeline is not
+misbehaving; it was never told these facts mattered.
+
+\subsection{The inversion}
+\label{sec:inversion}
+
+If policy cannot travel down, send observations up.
+
+\begin{center}
+\begin{tikzpicture}[
+  lvl/.style={draw, rounded corners=2pt, minimum height=7mm, minimum width=26mm,
+              font=\small, inner sep=3pt},
+  lbl/.style={font=\scriptsize},
+  ar/.style={-{Latex[length=1.8mm]}}
+]
+  \node[lvl, fill=blue!8] (src) at (0,2.1)  {source / MLIR};
+  \node[lvl]              (ir)  at (0,1.05) {LLVM IR};
+  \node[lvl]              (mir) at (0,0)    {machine IR};
+  \node[lvl]              (bin) at (0,-1.05){binary};
+
+  \draw[ar] (src) -- (ir);   \draw[ar] (ir) -- (mir);   \draw[ar] (mir) -- (bin);
+
+  \node[lbl, anchor=west, text width=4.3cm] at (1.9,2.1)
+    {\textbf{policy lives here} --- authored, meaningful, stable};
+  \node[lbl, anchor=west, text width=4.3cm] at (1.9,-0.5)
+    {\textbf{observations live here} --- branches, addresses, frame slots, event order and count};
+
+  \draw[ar, dashed] (3.4,-0.15) .. controls (5.2,0.9) .. (3.4,1.95);
+  \node[lbl, anchor=west] at (4.6,0.95) {provenance};
+\end{tikzpicture}
+\captionof{figure}{Policy stays at the level where it is authored. Observations
+are extracted at the level where they are real. A provenance map relates the
+second to the first, and the relational check runs once, at the top, over
+observations sourced from the bottom.}
+\label{fig:inversion}
+\end{center}
+
+The three gaps close for structural reasons rather than by better engineering:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{Level gap} --- observations are gathered where they are real, so a
+      branch introduced by the backend is simply present in the observation set.
+\item \textbf{Annotation gap} --- labels never travel, so nothing can drop them.
+\item \textbf{Counting gap} --- cardinality is \emph{measured} at the bottom
+      rather than asserted at the top, so a merged or duplicated site is
+      observed, not assumed away.
+\end{itemize}
+
+\subsection{The quantifier error, and universal discharge}
+\label{sec:quantifier}
+
+The architecture as first stated has a defect worth dwelling on, because it is a
+\emph{logic} error rather than an engineering gap, and because the first draft of
+this section contained it.
+
+That draft said: \emph{for each policy site, check the predicate over the
+observations attributed to it}. That quantifies existentially over sites.
+Soundness requires universal quantification over \emph{observations}.
+
+The difference is not pedantic. A per-site predicate cannot distinguish
+\textbf{``no observation here''} from \textbf{``compliant here''}. So every
+mechanism that moves an observation off a named site --- outlining,
+misattribution, a build without debug info --- leaves a site with nothing
+attached, which the per-site rule reads as compliance. It \emph{fails open},
+silently.
+
+Reproduced with extractor, provenance map and artifact all held fixed: one
+aarch64 build at \code{-Oz} yields \Verified{} under the per-site rule and a
+refusal under the corrected one.
+
+\paragraph{The correction.} \textbf{Every observation of a policy-relevant kind
+in the artifact must be discharged by exactly one policy site.} Undischarged
+observations are the failure condition; per-site predicates run only \emph{after}
+that obligation is met.
+
+The cost was measured, not estimated: across 42 fixtures $\times$ 2 targets
+$\times$ 2 optimization levels, 167 of 168 builds admissible --- a refusal
+surface near 1\%. It is affordable because it quantifies over policy-relevant
+observation \emph{kinds}, not over instructions.
+
+\begin{remark}[The same mistake, one level down]
+The original problem was that policy could not survive travelling downward. The
+first fix moved policy out of the way and rested the decision on the \emph{site
+namespace} instead --- but a site namespace is another thing the compiler is free
+to rewrite, so that repeats the original error against a different object.
+Provenance is demoted accordingly: it may localize a finding, never decide one.
+\end{remark}
+
+\subsection{What each stage owes}
+
+\begin{center}
+\begin{tabular}{@{}l p{0.62\linewidth}@{}}
+\toprule
+Stage & Obligation \\
+\midrule
+Policy (top)
+  & declare secrets, observer, releases, placement. Never travels down. It may be
+    \emph{composed} across translation units: that is composition at the top and
+    crosses no level \\
+Extraction (each level)
+  & emit the observation set for that level. This is what earns the
+    architecture: observations existing at no higher level, such as an outlined
+    function's secret-indexed loads, are seen only here \\
+Provenance
+  & a \textbf{localization hint}, not a decision mechanism. Three-valued:
+    present, absent, or present-but-unattested. The third state is load-bearing
+    --- confidently wrong provenance must degrade a diagnostic, never ship a
+    leaky artifact marked verified \\
+Decision (top)
+  & \textbf{universal discharge}: every policy-relevant observation accounted for
+    by exactly one site. Per-site predicates run afterwards \\
+Differential
+  & the actual soundness argument, not a supplement. Runs over \emph{whole
+    images}, never over policy-named sites, under one composed program-level
+    policy \\
+Refusal
+  & absent provenance, unattested provenance, absent callee model, or any
+    undischarged observation \\
+Identity
+  & binds \emph{both} ends: input closure, link unit, target triple, subtarget
+    features, codegen flags, compiler revision \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{remark}[When this is worth the complexity, and when it is not]
+\label{rem:simpler}
+For a \emph{single pinned target tuple} a simpler architecture is equally sound
+--- analyse the final artifact only, and re-supply policy at that level through a
+side file keyed on symbol and offset rather than carried in the IR. At one site,
+stack-slot merging, it is strictly \emph{more} sound.
+
+The staged architecture earns its complexity only when more than one target tuple
+ships. That is a checkable condition, and it should be checked before paying the
+cost rather than assumed.
+\end{remark}
+
+\begin{remark}[The role of markers changes, and shrinks]
+Under \cref{sec:inversion} a declassification marker no longer has to survive to
+the binary. It only has to survive to the level where the \emph{policy} is
+evaluated. That is a far weaker requirement than the one the attack findings
+demolished, and it is why the inversion is worth the engineering: it converts a
+problem with no known sound solution into one with a workable one.
+\end{remark}
+
+\subsection{The declassification marker, after the attacks}
+\label{sec:marker}
+
+Markers still have a job: recording that a High-to-Low transition was
+\emph{authorized}. The obvious realization --- an opaque function the optimizer
+cannot see through --- was attacked across five dimensions and does not survive.
+The failure is structural, not a tuning problem.
+
+\paragraph{Why the function-shaped marker fails.} A declaration must resolve at
+link time. The moment its definition is co-visible --- LTO, ThinLTO, a header,
+the same translation unit --- attribute inference deduces \code{returned} from
+the identity body, the optimizer replaces uses of the marker's result with its
+argument, and the release edge is severed \emph{while the marker sits there
+decoratively}. A presence-based checker sees a marker and a clean path; the raw
+secret reaches the sink. Verified end-to-end through the real \code{clang} driver
+under full LTO.
+
+That is the whole family: no definition means no link, and a definition means no
+protection.
+
+\paragraph{What works instead: tied-register inline asm.} There is no symbol, so
+there is nothing to define, nothing to link, and nothing for LTO to import.
+
+\begin{center}
+\begin{minipage}{0.92\linewidth}
+\small
+\begin{verbatim}
+%h = call T asm sideeffect "// sps.declassify id=$2",
+                           "=r,0,i,~{memory}" (T %raw, i32 <ID>)
+\end{verbatim}
+\end{minipage}
+\end{center}
+
+Each operand earns its place, and each was measured:
+
+\begin{center}
+\begin{tabular}{@{}l p{0.68\linewidth}@{}}
+\toprule
+Operand & What it buys \\
+\midrule
+\code{sideeffect}
+  & prevents deletion when the result is unused, and prevents machine-level CSE
+    merging two markers \\
+\code{=r} output
+  & puts the marker \emph{on} the dataflow path. With no body, \code{returned}
+    cannot be inferred --- the exact failure of the function-shaped form \\
+\code{0} tie
+  & ties input to output, so the machine cost is zero. Measured 9 instructions
+    marked versus 9 unmarked, no frame, no spills, tail call preserved \\
+\code{i} on the id
+  & the id must be an immediate. A non-constant id is a \textbf{hard
+    instruction-selection error}, so identity recoverability is fail-closed by
+    construction rather than by convention \\
+\code{\textasciitilde\{memory\}}
+  & no IR-level effect, but blocks post-register-allocation scheduling from
+    reordering memory operations across the marker. Measured cost zero \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verified identical under \code{default<O1/O2/O3/Os/Oz>}, \code{lto<O2>},
+\code{lto<O3>} and \code{thinlto<O2>}: marker present, id literal, sink consuming
+the marker's result --- while the declassifier implementation is fully inlined
+and deleted.
+
+\paragraph{The freeze point this forces.} Post-LTO, post-optimization IR,
+immediately before instruction selection. The asm comment is dropped by the
+assembler --- measured one occurrence in the \code{.s}, zero in the \code{.o},
+zero in the linked binary --- so anything later cannot see the marker at all.
+Where a shipped-binary attestation is genuinely required, the comment body can be
+replaced by a section note emitting a \code{(pc, release\_id)} record with zero
+text instructions.
+
+\paragraph{Two problems that do not go away.} Stated as residual risk rather than
+buried:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{\code{returned} is still expressible.} Inline asm does not
+      structurally forbid it --- the IR verifier accepts \code{returned} on an
+      asm argument, and the bypass reproduces. It must be an explicit checker
+      rule, because there is no IR-level prohibition.
+\item \textbf{A static marker count is not a release count.} Unrolling and
+      inlining both multiply it. Occurrence cardinality has to be restated
+      dynamically, or checked at an earlier freeze point --- which is the
+      counting gap of \cref{rem:notnormative} reappearing, unsolved.
+\end{itemize}
+
+\begin{remark}[The general lesson]
+The function-shaped marker failed because it asked the \emph{linker} and the
+\emph{optimizer} to respect a policy fact neither was told about. The inline-asm
+marker works because it asks for nothing: it is opaque by construction, not by
+permission. Every durable mechanism in this part has that shape --- it survives
+because there is no decision point at which something could decide otherwise.
+\end{remark}
+
+\subsection{The differential check}
+
+Even with the inversion, run the analysis at each level independently and compare
+verdicts. Disagreement between levels is itself the finding:
+
+\begin{center}
+\begin{tabular}{@{}l l p{0.44\linewidth}@{}}
+\toprule
+Upper & Lower & Meaning \\
+\midrule
+\Verified{} & \Unsafe{}   & \textbf{laundering} --- the lowering introduced the leak.
+                            No fixture in the corpus covers this direction \\
+\Unsafe{}   & \Verified{} & evidence destroyed; the leak was optimised out of view \\
+\Verified{} & \Unknown{}  & acceptable: monotone degradation \\
+\Unknown{}  & \Verified{} & suspicious --- what fact appeared? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is cheap. It needs no new theory, it reuses the existing corpus, and it is
+the mechanism that would have caught the inlined-declassifier case automatically
+rather than by inspection.
+
+\subsection{What this costs, and what it does not buy}
+
+The honest accounting.
+
+\textbf{It costs backend work.} Extraction at machine-IR level is not an IR pass;
+it means reading or instrumenting the target layer, per target. The measurements
+already show four target tuples disagreeing on one input, so this is per-tuple
+work.
+
+\textbf{Provenance is best-effort.} Debug-info \code{inlinedAt} chains do relate
+inlined instructions back to their original function --- verified --- but debug
+info is explicitly non-semantic and may be dropped. So the provenance map is a
+source of \Unknown{}, not a guarantee. That is acceptable precisely because
+\Unknown{} is a first-class outcome; it would be unacceptable in a three-valued
+design.
+
+\textbf{It is not a proof.} This architecture makes the checker's answer be about
+the artifact that runs. It does not establish that the answer is right --- that
+is still \cref{thm:core} and the assurance ladder of
+Part~\ref{part:correctness}.
+
+\textbf{It does not close \Lv{4}.} Real latency, hardware isolation, and
+speculation remain outside any observation set you can extract statically.
+
+\subsection{One capture point, several extraction points}
+\label{sec:capture}
+
+Two results in this document appear to disagree about where the artifact is
+frozen, and the disagreement is terminological. Resolving it fixes the most
+important architectural parameter, so it is worth doing explicitly.
+
+The marker analysis concludes the freeze point is \textbf{post-LTO, immediately
+before instruction selection}, because the marker is not visible below that ---
+measured, one occurrence in the \code{.s}, zero in the \code{.o}, zero in the
+linked binary. The inversion concludes observations must come from \textbf{the
+machine level}, because that is where \code{je} rather than \code{csel} is
+decided. Both are right. They are answers to different questions that were being
+given one name.
+
+Split the concept:
+
+\begin{center}
+\begin{tabular}{@{}l p{0.62\linewidth}@{}}
+\toprule
+\textbf{Capture point} & where the \emph{annotated} artifact is snapshotted and
+hashed. Exactly one. Must be where policy is still readable: post-LTO, before
+instruction selection. Markers must survive to here and no further. \\[3pt]
+\textbf{Extraction points} & where \emph{observations} are gathered. Several, at
+and below the capture point, including machine IR. Carry no policy at all. \\[3pt]
+\textbf{Artifact identity} & binds the capture point to every extraction point,
+so the report describes one compilation rather than a family. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The requirement on markers weakens accordingly, and this is the practical
+payoff: a marker must survive to the capture point, not to the binary. That is a
+far easier obligation, and it is why \cref{sec:marker}'s inline-asm form is
+sufficient despite the assembler discarding it.
+
+\begin{remark}[What the identity must bind]
+Binding the top-level module alone is not enough --- the same module produced
+\code{je} on x86-64 and \code{csel} on aarch64 from identical IR. So the identity
+is a \emph{tuple}: module hash, ordered pipeline digest, target triple, target
+CPU and features, and optimization level. A verdict that does not name that tuple
+is not a claim about anything runnable. This is the same shape of requirement as
+per-coalition rows, and it lands on the same record.
+\end{remark}
+
+\subsection{Open problems}
+
+\paragraph{Irreducible: event multiplicity.} This one is not an open problem to
+be solved later; it is a limit of the architecture, and naming it is the only
+honest handling.
+
+Provenance can be \emph{perfect} and the count still wrong. Measured: at
+\code{-O2 -g}, two \code{stp} store-pair instructions carrying entirely correct
+source attribution perform sixteen release events --- vectorization at four to
+one, composed with store-pairing at two to one. Nothing is misattributed. The
+provenance map is exactly right. The count is off by a factor of eight.
+
+Worse, the defect is structural rather than incidental. The decision quantifies
+over the \emph{union} of observation sets, and set union is idempotent, so the
+formulation cannot count at all. A policy constraining release cardinality is
+therefore not checkable in this architecture as stated. It needs either a
+multiset, which changes the decision procedure, or a dynamic statement, which
+changes what is being claimed.
+
+Until one of those is chosen, a release-count policy must be reported
+\Unknown{}, not approximated.
+
+\medskip
+Two further problems remain open, stated rather than hidden.
+
+\textbf{Non-monotone cardinality.} Because occurrence counts move both ways, a
+policy that constrains release count cannot be checked as an artifact invariant
+at a single level. It has to be a statement about the observation set, which
+means the extraction has to be trusted to be complete.
+
+\textbf{Multi-target verdicts.} One artifact and four targets gave four different
+answers. Either a verdict names its target tuple, or the artifact must be
+verified for every tuple it will be built for --- and the report needs a row per
+tuple, which is the same record-shape problem as coalitions.

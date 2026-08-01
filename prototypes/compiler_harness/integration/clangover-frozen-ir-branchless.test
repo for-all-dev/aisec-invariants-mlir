@@ -62,7 +62,7 @@
 
 # CONSEQUENCE FOR FIXTURE CLASSIFICATION.
 #
-# mlir/clangover_poly_frommsg.lowered_bad.mlir models this case as an
+# mlir/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir models this case as an
 # `llvm.cond_br` at LLVM-dialect level. Its own header is scrupulous about this
 # -- "classification: modeled-from-verified-assembly", "artifact status:
 # hand-written target model derived from verified assembly" -- and that labelling

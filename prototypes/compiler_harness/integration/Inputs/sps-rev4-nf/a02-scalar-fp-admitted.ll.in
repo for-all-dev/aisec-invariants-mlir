@@ -1,0 +1,63 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact.bc. Tier PreflightV1.
+;
+; NF-A02 "Closed scalar arithmetic surface" admits:
+;   - flag-free modulo integer arithmetic;
+;   - checked division and shift operands;
+;   - floating-point values ONLY in bit-preserving movement, same-width
+;     bitcasts, `fneg`, and `fcmp`.
+; Lemma R5.0N names the admitted bit-preserving forms explicitly: loads,
+; stores, same-width bitcasts, phi, select, and `fneg` preserve exact input
+; bits, and `fcmp` produces the fixed predicate-defined Boolean.
+;
+; Nothing here asserts NFConforms or any ModelStatus.
+
+; --- flag-free modulo integer arithmetic with checked div/shift operands ----
+define i32 @a02_checked_integer_surface(i32 %a, i32 %b, i32 %shift) {
+entry:
+  %sum = add i32 %a, %b
+  %diff = sub i32 %sum, %b
+  %prod = mul i32 %diff, %a
+  %divisor_is_zero = icmp eq i32 %b, 0
+  %checked_divisor = select i1 %divisor_is_zero, i32 1, i32 %b
+  %quotient = udiv i32 %prod, %checked_divisor
+  %remainder = urem i32 %prod, %checked_divisor
+  %checked_amount = and i32 %shift, 31
+  %shifted = shl i32 %quotient, %checked_amount
+  %logical = lshr i32 %remainder, %checked_amount
+  %combined = xor i32 %shifted, %logical
+  ret i32 %combined
+}
+
+; --- double: load / fneg / select / phi / store / same-width bitcast --------
+define i64 @a02_double_bit_preserving(ptr %src, ptr %dst, i1 %flag, double %alt) {
+entry:
+  %value = load double, ptr %src, align 8
+  %negated = fneg double %value
+  %chosen = select i1 %flag, double %negated, double %alt
+  br i1 %flag, label %join, label %other
+
+other:
+  br label %join
+
+join:
+  %merged = phi double [ %chosen, %entry ], [ %alt, %other ]
+  store double %merged, ptr %dst, align 8
+  %bits = bitcast double %merged to i64
+  ret i64 %bits
+}
+
+; --- float: same-width bitcast in both directions, plus fcmp ---------------
+define i32 @a02_float_fcmp_surface(i32 %encoded, float %probe) {
+entry:
+  %as_float = bitcast i32 %encoded to float
+  %negated = fneg float %as_float
+  %ordered_equal = fcmp oeq float %negated, %probe
+  %unordered = fcmp uno float %as_float, %probe
+  %either = or i1 %ordered_equal, %unordered
+  %selected = select i1 %either, float %negated, float %as_float
+  %back = bitcast float %selected to i32
+  %flagbit = zext i1 %either to i32
+  %out = xor i32 %back, %flagbit
+  ret i32 %out
+}

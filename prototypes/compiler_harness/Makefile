@@ -11,19 +11,23 @@ RISCV_GCC ?=
 SPS_SCAN ?=
 SPS_VERIFIER ?=
 SPS_TEACHING_MATERIALIZED ?=
+SPS_ERROR_MATERIALIZED ?=
 
 .PHONY: check check-shape check-mlir check-integration check-diagnostic \
-	check-sps check-artifacts check-p4-risk list-tests bootstrap-lit require-lit
+	check-sps check-artifacts check-p4-risk check-contracts list-tests \
+	list-fixture-status \
+	bootstrap-lit require-lit
 
 check: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
+	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)"
-	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_TEACHING_MATERIALIZED)" ]; then \
-	  echo "SKIPPED: no executable Rev4 verifier/materialized teaching bundle; no ModelStatus was computed"; \
+	@if [ -z "$(SPS_VERIFIER)" ] || { [ -z "$(SPS_TEACHING_MATERIALIZED)" ] && [ -z "$(SPS_ERROR_MATERIALIZED)" ]; }; then \
+	  echo "SKIPPED: no executable Rev4 verifier/materialized conformance bundle; no ModelStatus was computed"; \
 	fi
 
 check-shape: require-lit
@@ -52,16 +56,22 @@ check-sps: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
+	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/sps"
-	@if [ -z "$(SPS_VERIFIER)" ] || [ -z "$(SPS_TEACHING_MATERIALIZED)" ]; then \
-	  echo "SKIPPED: no executable Rev4 verifier/materialized teaching bundle; no ModelStatus was computed"; \
+	@if [ -z "$(SPS_VERIFIER)" ] || { [ -z "$(SPS_TEACHING_MATERIALIZED)" ] && [ -z "$(SPS_ERROR_MATERIALIZED)" ]; }; then \
+	  echo "SKIPPED: no executable Rev4 verifier/materialized conformance bundle; no ModelStatus was computed"; \
 	fi
 
 check-artifacts: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/artifacts"
+
+check-contracts: require-lit
+	@mkdir -p "$(LIT_BUILD_ROOT)"
+	LLVM_BIN="$(LLVM_BIN)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
+	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/contracts"
 
 check-p4-risk: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
@@ -74,8 +84,12 @@ list-tests: require-lit
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  SPS_TEACHING_MATERIALIZED="$(SPS_TEACHING_MATERIALIZED)" \
+	  SPS_ERROR_MATERIALIZED="$(SPS_ERROR_MATERIALIZED)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) --show-tests "$(HARNESS_DIR)"
+
+list-fixture-status:
+	@$(PYTHON) "$(HARNESS_DIR)/c/check_harness.py" list-fixtures
 
 bootstrap-lit:
 	$(PYTHON) -m venv "$(HARNESS_DIR)/.venv"

@@ -28,9 +28,10 @@
  * Relationship to upstream:
  *   Models a named sanitizer boundary before the public release. The reduced
  *   release policy authorizes (raw_approximate_plaintext &
- *   public_sanitizer_mask) when certificate_ok is true. L4 must still prove
- *   that a production CKKS sanitizer and certificate are sufficient. The
- *   function return remains private.
+ *   public_sanitizer_mask) when certificate_ok is true. Production CKKS
+ *   sanitizer/certificate sufficiency, cryptographic correctness, circuit
+ *   privacy, and integrity are outside this Rev4 model claim. The function
+ *   return remains private.
  *
  * Secret inputs:
  *   raw_approximate_plaintext

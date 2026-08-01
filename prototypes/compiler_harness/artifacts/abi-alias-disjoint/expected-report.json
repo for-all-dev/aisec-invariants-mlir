@@ -1,36 +1,48 @@
 {
-  "candidate_bitcode_sha256": "262ed2d0e1e2f78e47b5913f31c8dde8657139202b0cde0de8e505b774f183cf",
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v1",
+  "fixture_tier": {
+    "tag": "PreflightV1"
+  },
   "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
   "current_harness_status": {
-    "kind": "Pending",
+    "tag": "PendingV1",
     "reasons": [
       "sps-verifier-not-implemented",
       "llvm-22.1.8-nf-recapture-required"
     ]
   },
-  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
-  "oracle": {
-    "deployment_status": {
-      "kind": "Open",
-      "obligations": [
-        "paired-final-binary-refinement"
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV1",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV1"
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
       ]
     },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
     "entry": "abi_alias_disjoint_control",
-    "global_blockers": [],
-    "model_status": {
-      "kind": "Proved"
-    },
-    "policy_review_status": {
-      "kind": "Complete"
-    },
-    "product_rows": [
-      {
-        "coalition": "{}",
-        "product_disposition": "ProductSafe"
-      }
-    ]
+    "expected_model_status": {
+      "tag": "Proved"
+    }
   },
-  "required_checker_feature": "sps-verifier",
-  "schema_version": "sps-fixture-oracle-v0"
+  "candidate_bitcode_sha256": "262ed2d0e1e2f78e47b5913f31c8dde8657139202b0cde0de8e505b774f183cf"
 }

@@ -1,40 +1,55 @@
 {
-  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219",
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v1",
+  "fixture_tier": {
+    "tag": "PreflightV1"
+  },
   "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
   "current_harness_status": {
-    "kind": "Pending",
+    "tag": "PendingV1",
     "reasons": [
       "sps-verifier-not-implemented",
       "llvm-22.1.8-nf-recapture-required"
     ]
   },
-  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
-  "oracle": {
-    "deployment_status": {
-      "kind": "Open",
-      "obligations": [
-        "model-status-unknown"
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "NotConstructedResultMatcherV1",
+          "reason": {
+            "reasonClassId": "LoopRemainder"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotAvailableV1",
+          "reason": {
+            "reasonClassId": "LoopRemainder"
+          }
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
       ]
     },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
     "entry": "bound_exhausted_public_loop",
-    "global_blockers": [
-      "LoopRemainder"
-    ],
-    "model_status": {
-      "kind": "Unknown",
-      "reason": "LoopRemainder"
-    },
-    "policy_review_status": {
-      "kind": "Complete"
-    },
-    "product_rows": [
-      {
-        "coalition": "{}",
-        "product_disposition": "Blocked",
-        "reason": "LoopRemainder"
-      }
-    ]
+    "expected_model_status": {
+      "tag": "Unknown",
+      "args": [
+        {
+          "reasonClassId": "LoopRemainder"
+        }
+      ]
+    }
   },
-  "required_checker_feature": "sps-verifier",
-  "schema_version": "sps-fixture-oracle-v0"
+  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219"
 }

@@ -1,52 +1,50 @@
 {
+  "format_id": "SPS-Harness-Candidate-ABI-v1",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "fallback",
+      "kind": "scalar"
+    },
+    {
+      "index": 2,
+      "name": "buffer",
+      "kind": "root",
+      "root_id": "buffer",
+      "extent_bytes": 8
+    },
+    {
+      "index": 3,
+      "name": "owner_private_sink",
+      "kind": "root",
+      "root_id": "owner-private-sink",
+      "extent_bytes": 8,
+      "output": "owner-private-result"
+    }
+  ],
   "admission_constraints": [],
   "alias_topology": {
     "complete": true,
     "relations": [
       {
         "left": "buffer",
-        "relation": "Disjoint",
-        "right": "owner_private_sink"
+        "right": "owner-private-sink",
+        "relation": "Disjoint"
       }
     ]
   },
-  "arguments": [
-    {
-      "confidentiality": "High",
-      "index": 0,
-      "kind": "scalar",
-      "name": "secret"
-    },
-    {
-      "confidentiality": "WorldVisible",
-      "index": 1,
-      "kind": "scalar",
-      "name": "fallback"
-    },
-    {
-      "confidentiality": "WorldVisible",
-      "extent_bytes": 8,
-      "index": 2,
-      "kind": "root",
-      "name": "buffer"
-    },
-    {
-      "extent_bytes": 8,
-      "index": 3,
-      "kind": "root",
-      "name": "owner_private_sink",
-      "output": "owner_private_result"
-    }
-  ],
-  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880",
-  "entry": "launder_scan_model_proved",
   "initialized_regions": [
     {
-      "offset": 0,
       "root": "buffer",
-      "visibility": "world",
+      "offset": 0,
       "width": 8
     }
   ],
-  "schema_version": "sps-fixture-abi-v0"
+  "entry": "launder_scan_model_proved",
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880"
 }

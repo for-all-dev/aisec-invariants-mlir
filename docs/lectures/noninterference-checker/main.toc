@@ -1,37 +1,68 @@
-\contentsline {section}{\numberline {1}Orientation}{2}{section.1}%
-\contentsline {subsection}{\numberline {1.1}The statement}{2}{subsection.1.1}%
+\contentsline {section}{\numberline {1}Orientation}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}The statement}{3}{subsection.1.1}%
 \contentsline {subsection}{\numberline {1.2}Why functional correctness is not enough}{3}{subsection.1.2}%
-\contentsline {subsection}{\numberline {1.3}Four outcomes, and why three would be dishonest}{3}{subsection.1.3}%
-\contentsline {subsection}{\numberline {1.4}Evidence levels}{3}{subsection.1.4}%
-\contentsline {subsection}{\numberline {1.5}How to read the ledger}{4}{subsection.1.5}%
+\contentsline {subsection}{\numberline {1.3}Four outcomes, and why three would be dishonest}{4}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Evidence levels}{4}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}How to read the ledger}{5}{subsection.1.5}%
 \contentsline {section}{\numberline {2}Background: pairs, products, and 2-safety}{5}{section.2}%
 \contentsline {subsection}{\numberline {2.1}Safety properties and their limits}{5}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}The product construction}{5}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}The release ledger, and why whole-run equality is wrong}{6}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Why the product is harder than it looks}{7}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.2}The product construction}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The release ledger, and why whole-run equality is wrong}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Why the product is harder than it looks}{8}{subsection.2.4}%
 \contentsline {subsection}{\numberline {2.5}Two layers, and the discipline between them}{8}{subsection.2.5}%
-\contentsline {section}{\numberline {3}The walkthrough}{8}{section.3}%
+\contentsline {section}{\numberline {3}The walkthrough}{9}{section.3}%
 \contentsline {section}{\numberline {4}What the harness actually establishes}{16}{section.4}%
 \contentsline {subsection}{\numberline {4.1}Two kinds of test}{16}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Four mechanical layers}{16}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.2}Four mechanical layers}{17}{subsection.4.2}%
 \contentsline {subsection}{\numberline {4.3}Controls, and why every control needs an anti-control}{17}{subsection.4.3}%
 \contentsline {subsection}{\numberline {4.4}Which step each fixture guards}{18}{subsection.4.4}%
 \contentsline {subsection}{\numberline {4.5}One call, four outcomes}{18}{subsection.4.5}%
 \contentsline {subsection}{\numberline {4.6}Countermodels as regression tests}{19}{subsection.4.6}%
-\contentsline {subsection}{\numberline {4.7}The honest gaps}{19}{subsection.4.7}%
-\contentsline {section}{\numberline {5}How would you know the checker is correct?}{20}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Validating the specification: countermodels, not proofs}{20}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}A ladder of assurance for the implementation}{21}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Mechanizing it for MLIR: what is and is not well-posed}{22}{subsection.5.3}%
-\contentsline {subsection}{\numberline {5.4}Where this sits in the literature}{26}{subsection.5.4}%
-\contentsline {paragraph}{The product construction is classical.}{26}{section*.12}%
-\contentsline {paragraph}{Constant-time verification at LLVM level is occupied.}{27}{section*.13}%
-\contentsline {paragraph}{Compiler preservation is occupied.}{27}{section*.14}%
-\contentsline {paragraph}{What is not occupied.}{27}{section*.15}%
-\contentsline {subsection}{\numberline {5.5}If you only do three things}{27}{subsection.5.5}%
-\contentsline {section}{\numberline {A}Appendix: code map, report shape, and references}{28}{appendix.A}%
-\contentsline {subsection}{\numberline {A.1}Where things live}{28}{subsection.A.1}%
-\contentsline {subsection}{\numberline {A.2}Running it}{28}{subsection.A.2}%
-\contentsline {subsection}{\numberline {A.3}The shape of a report}{29}{subsection.A.3}%
-\contentsline {subsection}{\numberline {A.4}References}{29}{subsection.A.4}%
-\contentsline {subsection}{\numberline {A.5}Reading the arc backwards}{30}{subsection.A.5}%
+\contentsline {subsection}{\numberline {4.7}The honest gaps}{20}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}The gap the corpus does not know it has}{20}{subsection.4.8}%
+\contentsline {section}{\numberline {5}How would you know the checker is correct?}{21}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Validating the specification: countermodels, not proofs}{21}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}A ladder of assurance for the implementation}{22}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Mechanizing it for MLIR: what is and is not well-posed}{24}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Where this sits in the literature}{28}{subsection.5.4}%
+\contentsline {paragraph}{The product construction is classical.}{28}{section*.13}%
+\contentsline {paragraph}{Constant-time verification at LLVM level is occupied.}{28}{section*.14}%
+\contentsline {paragraph}{Compiler preservation is occupied.}{28}{section*.15}%
+\contentsline {paragraph}{What is not occupied.}{28}{section*.16}%
+\contentsline {subsection}{\numberline {5.5}If you only do three things}{29}{subsection.5.5}%
+\contentsline {section}{\numberline {6}A checker that survives lowering}{29}{section.6}%
+\contentsline {subsection}{\numberline {6.1}What the measurements found}{29}{subsection.6.1}%
+\contentsline {paragraph}{The level gap.}{29}{section*.17}%
+\contentsline {paragraph}{The annotation gap.}{30}{section*.18}%
+\contentsline {paragraph}{The counting gap.}{30}{section*.19}%
+\contentsline {subsection}{\numberline {6.2}Why single-point analysis cannot be repaired}{30}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Every carrier leaks}{30}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}The inversion}{31}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}The quantifier error, and universal discharge}{31}{subsection.6.5}%
+\contentsline {paragraph}{The correction.}{31}{section*.20}%
+\contentsline {subsection}{\numberline {6.6}What each stage owes}{32}{subsection.6.6}%
+\contentsline {subsection}{\numberline {6.7}The declassification marker, after the attacks}{33}{subsection.6.7}%
+\contentsline {paragraph}{Why the function-shaped marker fails.}{33}{section*.21}%
+\contentsline {paragraph}{What works instead: tied-register inline asm.}{33}{section*.22}%
+\contentsline {paragraph}{The freeze point this forces.}{34}{section*.23}%
+\contentsline {paragraph}{Two problems that do not go away.}{34}{section*.24}%
+\contentsline {subsection}{\numberline {6.8}The differential check}{34}{subsection.6.8}%
+\contentsline {subsection}{\numberline {6.9}What this costs, and what it does not buy}{35}{subsection.6.9}%
+\contentsline {subsection}{\numberline {6.10}One capture point, several extraction points}{35}{subsection.6.10}%
+\contentsline {subsection}{\numberline {6.11}Open problems}{36}{subsection.6.11}%
+\contentsline {paragraph}{Irreducible: event multiplicity.}{36}{section*.25}%
+\contentsline {section}{\numberline {7}From design to implementation}{36}{section.7}%
+\contentsline {subsection}{\numberline {7.1}What actually exists}{36}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}The first real measurement}{37}{subsection.7.2}%
+\contentsline {paragraph}{Caught, correctly.}{37}{section*.26}%
+\contentsline {paragraph}{Silent, correctly.}{37}{section*.27}%
+\contentsline {paragraph}{Imprecise, as predicted.}{38}{section*.28}%
+\contentsline {paragraph}{Missed, for known reasons.}{38}{section*.29}%
+\contentsline {subsection}{\numberline {7.3}The argument for building before designing further}{38}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}The smallest useful next step}{38}{subsection.7.4}%
+\contentsline {section}{\numberline {A}Appendix: code map, report shape, and references}{39}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Where things live}{39}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}Running it}{40}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}The shape of a report}{40}{subsection.A.3}%
+\contentsline {subsection}{\numberline {A.4}References}{40}{subsection.A.4}%
+\contentsline {subsection}{\numberline {A.5}Reading the arc backwards}{41}{subsection.A.5}%

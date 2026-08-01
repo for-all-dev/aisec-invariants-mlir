@@ -16,7 +16,8 @@ is for Alice. For coalitions containing Alice, the prefix-causal ledger retires
 the matching obligation. For `{bob}`, the carrier payload is concealed and the
 obligation remains active; the later Bob-visible store reaches the bad state.
 The empty coalition sees neither channel, and the joint coalition contains
-Alice. Thus only `{bob}` supplies the replayable product counterexample.
+Alice. Thus only `{bob}` supplies an `AuditAll` SAT candidate that can become a
+counterexample after exact replay reaches `Bad_A`.
 
 Joint visibility is independent. T2 uses one High input and a distinct output
 whose payload is minimally visible only to `{alice,bob}`. Singleton projections
@@ -44,7 +45,7 @@ robust-declassification examples with no `ModelStatus` oracle.
 | `t2_joint_visibility.mlir` | A High input separated from a minimally jointly visible output. |
 | `t5_clearance_violation.mlir` | Empty coalition cannot see a principal channel; `{alice}` can and reaches Bad. |
 | `t6_downward_closure.mlir` | The maximal set includes Carol, so every one of its eight derived coalitions must be reported. |
-| `t9_placement_incomplete.mlir` | Missing unique placement is a model blocker, not a replayable counterexample. |
+| `t9_placement_incomplete.mlir` | Missing unique placement prevents query construction and leads to `Unknown(PlacementMismatch)`. |
 
 T6 is a report-completeness test, not a claim that the leak occurs only in one
 derived row: every coalition containing Carol sees the output, including the
@@ -52,7 +53,9 @@ maximal coalition. Omitting any derived row is still nonconforming.
 
 ## Status vocabulary for comments
 
-Example rows use `ProductSafe`, `ReplayableCounterexample`, or `Blocked(reason)`.
-They do not repeat `ModelStatus`; Rev4 has exactly one artifact-scoped model
-result. A future actual report must also bind entry/coalition IDs, complete
-signatures, query identities, replay records, and all global blockers.
+Example rows name the actual workflow boundary: `AuditAll` with raw
+`SAT`/`UNSAT`, `CandidateOnly`/`Discharged`, a separate replay expectation, or
+`NotConstructed` with a closed reason. These are harness expectations, not
+computed `PublicQueryResultRowV1` values. Rev4 has exactly one artifact-scoped
+`ModelStatus`; a candidate becomes `Counterexample(receiptId)` only after exact
+replay reaches `Bad_A`.

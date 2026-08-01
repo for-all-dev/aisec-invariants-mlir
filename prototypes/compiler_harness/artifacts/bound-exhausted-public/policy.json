@@ -1,26 +1,67 @@
 {
-  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219",
-  "component_visibility": {},
-  "error_visibility": {},
-  "execution_bounds": [
-    {
-      "backedge_limit": 4,
-      "entry": "bound_exhausted_public_loop"
-    }
-  ],
+  "format_id": "SPS-Harness-Candidate-Policy-v1",
   "fixed_observation_model": "Theta_ct",
-  "invocation_scope": "SingleInvocation",
+  "principals": [],
   "maximal_adversary_coalitions": [
     []
   ],
-  "output_visibility": {},
+  "components": [
+    "public-count"
+  ],
+  "component_visibility": {
+    "world_visible": [
+      "public-count"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "output_visibility": {
+    "world_visible": [
+      "world"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "error_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "argument_roles": [
+    {
+      "entry": "bound_exhausted_public_loop",
+      "argument_index": 0,
+      "role": {
+        "tag": "PublicConfigurationArgumentV1",
+        "args": [
+          "public-count"
+        ]
+      }
+    },
+    {
+      "entry": "bound_exhausted_public_loop",
+      "argument_index": 1,
+      "role": {
+        "tag": "PointerRootArgumentV1",
+        "args": [
+          "public-sink"
+        ]
+      }
+    }
+  ],
+  "release_bindings": [],
+  "invocation_scope": "SingleInvocation",
   "placement": [
     {
       "entry": "bound_exhausted_public_loop",
       "host": "host0"
     }
   ],
-  "principals": [],
-  "release_bindings": [],
-  "schema_version": "sps-fixture-policy-v0"
+  "execution_bounds": [
+    {
+      "entry": "bound_exhausted_public_loop",
+      "backedge_limit": 4
+    }
+  ],
+  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219"
 }

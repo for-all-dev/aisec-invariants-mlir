@@ -126,6 +126,19 @@ soundness bug it finds arrives as a concrete, minimal, checked-in regression
 fixture --- exactly the artifact the corpus wants. A mechanized proof, by
 contrast, tells you a theorem holds but hands you no fixture.
 
+\subsubsection*{Rung 2b: cross-level differential}
+
+Rung 2 fuzzes one level against ground truth. The cheaper sibling fuzzes one
+level against \emph{another level of the same program}: analyse before and after
+each lowering and compare verdicts. No oracle is needed, because the two verdicts
+are each other's oracle.
+
+\Verified{} above and \Unsafe{} below is laundering --- the lowering introduced
+the leak. The reverse is evidence destruction. Degradation to \Unknown{} is
+fine. This is the check that catches the entire class in
+Part~\ref{part:lowering}, it reuses the corpus unchanged, and it is the reason
+that part argues for extraction at several levels rather than one.
+
 \subsubsection*{Rung 3: certificate-producing analysis}
 
 Rather than proving the analyzer correct, have it emit a \emph{certificate} that

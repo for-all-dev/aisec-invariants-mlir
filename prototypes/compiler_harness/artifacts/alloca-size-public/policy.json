@@ -1,20 +1,61 @@
 {
-  "candidate_bitcode_sha256": "11d2eccd8924102f1f58a4e802194238fa4ce029ab2f495a39f3b9e408c473cb",
-  "component_visibility": {},
-  "error_visibility": {},
+  "format_id": "SPS-Harness-Candidate-Policy-v1",
   "fixed_observation_model": "Theta_ct",
-  "invocation_scope": "SingleInvocation",
+  "principals": [],
   "maximal_adversary_coalitions": [
     []
   ],
-  "output_visibility": {},
+  "components": [
+    "public-count"
+  ],
+  "component_visibility": {
+    "world_visible": [
+      "public-count"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "output_visibility": {
+    "world_visible": [
+      "world"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "error_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "argument_roles": [
+    {
+      "entry": "alloca_size_public_control",
+      "argument_index": 0,
+      "role": {
+        "tag": "PublicConfigurationArgumentV1",
+        "args": [
+          "public-count"
+        ]
+      }
+    },
+    {
+      "entry": "alloca_size_public_control",
+      "argument_index": 1,
+      "role": {
+        "tag": "PointerRootArgumentV1",
+        "args": [
+          "public-sink"
+        ]
+      }
+    }
+  ],
+  "release_bindings": [],
+  "invocation_scope": "SingleInvocation",
   "placement": [
     {
       "entry": "alloca_size_public_control",
       "host": "host0"
     }
   ],
-  "principals": [],
-  "release_bindings": [],
-  "schema_version": "sps-fixture-policy-v0"
+  "candidate_bitcode_sha256": "11d2eccd8924102f1f58a4e802194238fa4ce029ab2f495a39f3b9e408c473cb"
 }

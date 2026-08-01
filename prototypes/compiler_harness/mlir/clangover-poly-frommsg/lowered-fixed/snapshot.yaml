@@ -1,0 +1,15 @@
+entry: clangover_poly_frommsg_fixed
+
+secret:
+  - {arg: 0, name: bit}
+
+public:
+  - {observable: control}
+  - {observable: timing}
+
+expect: no-violation
+
+because:
+  - the included helper selects through mask dataflow without a conditional branch
+
+sps: not-run

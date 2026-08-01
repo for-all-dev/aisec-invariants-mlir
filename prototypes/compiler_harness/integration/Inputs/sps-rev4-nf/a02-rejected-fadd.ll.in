@@ -1,0 +1,25 @@
+; REJECTED ARM: FP arithmetic. Lemma R5.0N gives
+; Unknown(PONFFPArithmeticUnsupported) for any residual FP arithmetic opcode
+; "even if it is dynamically unreachable, its actual arguments would produce a
+; non-NaN result, or a target claim selects one result."
+;
+; The `@unreachable_fadd` function exists to pin exactly that: the rejection is
+; syntactic, so an fadd behind an always-false branch is still rejected.
+
+define double @a02_fp_arithmetic(double %left, double %right) {
+entry:
+  %sum = fadd double %left, %right
+  ret double %sum
+}
+
+define double @unreachable_fadd(double %left, double %right) {
+entry:
+  br i1 false, label %dead, label %live
+
+dead:
+  %sum = fadd double %left, %right
+  ret double %sum
+
+live:
+  ret double %left
+}

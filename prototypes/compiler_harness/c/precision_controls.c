@@ -29,10 +29,10 @@
  *
  * Expected confidentiality issue:
  *   None. Each function is release-relative noninterferent for the named
- *   observer. Under SPS Rev-4 section 10 the single Low/High diagnostic has no
- *   proof-authoritative strong update, no summaries, and no slice selection, so
- *   each of these sites is RelationalRequired at L1 and is decided by the exact
- *   product at L2. The controls exist so that a future SPS analysis which
+ *   observer. Under SPS Rev-4 section 10 the diagnostic has no
+ *   proof-authoritative strong update, summaries, or slice selection. The
+ *   unary preflight may flag a relational candidate, but only the future exact
+ *   product decides these sites. The controls exist so that an SPS analysis which
  *   reports a violation here is detected as imprecise, and so that the
  *   imprecision is never repaired by teaching the diagnostic layer an unsound
  *   strong update or a StaticallyDischarged shortcut.
@@ -72,8 +72,8 @@ unsigned identical_successor_control(int high_condition, unsigned public_value)
  * Control 2: value cancellation.
  *
  * The stored value is secret-derived by dependence but constant in value. A
- * forward Low/High lattice reports High; a value-congruence facility is needed
- * to see that both lanes store zero.
+ * unary taint abstraction flags the value; a non-authoritative congruence aid
+ * can see that both lanes store zero without weakening the exact product.
  */
 unsigned xor_cancellation_control(unsigned secret)
 {

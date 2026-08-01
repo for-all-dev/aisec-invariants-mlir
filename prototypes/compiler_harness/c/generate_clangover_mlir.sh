@@ -7,7 +7,7 @@ set -eu
 #   1. compiles the vulnerable and fixed C reductions to LLVM IR and x86 asm;
 #   2. imports the real LLVM IR into LLVM-dialect MLIR;
 #   3. checks the decisive vulnerable/fixed assembly patterns; and
-#   4. emits small, explicitly labeled semantic models for SPS tests.
+#   4. emits small, explicitly scoped PreflightV1 target-model shapes.
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 HARNESS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
@@ -84,25 +84,19 @@ BAD_OUT=$OUTPUT_DIR/clangover_poly_frommsg.lowered_bad.mlir
 FIXED_OUT=$OUTPUT_DIR/clangover_poly_frommsg.lowered_fixed.mlir
 
 cat >"$BAD_OUT" <<'MLIR'
-// case: clangover/poly_frommsg
-// classification: modeled-from-verified-assembly
-// c source: ../c/clangover_poly_frommsg_vulnerable.c
-// upstream GitHub source: https://github.com/pq-crystals/kyber/blob/b628ba78711bc28327dc7d2d5c074a00f061884e/ref/poly.c#L141-L159
-// upstream revision: b628ba78711bc28327dc7d2d5c074a00f061884e
-// secret: %bit, one bit selected from the message byte
-// public: coefficient constant 1665
-// expected verdict: reject
-// exact incident boundary: L1 target check; L2 bit witness; L3 compiler evidence
+// Generated target model, not a fixture snapshot.
+// Promotion into mlir/ requires a human-authored sibling snapshot.yaml.
+// scope note: candidate target control-flow shape; no ModelStatus is computed
 module {
   // observed x86: btl %ecx, %r8d; jae .Lclear; movl $1665, %edx
   llvm.func @poly_frommsg_x86_bad_model(%bit: i1) -> i16 {
     %zero = llvm.mlir.constant(0 : i16) : i16
     %constant = llvm.mlir.constant(1665 : i16) : i16
-    // CONFIDENTIALITY ERROR: secret-dependent branch
+    // PREFLIGHT FINDING: secret-dependent branch
     // secret source: %bit is derived from the secret message
     // observable effect: branch direction and execution timing
     // reason: inputs differing only in %bit select different successors
-    // detection boundary: L1 here; L2 reports bit=0/1; L3 attributes compiler introduction
+    // preflight expectation: unary scanner flags the candidate-secret branch in this target model
     llvm.cond_br %bit, ^set, ^clear
   ^set:
     llvm.return %constant : i16
@@ -113,26 +107,20 @@ module {
 MLIR
 
 cat >"$FIXED_OUT" <<'MLIR'
-// case: clangover/poly_frommsg
-// classification: modeled-fixed-target
-// c source: ../c/clangover_poly_frommsg_fixed.c
-// upstream GitHub source: https://github.com/antoonpurnal/clangover/tree/7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
-// upstream revision: 7f4d5dc162b77c362a34a0d52949f7a3e1b16d81
-// secret: %bit, one bit selected from the message byte
-// public: coefficient constant 1665 and helper arguments
-// expected verdict: pass with helper reviewed or inlined
-// exact incident boundary: L1 checks no secret branch in this fixture
+// Generated target model, not a fixture snapshot.
+// Promotion into mlir/ requires a human-authored sibling snapshot.yaml.
+// scope note: candidate branchless caller shape; helper evidence remains separate
 module {
   llvm.func @clangover_ct_cmov(%zero: i16, %one: i16, %bit: i16) -> i16
 
   llvm.func @poly_frommsg_x86_fixed_model(%bit: i16) -> i16 {
     %zero = llvm.mlir.constant(0 : i16) : i16
     %constant = llvm.mlir.constant(1665 : i16) : i16
-    // CONFIDENTIALITY REPAIR: helper call preserves dataflow boundary
+    // PREFLIGHT CONTROL: helper call preserves dataflow boundary
     // secret source: %bit is passed as data to a separately compiled helper
     // safe effect: the caller has no secret-dependent control-flow operation
     // reason: no successor, address, or variable-time operation is selected by %bit here
-    // detection boundary: L1 caller check passes; the helper remains an explicit obligation
+    // preflight expectation: preflight diagnostic caller check passes; the helper remains an explicit obligation
     %result = llvm.call @clangover_ct_cmov(%zero, %constant, %bit)
         : (i16, i16, i16) -> i16
     llvm.return %result : i16

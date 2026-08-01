@@ -1,0 +1,14 @@
+entry: offset_disjoint_control
+
+secret:
+  - {arg: 0, name: secret_byte}
+
+public:
+  - {memory_at_arg: 3, name: public_sink}
+
+expect: relational-check
+
+because:
+  - a secret store at byte offset 4 cannot affect the reload at byte offset 8
+
+sps: not-run

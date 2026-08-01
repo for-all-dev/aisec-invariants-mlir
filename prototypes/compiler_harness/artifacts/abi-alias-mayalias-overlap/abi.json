@@ -1,10 +1,40 @@
 {
+  "format_id": "SPS-Harness-Candidate-ABI-v1",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "p",
+      "kind": "root",
+      "root_id": "p",
+      "extent_bytes": 4
+    },
+    {
+      "index": 2,
+      "name": "q",
+      "kind": "root",
+      "root_id": "q",
+      "extent_bytes": 4
+    },
+    {
+      "index": 3,
+      "name": "public_output",
+      "kind": "root",
+      "root_id": "public-output",
+      "extent_bytes": 4,
+      "output": "world"
+    }
+  ],
   "admission_constraints": [
     {
       "kind": "required-alias-realization",
       "left": "p",
-      "realization": "EqualBase",
-      "right": "q"
+      "right": "q",
+      "realization": "EqualBase"
     }
   ],
   "alias_topology": {
@@ -12,57 +42,28 @@
     "relations": [
       {
         "left": "p",
-        "relation": "MayAlias",
-        "right": "q"
+        "right": "q",
+        "relation": "MayAlias"
       },
       {
         "left": "p",
-        "relation": "Disjoint",
-        "right": "public_output"
+        "right": "public-output",
+        "relation": "Disjoint"
       },
       {
         "left": "q",
-        "relation": "Disjoint",
-        "right": "public_output"
+        "right": "public-output",
+        "relation": "Disjoint"
       }
     ]
   },
-  "arguments": [
-    {
-      "confidentiality": "High",
-      "index": 0,
-      "kind": "scalar",
-      "name": "secret"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 1,
-      "kind": "root",
-      "name": "p"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 2,
-      "kind": "root",
-      "name": "q"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 3,
-      "kind": "root",
-      "name": "public_output",
-      "output": "world"
-    }
-  ],
-  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d",
-  "entry": "abi_alias_mayalias_overlap",
   "initialized_regions": [
     {
-      "offset": 0,
       "root": "q",
-      "visibility": "world",
+      "offset": 0,
       "width": 4
     }
   ],
-  "schema_version": "sps-fixture-abi-v0"
+  "entry": "abi_alias_mayalias_overlap",
+  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d"
 }

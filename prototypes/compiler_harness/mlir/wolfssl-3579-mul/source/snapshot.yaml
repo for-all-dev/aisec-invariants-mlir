@@ -1,0 +1,15 @@
+entry: wolfssl_3579_mul_source
+
+secret:
+  - {arg: 0, name: secret_a}
+  - {arg: 1, name: secret_b}
+
+public:
+  - {observable: timing}
+
+expect: shape-only
+
+because:
+  - source contains llvm.mul, while helper lowering and latency are not represented
+
+sps: not-run

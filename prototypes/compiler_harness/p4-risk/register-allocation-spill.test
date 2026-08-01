@@ -1,7 +1,8 @@
 # REQUIRES: aarch64-target, llc, llvm-17.0.6
 #
 # Register allocation creates memory observations that do not exist in the
-# frozen LLVM body. This is a level-boundary regression, not a ModelStatus.
+# frozen LLVM body. This is an artifact/deployment-boundary regression, not a
+# ModelStatus computation.
 
 # The cryptographic region has no source/LLVM local-memory operation. Its only
 # memory inputs are the caller-provided array loads.

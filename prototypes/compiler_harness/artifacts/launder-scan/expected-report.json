@@ -1,41 +1,63 @@
 {
-  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880",
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v1",
+  "fixture_tier": {
+    "tag": "PreflightV1"
+  },
   "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
   "current_harness_status": {
-    "kind": "Pending",
+    "tag": "PendingV1",
     "reasons": [
       "sps-verifier-not-implemented",
       "llvm-22.1.8-nf-recapture-required"
     ]
   },
-  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
-  "oracle": {
-    "deployment_status": {
-      "kind": "Open",
-      "obligations": [
-        "backend-control-delta",
-        "paired-final-binary-refinement"
-      ]
-    },
-    "entry": "launder_scan_model_proved",
-    "global_blockers": [],
-    "model_status": {
-      "kind": "Proved"
-    },
-    "policy_review_status": {
-      "kind": "Complete"
-    },
-    "product_rows": [
+  "expected": {
+    "audit_all_expectations": [
       {
-        "coalition": "{}",
-        "product_disposition": "ProductSafe"
+        "coalition": [],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV1",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV1"
+        }
       },
       {
-        "coalition": "{attacker}",
-        "product_disposition": "ProductSafe"
+        "coalition": [
+          "attacker"
+        ],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV1",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV1"
+        }
       }
-    ]
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
+      ]
+    },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
+    "entry": "launder_scan_model_proved",
+    "expected_model_status": {
+      "tag": "Proved"
+    }
   },
-  "required_checker_feature": "sps-verifier",
-  "schema_version": "sps-fixture-oracle-v0"
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880"
 }

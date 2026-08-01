@@ -1,0 +1,40 @@
+# The snapshot catalog is one closed, human-readable schema. YAML shortcuts,
+# stale argument references, orphaned files, and premature SPS claims fail
+# before any semantic claim.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root
+# RUN: cp -R %harness/c %t.root/c
+# RUN: mkdir -p %t.root/tools
+# RUN: cp %harness/tools/sps_aggregation.py %t.root/tools/sps_aggregation.py
+# RUN: cp -R %harness/mlir %t.root/mlir
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/dynamic-kv-length/bad/snapshot.yaml'); p.write_text(p.read_text() + 'sps: not-run\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/dynamic-kv-length/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'extra: true\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/breach-compressed-length/bad/snapshot.yaml'); p.write_text(p.read_text() + 'x: &shared value\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/breach-compressed-length/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'x: !custom value\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/clangover-poly-frommsg/source/snapshot.yaml'); p.write_text(p.read_text().replace('expect: shape-only', 'expect: impossible'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/kyberslash1-poly-tomsg/bad/snapshot.yaml'); p.write_text(p.read_text().replace('sps: not-run', 'sps: proved'))"
+# RUN: rm %t.root/mlir/secret-logging-checkpoint/fixed/snapshot.yaml
+# RUN: cp %t.root/mlir/redis-pool-reuse/bad/redis_pool_reuse.bad.mlir %t.root/mlir/redis-pool-reuse/bad/duplicate.mlir
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/redis-pool-reuse/fixed/snapshot.yaml'); p.write_text(p.read_text() + 'finding: violation\n')"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/alloca-size/high-count-unknown/snapshot.yaml'); p.write_text(p.read_text().replace('arg: 0', 'arg: 99'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/audience-mismatch/bad/snapshot.yaml'); p.write_text(p.read_text().replace('name: logits', 'name: stale_name'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/secret-logging-checkpoint/bad/snapshot.yaml'); p.write_text(p.read_text().replace('{memory_at_arg: 2, name: public_log}', '{memory_at_arg: 0, name: service_account_token}'))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/mlir/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir'); p.write_text(p.read_text() + '// model status: Proved\n')"
+# RUN: not %python %t.root/c/check_harness.py snapshots 2>&1 | %FileCheck %s
+
+# CHECK: mlir/secret-logging-checkpoint/fixed/secret_logging_checkpoint.fixed.mlir: fixture MLIR has no sibling snapshot.yaml
+# CHECK: mlir/alloca-size/high-count-unknown/snapshot.yaml: secret[0] argument index 99 is out of range
+# CHECK: mlir/audience-mismatch/bad/snapshot.yaml: secret[0] name must match argument 0 ('logits')
+# CHECK: mlir/breach-compressed-length/bad/snapshot.yaml: cannot parse strict snapshot YAML: aliases, anchors, and explicit tags are not allowed
+# CHECK: mlir/breach-compressed-length/fixed/snapshot.yaml: cannot parse strict snapshot YAML: aliases, anchors, and explicit tags are not allowed
+# CHECK: mlir/clangover-poly-frommsg/source/snapshot.yaml: expect has an unknown value
+# CHECK: mlir/dynamic-kv-length/bad/snapshot.yaml: cannot parse strict snapshot YAML:
+# CHECK: mlir/dynamic-kv-length/fixed/snapshot.yaml: snapshot fields must contain exactly
+# CHECK: mlir/kyberslash1-poly-tomsg/bad/snapshot.yaml: a completed SPS state requires bitcode, manifest, and report
+# CHECK: mlir/kyberslash1-poly-tomsg/bad/snapshot.yaml: non-not-run SPS states remain disabled until the production verifier validates the report
+# CHECK: mlir/redis-pool-reuse/bad/snapshot.yaml: snapshot must have exactly one sibling .mlir file
+# CHECK: mlir/redis-pool-reuse/fixed/snapshot.yaml: finding: violation requires expect: unknown
+# CHECK: mlir/redis-pool-reuse/fixed/snapshot.yaml: finding: violation requires a PREFLIGHT FINDING block
+# CHECK: mlir/secret-logging-checkpoint/bad/snapshot.yaml: public[0] argument 0 is not pointer-typed
+# CHECK: mlir/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir: preflight fixture forbids authoritative field '// model status:'

@@ -65,7 +65,8 @@ module attributes {
     // secret source: %logits is declared high and is the sole operand of this carrier call
     // observable effect: raw logits 7 and 9 reach alice_channel unchanged and unequal
     // reason: alice is absent from masked_class_v1's authorizers in this integrity sketch
-    // detection boundary: L1 compares sps.authorized_by against the manifest; L2 supplies the 7/9 witness
+    // extension fixture check: a future integrity semantics must validate
+    // authorized_by separately and independently replay the 7/9 candidate
     %released = llvm.call @sps_release_masked_class_v1(%logits)
         {sps.release_id = "masked_class_v1", sps.authorized_by = "alice"} : (i32) -> i32
 

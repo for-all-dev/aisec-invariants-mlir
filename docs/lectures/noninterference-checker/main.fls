@@ -1192,6 +1192,7 @@ INPUT part4-harness.tex
 INPUT ./part4-harness.tex
 INPUT ./part4-harness.tex
 INPUT part4-harness.tex
+INPUT /usr/local/texlive/2022/texmf-dist/fonts/tfm/public/lm/ec-lmtk10.tfm
 INPUT ./part5-correctness.tex
 INPUT ./part5-correctness.tex
 INPUT ./part5-correctness.tex
@@ -1199,6 +1200,20 @@ INPUT part5-correctness.tex
 INPUT ./part5-correctness.tex
 INPUT ./part5-correctness.tex
 INPUT part5-correctness.tex
+INPUT ./part7-lowering.tex
+INPUT ./part7-lowering.tex
+INPUT ./part7-lowering.tex
+INPUT part7-lowering.tex
+INPUT ./part7-lowering.tex
+INPUT ./part7-lowering.tex
+INPUT part7-lowering.tex
+INPUT ./part8-implementation.tex
+INPUT ./part8-implementation.tex
+INPUT ./part8-implementation.tex
+INPUT part8-implementation.tex
+INPUT ./part8-implementation.tex
+INPUT ./part8-implementation.tex
+INPUT part8-implementation.tex
 INPUT ./part6-appendix.tex
 INPUT ./part6-appendix.tex
 INPUT ./part6-appendix.tex
@@ -1240,4 +1255,5 @@ INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb
 INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmsy10.pfb
 INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmsy7.pfb
 INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmsy8.pfb
+INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmtk10.pfb
 INPUT /usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/lmtt10.pfb

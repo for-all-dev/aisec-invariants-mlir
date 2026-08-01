@@ -1,0 +1,17 @@
+entry: redis_pool_reuse_bad
+
+secret:
+  - {arg: 0, name: response_owned_by_a}
+
+public:
+  - {observable: return}
+
+allowed:
+  - the return to actor B may contain only actor B's response
+
+expect: violation
+
+because:
+  - the cancellation path returns actor A's response to actor B
+
+sps: not-run

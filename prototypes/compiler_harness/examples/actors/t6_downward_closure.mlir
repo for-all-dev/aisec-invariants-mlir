@@ -29,16 +29,16 @@
 // that is a property of the specification, not an implementation shortcut to
 // optimize away by collapsing rows.
 //
-// product rows:
-//   {}                    ProductSafe
-//   {alice}               ProductSafe
-//   {bob}                 ProductSafe
-//   {carol}               ReplayableCounterexample
-//   {alice,bob}           ProductSafe
-//   {alice,carol}         ReplayableCounterexample
-//   {bob,carol}           ReplayableCounterexample
-//   {alice,bob,carol}     ReplayableCounterexample
-// future artifact ModelStatus: Counterexample(ReplayableWitness)
+// AuditAll fixture expectations (not computed results):
+//   {}                    UNSAT / Discharged
+//   {alice}               UNSAT / Discharged
+//   {bob}                 UNSAT / Discharged
+//   {carol}               SAT / CandidateOnly / accepted Bad_A replay required
+//   {alice,bob}           UNSAT / Discharged
+//   {alice,carol}         SAT / CandidateOnly / accepted Bad_A replay required
+//   {bob,carol}           SAT / CandidateOnly / accepted Bad_A replay required
+//   {alice,bob,carol}     SAT / CandidateOnly / accepted Bad_A replay required
+// future ModelStatus matcher: Counterexample(receiptId), contingent on replay
 //
 // CHECK-LABEL: llvm.func @serve_carol_item
 // CHECK: llvm.store %{{.*}}sps.output = "carol_output"
@@ -69,7 +69,8 @@ module attributes {
     // secret source: %private_state is declared high and carries item private_state
     // observable effect: carol_channel receives 13 and 26 for two items
     // reason: {carol} is a required derived row of maximal {alice,bob,carol}
-    // detection boundary: L1 enumerates the downward closure rather than the authored list; L2 supplies the 13/26 witness at {carol}
+    // fixture check: enumerate the exact downward closure; values 13/26 in each
+    // visible AuditAll row remain candidates until independent Bad_A replay
     llvm.store %private_state, %carol_channel
         {sps.audience = ["carol"], sps.output = "carol_output"} : i32, !llvm.ptr
 

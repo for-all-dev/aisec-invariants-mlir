@@ -1,10 +1,13 @@
 {
-  "schema_version": "sps-rev4-high-value-fixtures-v1",
+  "schema_version": "SPS-Harness-Rev4-High-Value-Fixtures-v2",
   "authority": {
+    "tier": {
+      "tag": "PreflightV1"
+    },
     "claimable": false,
     "checker_status": "Unimplemented",
     "current_status": "Pending",
-    "statement": "Expected dispositions are hand-authored Rev. 4 fixture oracles, not current verifier results."
+    "statement": "Expectations are harness-scoped prerequisites and stage outcomes; no SPSRunReportV1 or ModelStatus has been computed."
   },
   "inputs": {
     "definedness": "integration/Inputs/sps-rev4-high-value/definedness.ll.in",
@@ -15,7 +18,8 @@
     "exact-memory": "integration/Inputs/sps-rev4-high-value/external-memory.ll.in",
     "artifact-freeze": "integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in",
     "pointer-layout": "integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in",
-    "actor-policy": null
+    "actor-policy": null,
+    "retirement-coverage": "integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in"
   },
   "cases": [
     {
@@ -23,41 +27,104 @@
       "family": "definedness",
       "title": "asymmetric udiv by zero",
       "function": "asymmetric_udiv_zero",
-      "expected": "Counterexample(ReplayableWitness)",
-      "oracle": {"lane_0": "defined", "lane_1": "UBRisk", "replay_required": true}
+      "shape_contract": {
+        "lane_0": "defined",
+        "lane_1": "UBRisk",
+        "replay_required": true
+      },
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "DEF-02",
       "family": "definedness",
       "title": "aligned udiv by zero",
       "function": "aligned_udiv_zero",
-      "expected": "Unknown(PossibleUB)",
-      "oracle": {"lane_0": "UBRisk", "lane_1": "UBRisk", "counterexample_forbidden": true}
+      "shape_contract": {
+        "lane_0": "UBRisk",
+        "lane_1": "UBRisk",
+        "counterexample_forbidden": true
+      },
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "PossibleUB"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "DEF-03",
       "family": "definedness",
       "title": "out-of-range shift produces poison",
       "function": "out_of_range_shift",
-      "expected": "Unknown(PoisonSemanticsUnsupported)",
-      "oracle": {"event_emitted": false, "counterexample_forbidden": true}
+      "shape_contract": {
+        "event_emitted": false,
+        "counterexample_forbidden": true
+      },
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "PoisonSemanticsUnsupported"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "DEF-04",
       "family": "definedness",
       "title": "uninitialized load produces undef",
       "function": "uninitialized_load",
-      "expected": "Unknown(UninitializedLoadProducesUndef)",
-      "oracle": {"classification": "undef", "ub_risk_forbidden": true, "counterexample_forbidden": true}
+      "shape_contract": {
+        "classification": "undef",
+        "ub_risk_forbidden": true,
+        "counterexample_forbidden": true
+      },
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UninitializedLoadProducesUndef"
+            }
+          ]
+        }
+      }
     },
-
     {
       "id": "REL-01",
       "family": "release-marker",
       "title": "conforming reserved-marker wrapper",
       "function": "release_conforming",
       "mutation": "none",
-      "expected": "CarrierAccepted"
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "ReleaseCarrierValidationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
     {
       "id": "REL-02",
@@ -65,7 +132,17 @@
       "title": "missing marker",
       "function": "release_missing_marker",
       "mutation": "missing-marker",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-03",
@@ -73,7 +150,17 @@
       "title": "duplicate marker",
       "function": "release_duplicate_marker",
       "mutation": "duplicate-marker",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-04",
@@ -81,7 +168,17 @@
       "title": "wrong derived marker symbol",
       "function": "release_wrong_symbol",
       "mutation": "wrong-symbol",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-05",
@@ -89,7 +186,17 @@
       "title": "wrong marker type",
       "function": "release_wrong_type",
       "mutation": "wrong-type",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-06",
@@ -97,7 +204,17 @@
       "title": "tail marker call",
       "function": "release_tail_marker",
       "mutation": "tail-call",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-07",
@@ -105,7 +222,17 @@
       "title": "varargs marker",
       "function": "release_varargs_marker",
       "mutation": "varargs",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-08",
@@ -113,7 +240,17 @@
       "title": "marker call with operand bundle",
       "function": "release_operand_bundle",
       "mutation": "operand-bundle",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-09",
@@ -121,7 +258,17 @@
       "title": "wrong marker calling convention",
       "function": "release_wrong_cc",
       "mutation": "wrong-calling-convention",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-10",
@@ -129,7 +276,17 @@
       "title": "missing noinline pin",
       "function": "release_missing_noinline",
       "mutation": "missing-noinline",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-11",
@@ -137,7 +294,17 @@
       "title": "missing nooutline pin",
       "function": "release_missing_nooutline",
       "mutation": "missing-nooutline",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-12",
@@ -145,7 +312,17 @@
       "title": "missing noduplicate pin",
       "function": "release_missing_noduplicate",
       "mutation": "missing-noduplicate",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-13",
@@ -153,7 +330,17 @@
       "title": "missing nomerge pin",
       "function": "release_missing_nomerge",
       "mutation": "missing-nomerge",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-14",
@@ -161,7 +348,17 @@
       "title": "missing nobuiltin pin",
       "function": "release_missing_nobuiltin",
       "mutation": "missing-nobuiltin",
-      "expected": "Unknown(ReleaseConformanceMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "REL-15",
@@ -169,7 +366,20 @@
       "title": "wrong emitted value",
       "function": "release_wrong_value",
       "mutation": "wrong-value",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-16",
@@ -177,7 +387,20 @@
       "title": "wrong release guard",
       "function": "release_guarded",
       "mutation": "binding-guard-negated",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-17",
@@ -185,7 +408,20 @@
       "title": "wrong release footprint",
       "function": "release_conforming",
       "mutation": "binding-footprint-mismatch",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-18",
@@ -193,7 +429,20 @@
       "title": "wrong release site",
       "function": "release_conforming",
       "mutation": "binding-site-mismatch",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-19",
@@ -201,7 +450,20 @@
       "title": "wrong release ordinal",
       "function": "release_conforming",
       "mutation": "binding-ordinal-mismatch",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-20",
@@ -209,7 +471,20 @@
       "title": "wrong occurrence count",
       "function": "release_conforming",
       "mutation": "binding-count-mismatch",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "REL-21",
@@ -217,30 +492,75 @@
       "title": "false attempt zero then true attempt one",
       "function": "release_retry_ordinal",
       "mutation": "none",
-      "expected": "CarrierAccepted",
-      "oracle": {"attempt_guards": [false, true], "emitted_ordinal": 1}
+      "shape_contract": {
+        "attempt_guards": [
+          false,
+          true
+        ],
+        "emitted_ordinal": 1
+      },
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "ReleaseCarrierValidationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
-
     {
       "id": "OUT-01",
       "family": "output-closure",
       "title": "High ABI return",
       "function": "high_abi_return",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "OUT-02",
       "family": "output-closure",
       "title": "constant ABI return control",
       "function": "constant_abi_return",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
     {
       "id": "OUT-03",
       "family": "output-closure",
       "title": "High pointer writeback",
       "function": "high_pointer_writeback",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "OUT-04",
@@ -248,7 +568,17 @@
       "title": "omitted output byte",
       "function": "two_byte_writeback",
       "mutation": "omit-byte-1",
-      "expected": "Unknown(OutputBindingIncomplete)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "OutputBindingIncomplete"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "OUT-05",
@@ -256,7 +586,17 @@
       "title": "overlapping output bindings",
       "function": "two_byte_writeback",
       "mutation": "bind-byte-0-twice",
-      "expected": "Unknown(OutputBindingOverlap)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "OutputBindingOverlap"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "OUT-06",
@@ -264,80 +604,231 @@
       "title": "uninitialized terminal byte",
       "function": "uninitialized_terminal_byte",
       "mutation": "sample-two-byte-footprint",
-      "expected": "Unknown(UninitializedOutputByte)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UninitializedOutputByte"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "OUT-07",
       "family": "output-closure",
       "title": "one lane returns while the other continues",
       "function": "one_lane_returns",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
-
     {
       "id": "AGG-01",
       "family": "aggregation",
       "title": "counterexample beats unrelated timeout",
-      "expected": "Counterexample(ReplayableWitness)",
-      "inputs": {"conformant": true, "replayed_counterexample": true, "blockers": ["SolverTimeout"]},
-      "private_reasons": ["SolverTimeout"]
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": true,
+        "blockers": [
+          "SolverTimeout"
+        ]
+      },
+      "private_reasons": [
+        "SolverTimeout"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "AGG-02",
       "family": "aggregation",
       "title": "single blocker remains precise",
-      "expected": "Unknown(SolverTimeout)",
-      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["SolverTimeout"]},
-      "private_reasons": ["SolverTimeout"]
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": false,
+        "blockers": [
+          "SolverTimeout"
+        ]
+      },
+      "private_reasons": [
+        "SolverTimeout"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "SolverTimeout"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "AGG-03",
       "family": "aggregation",
       "title": "multiple blockers are publicly collapsed",
-      "expected": "Unknown(OpenModelObligations)",
-      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["PossibleUB", "SolverTimeout"]},
-      "private_reasons": ["PossibleUB", "SolverTimeout"]
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": false,
+        "blockers": [
+          "PossibleUB",
+          "SolverTimeout"
+        ]
+      },
+      "private_reasons": [
+        "PossibleUB",
+        "SolverTimeout"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "OpenModelObligations"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "AGG-04",
       "family": "aggregation",
       "title": "all products and obligations closed",
-      "expected": "Proved",
-      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": []},
-      "private_reasons": []
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": false,
+        "blockers": []
+      },
+      "private_reasons": [],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
     {
       "id": "AGG-05",
       "family": "aggregation",
       "title": "apparent leak in nonconformant IR stays preflight-only",
-      "expected": "Unknown(PipelineMismatch)",
-      "inputs": {"conformant": false, "replayed_counterexample": false, "preflight_leak_finding": true, "blockers": []},
-      "private_reasons": ["PipelineMismatch"]
+      "inputs": {
+        "conformant": false,
+        "replayed_counterexample": false,
+        "preflight_leak_finding": true,
+        "blockers": []
+      },
+      "private_reasons": [
+        "PipelineMismatch"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "PipelineMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "AGG-06",
       "family": "aggregation",
       "title": "contradictory admission is non-vacuous unknown",
-      "expected": "Unknown(VacuousAdmission)",
-      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["VacuousAdmission"]},
-      "private_reasons": ["VacuousAdmission"]
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": false,
+        "blockers": [
+          "VacuousAdmission"
+        ]
+      },
+      "private_reasons": [
+        "VacuousAdmission"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "VacuousAdmission"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "AGG-07",
       "family": "aggregation",
       "title": "expected High variation is absent",
-      "expected": "Unknown(ExpectedHighVariationAbsent)",
-      "inputs": {"conformant": true, "replayed_counterexample": false, "blockers": ["ExpectedHighVariationAbsent"]},
-      "private_reasons": ["ExpectedHighVariationAbsent"]
+      "inputs": {
+        "conformant": true,
+        "replayed_counterexample": false,
+        "blockers": [
+          "ExpectedHighVariationAbsent"
+        ]
+      },
+      "private_reasons": [
+        "ExpectedHighVariationAbsent"
+      ],
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ExpectedHighVariationAbsent"
+            }
+          ]
+        }
+      }
     },
-
     {
       "id": "EXT-01",
       "family": "external-contract",
       "title": "complete deterministic scalar contract",
       "function": "call_contracted_scalar",
       "contract_variant": "complete-total-single-valued",
-      "expected": "ContractAccepted"
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "MechanismContractValidationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
     {
       "id": "EXT-02",
@@ -345,7 +836,17 @@
       "title": "missing functional row",
       "function": "call_contracted_scalar",
       "contract_variant": "missing-functional-row",
-      "expected": "Unknown(MechanismNondeterminismUnsupported)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "MechanismNondeterminismUnsupported"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "EXT-03",
@@ -353,7 +854,17 @@
       "title": "two unequal rows for one input",
       "function": "call_contracted_scalar",
       "contract_variant": "two-unequal-results",
-      "expected": "Unknown(MechanismNondeterminismUnsupported)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "MechanismNondeterminismUnsupported"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "EXT-04",
@@ -361,142 +872,383 @@
       "title": "pointer-producing allocation contract",
       "function": "call_contracted_allocate",
       "contract_variant": "returns-fresh-pointer",
-      "expected": "Unknown(ContractAllocationUnsupported)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "ContractAllocationUnsupported"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "EXT-05",
       "family": "external-contract",
       "title": "coalition-visible host transfer",
       "function": "visible_host_transfer",
-      "expected": "Counterexample(ReplayableWitness)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      }
     },
     {
       "id": "EXT-06",
       "family": "external-contract",
       "title": "coalition-hidden host transfer control",
       "function": "hidden_host_transfer",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
-
     {
       "id": "MEM-01",
       "family": "exact-memory",
       "title": "loop initializes every output byte",
       "function": "whole_loop_init",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
     {
       "id": "MEM-02",
       "family": "exact-memory",
       "title": "early exit skips terminal byte",
       "function": "early_exit_init",
-      "expected": "Unknown(UninitializedOutputByte)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UninitializedOutputByte"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "MEM-03",
       "family": "exact-memory",
       "title": "memcpy propagates uninitialized byte",
       "function": "memcpy_uninitialized_byte",
-      "expected": "Unknown(UninitializedLoadProducesUndef)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UninitializedLoadProducesUndef"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "MEM-04",
       "family": "exact-memory",
       "title": "overlapping memmove",
       "function": "overlapping_memmove",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
     {
       "id": "MEM-05",
       "family": "exact-memory",
       "title": "zero-length memory operation",
       "function": "zero_length_copy",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
     {
       "id": "MEM-06",
       "family": "exact-memory",
       "title": "partial overwrite leaves bytes uninitialized",
       "function": "partial_overwrite",
-      "expected": "Unknown(UninitializedOutputByte)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UninitializedOutputByte"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "MEM-07",
       "family": "exact-memory",
       "title": "exact full overwrite control",
       "function": "full_overwrite",
-      "expected": "Proved"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      }
     },
-
     {
       "id": "FRZ-01",
       "family": "artifact-freeze",
       "title": "IR mutation after frozen-byte capture",
       "function": "post_capture_mutation_seed",
-      "expected": "Unknown(PipelineMismatch)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "PipelineMismatch"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "FRZ-02",
       "family": "artifact-freeze",
       "title": "safe freeze erasure",
       "function": "freeze_defined",
-      "expected": "NormalizerAccepted"
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "NormalFormNormalizationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
     {
       "id": "FRZ-03",
       "family": "artifact-freeze",
       "title": "freeze undef may choose",
       "function": "freeze_undef",
-      "expected": "Unknown(FreezeMayChoose)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "FreezeMayChoose"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "FRZ-04",
       "family": "artifact-freeze",
       "title": "stack-protector semantics enter artifact",
       "function": "stack_protector_fixture",
-      "expected": "Unknown(UnsupportedStackProtector)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "UnsupportedStackProtector"
+            }
+          ]
+        }
+      }
     },
-
     {
       "id": "PTR-01",
       "family": "pointer-layout",
       "title": "same-root canonical GEP equality",
       "function": "same_root_gep_equal",
-      "expected": "ComparisonAccepted"
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "PointerComparisonValidationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
     {
       "id": "PTR-02",
       "family": "pointer-layout",
       "title": "one-past object A versus base of object B",
       "function": "adjacent_one_past_vs_base",
-      "expected": "Unknown(LayoutDependentPointerComparison)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "LayoutDependentPointerComparison"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "PTR-03",
       "family": "pointer-layout",
       "title": "wrapping GEP versus null",
       "function": "wrapping_gep_vs_null",
-      "expected": "Unknown(LayoutDependentPointerComparison)"
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "LayoutDependentPointerComparison"
+            }
+          ]
+        }
+      }
     },
     {
       "id": "PTR-04",
       "family": "pointer-layout",
       "title": "outside-lifetime non-dereference control",
       "function": "outside_lifetime_compare",
-      "expected": "ComparisonAccepted"
+      "expectation": {
+        "tag": "StageOutcomeV1",
+        "stage": "PointerComparisonValidationV1",
+        "outcome": {
+          "tag": "AcceptedV1"
+        }
+      }
     },
-
     {
       "id": "ACT-01",
       "family": "actor-policy",
       "title": "joint visibility",
       "source": "examples/actors/t2_joint_visibility.mlir",
-      "expected": "Counterexample(ReplayableWitness)",
-      "rows": [
-        ["{}", "ProductSafe"],
-        ["{alice}", "ProductSafe"],
-        ["{bob}", "ProductSafe"],
-        ["{alice,bob}", "ReplayableCounterexample"]
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_kv_cache",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_kv_cache",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_kv_cache",
+          "coalition": [
+            "bob"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_kv_cache",
+          "coalition": [
+            "alice",
+            "bob"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        }
       ]
     },
     {
@@ -504,10 +1256,57 @@
       "family": "actor-policy",
       "title": "per-item closed-world clearance",
       "source": "examples/actors/t5_clearance_violation.mlir",
-      "expected": "Counterexample(ReplayableWitness)",
-      "rows": [
-        ["{}", "ProductSafe"],
-        ["{alice}", "ReplayableCounterexample"]
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_two_items",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_two_items",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        }
       ]
     },
     {
@@ -515,16 +1314,176 @@
       "family": "actor-policy",
       "title": "three-principal downward closure",
       "source": "examples/actors/t6_downward_closure.mlir",
-      "expected": "Counterexample(ReplayableWitness)",
-      "rows": [
-        ["{}", "ProductSafe"],
-        ["{alice}", "ProductSafe"],
-        ["{bob}", "ProductSafe"],
-        ["{carol}", "ReplayableCounterexample"],
-        ["{alice,bob}", "ProductSafe"],
-        ["{alice,carol}", "ReplayableCounterexample"],
-        ["{bob,carol}", "ReplayableCounterexample"],
-        ["{alice,bob,carol}", "ReplayableCounterexample"]
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Counterexample",
+          "args": [
+            {
+              "tag": "FreshProtectedReceiptMatcherV1"
+            }
+          ]
+        },
+        "final_replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1"
+        }
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "bob"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "carol"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "alice",
+            "bob"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "alice",
+            "carol"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "bob",
+            "carol"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_carol_item",
+          "coalition": [
+            "alice",
+            "bob",
+            "carol"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        }
       ]
     },
     {
@@ -532,12 +1491,94 @@
       "family": "actor-policy",
       "title": "incomplete side of placement pair",
       "source": "examples/actors/t9_placement_incomplete.mlir",
-      "expected": "Unknown(ManifestMismatch)",
-      "rows": [
-        ["@serve_placed/{}", "ProductSafe"],
-        ["@serve_placed/{alice}", "ProductSafe"],
-        ["@serve_unplaced/{}", "Blocked(ManifestMismatch)"],
-        ["@serve_unplaced/{alice}", "Blocked(ManifestMismatch)"]
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Unknown",
+          "args": [
+            {
+              "reasonClassId": "PlacementMismatch"
+            }
+          ]
+        }
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_placed",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_placed",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_unplaced",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "NotConstructedResultMatcherV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotAvailableV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_unplaced",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "NotConstructedResultMatcherV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotAvailableV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          }
+        }
       ]
     },
     {
@@ -545,13 +1586,253 @@
       "family": "actor-policy",
       "title": "complete side of placement pair",
       "source": "integration/Inputs/sps-rev4-high-value/actor-placement-complete.mlir.in",
-      "expected": "Proved",
-      "rows": [
-        ["@serve_placed/{}", "ProductSafe"],
-        ["@serve_placed/{alice}", "ProductSafe"],
-        ["@serve_unplaced/{}", "ProductSafe"],
-        ["@serve_unplaced/{alice}", "ProductSafe"]
+      "expectation": {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": {
+          "tag": "Proved"
+        },
+        "completion_expectation": {
+          "tag": "AllScheduledModelObligationsClosedV1"
+        }
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_placed",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_placed",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_unplaced",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "serve_unplaced",
+          "coalition": [
+            "alice"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
       ]
+    },
+    {
+      "id": "RET-01",
+      "family": "retirement-coverage",
+      "title": "injective authorized release retires the pair domain at the first release",
+      "function": "release_injective_digest",
+      "release_wrapper": "emit_digest",
+      "coalition": [
+        "alice"
+      ],
+      "authority_citations": [
+        "SPS_Lecture_Notes/part5-soundness.tex:161-227 (the coverage hole: retirement)",
+        "SPS_Rev4_Normative_Specification.md section 12, transition 1: authorized and unequal, the pair's continuing obligation becomes Retired and no later observation from this pair is used",
+        "SPS_Rev4_Normative_Specification.md section 12: no whole-trace ReleaseEq precondition and no future-release pair filter",
+        "SPS_Rev4_Normative_Specification.md section 9 universal coverage obligations"
+      ],
+      "pair_domain_model": {
+        "format": "SPS-Harness-Retirement-PairDomain-v1",
+        "secret_bits": 8,
+        "scope": "An enumerated harness model over an 8-bit secret carrier. It is not LLVM semantics and not a solver result. The released projection, the post-release selector bit and both step indices are parsed out of the entry's own LLVM text, so mutating the module moves the statistic."
+      },
+      "coverage_queries": [
+        {
+          "query": "AdmissionNonempty",
+          "definition": "DEF-ADMISSION-NONEMPTY",
+          "harness_observation": "Satisfied",
+          "harness_witness": "every 8-bit secret in the enumerated model is admitted",
+          "blocking_reason_if_absent": "VacuousAdmission"
+        },
+        {
+          "query": "PairDomainNonempty",
+          "definition": "LowEq^0 duplication of an admission witness",
+          "harness_observation": "Satisfied",
+          "harness_witness": "the secret is High for this coalition, so the pair domain is the full square and is not constrained by the release",
+          "blocking_reason_if_absent": "VacuousPairDomain"
+        },
+        {
+          "query": "HighVariation",
+          "definition": "DEF-HIGH-VARIATION",
+          "harness_observation": "Satisfied",
+          "harness_witness": "65280 of 65536 modelled pairs carry different secrets",
+          "blocking_reason_if_absent": "ExpectedHighVariationAbsent"
+        },
+        {
+          "query": "ReleaseActivation",
+          "definition": "DEF-RELEASE-ACTIVATION",
+          "harness_observation": "Satisfied",
+          "harness_witness": "the release is the only call in the entry block and precedes every branch, so the bound occurrence is emitted on every admitted execution",
+          "blocking_reason_if_absent": "ReleaseActivationMismatch"
+        }
+      ],
+      "retirement_statistic": {
+        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "entry": "release_injective_digest",
+        "coalition": [
+          "alice"
+        ],
+        "secret_bits": 8,
+        "released_projection": "splitmix64-finalizer",
+        "admitted_pairs": 65536,
+        "secret_varying_pairs": 65280,
+        "retired_pairs": 65280,
+        "retired_at_first_release": 65280,
+        "retirement_fraction_ppm": 996094,
+        "post_release_active_pairs": 256,
+        "post_release_active_varying_pairs": 0,
+        "first_release_step_index": 9,
+        "total_steps": 18
+      },
+      "vacuous_proved_note": "A verdict of Proved for (release_injective_digest, [alice]) would be vacuous-by-retirement. 99.6 percent of admitted pairs, 65280 of 65536, retire at the first release, step 9 of 18, under section 12 transition 1. The bit-7 divergence at steps 11 to 17 is therefore outside Secure^1_{A,e} for every secret-varying pair, and a reader of a bare verdict cannot tell that apart from a covered proof. This harness does not compute a ModelStatus, an NFConforms judgment, or a receipt; it records the statistic that part5-soundness.tex:210-219 says could ship now and stops there.",
+      "expectation": {
+        "tag": "SPS-Harness-RetirementCoverageObservationV1",
+        "model_status_expectation": {
+          "tag": "NotComputedV1"
+        },
+        "coverage_query_expectation": {
+          "tag": "AllFourCoverageQueriesSatisfiedV1"
+        },
+        "statistic_expectation": {
+          "tag": "SPS-Harness-Retirement-Statistic-v1"
+        }
+      }
+    },
+    {
+      "id": "RET-02",
+      "family": "retirement-coverage",
+      "title": "one-bit authorized release retires only half the pair domain",
+      "function": "release_low_bit",
+      "release_wrapper": "emit_low_bit",
+      "coalition": [
+        "alice"
+      ],
+      "authority_citations": [
+        "SPS_Lecture_Notes/part5-soundness.tex:161-227 (the coverage hole: retirement)",
+        "SPS_Rev4_Normative_Specification.md section 12, transition 1: authorized and unequal, the pair's continuing obligation becomes Retired and no later observation from this pair is used",
+        "SPS_Rev4_Normative_Specification.md section 12: no whole-trace ReleaseEq precondition and no future-release pair filter",
+        "SPS_Rev4_Normative_Specification.md section 9 universal coverage obligations"
+      ],
+      "pair_domain_model": {
+        "format": "SPS-Harness-Retirement-PairDomain-v1",
+        "secret_bits": 8,
+        "scope": "The same enumerated harness model and the same post-release tail as RET-01. The only difference is the released projection, so the two statistics isolate the release rather than the program tail."
+      },
+      "coverage_queries": [
+        {
+          "query": "AdmissionNonempty",
+          "definition": "DEF-ADMISSION-NONEMPTY",
+          "harness_observation": "Satisfied",
+          "harness_witness": "every 8-bit secret in the enumerated model is admitted",
+          "blocking_reason_if_absent": "VacuousAdmission"
+        },
+        {
+          "query": "PairDomainNonempty",
+          "definition": "LowEq^0 duplication of an admission witness",
+          "harness_observation": "Satisfied",
+          "harness_witness": "the secret is High for this coalition, so the pair domain is the full square and is not constrained by the release",
+          "blocking_reason_if_absent": "VacuousPairDomain"
+        },
+        {
+          "query": "HighVariation",
+          "definition": "DEF-HIGH-VARIATION",
+          "harness_observation": "Satisfied",
+          "harness_witness": "65280 of 65536 modelled pairs carry different secrets",
+          "blocking_reason_if_absent": "ExpectedHighVariationAbsent"
+        },
+        {
+          "query": "ReleaseActivation",
+          "definition": "DEF-RELEASE-ACTIVATION",
+          "harness_observation": "Satisfied",
+          "harness_witness": "the release is the only call in the entry block and precedes every branch, so the bound occurrence is emitted on every admitted execution",
+          "blocking_reason_if_absent": "ReleaseActivationMismatch"
+        }
+      ],
+      "retirement_statistic": {
+        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "entry": "release_low_bit",
+        "coalition": [
+          "alice"
+        ],
+        "secret_bits": 8,
+        "released_projection": "bit-mask",
+        "admitted_pairs": 65536,
+        "secret_varying_pairs": 65280,
+        "retired_pairs": 32768,
+        "retired_at_first_release": 32768,
+        "retirement_fraction_ppm": 500000,
+        "post_release_active_pairs": 32768,
+        "post_release_active_varying_pairs": 16384,
+        "first_release_step_index": 2,
+        "total_steps": 11
+      },
+      "vacuous_proved_note": "This is the contrast side. Lanes that agree on bit 0 take section 12 transition 2, EqualAuthorized, and stay Active, so only 50.0 percent of admitted pairs retire and 16384 secret-varying pairs are still Active when the identical bit-7 divergence is reached. A verdict here would not be vacuous-by-retirement, which is the whole point of keeping the pair: without it the statistic could not be distinguished from a constant. This harness does not compute a ModelStatus for either side.",
+      "expectation": {
+        "tag": "SPS-Harness-RetirementCoverageObservationV1",
+        "model_status_expectation": {
+          "tag": "NotComputedV1"
+        },
+        "coverage_query_expectation": {
+          "tag": "AllFourCoverageQueriesSatisfiedV1"
+        },
+        "statistic_expectation": {
+          "tag": "SPS-Harness-Retirement-Statistic-v1"
+        }
+      }
     }
   ]
 }

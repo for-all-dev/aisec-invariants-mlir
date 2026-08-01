@@ -1,2 +1,6 @@
-# RUN: %python %harness/c/check_harness.py annotations | %FileCheck %s
-# CHECK: annotations checks passed
+# RUN: %python %harness/c/check_harness.py snapshots | %FileCheck %s --check-prefix=CHECK
+# RUN: %python %harness/c/check_harness.py list-fixtures | %FileCheck %s --check-prefix=LIST
+
+# CHECK: snapshots checks passed
+# LIST: dynamic-kv-length/bad: expect=violation sps=not-run entry=dynamic_kv_length_bad
+# LIST: 53 fixtures

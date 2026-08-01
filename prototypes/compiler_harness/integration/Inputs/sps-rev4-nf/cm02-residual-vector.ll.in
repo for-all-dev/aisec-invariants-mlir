@@ -1,0 +1,40 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact.bc. Tier PreflightV1.
+;
+; NF-CM02 "Residual target-legal masked/vector operation": the stock masked-
+; memory scalarizer leaves an intrinsic because the TARGET SUPPORTS IT, or the
+; stock scalarizer leaves a vector operation it cannot split. Required result
+; Unknown(ResidualVector). "Running a scalarizer pass is not evidence of
+; closure."
+;
+; Two independent residues live here.
+;
+; (1) @cm02_masked_roundtrip: masked.load and masked.store of <4 x i32> are
+;     AVX2-legal (vpmaskmov), so ScalarizeMaskedMemIntrin leaves them alone
+;     when the target says they are legal. masked.scatter needs AVX-512, so it
+;     IS expanded. The residue is therefore a function of -mattr, not of
+;     whether the pass ran.
+;
+; (2) @lanewise: the vector type escapes through the ABI, so the stock
+;     scalarizer cannot remove the vector-typed signature. It splits the body
+;     and then reassembles the result, leaving the vector operation surface
+;     larger, not smaller.
+
+declare <4 x i32> @llvm.masked.load.v4i32.p0(ptr, i32 immarg, <4 x i1>, <4 x i32>)
+declare void @llvm.masked.store.v4i32.p0(<4 x i32>, ptr, i32 immarg, <4 x i1>)
+declare void @llvm.masked.scatter.v4i32.v4p0(<4 x i32>, <4 x ptr>, i32 immarg, <4 x i1>)
+
+define void @cm02_masked_roundtrip(ptr %src, ptr %dst, <4 x i1> %mask, <4 x ptr> %scatter_targets) {
+entry:
+  %loaded = call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %src, i32 4, <4 x i1> %mask, <4 x i32> zeroinitializer)
+  call void @llvm.masked.store.v4i32.p0(<4 x i32> %loaded, ptr %dst, i32 4, <4 x i1> %mask)
+  call void @llvm.masked.scatter.v4i32.v4p0(<4 x i32> %loaded, <4 x ptr> %scatter_targets, i32 4, <4 x i1> %mask)
+  ret void
+}
+
+define <4 x i32> @lanewise(<4 x i32> %a, <4 x i32> %b) {
+entry:
+  %s = add <4 x i32> %a, %b
+  %p = mul <4 x i32> %s, %a
+  ret <4 x i32> %p
+}

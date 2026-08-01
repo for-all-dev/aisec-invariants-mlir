@@ -42,7 +42,7 @@ def check(llvm_bin: Path) -> None:
     opt = required_tool(llvm_bin, "opt")
 
     c_sources = sorted((ROOT / "c").glob("*.c"))
-    mlir_sources = sorted((ROOT / "mlir").glob("*.mlir"))
+    mlir_sources = sorted((ROOT / "mlir").rglob("*.mlir"))
     llvm_sources = checked_in_files(".ll")
     bitcode_sources = checked_in_files(".bc")
     mir_sources = checked_in_files(".mir")
@@ -131,7 +131,7 @@ def check(llvm_bin: Path) -> None:
     )
     print(f"verified MLIR -> LLVM -> bitcode: {len(mlir_sources)}")
     print(f"verified textual LLVM: {len(llvm_sources)}")
-    print(f"verified frozen bitcode fresh-reparse fixpoints: {len(bitcode_sources)}")
+    print(f"verified checked-in bitcode fresh-reparse fixpoints: {len(bitcode_sources)}")
     print(f"verified machine basic-block snapshots: {len(mir_sources)}")
 
 

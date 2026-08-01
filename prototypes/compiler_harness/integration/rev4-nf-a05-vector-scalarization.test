@@ -1,0 +1,153 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-A05 -- COMPLETE FIXED-VECTOR SCALARIZATION (preflight seed).
+#
+# Before this test `grep -rEn '<4 x |masked\.'` over the whole harness returned
+# nothing: there was no vector IR anywhere, so the one acceptance case whose
+# criterion is QUANTITATIVE had no witness.
+#
+# WHAT THE PROFILE ACTUALLY SAYS (NF-A05, section 15). "A private <4 x i32>
+# lane-wise computation has no ABI/global escape. Every lane, PHI, select, and
+# constant shuffle is converted to scalar SSA and no vector type remains.
+# Expected: accepted if the residual inventory contains ZERO VECTOR ITEMS."
+#
+# That is a counting criterion over the RESIDUE, not a claim that a pass ran.
+# So this test builds a case where the count can actually reach zero, and pins
+# the zero -- and pairs it with a companion that looks scalarized and does not
+# reach zero, so the counting is not decorative.
+#
+# WHAT IT DOES NOT CHECK: NFConforms, any ModelStatus, DeploymentStatus, or
+# PolicyReviewStatus; the residual normal-form audit inventory as Rev4 defines
+# it; anything about LLVM 22.1.8, which does not exist on this machine.
+# tools/nf_surface_gate.py counts vector type occurrences and masked-memory
+# intrinsic call sites in one textual module. Reaching zero here is a necessary
+# shape, never a sufficient one.
+
+# ===========================================================================
+# THE ESCAPE-FREE CASE -- 21 vector items in, 0 out
+# ===========================================================================
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a05-vector-scalarization.ll.in -o %t.a05.bc
+# RUN: %opt -passes=verify -disable-output %t.a05.bc
+# RUN: %llvm-dis %t.a05.bc -o %t.a05.before.ll
+
+# The ABI really is scalar-only, which is what makes the vectors private and
+# the zero reachable. A vector in the signature would make NF-A05 unattainable
+# no matter which passes run -- see rev4-nf-cm02-residual-vector.test.
+# RUN: %FileCheck %s --check-prefix=A05-ABI --input-file=%t.a05.before.ll
+# A05-ABI: define i32 @a05_private_lanewise(i32 %x0, i32 %x1, i32 %x2, i32 %x3, i32 %k, i1 %flag)
+
+# Each construct NF-A05 names is present before scalarization, pinned by count.
+# RUN: grep -cE '^  %[^ ]+ = insertelement <4 x i32>' %t.a05.before.ll | %FileCheck %s --check-prefix=A05-INSERT-BEFORE
+# A05-INSERT-BEFORE: 5
+# RUN: grep -cE '^  %[^ ]+ = extractelement <4 x i32>' %t.a05.before.ll | %FileCheck %s --check-prefix=A05-EXTRACT-BEFORE
+# A05-EXTRACT-BEFORE: 4
+# RUN: grep -cE '^  %[^ ]+ = shufflevector <4 x i32>' %t.a05.before.ll | %FileCheck %s --check-prefix=A05-SHUFFLE-BEFORE
+# A05-SHUFFLE-BEFORE: 2
+# RUN: grep -cE '^  %[^ ]+ = select i1 %flag, <4 x i32>' %t.a05.before.ll | %FileCheck %s --check-prefix=A05-SELECT-BEFORE
+# A05-SELECT-BEFORE: 1
+# RUN: grep -cE '^  %[^ ]+ = phi <4 x i32>' %t.a05.before.ll | %FileCheck %s --check-prefix=A05-PHI-BEFORE
+# A05-PHI-BEFORE: 1
+
+# The starting residue is 21 vector items, so the zero below is a real
+# reduction and not an artifact of scanning an empty module. Exit is 1 here.
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.a05.before.ll 2>&1 | %FileCheck %s --check-prefix=A05-BEFORE
+# A05-BEFORE: summary: signature-vector-type-occurrences=0
+# A05-BEFORE-NEXT: summary: body-vector-type-occurrences=21
+# A05-BEFORE-NEXT: summary: masked-memory-intrinsic-call-sites=0
+# A05-BEFORE-NEXT: summary: residual-vector-item-count=21
+# A05-BEFORE-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector)
+
+# --- scalarize -------------------------------------------------------------
+# RUN: %opt -passes=scalarizer %t.a05.bc -o %t.a05.scalarized.bc
+# RUN: %opt -passes=verify -disable-output %t.a05.scalarized.bc
+# RUN: %llvm-dis %t.a05.scalarized.bc -o %t.a05.after.ll
+
+# THE NF-A05 CRITERION, as a number. Gate exits 0.
+# RUN: %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.a05.after.ll | %FileCheck %s --check-prefix=A05-AFTER
+# A05-AFTER: residual-vector-typed-function-signatures:
+# A05-AFTER-NEXT: residual-vector-typed-body-instructions:
+# A05-AFTER-NEXT: residual-masked-memory-intrinsic-call-sites:
+# A05-AFTER-NEXT: summary: signature-vector-type-occurrences=0
+# A05-AFTER-NEXT: summary: body-vector-type-occurrences=0
+# A05-AFTER-NEXT: summary: masked-memory-intrinsic-call-sites=0
+# A05-AFTER-NEXT: summary: residual-vector-item-count=0
+# A05-AFTER-NEXT: SPS-Harness-Expectation: NF-A05 residual vector inventory is empty for this module; acceptance still requires the Rev4 audit, which this scan does not perform
+# A05-AFTER-NEXT: SPS-Harness-Boundary: tier=PreflightV1 nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+
+# Independently of the gate: the raw text has no vector type token left.
+# RUN: not grep -qE '<[0-9]+ x ' %t.a05.after.ll
+
+# The lanes did not vanish, they became scalar SSA. Four scalar selects and
+# four scalar PHIs replace the one vector select and the one vector PHI, so the
+# zero above is scalarization and not dead-code elimination.
+# RUN: grep -cE '^  %[^ ]+ = select i1 %flag, i32 ' %t.a05.after.ll | %FileCheck %s --check-prefix=A05-SELECT-AFTER
+# A05-SELECT-AFTER: 4
+# RUN: grep -cE '^  %[^ ]+ = phi i32 ' %t.a05.after.ll | %FileCheck %s --check-prefix=A05-PHI-AFTER
+# A05-PHI-AFTER: 4
+# RUN: %FileCheck %s --check-prefix=A05-LANES --input-file=%t.a05.after.ll
+# A05-LANES: %prod.i0 = mul i32 %sum.i0, 3
+# A05-LANES: %prod.i1 = mul i32 %sum.i1, 5
+# A05-LANES: %prod.i2 = mul i32 %sum.i2, 7
+# A05-LANES: %prod.i3 = mul i32 %sum.i3, 11
+# The constant reversing shuffle survives as a lane RENAMING in the selects.
+# A05-LANES: %chosen.i0 = select i1 %flag, i32 %prod.i0, i32 %prod.i3
+# A05-LANES: %chosen.i3 = select i1 %flag, i32 %prod.i3, i32 %prod.i0
+
+# ===========================================================================
+# NEGATIVE ARM 1 -- "the accesses scalarized" is not "zero vector items"
+# ===========================================================================
+# A private, non-escaping <4 x i32> staging buffer. With -scalarize-load-store
+# the store and load really are split into four and two per-lane scalar
+# accesses -- and the residue is still 1, because `alloca <4 x i32>` keeps a
+# vector TYPE. NF-A05 says "no vector type OR operation".
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a05-private-buffer-residue.ll.in -o %t.buf.bc
+# RUN: %opt -passes=scalarizer -scalarize-load-store %t.buf.bc -o %t.buf.scalarized.bc
+# RUN: %opt -passes=verify -disable-output %t.buf.scalarized.bc
+# RUN: %llvm-dis %t.buf.scalarized.bc -o %t.buf.after.ll
+
+# The per-lane accesses are genuinely there, so the arm is not failing because
+# the pass did nothing.
+# RUN: grep -cE '^  store i32 %x[0-9]+, ptr ' %t.buf.after.ll | %FileCheck %s --check-prefix=A05-BUF-STORES
+# A05-BUF-STORES: 4
+# RUN: grep -cE '^  %back\.i[0-9]+ = load i32, ptr ' %t.buf.after.ll | %FileCheck %s --check-prefix=A05-BUF-LOADS
+# A05-BUF-LOADS: 2
+# RUN: not grep -qE '(load|store) <4 x i32>' %t.buf.after.ll
+
+# And the criterion still fails, naming the exact residual item.
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.buf.after.ll 2>&1 | %FileCheck %s --check-prefix=A05-BUF
+# A05-BUF: residual-vector-typed-body-instructions:
+# A05-BUF-NEXT: line {{[0-9]+}} in @a05_private_buffer: alloca vector-type-occurrences=1
+# A05-BUF-NEXT: residual-masked-memory-intrinsic-call-sites:
+# A05-BUF-NEXT: summary: signature-vector-type-occurrences=0
+# A05-BUF-NEXT: summary: body-vector-type-occurrences=1
+# A05-BUF-NEXT: summary: masked-memory-intrinsic-call-sites=0
+# A05-BUF-NEXT: summary: residual-vector-item-count=1
+# A05-BUF-NEXT: SPS-Harness-Expectation: Unknown(ResidualVector)
+# RUN: grep -q 'alloca <4 x i32>' %t.buf.after.ll
+
+# ===========================================================================
+# NEGATIVE ARM 2 -- the same pass without -scalarize-load-store leaves 9
+# ===========================================================================
+# Same module, same pass name, default options. The residue is 9 rather than 1.
+# The NF-A05 criterion is therefore sensitive to pass CONFIGURATION and cannot
+# be discharged by naming a pass.
+# RUN: %opt -passes=scalarizer %t.buf.bc -o %t.buf.default.bc
+# RUN: %llvm-dis %t.buf.default.bc -o %t.buf.default.ll
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile vector-residue %t.buf.default.ll 2>&1 | %FileCheck %s --check-prefix=A05-BUF-DEFAULT
+# A05-BUF-DEFAULT: summary: body-vector-type-occurrences=9
+# A05-BUF-DEFAULT: summary: residual-vector-item-count=9
+# A05-BUF-DEFAULT: SPS-Harness-Expectation: Unknown(ResidualVector)
+# RUN: grep -q 'store <4 x i32>' %t.buf.default.ll
+
+# INTERPRETATION.
+#
+# A green run means: an escape-free fixed-vector lane-wise computation exists
+# whose residual vector inventory is exactly zero after `opt -passes=scalarizer`
+# under LLVM 17.0.6, with the lane structure visibly preserved as scalar SSA;
+# and two nearby cases that look scalarized do not reach zero.
+#
+# It does not mean NF-A05 is satisfied for any artifact. Rev4's residual
+# inventory is built by the LLVM 22.1.8 normal-form audit over a frozen,
+# identity-bound module, not by counting `<N x T>` tokens in a text file, and
+# acceptance additionally requires the definedness and transition-rule audit.
+# Zero here is a necessary shape.

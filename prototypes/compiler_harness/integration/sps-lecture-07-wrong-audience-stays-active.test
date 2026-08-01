@@ -11,4 +11,4 @@
 # SHAPE: br i1 %is_zero
 # SHAPE: ret i8 %private
 
-# CONTRACT: verified 07-wrong-audience-stays-active: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Counterexample
+# CONTRACT: verified 07-wrong-audience-stays-active: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed; expected-matcher=Counterexample

@@ -1,0 +1,14 @@
+entry: bound_secret_trip_count_bad
+
+secret:
+  - {arg: 0, name: secret_count}
+
+public:
+  - {observable: control}
+
+expect: violation
+
+because:
+  - secret counts zero and one choose different first loop successors
+
+sps: not-run

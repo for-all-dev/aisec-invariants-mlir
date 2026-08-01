@@ -1,19 +1,37 @@
 {
-  "schema_version": "sps-bundle-specs-v1",
+  "format_id": "SPS-Harness-Candidate-Bundle-Specs-v1",
+  "catalog_authority": {
+    "tag": "CandidatePreflightCatalogV1",
+    "claimable": false
+  },
   "defaults": {
     "policy": {
-      "schema_version": "sps-fixture-policy-v0",
+      "format_id": "SPS-Harness-Candidate-Policy-v1",
       "fixed_observation_model": "Theta_ct",
       "principals": [],
       "maximal_adversary_coalitions": [[]],
-      "component_visibility": {},
-      "output_visibility": {},
-      "error_visibility": {},
+      "components": [],
+      "component_visibility": {
+        "world_visible": [],
+        "member_visible": {},
+        "minimally_joint_visible": []
+      },
+      "output_visibility": {
+        "world_visible": ["world"],
+        "member_visible": {},
+        "minimally_joint_visible": []
+      },
+      "error_visibility": {
+        "world_visible": [],
+        "member_visible": {},
+        "minimally_joint_visible": []
+      },
+      "argument_roles": [],
       "release_bindings": [],
       "invocation_scope": "SingleInvocation"
     },
     "abi": {
-      "schema_version": "sps-fixture-abi-v0",
+      "format_id": "SPS-Harness-Candidate-ABI-v1",
       "arguments": [],
       "admission_constraints": [],
       "alias_topology": {
@@ -23,157 +41,258 @@
       "initialized_regions": []
     },
     "contracts": {
-      "schema_version": "sps-fixture-contracts-v0",
+      "format_id": "SPS-Harness-Candidate-Contracts-v1",
       "mechanism_contracts": [],
       "timing_contracts": [],
-      "target_profile": null
+      "target_profile": null,
+      "timing_environment": {
+        "format_id": "SPS-Harness-Candidate-Timing-Environment-v1",
+        "claimable": false,
+        "explicit_empty_timing_choice_contract": true,
+        "choiceDomain": [],
+        "occurrences": {},
+        "latencyMeaning": [],
+        "latencyClasses": [
+          {
+            "latencyClassId": "lat.fixed.1"
+          }
+        ],
+        "pairedChoiceCoupling": {},
+        "versionAndObservationBoundary": "generated-later-not-a-canonical-digest",
+        "notes": [
+          "Spec section 2.5.1 requires an explicit empty timing-choice contract when no ideal timing choice is modeled; an omitted or absent object is not that instance.",
+          "Every instruction transition is assigned the one fixed public latency class lat.fixed.1; that assignment introduces no timing choice.",
+          "This is a PreflightV1 harness mirror of TimingEnvironmentContract, not a canonical SPS-TimingEnvironment interface: timingEnvironmentId and versionAndObservationBoundary digests do not exist for a candidate bundle."
+        ]
+      }
     },
     "release_table": {
-      "schema_version": "sps-fixture-release-table-v0",
+      "format_id": "SPS-Harness-Candidate-Release-Table-v1",
       "entries": []
     },
     "expected_report": {
-      "schema_version": "sps-fixture-oracle-v0",
-      "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
+      "format_id": "SPS-Harness-Candidate-Expected-Run-v1",
+      "fixture_tier": {
+        "tag": "PreflightV1"
+      },
       "claimable_from_checked_in_pair": false,
       "required_checker_feature": "sps-verifier",
-      "oracle": {
-        "global_blockers": [],
-        "deployment_status": {
-          "kind": "Open",
-          "obligations": ["paired-final-binary-refinement"]
-        },
-        "policy_review_status": {
-          "kind": "Complete"
-        }
-      },
       "current_harness_status": {
-        "kind": "Pending",
+        "tag": "PendingV1",
         "reasons": [
           "sps-verifier-not-implemented",
           "llvm-22.1.8-nf-recapture-required"
         ]
+      },
+      "expected": {
+        "audit_all_expectations": [],
+        "expected_deployment_status": {
+          "tag": "Open",
+          "args": [
+            {
+              "tag": "P4EvidenceProfileUnavailable"
+            }
+          ]
+        },
+        "expected_policy_review_status": {
+          "tag": "Complete"
+        }
       }
     }
   },
   "bundles": {
     "abi-alias-disjoint": {
       "policy": {
+        "components": ["secret"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "abi_alias_disjoint_control", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret"]}},
+          {"entry": "abi_alias_disjoint_control", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["p"]}},
+          {"entry": "abi_alias_disjoint_control", "argument_index": 2, "role": {"tag": "PointerRootArgumentV1", "args": ["q"]}},
+          {"entry": "abi_alias_disjoint_control", "argument_index": 3, "role": {"tag": "PointerRootArgumentV1", "args": ["public-output"]}}
+        ],
         "placement": [{"entry": "abi_alias_disjoint_control", "host": "host0"}]
       },
       "abi": {
         "entry": "abi_alias_disjoint_control",
         "arguments": [
-          {"index": 0, "name": "secret", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "p", "kind": "root", "extent_bytes": 4},
-          {"index": 2, "name": "q", "kind": "root", "extent_bytes": 4},
-          {"index": 3, "name": "public_output", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "secret", "kind": "scalar"},
+          {"index": 1, "name": "p", "kind": "root", "root_id": "p", "extent_bytes": 4},
+          {"index": 2, "name": "q", "kind": "root", "root_id": "q", "extent_bytes": 4},
+          {"index": 3, "name": "public_output", "kind": "root", "root_id": "public-output", "extent_bytes": 4, "output": "world"}
         ],
         "alias_topology": {
           "complete": true,
           "relations": [
             {"left": "p", "right": "q", "relation": "Disjoint"},
-            {"left": "p", "right": "public_output", "relation": "Disjoint"},
-            {"left": "q", "right": "public_output", "relation": "Disjoint"}
+            {"left": "p", "right": "public-output", "relation": "Disjoint"},
+            {"left": "q", "right": "public-output", "relation": "Disjoint"}
           ]
         },
-        "initialized_regions": [{"root": "q", "offset": 0, "width": 4, "visibility": "world"}]
+        "initialized_regions": [{"root": "q", "offset": 0, "width": 4}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "abi_alias_disjoint_control",
-          "model_status": {"kind": "Proved"},
-          "product_rows": [{"coalition": "{}", "product_disposition": "ProductSafe"}]
+          "expected_model_status": {"tag": "Proved"},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}},
+              "replay_expectation": {"tag": "NotApplicableV1"}
+            }
+          ]
         }
       }
     },
     "abi-alias-mayalias-overlap": {
       "policy": {
+        "components": ["secret"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "abi_alias_mayalias_overlap", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret"]}},
+          {"entry": "abi_alias_mayalias_overlap", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["p"]}},
+          {"entry": "abi_alias_mayalias_overlap", "argument_index": 2, "role": {"tag": "PointerRootArgumentV1", "args": ["q"]}},
+          {"entry": "abi_alias_mayalias_overlap", "argument_index": 3, "role": {"tag": "PointerRootArgumentV1", "args": ["public-output"]}}
+        ],
         "placement": [{"entry": "abi_alias_mayalias_overlap", "host": "host0"}]
       },
       "abi": {
         "entry": "abi_alias_mayalias_overlap",
         "arguments": [
-          {"index": 0, "name": "secret", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "p", "kind": "root", "extent_bytes": 4},
-          {"index": 2, "name": "q", "kind": "root", "extent_bytes": 4},
-          {"index": 3, "name": "public_output", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "secret", "kind": "scalar"},
+          {"index": 1, "name": "p", "kind": "root", "root_id": "p", "extent_bytes": 4},
+          {"index": 2, "name": "q", "kind": "root", "root_id": "q", "extent_bytes": 4},
+          {"index": 3, "name": "public_output", "kind": "root", "root_id": "public-output", "extent_bytes": 4, "output": "world"}
         ],
         "admission_constraints": [{"kind": "required-alias-realization", "left": "p", "right": "q", "realization": "EqualBase"}],
         "alias_topology": {
           "complete": true,
           "relations": [
             {"left": "p", "right": "q", "relation": "MayAlias"},
-            {"left": "p", "right": "public_output", "relation": "Disjoint"},
-            {"left": "q", "right": "public_output", "relation": "Disjoint"}
+            {"left": "p", "right": "public-output", "relation": "Disjoint"},
+            {"left": "q", "right": "public-output", "relation": "Disjoint"}
           ]
         },
-        "initialized_regions": [{"root": "q", "offset": 0, "width": 4, "visibility": "world"}]
+        "initialized_regions": [{"root": "q", "offset": 0, "width": 4}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "abi_alias_mayalias_overlap",
-          "model_status": {"kind": "Counterexample", "witness": "required-replayable"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-counterexample"]},
-          "product_rows": [{"coalition": "{}", "product_disposition": "ReplayableCounterexample", "bad_state": "public-output-payload-mismatch", "replay": "required"}]
+          "expected_model_status": {"tag": "Counterexample", "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV1"}},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "SAT", "query_disposition": {"tag": "CandidateOnly"}},
+              "replay_expectation": {"tag": "AcceptedBadStateRequiredV1", "bad_state_class": "public-output-payload-mismatch"}
+            }
+          ]
         }
       }
     },
     "abi-alias-missing-binding": {
       "policy": {
+        "components": ["secret"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "abi_alias_missing_binding", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret"]}},
+          {"entry": "abi_alias_missing_binding", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["p"]}},
+          {"entry": "abi_alias_missing_binding", "argument_index": 2, "role": {"tag": "PointerRootArgumentV1", "args": ["q"]}},
+          {"entry": "abi_alias_missing_binding", "argument_index": 3, "role": {"tag": "PointerRootArgumentV1", "args": ["public-output"]}}
+        ],
         "placement": [{"entry": "abi_alias_missing_binding", "host": "host0"}]
       },
       "abi": {
         "entry": "abi_alias_missing_binding",
         "arguments": [
-          {"index": 0, "name": "secret", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "p", "kind": "root", "extent_bytes": 4},
-          {"index": 2, "name": "q", "kind": "root", "extent_bytes": 4},
-          {"index": 3, "name": "public_output", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "secret", "kind": "scalar"},
+          {"index": 1, "name": "p", "kind": "root", "root_id": "p", "extent_bytes": 4},
+          {"index": 2, "name": "q", "kind": "root", "root_id": "q", "extent_bytes": 4},
+          {"index": 3, "name": "public_output", "kind": "root", "root_id": "public-output", "extent_bytes": 4, "output": "world"}
         ],
         "alias_topology": {"complete": false, "relations": []}
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "abi_alias_missing_binding",
-          "global_blockers": ["AliasBindingMismatch"],
-          "model_status": {"kind": "Unknown", "reason": "AliasBindingMismatch"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-status-unknown"]},
-          "product_rows": [{"coalition": "{}", "product_disposition": "Blocked", "reason": "AliasBindingMismatch"}]
+          "expected_model_status": {"tag": "Unknown", "args": [{"reasonClassId": "AliasBindingMismatch"}]},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "NotConstructedResultMatcherV1", "reason": {"reasonClassId": "AliasBindingMismatch"}},
+              "replay_expectation": {"tag": "NotAvailableV1", "reason": {"reasonClassId": "AliasBindingMismatch"}}
+            }
+          ]
         }
       }
     },
     "alloca-size-high": {
       "policy": {
+        "components": ["secret-bit"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "alloca_size_high_count", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret-bit"]}},
+          {"entry": "alloca_size_high_count", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["public-sink"]}}
+        ],
         "placement": [{"entry": "alloca_size_high_count", "host": "host0"}]
       },
       "abi": {
         "entry": "alloca_size_high_count",
         "arguments": [
-          {"index": 0, "name": "secret_bit", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "public_sink", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "secret_bit", "kind": "scalar"},
+          {"index": 1, "name": "public_sink", "kind": "root", "root_id": "public-sink", "extent_bytes": 4, "output": "world"}
         ],
         "admission_constraints": [{"argument": "secret_bit", "relation": "in", "values": [0, 1]}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "alloca_size_high_count",
-          "global_blockers": ["AllocaSizeNotWorldStructural"],
-          "model_status": {"kind": "Unknown", "reason": "AllocaSizeNotWorldStructural"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-status-unknown"]},
-          "product_rows": [{"coalition": "{}", "product_disposition": "Blocked", "reason": "AllocaSizeNotWorldStructural"}]
+          "expected_model_status": {"tag": "Unknown", "args": [{"reasonClassId": "AllocaSizeNotWorldStructural"}]},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "NotConstructedResultMatcherV1", "reason": {"reasonClassId": "AllocaSizeNotWorldStructural"}},
+              "replay_expectation": {"tag": "NotAvailableV1", "reason": {"reasonClassId": "AllocaSizeNotWorldStructural"}}
+            }
+          ]
         }
       }
     },
     "alloca-size-public": {
       "policy": {
+        "components": ["public-count"],
+        "component_visibility": {
+          "world_visible": ["public-count"],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "alloca_size_public_control", "argument_index": 0, "role": {"tag": "PublicConfigurationArgumentV1", "args": ["public-count"]}},
+          {"entry": "alloca_size_public_control", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["public-sink"]}}
+        ],
         "placement": [{"entry": "alloca_size_public_control", "host": "host0"}]
       },
       "abi": {
         "entry": "alloca_size_public_control",
         "arguments": [
-          {"index": 0, "name": "public_count", "kind": "scalar", "confidentiality": "WorldStructural"},
-          {"index": 1, "name": "public_sink", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "public_count", "kind": "scalar"},
+          {"index": 1, "name": "public_sink", "kind": "root", "root_id": "public-sink", "extent_bytes": 4, "output": "world"}
         ],
         "admission_constraints": [
           {"argument": "public_count", "relation": "range", "min": 1, "max": 128},
@@ -182,10 +301,16 @@
         ]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "alloca_size_public_control",
-          "model_status": {"kind": "Proved"},
-          "product_rows": [{"coalition": "{}", "product_disposition": "ProductSafe"}]
+          "expected_model_status": {"tag": "Proved"},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}},
+              "replay_expectation": {"tag": "NotApplicableV1"}
+            }
+          ]
         }
       }
     },
@@ -193,21 +318,40 @@
       "policy": {
         "principals": ["alice", "bob"],
         "maximal_adversary_coalitions": [["alice", "bob"]],
-        "component_visibility": {"logits": []},
-        "output_visibility": {"alice_channel": ["alice"], "bob_channel": ["bob"]},
+        "components": ["logits"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {"alice": [], "bob": []},
+          "minimally_joint_visible": []
+        },
+        "output_visibility": {
+          "world_visible": [],
+          "member_visible": {"alice": ["alice-channel"], "bob": ["bob-channel"]},
+          "minimally_joint_visible": []
+        },
+        "error_visibility": {
+          "world_visible": [],
+          "member_visible": {"alice": [], "bob": []},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "audience_mismatch_bad", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["logits"]}},
+          {"entry": "audience_mismatch_bad", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["alice-channel"]}},
+          {"entry": "audience_mismatch_bad", "argument_index": 2, "role": {"tag": "PointerRootArgumentV1", "args": ["bob-channel"]}}
+        ],
         "release_bindings": ["masked_class_v1"],
         "placement": [{"entry": "audience_mismatch_bad", "host": "host0"}]
       },
       "abi": {
         "entry": "audience_mismatch_bad",
         "arguments": [
-          {"index": 0, "name": "logits", "kind": "scalar", "confidentiality": "High", "component": "logits"},
-          {"index": 1, "name": "alice_channel", "kind": "root", "extent_bytes": 4, "output": "alice_channel"},
-          {"index": 2, "name": "bob_channel", "kind": "root", "extent_bytes": 4, "output": "bob_channel"}
+          {"index": 0, "name": "logits", "kind": "scalar"},
+          {"index": 1, "name": "alice_channel", "kind": "root", "root_id": "alice-channel", "extent_bytes": 4, "output": "alice-channel"},
+          {"index": 2, "name": "bob_channel", "kind": "root", "root_id": "bob-channel", "extent_bytes": 4, "output": "bob-channel"}
         ],
         "alias_topology": {
           "complete": true,
-          "relations": [{"left": "alice_channel", "right": "bob_channel", "relation": "Disjoint"}]
+          "relations": [{"left": "alice-channel", "right": "bob-channel", "relation": "Disjoint"}]
         }
       },
       "contracts": {
@@ -234,61 +378,89 @@
         }]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "audience_mismatch_bad",
-          "model_status": {"kind": "Counterexample", "witness": "required-replayable"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-counterexample"]},
-          "product_rows": [
-            {"coalition": "{}", "product_disposition": "ProductSafe"},
-            {"coalition": "{alice}", "product_disposition": "ProductSafe"},
-            {"coalition": "{bob}", "product_disposition": "ReplayableCounterexample", "bad_state": "bob-visible-output-while-release-obligation-active", "replay": "required"},
-            {"coalition": "{alice,bob}", "product_disposition": "ProductSafe"}
+          "expected_model_status": {"tag": "Counterexample", "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV1"}},
+          "audit_all_expectations": [
+            {"coalition": [], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}}, "replay_expectation": {"tag": "NotApplicableV1"}},
+            {"coalition": ["alice"], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}}, "replay_expectation": {"tag": "NotApplicableV1"}},
+            {"coalition": ["bob"], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "SAT", "query_disposition": {"tag": "CandidateOnly"}}, "replay_expectation": {"tag": "AcceptedBadStateRequiredV1", "bad_state_class": "bob-visible-output-while-release-obligation-active"}},
+            {"coalition": ["alice", "bob"], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}}, "replay_expectation": {"tag": "NotApplicableV1"}}
           ]
         }
       }
     },
     "bound-exhausted-public": {
       "policy": {
+        "components": ["public-count"],
+        "component_visibility": {
+          "world_visible": ["public-count"],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "bound_exhausted_public_loop", "argument_index": 0, "role": {"tag": "PublicConfigurationArgumentV1", "args": ["public-count"]}},
+          {"entry": "bound_exhausted_public_loop", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["public-sink"]}}
+        ],
         "placement": [{"entry": "bound_exhausted_public_loop", "host": "host0"}],
         "execution_bounds": [{"entry": "bound_exhausted_public_loop", "backedge_limit": 4}]
       },
       "abi": {
         "entry": "bound_exhausted_public_loop",
         "arguments": [
-          {"index": 0, "name": "public_count", "kind": "scalar", "confidentiality": "WorldStructural"},
-          {"index": 1, "name": "public_sink", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "public_count", "kind": "scalar"},
+          {"index": 1, "name": "public_sink", "kind": "root", "root_id": "public-sink", "extent_bytes": 4, "output": "world"}
         ],
         "admission_constraints": [{"argument": "public_count", "relation": "equals", "value": 8}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "bound_exhausted_public_loop",
-          "global_blockers": ["LoopRemainder"],
-          "model_status": {"kind": "Unknown", "reason": "LoopRemainder"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-status-unknown"]},
-          "product_rows": [{"coalition": "{}", "product_disposition": "Blocked", "reason": "LoopRemainder"}]
+          "expected_model_status": {"tag": "Unknown", "args": [{"reasonClassId": "LoopRemainder"}]},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "NotConstructedResultMatcherV1", "reason": {"reasonClassId": "LoopRemainder"}},
+              "replay_expectation": {"tag": "NotAvailableV1", "reason": {"reasonClassId": "LoopRemainder"}}
+            }
+          ]
         }
       }
     },
     "bound-secret-trip-count": {
       "policy": {
+        "components": ["secret-count"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "bound_secret_trip_count_bad", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret-count"]}},
+          {"entry": "bound_secret_trip_count_bad", "argument_index": 1, "role": {"tag": "PointerRootArgumentV1", "args": ["public-sink"]}}
+        ],
         "placement": [{"entry": "bound_secret_trip_count_bad", "host": "host0"}],
         "execution_bounds": [{"entry": "bound_secret_trip_count_bad", "backedge_limit": 2}]
       },
       "abi": {
         "entry": "bound_secret_trip_count_bad",
         "arguments": [
-          {"index": 0, "name": "secret_count", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "public_sink", "kind": "root", "extent_bytes": 4, "output": "world"}
+          {"index": 0, "name": "secret_count", "kind": "scalar"},
+          {"index": 1, "name": "public_sink", "kind": "root", "root_id": "public-sink", "extent_bytes": 4, "output": "world"}
         ],
         "admission_constraints": [{"argument": "secret_count", "relation": "in", "values": [0, 1]}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "bound_secret_trip_count_bad",
-          "model_status": {"kind": "Counterexample", "witness": "required-replayable"},
-          "deployment_status": {"kind": "Open", "obligations": ["model-counterexample"]},
-          "product_rows": [{"coalition": "{}", "product_disposition": "ReplayableCounterexample", "bad_state": "world-control-location-mismatch", "replay": "required"}]
+          "expected_model_status": {"tag": "Counterexample", "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV1"}},
+          "audit_all_expectations": [
+            {
+              "coalition": [],
+              "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "SAT", "query_disposition": {"tag": "CandidateOnly"}},
+              "replay_expectation": {"tag": "AcceptedBadStateRequiredV1", "bad_state_class": "world-control-location-mismatch"}
+            }
+          ]
         }
       }
     },
@@ -296,35 +468,51 @@
       "policy": {
         "principals": ["attacker", "owner"],
         "maximal_adversary_coalitions": [["attacker"]],
-        "component_visibility": {"secret": [], "buffer": ["attacker"], "fallback": ["attacker"]},
-        "output_visibility": {"owner_private_result": ["owner"]},
+        "components": ["buffer", "fallback", "secret"],
+        "component_visibility": {
+          "world_visible": [],
+          "member_visible": {"attacker": ["buffer", "fallback"], "owner": []},
+          "minimally_joint_visible": []
+        },
+        "output_visibility": {
+          "world_visible": [],
+          "member_visible": {"attacker": [], "owner": ["owner-private-result"]},
+          "minimally_joint_visible": []
+        },
+        "error_visibility": {
+          "world_visible": [],
+          "member_visible": {"attacker": [], "owner": []},
+          "minimally_joint_visible": []
+        },
+        "argument_roles": [
+          {"entry": "launder_scan_model_proved", "argument_index": 0, "role": {"tag": "ComponentArgumentV1", "args": ["secret"]}},
+          {"entry": "launder_scan_model_proved", "argument_index": 1, "role": {"tag": "ComponentArgumentV1", "args": ["fallback"]}},
+          {"entry": "launder_scan_model_proved", "argument_index": 2, "role": {"tag": "PointerRootArgumentV1", "args": ["buffer"]}},
+          {"entry": "launder_scan_model_proved", "argument_index": 3, "role": {"tag": "PointerRootArgumentV1", "args": ["owner-private-sink"]}}
+        ],
         "placement": [{"entry": "launder_scan_model_proved", "host": "host0"}]
       },
       "abi": {
         "entry": "launder_scan_model_proved",
         "arguments": [
-          {"index": 0, "name": "secret", "kind": "scalar", "confidentiality": "High"},
-          {"index": 1, "name": "fallback", "kind": "scalar", "confidentiality": "WorldVisible"},
-          {"index": 2, "name": "buffer", "kind": "root", "extent_bytes": 8, "confidentiality": "WorldVisible"},
-          {"index": 3, "name": "owner_private_sink", "kind": "root", "extent_bytes": 8, "output": "owner_private_result"}
+          {"index": 0, "name": "secret", "kind": "scalar"},
+          {"index": 1, "name": "fallback", "kind": "scalar"},
+          {"index": 2, "name": "buffer", "kind": "root", "root_id": "buffer", "extent_bytes": 8},
+          {"index": 3, "name": "owner_private_sink", "kind": "root", "root_id": "owner-private-sink", "extent_bytes": 8, "output": "owner-private-result"}
         ],
         "alias_topology": {
           "complete": true,
-          "relations": [{"left": "buffer", "right": "owner_private_sink", "relation": "Disjoint"}]
+          "relations": [{"left": "buffer", "right": "owner-private-sink", "relation": "Disjoint"}]
         },
-        "initialized_regions": [{"root": "buffer", "offset": 0, "width": 8, "visibility": "world"}]
+        "initialized_regions": [{"root": "buffer", "offset": 0, "width": 8}]
       },
       "expected_report": {
-        "oracle": {
+        "expected": {
           "entry": "launder_scan_model_proved",
-          "model_status": {"kind": "Proved"},
-          "deployment_status": {
-            "kind": "Open",
-            "obligations": ["backend-control-delta", "paired-final-binary-refinement"]
-          },
-          "product_rows": [
-            {"coalition": "{}", "product_disposition": "ProductSafe"},
-            {"coalition": "{attacker}", "product_disposition": "ProductSafe"}
+          "expected_model_status": {"tag": "Proved"},
+          "audit_all_expectations": [
+            {"coalition": [], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}}, "replay_expectation": {"tag": "NotApplicableV1"}},
+            {"coalition": ["attacker"], "query_outcome": {"tag": "ConstructedResultMatcherV1", "raw_solver_result": "UNSAT", "query_disposition": {"tag": "Discharged"}}, "replay_expectation": {"tag": "NotApplicableV1"}}
           ]
         }
       }

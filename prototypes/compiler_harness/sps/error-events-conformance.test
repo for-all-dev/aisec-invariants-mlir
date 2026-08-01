@@ -1,0 +1,10 @@
+# REQUIRES: sps-verifier, llvm-22.1.8, sps-error-materialized
+# Future exact-verifier smoke arm. The checked-in intent remains PreflightV1;
+# this becomes runnable only for an operator-supplied ConformanceV1 directory
+# produced from LLVM 22.1.8. The exact verifier owns conformance; this harness
+# checks required-file inventory plus canonical report shape and expected status.
+# RUN: %sps-verifier verify --bundle %sps-error-materialized > %t.report.json
+# RUN: %python %harness/tools/check_sps_error_fixture.py --root %harness --materialized-bundle %sps-error-materialized --report %t.report.json | %FileCheck %s
+# CHECK: validated 08-error-field-binding: future ConformanceV1 error contract (2 error fields)
+# CHECK: checked contract: DeclaredFailure and verifier-UB bindings, payload visibility, exact constructor/output order
+# CHECK: checked exact-verifier report/status for configured future bundle:

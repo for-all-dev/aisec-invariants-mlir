@@ -1,0 +1,17 @@
+entry: wrong_party_plaintext_fixed
+
+secret:
+  - {arg: 0, name: plaintext}
+
+public:
+  - {memory_at_arg: 2, name: unauthorized_mailbox}
+
+allowed:
+  - plaintext may be written only to authorized_mailbox
+
+expect: no-violation
+
+because:
+  - the unauthorized mailbox receives zero while plaintext remains authorized-only
+
+sps: not-run

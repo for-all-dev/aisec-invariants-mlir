@@ -1,12 +1,12 @@
 // CURRENT-INTERFACE CONTROL: same t9 bodies with complete placement.
 // RUN: %mlir-opt %s | %FileCheck %s
 //
-// product rows (per entry):
-//   @serve_placed    {}       ProductSafe
-//   @serve_placed    {alice}  ProductSafe
-//   @serve_unplaced  {}       ProductSafe
-//   @serve_unplaced  {alice}  ProductSafe
-// future artifact ModelStatus: Proved
+// AuditAll fixture expectations (not computed results):
+//   @serve_placed    {}       UNSAT / Discharged
+//   @serve_placed    {alice}  UNSAT / Discharged
+//   @serve_unplaced  {}       UNSAT / Discharged
+//   @serve_unplaced  {alice}  UNSAT / Discharged
+// future ModelStatus matcher: Proved after every scheduled obligation closes
 //
 // CHECK-LABEL: llvm.func @serve_placed
 // CHECK-LABEL: llvm.func @serve_unplaced
@@ -36,4 +36,3 @@ module attributes {
     llvm.return
   }
 }
-

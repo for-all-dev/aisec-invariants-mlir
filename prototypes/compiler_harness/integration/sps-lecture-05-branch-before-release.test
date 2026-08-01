@@ -10,4 +10,4 @@
 # SHAPE-NEXT: call void @release_secret(i8 %secret)
 # SHAPE-NEXT: ret i8 %private
 
-# CONTRACT: verified 05-branch-before-release: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Counterexample
+# CONTRACT: verified 05-branch-before-release: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed; expected-matcher=Counterexample

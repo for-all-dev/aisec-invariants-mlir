@@ -1,7 +1,8 @@
 {
-  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c",
+  "format_id": "SPS-Harness-Candidate-Release-Table-v1",
   "entries": [
     {
+      "id": "masked_class_v1",
       "audience": [
         "alice"
       ],
@@ -9,22 +10,21 @@
         "callee": "sps_release_masked_class_v1",
         "ordinal": 0
       },
-      "footprint": [
-        "logits"
-      ],
+      "value_expression": {
+        "kind": "bit-vector-and",
+        "argument": 0,
+        "constant": 255,
+        "width": 32
+      },
       "guard_expression": {
         "kind": "boolean-literal",
         "value": true
       },
-      "id": "masked_class_v1",
-      "multiplicity": 1,
-      "value_expression": {
-        "argument": 0,
-        "constant": 255,
-        "kind": "bit-vector-and",
-        "width": 32
-      }
+      "footprint": [
+        "logits"
+      ],
+      "multiplicity": 1
     }
   ],
-  "schema_version": "sps-fixture-release-table-v0"
+  "candidate_bitcode_sha256": "f8300f718338899420bb43b9daa3a408149b417990e7e7faa8a32e2dde4e384c"
 }

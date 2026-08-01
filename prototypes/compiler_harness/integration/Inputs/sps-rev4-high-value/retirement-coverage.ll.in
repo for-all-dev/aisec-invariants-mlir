@@ -1,0 +1,105 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary bitcode input, not canonical frozen.bc.
+;
+; RETIREMENT COVERAGE HOLE.
+;   SPS_Lecture_Notes/part5-soundness.tex:161-227 ("The coverage hole: retirement")
+;   SPS_Rev4_Normative_Specification.md section 12, transition 1
+;   (authorized-unequal => the pair's continuing obligation becomes Retired).
+;
+; Both entries below have the SAME post-release secret-dependent observable
+; difference on bit 7 of the secret.  They differ only in the PROJECTION that is
+; authorized for release, and that projection is what decides whether the later
+; difference is still inside an active prefix:
+;
+;   @release_injective_digest  releases a bijective 64-bit finalizer of the whole
+;                              secret word.  Two lanes with different secrets
+;                              always release different values, so under section
+;                              12 transition 1 essentially every admitted pair
+;                              retires at the first release and nothing after it
+;                              is reached by the theorem.
+;
+;   @release_low_bit           releases one bit.  Lanes agreeing on that bit take
+;                              transition 2 (EqualAuthorized), stay Active, and
+;                              may still differ at bit 7 afterwards.
+;
+; The harness records a retirement statistic over these two entries.  It does not
+; compute a ModelStatus for either of them.
+
+declare void @__sps_release_emit_v1_1111111111111111111111111111111111111111111111111111111111111111(i64) #1
+declare void @__sps_release_emit_v1_2222222222222222222222222222222222222222222222222222222222222222(i64) #1
+
+; Pinned outlined release wrappers (five preservation pins, one direct marker
+; call each).  Carrier conformance is exercised by the release-marker family;
+; these exist so the retirement fixture releases through an admissible shape
+; rather than calling the reserved marker straight from an entry.
+define internal void @emit_digest(i64 %value) #0 {
+entry:
+  call ccc void @__sps_release_emit_v1_1111111111111111111111111111111111111111111111111111111111111111(i64 %value) #1
+  ret void
+}
+
+define internal void @emit_low_bit(i64 %value) #0 {
+entry:
+  call ccc void @__sps_release_emit_v1_2222222222222222222222222222222222222222222222222222222222222222(i64 %value) #1
+  ret void
+}
+
+; A splitmix64-style finalizer: xor-shift, odd multiply, xor-shift, odd multiply,
+; xor-shift.  Every one of those five steps is a bijection on i64, so the whole
+; map is a bijection and the released value is injective in the secret word.
+define void @release_injective_digest(i64 %secret, ptr %output) {
+entry:
+  %s0 = lshr i64 %secret, 30
+  %x0 = xor i64 %secret, %s0
+  %x1 = mul i64 %x0, -4658895280553007687
+  %s1 = lshr i64 %x1, 27
+  %x2 = xor i64 %x1, %s1
+  %x3 = mul i64 %x2, -7723592293110705685
+  %s2 = lshr i64 %x3, 31
+  %digest = xor i64 %x3, %s2
+  call ccc void @emit_digest(i64 %digest)
+  br label %after_release
+
+after_release:
+  %probe = and i64 %secret, 128
+  %taken = icmp ne i64 %probe, 0
+  br i1 %taken, label %high_path, label %low_path
+
+high_path:
+  store i64 1, ptr %output, align 8
+  br label %done
+
+low_path:
+  store i64 2, ptr %output, align 8
+  br label %done
+
+done:
+  ret void
+}
+
+; Same tail, one-bit release.  The pairs that agree on bit 0 are never retired,
+; so the identical bit-7 divergence below stays inside the theorem for them.
+define void @release_low_bit(i64 %secret, ptr %output) {
+entry:
+  %low = and i64 %secret, 1
+  call ccc void @emit_low_bit(i64 %low)
+  br label %after_release
+
+after_release:
+  %probe = and i64 %secret, 128
+  %taken = icmp ne i64 %probe, 0
+  br i1 %taken, label %high_path, label %low_path
+
+high_path:
+  store i64 1, ptr %output, align 8
+  br label %done
+
+low_path:
+  store i64 2, ptr %output, align 8
+  br label %done
+
+done:
+  ret void
+}
+
+attributes #0 = { noinline noduplicate nomerge nobuiltin "nooutline" }
+attributes #1 = { nounwind willreturn memory(none) }

@@ -1,6 +1,7 @@
 # REQUIRES: sps-scan-unary
+# Fixture tier: PreflightV1; output is scanner-specific triage, not Section 10.
 # Negative calibration for an always-reporting scanner. Zero findings here is
 # scanner silence only; it is never ModelStatus: Proved.
-# RUN: %sps-scan --refine-address %harness/mlir/alloca_size_public.control.mlir | %FileCheck %s
+# RUN: %sps-scan --refine-address %harness/mlir/alloca-size/public-control/alloca_size_public.control.mlir | %FileCheck %s
 # CHECK-NOT: [secret-dependent-
 # CHECK: findings: 0

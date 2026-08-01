@@ -1,39 +1,52 @@
 {
-  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d",
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v1",
+  "fixture_tier": {
+    "tag": "PreflightV1"
+  },
   "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
   "current_harness_status": {
-    "kind": "Pending",
+    "tag": "PendingV1",
     "reasons": [
       "sps-verifier-not-implemented",
       "llvm-22.1.8-nf-recapture-required"
     ]
   },
-  "expectation_scope": "future-oracle-after-llvm-22.1.8-recapture-and-replacement-by-complete-canonical-rev4-interfaces",
-  "oracle": {
-    "deployment_status": {
-      "kind": "Open",
-      "obligations": [
-        "model-counterexample"
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV1",
+          "raw_solver_result": "SAT",
+          "query_disposition": {
+            "tag": "CandidateOnly"
+          }
+        },
+        "replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV1",
+          "bad_state_class": "public-output-payload-mismatch"
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
       ]
     },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
     "entry": "abi_alias_mayalias_overlap",
-    "global_blockers": [],
-    "model_status": {
-      "kind": "Counterexample",
-      "witness": "required-replayable"
-    },
-    "policy_review_status": {
-      "kind": "Complete"
-    },
-    "product_rows": [
-      {
-        "bad_state": "public-output-payload-mismatch",
-        "coalition": "{}",
-        "product_disposition": "ReplayableCounterexample",
-        "replay": "required"
+    "expected_model_status": {
+      "tag": "Counterexample",
+      "receipt_matcher": {
+        "tag": "FreshProtectedReceiptMatcherV1"
       }
-    ]
+    }
   },
-  "required_checker_feature": "sps-verifier",
-  "schema_version": "sps-fixture-oracle-v0"
+  "candidate_bitcode_sha256": "a5fd05c26fd5f35e4ac650890a4ec75e6a68ffb440474e5e237f4afaf927d48d"
 }

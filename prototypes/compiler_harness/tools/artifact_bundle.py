@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Generate and verify checked-in candidate ``artifact.bc``/derived ``artifact.ll`` pairs."""
+"""Generate and verify non-claimable candidate bitcode fixture bundles.
+
+The sidecars use ``SPS-Harness-*`` schemas.  They are partial preflight
+matchers for the Rev-4 workflow, not canonical SPS interfaces or verifier
+reports.  The ``*ResultMatcherV1`` tags correspond to the normative
+``Constructed(PONFResultArtifactV1)`` and ``NotConstructedV1`` alternatives,
+but deliberately omit identity-bound PONF, solver, and protected-evidence
+fields.  A future conformance fixture must replace them with complete objects.
+"""
 
 from __future__ import annotations
 
@@ -11,19 +19,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import sps_aggregation
+
 
 ROOT = Path(__file__).resolve().parent.parent
-BUNDLES = {
-    "abi-alias-disjoint": "abi_alias_disjoint.control.mlir",
-    "abi-alias-mayalias-overlap": "abi_alias_mayalias_overlap.bad.mlir",
-    "abi-alias-missing-binding": "abi_alias_missing_binding.unknown.mlir",
-    "alloca-size-high": "alloca_size_high_count.unknown.mlir",
-    "alloca-size-public": "alloca_size_public.control.mlir",
-    "audience-mismatch": "audience_mismatch.bad.mlir",
-    "bound-exhausted-public": "bound_exhausted_loop.unknown.mlir",
-    "bound-secret-trip-count": "bound_secret_trip_count.bad.mlir",
-    "launder-scan": "launder_scan.model_proved.p4_open.mlir",
-}
 SIDECARS = (
     "policy.json",
     "abi.json",
@@ -32,6 +31,19 @@ SIDECARS = (
     "expected-report.json",
 )
 SPECS_PATH = ROOT / "artifacts" / "bundle-specs.json"
+SPECS_FORMAT_ID = "SPS-Harness-Candidate-Bundle-Specs-v1"
+ARTIFACT_FORMAT_ID = "SPS-Harness-Candidate-Artifact-v1"
+SIDECAR_FORMAT_IDS = {
+    "policy.json": "SPS-Harness-Candidate-Policy-v1",
+    "abi.json": "SPS-Harness-Candidate-ABI-v1",
+    "contracts.json": "SPS-Harness-Candidate-Contracts-v1",
+    "release-table.json": "SPS-Harness-Candidate-Release-Table-v1",
+    "expected-report.json": "SPS-Harness-Candidate-Expected-Run-v1",
+}
+BASE_V1_DEPLOYMENT_STATUS = {
+    "tag": "Open",
+    "args": [{"tag": "P4EvidenceProfileUnavailable"}],
+}
 
 
 def sha256(path: Path) -> str:
@@ -53,7 +65,10 @@ def version(path: Path) -> str:
 
 
 def write_json(path: Path, value: dict[str, object]) -> None:
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    # Preserve declared field order so nested canonical SPS values retain
+    # constructor ``tag`` before ``args``.  The surrounding object is a
+    # harness matcher, but copied SPS values must still have their real shape.
+    path.write_text(json.dumps(value, indent=2) + "\n")
 
 
 def deep_merge(base: dict[str, object], override: dict[str, object]) -> dict[str, object]:
@@ -66,17 +81,327 @@ def deep_merge(base: dict[str, object], override: dict[str, object]) -> dict[str
     return merged
 
 
+def expected_coalitions(policy: dict[str, object]) -> list[list[str]]:
+    maxima = policy.get("maximal_adversary_coalitions")
+    if not isinstance(maxima, list) or not maxima:
+        raise ValueError("maximal_adversary_coalitions must be a nonempty array")
+    coalitions: set[tuple[str, ...]] = set()
+    for maximum in maxima:
+        if not isinstance(maximum, list) or any(not isinstance(item, str) for item in maximum):
+            raise ValueError("maximal adversary coalition must contain identifiers")
+        if maximum != sorted(set(maximum)):
+            raise ValueError("maximal adversary coalitions must be sorted and duplicate-free")
+        for mask in range(1 << len(maximum)):
+            coalitions.add(tuple(item for index, item in enumerate(maximum) if mask & (1 << index)))
+    return [list(coalition) for coalition in sorted(coalitions, key=lambda item: (len(item), item))]
+
+
+def nested_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        return set(value).union(*(nested_keys(item) for item in value.values()))
+    if isinstance(value, list):
+        return set().union(*(nested_keys(item) for item in value))
+    return set()
+
+
+def validate_visibility_basis(
+    failures: list[str],
+    name: str,
+    basis: object,
+    principals: list[str],
+    allowed_ids: set[str],
+) -> None:
+    required_keys = {"world_visible", "member_visible", "minimally_joint_visible"}
+    if not isinstance(basis, dict) or set(basis) != required_keys:
+        failures.append(f"{name} must be a complete VisibilityBasis-shaped object")
+        return
+    world = basis.get("world_visible")
+    members = basis.get("member_visible")
+    joint = basis.get("minimally_joint_visible")
+    if not isinstance(world, list) or world != sorted(set(world)):
+        failures.append(f"{name}.world_visible must be sorted and duplicate-free")
+        world = []
+    if not isinstance(members, dict) or list(members) != principals:
+        failures.append(f"{name}.member_visible must be total in principal order")
+        members = {}
+    visible_ids = set(world)
+    for principal, identifiers in members.items():
+        if not isinstance(identifiers, list) or identifiers != sorted(set(identifiers)):
+            failures.append(f"{name}.member_visible[{principal}] must be sorted and duplicate-free")
+            continue
+        visible_ids.update(identifiers)
+    if not isinstance(joint, list):
+        failures.append(f"{name}.minimally_joint_visible must be an array")
+    elif joint:
+        failures.append(f"{name}: joint visibility is not represented by this candidate harness schema")
+    if not visible_ids <= allowed_ids:
+        failures.append(f"{name} references undeclared identifiers")
+
+
+def validate_spec(bundle: str, spec: dict[str, object]) -> None:
+    failures: list[str] = []
+    for filename, format_id in SIDECAR_FORMAT_IDS.items():
+        key = filename.removesuffix(".json").replace("-", "_")
+        value = spec.get(key)
+        if not isinstance(value, dict) or value.get("format_id") != format_id:
+            failures.append(f"{filename} must use {format_id}")
+
+    policy = spec.get("policy")
+    abi = spec.get("abi")
+    report = spec.get("expected_report")
+    if not isinstance(policy, dict) or not isinstance(abi, dict) or not isinstance(report, dict):
+        raise SystemExit(f"{bundle}: " + "; ".join(failures or ["missing policy, ABI, or report"]))
+
+    if {"confidentiality", "visibility"} & nested_keys(abi):
+        failures.append("ABI must not author confidentiality or visibility labels")
+    principals = policy.get("principals")
+    if not isinstance(principals, list) or principals != sorted(set(principals)):
+        failures.append("policy principals must be a sorted duplicate-free array")
+        principals = []
+    components = policy.get("components")
+    if not isinstance(components, list) or components != sorted(set(components)):
+        failures.append("policy components must be a sorted duplicate-free array")
+        components = []
+    arguments = abi.get("arguments")
+    roles = policy.get("argument_roles")
+    if not isinstance(arguments, list) or any(not isinstance(item, dict) for item in arguments):
+        failures.append("ABI arguments must be an array of objects")
+        arguments = []
+    if not isinstance(roles, list) or any(not isinstance(item, dict) for item in roles):
+        failures.append("policy argument_roles must be an array of objects")
+        roles = []
+    if [item.get("index") for item in arguments] != list(range(len(arguments))):
+        failures.append("ABI argument indices must be contiguous and ordered")
+    if [item.get("argument_index") for item in roles] != list(range(len(arguments))):
+        failures.append("policy argument roles must cover ABI arguments in order")
+    entry = abi.get("entry")
+    if any(item.get("entry") != entry for item in roles):
+        failures.append("policy argument roles must bind the ABI entry")
+    allowed_roles = {
+        "ComponentArgumentV1",
+        "PointerRootArgumentV1",
+        "PublicConfigurationArgumentV1",
+    }
+    component_basis = policy.get("component_visibility")
+    world_components = (
+        set(component_basis.get("world_visible", []))
+        if isinstance(component_basis, dict)
+        else set()
+    )
+    for index, (argument, role_record) in enumerate(zip(arguments, roles)):
+        role = role_record.get("role")
+        if not isinstance(role, dict) or role.get("tag") not in allowed_roles:
+            failures.append(f"argument {index} has an invalid policy role")
+            continue
+        args = role.get("args")
+        if not isinstance(args, list) or len(args) != 1 or not isinstance(args[0], str):
+            failures.append(f"argument {index} role must carry one stable identifier")
+            continue
+        if role["tag"] == "PointerRootArgumentV1" and argument.get("kind") != "root":
+            failures.append(f"argument {index} pointer-root role is not represented by an ABI root")
+        if role["tag"] == "PointerRootArgumentV1" and argument.get("root_id") != args[0]:
+            failures.append(f"argument {index} policy root and ABI root_id do not match")
+        if role["tag"] != "PointerRootArgumentV1" and argument.get("kind") != "scalar":
+            failures.append(f"argument {index} component role is not represented by an ABI scalar")
+        if role["tag"] in {"ComponentArgumentV1", "PublicConfigurationArgumentV1"} and args[0] not in components:
+            failures.append(f"argument {index} references an undeclared policy component")
+        if role["tag"] == "PublicConfigurationArgumentV1" and args[0] not in world_components:
+            failures.append(f"argument {index} public configuration is not world-visible in policy")
+
+    root_ids = {
+        item.get("root_id")
+        for item in arguments
+        if item.get("kind") == "root" and isinstance(item.get("root_id"), str)
+    }
+    if len(root_ids) != sum(item.get("kind") == "root" for item in arguments):
+        failures.append("every ABI root must have a unique stable root_id")
+    topology = abi.get("alias_topology")
+    relations = topology.get("relations") if isinstance(topology, dict) else None
+    if not isinstance(relations, list) or any(not isinstance(item, dict) for item in relations):
+        failures.append("ABI alias topology relations must be objects")
+    elif any(item.get("left") not in root_ids or item.get("right") not in root_ids for item in relations):
+        failures.append("ABI alias topology must reference stable root_id values")
+    initialized = abi.get("initialized_regions")
+    if not isinstance(initialized, list) or any(not isinstance(item, dict) for item in initialized):
+        failures.append("ABI initialized regions must be objects")
+    elif any(item.get("root") not in root_ids for item in initialized):
+        failures.append("ABI initialized regions must reference stable root_id values")
+
+    output_ids = {
+        item.get("output")
+        for item in arguments
+        if isinstance(item.get("output"), str)
+    }
+    validate_visibility_basis(
+        failures,
+        "component_visibility",
+        policy.get("component_visibility"),
+        principals,
+        set(components),
+    )
+    validate_visibility_basis(
+        failures,
+        "output_visibility",
+        policy.get("output_visibility"),
+        principals,
+        output_ids,
+    )
+    validate_visibility_basis(
+        failures,
+        "error_visibility",
+        policy.get("error_visibility"),
+        principals,
+        set(),
+    )
+
+    if report.get("fixture_tier") != {"tag": "PreflightV1"}:
+        failures.append("candidate report must declare the PreflightV1 tier")
+    if report.get("claimable_from_checked_in_pair") is not False:
+        failures.append("candidate report must remain non-claimable")
+    current = report.get("current_harness_status")
+    if not isinstance(current, dict) or current.get("tag") != "PendingV1" or not current.get("reasons"):
+        failures.append("candidate report must remain PendingV1 with reasons")
+    expected = report.get("expected")
+    if not isinstance(expected, dict):
+        failures.append("expected report matcher is missing")
+        expected = {}
+    if expected.get("entry") != entry:
+        failures.append("expected report matcher and ABI must bind the same entry")
+    if expected.get("expected_deployment_status") != BASE_V1_DEPLOYMENT_STATUS:
+        failures.append("base Rev-4 deployment status must be Open(P4EvidenceProfileUnavailable)")
+    if expected.get("expected_policy_review_status") != {"tag": "Complete"}:
+        failures.append("candidate policy-review matcher must be Complete")
+
+    rows = expected.get("audit_all_expectations")
+    if not isinstance(rows, list) or not rows:
+        failures.append("audit_all_expectations must be a nonempty array")
+        rows = []
+    try:
+        required_coalitions = expected_coalitions(policy)
+    except ValueError as error:
+        failures.append(str(error))
+        required_coalitions = []
+    row_coalitions = [row.get("coalition") for row in rows if isinstance(row, dict)]
+    if sorted(row_coalitions, key=lambda item: (len(item), item)) != required_coalitions:
+        failures.append("AuditAll matchers must cover the exact coalition closure")
+
+    accepted_bad = False
+    unavailable = False
+    unknown_reasons: set[str] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            failures.append("AuditAll matcher row must be an object")
+            continue
+        outcome = row.get("query_outcome")
+        replay = row.get("replay_expectation")
+        if not isinstance(outcome, dict) or not isinstance(replay, dict):
+            failures.append(f"coalition {row.get('coalition')}: outcome and replay matchers are required")
+            continue
+        outcome_tag = outcome.get("tag")
+        replay_tag = replay.get("tag")
+        if outcome_tag == "ConstructedResultMatcherV1":
+            raw = outcome.get("raw_solver_result")
+            disposition = outcome.get("query_disposition")
+            disposition_tag = disposition.get("tag") if isinstance(disposition, dict) else None
+            legal = {
+                "SAT": "CandidateOnly",
+                "UNSAT": "Discharged",
+                "UNKNOWN": "Unknown",
+            }
+            if legal.get(raw) != disposition_tag:
+                failures.append(f"coalition {row.get('coalition')}: illegal AuditAll raw-result/disposition pair")
+            if raw == "SAT":
+                if replay_tag != "AcceptedBadStateRequiredV1" or not replay.get("bad_state_class"):
+                    failures.append(f"coalition {row.get('coalition')}: SAT candidate needs an accepted-bad replay matcher")
+                else:
+                    accepted_bad = True
+            elif raw == "UNSAT" and replay_tag != "NotApplicableV1":
+                failures.append(f"coalition {row.get('coalition')}: discharged AuditAll must not expect replay")
+            elif raw == "UNKNOWN":
+                unavailable = True
+                if disposition_tag == "Unknown":
+                    args = disposition.get("args")
+                    if isinstance(args, list) and len(args) == 1 and isinstance(args[0], dict):
+                        if isinstance(args[0].get("reasonClassId"), str):
+                            unknown_reasons.add(args[0]["reasonClassId"])
+        elif outcome_tag == "NotConstructedResultMatcherV1":
+            reason = outcome.get("reason")
+            if not isinstance(reason, dict) or set(reason) != {"reasonClassId"}:
+                failures.append(f"coalition {row.get('coalition')}: not-constructed matcher needs a canonical reason")
+            if replay_tag != "NotAvailableV1" or replay.get("reason") != reason:
+                failures.append(f"coalition {row.get('coalition')}: unavailable replay reason must match query construction")
+            unavailable = True
+            if isinstance(reason, dict) and isinstance(reason.get("reasonClassId"), str):
+                unknown_reasons.add(reason["reasonClassId"])
+        else:
+            failures.append(f"coalition {row.get('coalition')}: invalid query-outcome matcher tag")
+
+    model = expected.get("expected_model_status")
+    if not isinstance(model, dict):
+        failures.append("expected_model_status matcher is missing")
+    elif accepted_bad:
+        if model != {
+            "tag": "Counterexample",
+            "receipt_matcher": {"tag": "FreshProtectedReceiptMatcherV1"},
+        }:
+            failures.append("accepted bad replay requires a fresh-receipt Counterexample matcher")
+    elif unavailable:
+        # spec:4192-4196 collapses two or more DISTINCT open reasons to
+        # Unknown(OpenModelObligations); keeping only the last row's reason
+        # silently demanded a narrower tag. Shared rule: tools/sps_aggregation.py.
+        if not unknown_reasons:
+            failures.append("unavailable AuditAll requires the matching canonical Unknown reason")
+        else:
+            required_model = sps_aggregation.expected_model_status(
+                accepted_bad_replay=False, blockers=unknown_reasons
+            )
+            if model != required_model:
+                failures.append(
+                    "unavailable AuditAll must aggregate to "
+                    f"{sps_aggregation.describe(unknown_reasons)}"
+                )
+    elif model != {"tag": "Proved"}:
+        failures.append("fully discharged AuditAll rows require a Proved tag matcher")
+
+    if failures:
+        raise SystemExit(f"{bundle}: " + "; ".join(failures))
+
+
 def load_specs() -> dict[str, object]:
     value = json.loads(SPECS_PATH.read_text())
-    if value.get("schema_version") != "sps-bundle-specs-v1":
+    if value.get("format_id") != SPECS_FORMAT_ID:
         raise SystemExit(f"unsupported bundle specs: {SPECS_PATH}")
+    authority = value.get("catalog_authority")
+    if authority != {"claimable": False, "tag": "CandidatePreflightCatalogV1"}:
+        raise SystemExit("bundle-specs catalog must remain explicitly non-claimable")
     defaults = value.get("defaults")
     bundles = value.get("bundles")
     if not isinstance(defaults, dict):
         raise SystemExit("bundle-specs defaults must be an object")
-    if not isinstance(bundles, dict) or set(bundles) != set(BUNDLES):
-        raise SystemExit("bundle-specs inventory does not match generator inventory")
-    return {name: deep_merge(defaults, spec) for name, spec in bundles.items()}
+    if not isinstance(bundles, dict) or not bundles:
+        raise SystemExit("bundle-specs must contain a nonempty candidate inventory")
+    merged = {name: deep_merge(defaults, spec) for name, spec in bundles.items()}
+    for name, spec in merged.items():
+        validate_spec(name, spec)
+    return merged
+
+
+def source_from_identity(bundle: str, directory: Path) -> Path:
+    identity_path = directory / "artifact.json"
+    if not identity_path.is_file():
+        raise SystemExit(f"{bundle}: missing artifact.json source binding")
+    identity = json.loads(identity_path.read_text())
+    source_name = identity.get("source_mlir")
+    if not isinstance(source_name, str):
+        raise SystemExit(f"{bundle}: source_mlir is missing")
+    source = (directory / source_name).resolve()
+    try:
+        source.relative_to((ROOT / "mlir").resolve())
+    except ValueError as error:
+        raise SystemExit(f"{bundle}: source_mlir must resolve inside mlir/") from error
+    if not source.is_file() or not (source.parent / "snapshot.yaml").is_file():
+        raise SystemExit(f"{bundle}: source_mlir must name a human-readable fixture")
+    return source
 
 
 def write_bound_sidecars(directory: Path, spec: dict[str, object], artifact_hash: str) -> None:
@@ -109,9 +434,9 @@ def generate(llvm_bin: Path) -> None:
     }
     specs = load_specs()
 
-    for bundle, source_name in BUNDLES.items():
+    for bundle in sorted(specs):
         directory = ROOT / "artifacts" / bundle
-        source = ROOT / "mlir" / source_name
+        source = source_from_identity(bundle, directory)
         directory.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory() as temporary:
             temporary_path = Path(temporary)
@@ -128,14 +453,16 @@ def generate(llvm_bin: Path) -> None:
         artifact_hash = sha256(directory / "artifact.bc")
         write_bound_sidecars(directory, specs[bundle], artifact_hash)
         identity = {
-            "schema_version": "sps-artifact-candidate-v1",
+            "format_id": ARTIFACT_FORMAT_ID,
             "artifact_role": "checked-in-bitcode-candidate",
+            "fixture_tier": {"tag": "PreflightV1"},
+            "claimable": False,
             "candidate_bitcode_sha256": artifact_hash,
             "derived_llvm_ir_sha256": sha256(directory / "artifact.ll"),
             "candidate_sidecar_sha256": {
                 name: sha256(directory / name) for name in SIDECARS
             },
-            "source_mlir": f"../../mlir/{source_name}",
+            "source_mlir": f"../../{source.relative_to(ROOT).as_posix()}",
             "source_mlir_sha256": sha256(source),
             "producer": producer,
             "rev4_profile": {
@@ -172,7 +499,7 @@ def check(llvm_bin: Path) -> None:
     }
     specs = load_specs()
     failures: list[str] = []
-    for bundle, source_name in BUNDLES.items():
+    for bundle in sorted(specs):
         directory = ROOT / "artifacts" / bundle
         identity_path = directory / "artifact.json"
         if not identity_path.is_file():
@@ -180,10 +507,12 @@ def check(llvm_bin: Path) -> None:
             continue
         identity = json.loads(identity_path.read_text())
         profile = identity.get("rev4_profile")
-        if identity.get("schema_version") != "sps-artifact-candidate-v1":
+        if identity.get("format_id") != ARTIFACT_FORMAT_ID:
             failures.append(f"{bundle}: identity is not an explicit candidate schema")
         if identity.get("artifact_role") != "checked-in-bitcode-candidate":
             failures.append(f"{bundle}: artifact role is not candidate-only")
+        if identity.get("fixture_tier") != {"tag": "PreflightV1"} or identity.get("claimable") is not False:
+            failures.append(f"{bundle}: artifact candidate must remain non-claimable PreflightV1")
         if "canonical_bitcode_sha256" in identity or "NFConforms" in identity:
             failures.append(f"{bundle}: candidate identity contains a forbidden conformance claim")
         if (
@@ -202,7 +531,11 @@ def check(llvm_bin: Path) -> None:
             failures.append(f"{bundle}: bitcode hash mismatch")
         if identity.get("derived_llvm_ir_sha256") != sha256(ll):
             failures.append(f"{bundle}: llvm-ir hash mismatch")
-        source = ROOT / "mlir" / source_name
+        try:
+            source = source_from_identity(bundle, directory)
+        except SystemExit as error:
+            failures.append(str(error))
+            continue
         if identity.get("source_mlir_sha256") != sha256(source):
             failures.append(f"{bundle}: source MLIR hash mismatch; regenerate the pair")
         with tempfile.TemporaryDirectory() as temporary:
@@ -270,6 +603,8 @@ def check(llvm_bin: Path) -> None:
                 failures.append(f"{bundle}: missing {name}")
                 continue
             value = json.loads((directory / name).read_text())
+            if value.get("format_id") != SIDECAR_FORMAT_IDS[name]:
+                failures.append(f"{bundle}/{name}: unsupported harness sidecar format")
             if value.get("candidate_bitcode_sha256") != artifact_hash:
                 failures.append(f"{bundle}/{name}: artifact hash binding mismatch")
             expected = copy.deepcopy(specs[bundle][name.removesuffix(".json").replace("-", "_")])
@@ -281,7 +616,7 @@ def check(llvm_bin: Path) -> None:
                 failures.append(f"{bundle}/{name}: candidate envelope digest mismatch")
     if failures:
         raise SystemExit("\n".join(failures))
-    print(f"verified {len(BUNDLES)} exact .bc/.ll pairs")
+    print(f"verified {len(specs)} exact .bc/.ll pairs")
 
 
 def main() -> None:

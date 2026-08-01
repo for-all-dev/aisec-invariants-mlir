@@ -1,0 +1,19 @@
+entry: explicit_error_oracle_fixed
+
+secret:
+  - {arg: 0, name: padding_is_valid}
+  - {arg: 1, name: padding_error_detail}
+
+public:
+  - {memory_at_arg: 3, name: public_status}
+  - {memory_at_arg: 4, name: public_error_detail}
+
+allowed:
+  - public_status may reveal only padding validity
+
+expect: no-violation
+
+because:
+  - sanctioned status remains while the detailed error is replaced by zero
+
+sps: not-run

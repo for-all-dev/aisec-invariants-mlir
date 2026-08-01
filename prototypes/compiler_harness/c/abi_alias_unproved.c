@@ -32,7 +32,8 @@
  *
  * This source supports three independently bound fixture contracts:
  *   - missing topology => Unknown(AliasBindingMismatch);
- *   - MayAlias, including p == q => Counterexample(ReplayableWitness);
+ *   - MayAlias, including p == q => exact product plus independent replay;
+ *     only an accepted replay permits Counterexample(receiptId);
  *   - proved Disjoint => eligible for Proved under the remaining premises.
  *
  * Deliberate trap:

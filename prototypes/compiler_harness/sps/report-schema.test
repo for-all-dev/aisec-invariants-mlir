@@ -1,0 +1,13 @@
+# Canonical machine-report checks are executable today even though the verifier
+# that will produce these reports remains feature-gated.
+# RUN: %python %harness/tools/check_sps_run_report.py --root %harness --case 02-branchless-repair --report %S/Inputs/report-proved.json | %FileCheck %s --check-prefix=PROVED
+# RUN: %python %harness/tools/check_sps_run_report.py --root %harness --case 01-secret-branch --report %S/Inputs/report-counterexample.json | %FileCheck %s --check-prefix=COUNTEREXAMPLE
+# RUN: %python %harness/tools/check_sps_run_report.py --root %harness --case 03-missing-placement --report %S/Inputs/report-unknown.json | %FileCheck %s --check-prefix=UNKNOWN
+# RUN: cp %S/Inputs/report-counterexample.json %t.bad.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad.json'); value=json.loads(p.read_text()); value['report']['modelStatus']['args']=[{'witness':'not-public'}]; p.write_text(json.dumps(value,separators=(',',':'))+'\n')"
+# RUN: not %python %harness/tools/check_sps_run_report.py --root %harness --case 01-secret-branch --report %t.bad.json 2>&1 | %FileCheck %s --check-prefix=REJECT-WITNESS
+
+# PROVED: verified 02-branchless-repair: canonical CompletedV1 SPSRunReportV1
+# COUNTEREXAMPLE: verified 01-secret-branch: canonical CompletedV1 SPSRunReportV1
+# UNKNOWN: verified 03-missing-placement: canonical CompletedV1 SPSRunReportV1
+# REJECT-WITNESS: Counterexample receiptId is not a random-receipt-shaped 256-bit lowercase hex value

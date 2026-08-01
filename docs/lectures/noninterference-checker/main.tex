@@ -33,6 +33,16 @@ Part~\ref{part:harness} then maps every step onto the regression fixtures that
 guard it, and Part~\ref{part:correctness} answers the question that motivates
 all of it: how would you know the checker itself is correct, and what would a
 mechanized proof for an MLIR-based analysis actually look like?
+
+Part~\ref{part:lowering} then confronts the finding that undoes much of the
+rest: the artifact a checker reads is not the artifact that runs. Twenty
+reproduced compiler transformations force an architecture in which policy stops
+travelling downward and observations travel upward instead.
+
+Part~\ref{part:implementation} is the shortest and the only one about something
+that runs. Six claims in the parts above were wrong until a tool was executed
+against them, which is the argument for building the smallest real thing before
+designing any further.
 \end{abstract}
 
 \tableofcontents
@@ -42,6 +52,8 @@ mechanized proof for an MLIR-based analysis actually look like?
 \input{part3-walkthrough}
 \input{part4-harness}
 \input{part5-correctness}
+\input{part7-lowering}
+\input{part8-implementation}
 \input{part6-appendix}
 
 \end{document}

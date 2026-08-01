@@ -11,81 +11,124 @@ import argparse
 import json
 import re
 from pathlib import Path
+
 from typing import Any
 
+import sps_aggregation
 
-EXPECTED: dict[str, tuple[str, str]] = {
-    "DEF-01": ("definedness", "Counterexample(ReplayableWitness)"),
-    "DEF-02": ("definedness", "Unknown(PossibleUB)"),
-    "DEF-03": ("definedness", "Unknown(PoisonSemanticsUnsupported)"),
-    "DEF-04": ("definedness", "Unknown(UninitializedLoadProducesUndef)"),
-    "REL-01": ("release-marker", "CarrierAccepted"),
-    "REL-02": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-03": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-04": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-05": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-06": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-07": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-08": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-09": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-10": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-11": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-12": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-13": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-14": ("release-marker", "Unknown(ReleaseConformanceMismatch)"),
-    "REL-15": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-16": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-17": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-18": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-19": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-20": ("release-marker", "Counterexample(ReplayableWitness)"),
-    "REL-21": ("release-marker", "CarrierAccepted"),
-    "OUT-01": ("output-closure", "Counterexample(ReplayableWitness)"),
-    "OUT-02": ("output-closure", "Proved"),
-    "OUT-03": ("output-closure", "Counterexample(ReplayableWitness)"),
-    "OUT-04": ("output-closure", "Unknown(OutputBindingIncomplete)"),
-    "OUT-05": ("output-closure", "Unknown(OutputBindingOverlap)"),
-    "OUT-06": ("output-closure", "Unknown(UninitializedOutputByte)"),
-    "OUT-07": ("output-closure", "Counterexample(ReplayableWitness)"),
-    "AGG-01": ("aggregation", "Counterexample(ReplayableWitness)"),
-    "AGG-02": ("aggregation", "Unknown(SolverTimeout)"),
-    "AGG-03": ("aggregation", "Unknown(OpenModelObligations)"),
-    "AGG-04": ("aggregation", "Proved"),
-    "AGG-05": ("aggregation", "Unknown(PipelineMismatch)"),
-    "AGG-06": ("aggregation", "Unknown(VacuousAdmission)"),
-    "AGG-07": ("aggregation", "Unknown(ExpectedHighVariationAbsent)"),
-    "EXT-01": ("external-contract", "ContractAccepted"),
-    "EXT-02": (
-        "external-contract",
-        "Unknown(MechanismNondeterminismUnsupported)",
-    ),
-    "EXT-03": (
-        "external-contract",
-        "Unknown(MechanismNondeterminismUnsupported)",
-    ),
-    "EXT-04": ("external-contract", "Unknown(ContractAllocationUnsupported)"),
-    "EXT-05": ("external-contract", "Counterexample(ReplayableWitness)"),
-    "EXT-06": ("external-contract", "Proved"),
-    "MEM-01": ("exact-memory", "Proved"),
-    "MEM-02": ("exact-memory", "Unknown(UninitializedOutputByte)"),
-    "MEM-03": ("exact-memory", "Unknown(UninitializedLoadProducesUndef)"),
-    "MEM-04": ("exact-memory", "Proved"),
-    "MEM-05": ("exact-memory", "Proved"),
-    "MEM-06": ("exact-memory", "Unknown(UninitializedOutputByte)"),
-    "MEM-07": ("exact-memory", "Proved"),
-    "FRZ-01": ("artifact-freeze", "Unknown(PipelineMismatch)"),
-    "FRZ-02": ("artifact-freeze", "NormalizerAccepted"),
-    "FRZ-03": ("artifact-freeze", "Unknown(FreezeMayChoose)"),
-    "FRZ-04": ("artifact-freeze", "Unknown(UnsupportedStackProtector)"),
-    "PTR-01": ("pointer-layout", "ComparisonAccepted"),
-    "PTR-02": ("pointer-layout", "Unknown(LayoutDependentPointerComparison)"),
-    "PTR-03": ("pointer-layout", "Unknown(LayoutDependentPointerComparison)"),
-    "PTR-04": ("pointer-layout", "ComparisonAccepted"),
-    "ACT-01": ("actor-policy", "Counterexample(ReplayableWitness)"),
-    "ACT-02": ("actor-policy", "Counterexample(ReplayableWitness)"),
-    "ACT-03": ("actor-policy", "Counterexample(ReplayableWitness)"),
-    "ACT-04": ("actor-policy", "Unknown(ManifestMismatch)"),
-    "ACT-05": ("actor-policy", "Proved"),
+
+def status_matcher(tag: str, reason: str | None = None) -> dict[str, Any]:
+    if tag == "Counterexample":
+        return {
+            "tag": "Counterexample",
+            "args": [{"tag": "FreshProtectedReceiptMatcherV1"}],
+        }
+    if tag == "Unknown":
+        assert reason is not None
+        return {"tag": "Unknown", "args": [{"reasonClassId": reason}]}
+    return {"tag": "Proved"}
+
+
+def model_expectation(tag: str, reason: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "tag": "ModelStatusPrerequisitesV1",
+        "expected_model_status": status_matcher(tag, reason),
+    }
+    if tag == "Counterexample":
+        result["final_replay_expectation"] = {
+            "tag": "AcceptedBadStateRequiredV1"
+        }
+    elif tag == "Proved":
+        result["completion_expectation"] = {
+            "tag": "AllScheduledModelObligationsClosedV1"
+        }
+    return result
+
+
+def accepted_stage(stage: str) -> dict[str, Any]:
+    return {
+        "tag": "StageOutcomeV1",
+        "stage": stage,
+        "outcome": {"tag": "AcceptedV1"},
+    }
+
+
+def retirement_expectation() -> dict[str, Any]:
+    """The retirement family records an observation, never a model result.
+
+    part5-soundness.tex:210-219 asks for a retirement statistic in the report
+    only; it explicitly requires no change to the theorem.  So the expectation
+    object here pins `NotComputedV1` rather than any ModelStatus constructor.
+    """
+
+    return {
+        "tag": "SPS-Harness-RetirementCoverageObservationV1",
+        "model_status_expectation": {"tag": "NotComputedV1"},
+        "coverage_query_expectation": {"tag": "AllFourCoverageQueriesSatisfiedV1"},
+        "statistic_expectation": {"tag": "SPS-Harness-Retirement-Statistic-v1"},
+    }
+
+
+EXPECTED: dict[str, tuple[str, dict[str, Any]]] = {
+    "DEF-01": ("definedness", model_expectation("Counterexample")),
+    "DEF-02": ("definedness", model_expectation("Unknown", "PossibleUB")),
+    "DEF-03": ("definedness", model_expectation("Unknown", "PoisonSemanticsUnsupported")),
+    "DEF-04": ("definedness", model_expectation("Unknown", "UninitializedLoadProducesUndef")),
+    "REL-01": ("release-marker", accepted_stage("ReleaseCarrierValidationV1")),
+    **{
+        f"REL-{index:02d}": (
+            "release-marker",
+            model_expectation("Unknown", "ReleaseCarrierMismatch"),
+        )
+        for index in range(2, 15)
+    },
+    **{
+        f"REL-{index:02d}": ("release-marker", model_expectation("Counterexample"))
+        for index in range(15, 21)
+    },
+    "REL-21": ("release-marker", accepted_stage("ReleaseCarrierValidationV1")),
+    "OUT-01": ("output-closure", model_expectation("Counterexample")),
+    "OUT-02": ("output-closure", model_expectation("Proved")),
+    "OUT-03": ("output-closure", model_expectation("Counterexample")),
+    "OUT-04": ("output-closure", model_expectation("Unknown", "OutputBindingIncomplete")),
+    "OUT-05": ("output-closure", model_expectation("Unknown", "OutputBindingOverlap")),
+    "OUT-06": ("output-closure", model_expectation("Unknown", "UninitializedOutputByte")),
+    "OUT-07": ("output-closure", model_expectation("Counterexample")),
+    "AGG-01": ("aggregation", model_expectation("Counterexample")),
+    "AGG-02": ("aggregation", model_expectation("Unknown", "SolverTimeout")),
+    "AGG-03": ("aggregation", model_expectation("Unknown", "OpenModelObligations")),
+    "AGG-04": ("aggregation", model_expectation("Proved")),
+    "AGG-05": ("aggregation", model_expectation("Unknown", "PipelineMismatch")),
+    "AGG-06": ("aggregation", model_expectation("Unknown", "VacuousAdmission")),
+    "AGG-07": ("aggregation", model_expectation("Unknown", "ExpectedHighVariationAbsent")),
+    "EXT-01": ("external-contract", accepted_stage("MechanismContractValidationV1")),
+    "EXT-02": ("external-contract", model_expectation("Unknown", "MechanismNondeterminismUnsupported")),
+    "EXT-03": ("external-contract", model_expectation("Unknown", "MechanismNondeterminismUnsupported")),
+    "EXT-04": ("external-contract", model_expectation("Unknown", "ContractAllocationUnsupported")),
+    "EXT-05": ("external-contract", model_expectation("Counterexample")),
+    "EXT-06": ("external-contract", model_expectation("Proved")),
+    "MEM-01": ("exact-memory", model_expectation("Proved")),
+    "MEM-02": ("exact-memory", model_expectation("Unknown", "UninitializedOutputByte")),
+    "MEM-03": ("exact-memory", model_expectation("Unknown", "UninitializedLoadProducesUndef")),
+    "MEM-04": ("exact-memory", model_expectation("Proved")),
+    "MEM-05": ("exact-memory", model_expectation("Proved")),
+    "MEM-06": ("exact-memory", model_expectation("Unknown", "UninitializedOutputByte")),
+    "MEM-07": ("exact-memory", model_expectation("Proved")),
+    "FRZ-01": ("artifact-freeze", model_expectation("Unknown", "PipelineMismatch")),
+    "FRZ-02": ("artifact-freeze", accepted_stage("NormalFormNormalizationV1")),
+    "FRZ-03": ("artifact-freeze", model_expectation("Unknown", "FreezeMayChoose")),
+    "FRZ-04": ("artifact-freeze", model_expectation("Unknown", "UnsupportedStackProtector")),
+    "PTR-01": ("pointer-layout", accepted_stage("PointerComparisonValidationV1")),
+    "PTR-02": ("pointer-layout", model_expectation("Unknown", "LayoutDependentPointerComparison")),
+    "PTR-03": ("pointer-layout", model_expectation("Unknown", "LayoutDependentPointerComparison")),
+    "PTR-04": ("pointer-layout", accepted_stage("PointerComparisonValidationV1")),
+    "ACT-01": ("actor-policy", model_expectation("Counterexample")),
+    "ACT-02": ("actor-policy", model_expectation("Counterexample")),
+    "ACT-03": ("actor-policy", model_expectation("Counterexample")),
+    "ACT-04": ("actor-policy", model_expectation("Unknown", "PlacementMismatch")),
+    "ACT-05": ("actor-policy", model_expectation("Proved")),
+    "RET-01": ("retirement-coverage", retirement_expectation()),
+    "RET-02": ("retirement-coverage", retirement_expectation()),
 }
 
 FAMILY_ORDER = (
@@ -98,6 +141,7 @@ FAMILY_ORDER = (
     "artifact-freeze",
     "pointer-layout",
     "actor-policy",
+    "retirement-coverage",
 )
 
 MARKER_A = (
@@ -190,7 +234,7 @@ def check_definedness(cases: list[dict[str, Any]], text: str) -> None:
     require(bodies["DEF-04"], "load i8, ptr %slot", "DEF-04")
     if "store " in bodies["DEF-04"]:
         fail("DEF-04: uninitialized-load fixture unexpectedly initializes its slot")
-    if cases[3].get("oracle", {}).get("ub_risk_forbidden") is not True:
+    if cases[3].get("shape_contract", {}).get("ub_risk_forbidden") is not True:
         fail("DEF-04: oracle must distinguish undef from UBRisk")
 
 
@@ -265,7 +309,7 @@ def check_release_markers(cases: list[dict[str, Any]], text: str) -> None:
     require(retry_body, true_call, "REL-21")
     if retry_body.index(false_call) >= retry_body.index(true_call):
         fail("REL-21: guard-false attempt 0 must precede guard-true attempt 1")
-    if retry.get("oracle") != {"attempt_guards": [False, True], "emitted_ordinal": 1}:
+    if retry.get("shape_contract") != {"attempt_guards": [False, True], "emitted_ordinal": 1}:
         fail("REL-21: emitted ordinal must remain wrapper-attempt ordinal 1")
 
 
@@ -287,27 +331,32 @@ def check_output_closure(cases: list[dict[str, Any]], text: str) -> None:
     require(bodies["OUT-07"], "ret i8 0", "OUT-07")
 
 
-def aggregate(inputs: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
-    """Small executable statement of the strict artifact-level priority rule."""
+def aggregate(inputs: dict[str, Any]) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Execute only the strict ModelStatus priority over fixture prerequisites."""
 
     if inputs.get("conformant") is not True:
-        return "Unknown(PipelineMismatch)", ("PipelineMismatch",)
+        return model_expectation("Unknown", "PipelineMismatch"), ("PipelineMismatch",)
 
     blockers = tuple(str(reason) for reason in inputs.get("blockers", ()))
     if inputs.get("replayed_counterexample") is True:
-        return "Counterexample(ReplayableWitness)", blockers
-    if len(blockers) == 1:
-        return f"Unknown({blockers[0]})", blockers
-    if len(blockers) > 1:
-        return "Unknown(OpenModelObligations)", blockers
-    return "Proved", ()
+        return model_expectation("Counterexample"), blockers
+    # spec:4192-4196 blocker-cardinality collapse; shared with
+    # tools/artifact_bundle.py and c/check_harness.py via tools/sps_aggregation.py
+    # so the three checkers cannot drift apart again.
+    collapsed = sps_aggregation.collapse_blockers(blockers)
+    if collapsed is None:
+        return model_expectation("Proved"), ()
+    return model_expectation("Unknown", collapsed), blockers
 
 
 def check_aggregation(cases: list[dict[str, Any]]) -> None:
     for case in cases:
         public, private = aggregate(case.get("inputs", {}))
-        if public != case["expected"]:
-            fail(f"{case['id']}: aggregation produced {public}, expected {case['expected']}")
+        if public != case["expectation"]:
+            fail(
+                f"{case['id']}: aggregation prerequisites produced {public!r}, "
+                f"expected {case['expectation']!r}"
+            )
         if list(private) != case.get("private_reasons"):
             fail(f"{case['id']}: private blocker ledger was not preserved exactly")
     nonconformant = next(case for case in cases if case["id"] == "AGG-05")
@@ -402,14 +451,284 @@ def check_actor_policy(cases: list[dict[str, Any]], root: Path) -> None:
             fail(f"{case_id}: promoted actor fixture lacks an executable RUN line")
         for token in required_tokens[case_id]:
             require(text, token, case_id)
-        compact = re.sub(r"\s+", "", text)
-        rows = case.get("rows")
+        rows = case.get("audit_all_expectations")
         if not isinstance(rows, list) or not rows:
-            fail(f"{case_id}: actor fixture has no expected product rows")
-        for coordinate, disposition in rows:
-            needle = coordinate.replace("/", "") + disposition
-            if needle not in compact:
-                fail(f"{case_id}: source comment lacks product row {coordinate} {disposition}")
+            fail(f"{case_id}: actor fixture has no AuditAll expectations")
+        for row in rows:
+            if row.get("query_kind") != {"tag": "AuditAll"}:
+                fail(f"{case_id}: actor row is not an AuditAll query matcher")
+            if not isinstance(row.get("entry"), str) or not isinstance(
+                row.get("coalition"), list
+            ):
+                fail(f"{case_id}: actor row lacks an entry/coalition scope")
+            outcome = row.get("query_outcome_matcher", {})
+            if outcome.get("tag") not in {
+                "ConstructedResultMatcherV1",
+                "NotConstructedResultMatcherV1",
+            }:
+                fail(f"{case_id}: actor row has an invalid query-outcome matcher")
+
+
+MASK64 = (1 << 64) - 1
+
+# part5-soundness.tex:198-204 lists the four coverage families of alg:coverage
+# in this order, together with the reason each would return if it failed.
+REQUIRED_COVERAGE_QUERIES = (
+    ("AdmissionNonempty", "VacuousAdmission"),
+    ("PairDomainNonempty", "VacuousPairDomain"),
+    ("HighVariation", "ExpectedHighVariationAbsent"),
+    ("ReleaseActivation", "ReleaseActivationMismatch"),
+)
+
+
+def instruction_steps(body: str) -> list[str]:
+    """The entry's instruction sequence, so a step index means something."""
+
+    steps = []
+    for raw in body.splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line or re.fullmatch(r"[\w.$-]+:", line):
+            continue
+        steps.append(line)
+    return steps
+
+
+def released_projection(case_id: str, body: str):
+    """Derive the released expression from the entry's own LLVM text.
+
+    Nothing here is hard-coded to the fixture: the shift amounts, the
+    multipliers and the mask are read out of the module, so mutating the IR
+    moves the statistic computed below.
+    """
+
+    shifts = [int(value) for value in re.findall(r"lshr i64 %\w+, (\d+)", body)]
+    multipliers = [int(value) for value in re.findall(r"mul i64 %\w+, (-?\d+)", body)]
+    masks = [int(value) for value in re.findall(r"%low = and i64 %secret, (-?\d+)", body)]
+
+    if shifts or multipliers:
+        if len(shifts) != 3 or len(multipliers) != 2:
+            fail(
+                f"{case_id}: the finalizer must be exactly three xor-shifts and "
+                "two multiplies"
+            )
+        first, second = (value & MASK64 for value in multipliers)
+
+        def finalizer(secret: int) -> int:
+            value = secret ^ (secret >> shifts[0])
+            value = (value * first) & MASK64
+            value = value ^ (value >> shifts[1])
+            value = (value * second) & MASK64
+            return value ^ (value >> shifts[2])
+
+        return "splitmix64-finalizer", finalizer
+
+    if len(masks) == 1:
+        mask = masks[0] & MASK64
+        return "bit-mask", lambda secret: secret & mask
+
+    fail(f"{case_id}: entry has no recognizable released projection")
+
+
+def retirement_shape(case_id: str, case: dict[str, Any], text: str):
+    """Locate the single release and the post-release secret-dependent step."""
+
+    _, body = function_definition(text, case["function"])
+    steps = instruction_steps(body)
+    wrapper = case["release_wrapper"]
+    releases = [
+        index
+        for index, step in enumerate(steps, 1)
+        if step.startswith(f"call ccc void @{wrapper}(")
+    ]
+    if len(releases) != 1:
+        fail(f"{case_id}: entry must contain exactly one authorized release site")
+    release_index = releases[0]
+    if any(step.startswith("br ") for step in steps[: release_index - 1]):
+        fail(
+            f"{case_id}: the release must be unconditional so ReleaseActivation "
+            "holds on every admitted execution"
+        )
+
+    selectors = [
+        (index, int(value))
+        for index, step in enumerate(steps, 1)
+        for value in re.findall(r"^%probe = and i64 %secret, (\d+)$", step)
+    ]
+    if len(selectors) != 1:
+        fail(f"{case_id}: entry must contain exactly one post-release secret selector")
+    selector_index, selector_mask = selectors[0]
+    if selector_index <= release_index:
+        fail(
+            f"{case_id}: the secret-dependent difference must come after the "
+            "release, otherwise retirement is not what hides it"
+        )
+    if not any(step.startswith("store i64 ") for step in steps[selector_index:]):
+        fail(f"{case_id}: the post-release difference must reach a public store")
+
+    kind, projection = released_projection(case_id, body)
+    return {
+        "kind": kind,
+        "projection": projection,
+        "selector_mask": selector_mask,
+        "first_release_step_index": release_index,
+        "total_steps": len(steps),
+    }
+
+
+def retirement_statistic(case: dict[str, Any], shape: dict[str, Any]) -> dict[str, Any]:
+    """The per-(entry, coalition) statistic of part5-soundness.tex:210-219."""
+
+    bits = case["pair_domain_model"]["secret_bits"]
+    size = 1 << bits
+    values = [shape["projection"](secret) for secret in range(size)]
+    mask = shape["selector_mask"]
+
+    retired = 0
+    active_varying = 0
+    for left in range(size):
+        for right in range(size):
+            if values[left] != values[right]:
+                retired += 1
+            elif (left & mask) != (right & mask):
+                active_varying += 1
+
+    admitted = size * size
+    return {
+        "format": "SPS-Harness-Retirement-Statistic-v1",
+        "entry": case["function"],
+        "coalition": case["coalition"],
+        "secret_bits": bits,
+        "released_projection": shape["kind"],
+        "admitted_pairs": admitted,
+        "secret_varying_pairs": admitted - size,
+        "retired_pairs": retired,
+        "retired_at_first_release": retired,
+        "retirement_fraction_ppm": round(retired * 1_000_000 / admitted),
+        "post_release_active_pairs": admitted - retired,
+        "post_release_active_varying_pairs": active_varying,
+        "first_release_step_index": shape["first_release_step_index"],
+        "total_steps": shape["total_steps"],
+    }
+
+
+def check_retirement_coverage_queries(
+    case_id: str, case: dict[str, Any], derived: dict[str, Any]
+) -> None:
+    witnessed = {
+        "AdmissionNonempty": derived["admitted_pairs"] > 0,
+        "PairDomainNonempty": derived["admitted_pairs"] > 0,
+        "HighVariation": derived["secret_varying_pairs"] > 0,
+        "ReleaseActivation": derived["first_release_step_index"] > 0,
+    }
+    rows = case.get("coverage_queries")
+    if not isinstance(rows, list) or len(rows) != len(REQUIRED_COVERAGE_QUERIES):
+        fail(f"{case_id}: all four coverage queries of alg:coverage must be recorded")
+    for row, (name, reason) in zip(rows, REQUIRED_COVERAGE_QUERIES):
+        if row.get("query") != name:
+            fail(f"{case_id}: coverage query rows must stay in the order of alg:coverage")
+        if row.get("blocking_reason_if_absent") != reason:
+            fail(f"{case_id}: coverage query {name} must name reason {reason}")
+        if row.get("harness_observation") != "Satisfied":
+            fail(
+                f"{case_id}: coverage query {name} must be recorded Satisfied; "
+                "part5-soundness.tex:195-208 is the claim that every one of the "
+                "four passes and none of them sees the collapse"
+            )
+        if not witnessed[name]:
+            fail(
+                f"{case_id}: coverage query {name} is recorded Satisfied but the "
+                "enumerated pair-domain model does not witness it"
+            )
+
+
+def check_retirement_coverage(cases: list[dict[str, Any]], text: str) -> list[str]:
+    by_id = {case["id"]: case for case in cases}
+    if set(by_id) != {"RET-01", "RET-02"}:
+        fail("retirement-coverage needs exactly the collapsing case and its contrast")
+
+    report: list[str] = []
+    derived_by_id: dict[str, dict[str, Any]] = {}
+    shapes: dict[str, dict[str, Any]] = {}
+    for case_id in ("RET-01", "RET-02"):
+        case = by_id[case_id]
+        shape = shapes[case_id] = retirement_shape(case_id, case, text)
+        derived = derived_by_id[case_id] = retirement_statistic(case, shape)
+
+        recorded = case.get("retirement_statistic")
+        if not isinstance(recorded, dict) or set(recorded) != set(derived):
+            fail(f"{case_id}: retirement statistic fields do not match the derived record")
+        for key, value in derived.items():
+            if recorded[key] != value:
+                fail(
+                    f"{case_id}: recomputed retirement statistic disagrees on {key}: "
+                    f"derived {value!r}, recorded {recorded[key]!r}"
+                )
+
+        check_retirement_coverage_queries(case_id, case, derived)
+
+        note = case.get("vacuous_proved_note", "")
+        for fragment in ("vacuous-by-retirement", "does not compute a ModelStatus"):
+            if fragment not in note:
+                fail(f"{case_id}: the vacuity note must say {fragment!r}")
+        scanned = {key: value for key, value in case.items() if key != "vacuous_proved_note"}
+        if "Proved" in json.dumps(scanned):
+            fail(
+                f"{case_id}: retirement fixtures must not carry a Proved ModelStatus "
+                "claim; a Proved on the collapsing side would be vacuous-by-retirement"
+            )
+
+        report.append(
+            "SPS-Harness-Retirement-Statistic-v1 "
+            f"entry={derived['entry']} coalition=[{','.join(derived['coalition'])}] "
+            f"projection={derived['released_projection']} "
+            f"admitted_pairs={derived['admitted_pairs']} "
+            f"retired_pairs={derived['retired_pairs']} "
+            f"retirement_ppm={derived['retirement_fraction_ppm']} "
+            f"first_release_step={derived['first_release_step_index']}"
+            f"/{derived['total_steps']} "
+            f"post_release_active_pairs={derived['post_release_active_pairs']} "
+            f"post_release_active_varying_pairs="
+            f"{derived['post_release_active_varying_pairs']}"
+        )
+
+    if shapes["RET-01"]["selector_mask"] != shapes["RET-02"]["selector_mask"]:
+        fail(
+            "retirement-coverage: both entries must diverge on the same secret bit, "
+            "otherwise the contrast measures the tail rather than the release"
+        )
+
+    collapsing = derived_by_id["RET-01"]
+    if collapsing["retirement_fraction_ppm"] < 990_000:
+        fail(
+            "RET-01: an injective release must collapse coverage; derived "
+            f"retirement_fraction_ppm={collapsing['retirement_fraction_ppm']}"
+        )
+    if collapsing["post_release_active_varying_pairs"] != 0:
+        fail(
+            "RET-01: an injective release must leave no secret-varying pair active "
+            "after the release"
+        )
+
+    contrast = derived_by_id["RET-02"]
+    if contrast["post_release_active_varying_pairs"] == 0:
+        fail(
+            "RET-02: the contrast entry must keep the post-release secret-dependent "
+            "difference in scope; derived post_release_active_varying_pairs=0"
+        )
+    if contrast["retirement_fraction_ppm"] > 750_000:
+        fail(
+            "RET-02: the contrast release must retire only part of the pair domain; "
+            f"derived retirement_fraction_ppm={contrast['retirement_fraction_ppm']}"
+        )
+
+    report.append(
+        "SPS-Harness-Retirement-Coverage-Note-v1 "
+        "all-four-coverage-queries=Satisfied "
+        "collapsing-entry=release_injective_digest "
+        "contrast-entry=release_low_bit "
+        "model_status=NotComputed nf_conforms=NotEvaluated"
+    )
+    return report
 
 
 def check_case_inventory(cases: Any) -> list[dict[str, Any]]:
@@ -417,12 +736,15 @@ def check_case_inventory(cases: Any) -> list[dict[str, Any]]:
         fail("cases must be a list of objects")
     ids = tuple(case.get("id") for case in cases)
     if ids != tuple(EXPECTED):
-        fail("case inventory, order, or uniqueness does not match the 65 required fixtures")
+        fail(
+            "case inventory, order, or uniqueness does not match the "
+            f"{len(EXPECTED)} required fixtures"
+        )
     for case in cases:
         case_id = case["id"]
-        family, expected = EXPECTED[case_id]
-        if case.get("family") != family or case.get("expected") != expected:
-            fail(f"{case_id}: wrong family or expected disposition")
+        family, expectation = EXPECTED[case_id]
+        if case.get("family") != family or case.get("expectation") != expectation:
+            fail(f"{case_id}: wrong family or expected Rev4 prerequisite")
         if not isinstance(case.get("title"), str) or not case["title"]:
             fail(f"{case_id}: missing review title")
     return cases
@@ -437,14 +759,18 @@ def main() -> None:
     root = args.root.resolve()
     catalog_path = root / "integration" / "Inputs" / "sps-rev4-high-value" / "cases.json"
     catalog = json.loads(catalog_path.read_text())
-    if catalog.get("schema_version") != "sps-rev4-high-value-fixtures-v1":
+    if catalog.get("schema_version") != "SPS-Harness-Rev4-High-Value-Fixtures-v2":
         fail("unsupported high-value fixture schema")
     authority = catalog.get("authority")
     if authority != {
+        "tier": {"tag": "PreflightV1"},
         "claimable": False,
         "checker_status": "Unimplemented",
         "current_status": "Pending",
-        "statement": "Expected dispositions are hand-authored Rev. 4 fixture oracles, not current verifier results.",
+        "statement": (
+            "Expectations are harness-scoped prerequisites and stage outcomes; "
+            "no SPSRunReportV1 or ModelStatus has been computed."
+        ),
     }:
         fail("suite authority must remain exactly nonclaimable and Pending")
 
@@ -468,6 +794,9 @@ def main() -> None:
     check_artifact_freeze(grouped["artifact-freeze"], texts["artifact-freeze"])
     check_pointer_layout(grouped["pointer-layout"], texts["pointer-layout"])
     check_actor_policy(grouped["actor-policy"], root)
+    retirement_report = check_retirement_coverage(
+        grouped["retirement-coverage"], texts["retirement-coverage"]
+    )
 
     selected = (args.family,) if args.family else FAMILY_ORDER
     for family in selected:
@@ -475,6 +804,9 @@ def main() -> None:
             f"verified {family}: {len(grouped[family])} nonclaimable fixture cases; "
             "temporary-bitcode-ready; ModelStatus=not-computed"
         )
+    if args.family in (None, "retirement-coverage"):
+        for line in retirement_report:
+            print(line)
     if args.family is None:
         print(f"verified high-value suite: {len(cases)} cases across {len(FAMILY_ORDER)} families")
 

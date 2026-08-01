@@ -1,159 +1,678 @@
 {
-  "schema_version": "sps-lecture-fixture-contracts-v1",
+  "schema_version": "SPS-Harness-Lecture-Fixture-Contracts-v2",
   "source_suite": "SPS/SPS_Lecture_Notes/artifacts/suite.logical.yaml",
   "authority": {
+    "tier": {
+      "tag": "PreflightV1"
+    },
     "claimable": false,
     "checker_status": "Unimplemented",
     "current_status": "Pending",
-    "statement": "Expected classes are hand-authored fixture oracles, not current ModelStatus values."
+    "statement": "Expected matchers describe future Rev4 prerequisites; these LLVM shape fixtures do not compute ModelStatus."
+  },
+  "source_binding": {
+    "formatId": "SPS-Harness-Lecture-Source-Binding-v1",
+    "source_root_env": "SPS_LECTURE_SOURCE",
+    "source_root_hint": "SPS/SPS_Lecture_Notes/artifacts",
+    "source_relative_path": "<case_id>/frozen.ll.sketch",
+    "upstream_corpus_present_in_repo": false,
+    "normalization": "drop the leading run of comment and blank lines; right-strip every remaining line; drop trailing blank lines; join with LF and end with one LF",
+    "normalization_rationale": "the mirrored capture shape and the upstream sketch deliberately carry different leading header comments, so only the body is bound",
+    "claim": "SPS-Harness-* record. Binds the mirrored capture shape to the upstream teaching sketch by digest. It asserts nothing about NFConforms, ModelStatus, DeploymentStatus, or PolicyReviewStatus."
   },
   "cases": [
     {
       "case_id": "01-secret-branch",
       "capture_shape": "integration/Inputs/sps-lecture/01-secret-branch/capture-shape.ll",
+      "capture_shape_sha256": "e514018228cf0ebffd2455b0e4da348ffe6c00a5b34a808cf6f653a966422ed1",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/01-secret-branch/frozen.ll.sketch",
+      "source_artifact_sha256": "e514018228cf0ebffd2455b0e4da348ffe6c00a5b34a808cf6f653a966422ed1",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Counterexample",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Complete",
-      "coalition_rows": [
-        {"coalition": [], "expected": "CounterexampleCandidate"},
-        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": null,
         "marker_symbol": null,
         "ordering": "secret-branch-only"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Counterexample",
+        "args": [
+          {
+            "tag": "FreshProtectedReceiptMatcherV1"
+          }
+        ]
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "Complete"
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     },
     {
       "case_id": "02-branchless-repair",
       "capture_shape": "integration/Inputs/sps-lecture/02-branchless-repair/capture-shape.ll",
+      "capture_shape_sha256": "248f6594e8f7dae95778d62a9488d2e0070c68e764ba14fa9c3bd45ea0b7a09a",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/02-branchless-repair/frozen.ll.sketch",
+      "source_artifact_sha256": "248f6594e8f7dae95778d62a9488d2e0070c68e764ba14fa9c3bd45ea0b7a09a",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Proved",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Complete",
-      "coalition_rows": [
-        {"coalition": [], "expected": "SafeCandidate"},
-        {"coalition": ["observer"], "expected": "SafeCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": null,
         "marker_symbol": null,
         "ordering": "branchless"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Proved"
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "Complete"
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     },
     {
       "case_id": "03-missing-placement",
       "capture_shape": "integration/Inputs/sps-lecture/03-missing-placement/capture-shape.ll",
+      "capture_shape_sha256": "248f6594e8f7dae95778d62a9488d2e0070c68e764ba14fa9c3bd45ea0b7a09a",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/03-missing-placement/frozen.ll.sketch",
+      "source_artifact_sha256": "248f6594e8f7dae95778d62a9488d2e0070c68e764ba14fa9c3bd45ea0b7a09a",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Unknown",
-      "expected_reason": "PlacementMismatch",
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "GeneratedLater",
-      "coalition_rows": [
-        {"coalition": [], "expected": "Blocked(PlacementMismatch)"},
-        {"coalition": ["observer"], "expected": "Blocked(PlacementMismatch)"},
-        {"coalition": ["owner"], "expected": "Blocked(PlacementMismatch)"}
-      ],
       "shape_contract": {
         "release_id": null,
         "marker_symbol": null,
         "ordering": "branchless-return-placement-omitted"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Unknown",
+        "args": [
+          {
+            "reasonClassId": "PlacementMismatch"
+          }
+        ]
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "Complete"
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "NotConstructedResultMatcherV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotAvailableV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "NotConstructedResultMatcherV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotAvailableV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "NotConstructedResultMatcherV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotAvailableV1",
+            "reason": {
+              "reasonClassId": "PlacementMismatch"
+            }
+          }
+        }
+      ]
     },
     {
       "case_id": "04-authorized-release-first",
       "capture_shape": "integration/Inputs/sps-lecture/04-authorized-release-first/capture-shape.ll",
+      "capture_shape_sha256": "6501305678e2861d2e9390faf9057d12ef28848d78abe4c0d97d6df3341a60cb",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/04-authorized-release-first/frozen.ll.sketch",
+      "source_artifact_sha256": "6501305678e2861d2e9390faf9057d12ef28848d78abe4c0d97d6df3341a60cb",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Proved",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Findings(IdentityReleaseOfHigh)",
-      "coalition_rows": [
-        {"coalition": [], "expected": "SafeCandidate"},
-        {"coalition": ["observer"], "expected": "SafeCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": "q.secret",
         "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
         "ordering": "release-before-branch"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Proved"
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "FindingsMatcherV1",
+        "required_lint_classes": [
+          "IdentityReleaseOfHigh"
+        ]
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     },
     {
       "case_id": "05-branch-before-release",
       "capture_shape": "integration/Inputs/sps-lecture/05-branch-before-release/capture-shape.ll",
+      "capture_shape_sha256": "aa6407a97930c7f50dbceb90e7c08428577b7ff6ac94936befcf1e8dd6a29fa2",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/05-branch-before-release/frozen.ll.sketch",
+      "source_artifact_sha256": "aa6407a97930c7f50dbceb90e7c08428577b7ff6ac94936befcf1e8dd6a29fa2",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Counterexample",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Findings(IdentityReleaseOfHigh)",
-      "coalition_rows": [
-        {"coalition": [], "expected": "CounterexampleCandidate"},
-        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": "q.secret",
         "marker_symbol": "__sps_release_emit_v1_7fb6e6e656fdabb14c8552c05bb74c9301e07b8282418fa4fc4d99442fa85d0d",
         "ordering": "branch-before-release"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Counterexample",
+        "args": [
+          {
+            "tag": "FreshProtectedReceiptMatcherV1"
+          }
+        ]
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "FindingsMatcherV1",
+        "required_lint_classes": [
+          "IdentityReleaseOfHigh"
+        ]
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     },
     {
       "case_id": "06-equal-release-stays-active",
       "capture_shape": "integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll",
+      "capture_shape_sha256": "f9df849023e2d32b5676754c1c805d745859d542d75f5954132b41facc52e00f",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/06-equal-release-stays-active/frozen.ll.sketch",
+      "source_artifact_sha256": "f9df849023e2d32b5676754c1c805d745859d542d75f5954132b41facc52e00f",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Counterexample",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Complete",
-      "coalition_rows": [
-        {"coalition": [], "expected": "CounterexampleCandidate"},
-        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": "q.lowbit",
         "marker_symbol": "__sps_release_emit_v1_28fe3bc98c4bf216de7f7bb9f982275a4b96866e157ce19cea364d25eda1f7ec",
         "ordering": "equal-release-before-high-branch"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Counterexample",
+        "args": [
+          {
+            "tag": "FreshProtectedReceiptMatcherV1"
+          }
+        ]
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "Complete"
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     },
     {
       "case_id": "07-wrong-audience-stays-active",
       "capture_shape": "integration/Inputs/sps-lecture/07-wrong-audience-stays-active/capture-shape.ll",
+      "capture_shape_sha256": "7cad1a175518ba4911c5bf7bb1971f649f34265cb3b77e02a3483e3a09a8e1a3",
       "source_artifact": "SPS/SPS_Lecture_Notes/artifacts/07-wrong-audience-stays-active/frozen.ll.sketch",
+      "source_artifact_sha256": "7cad1a175518ba4911c5bf7bb1971f649f34265cb3b77e02a3483e3a09a8e1a3",
       "claimable": false,
       "current_status": "Pending",
-      "expected_model_status_class": "Counterexample",
-      "expected_reason": null,
-      "expected_deployment_status": "Open(P4EvidenceProfileUnavailable)",
-      "expected_policy_review_status": "Complete",
-      "coalition_rows": [
-        {"coalition": [], "expected": "CounterexampleCandidate"},
-        {"coalition": ["observer"], "expected": "CounterexampleCandidate"},
-        {"coalition": ["owner"], "expected": "SafeCandidate"}
-      ],
       "shape_contract": {
         "release_id": "q.secret.owner",
         "marker_symbol": "__sps_release_emit_v1_5bcbb1188a543432c3390638a0ae396ecc981822bce5ec6f551d7581e6d02779",
         "ordering": "owner-release-before-branch-at-owner-only-host"
-      }
+      },
+      "tier": {
+        "tag": "PreflightV1"
+      },
+      "expected_model_status_matcher": {
+        "tag": "Counterexample",
+        "args": [
+          {
+            "tag": "FreshProtectedReceiptMatcherV1"
+          }
+        ]
+      },
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status_matcher": {
+        "tag": "Complete"
+      },
+      "audit_all_expectations": [
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "SAT",
+            "query_disposition": {
+              "tag": "CandidateOnly"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "AcceptedBadStateRequiredV1"
+          }
+        },
+        {
+          "query_kind": {
+            "tag": "AuditAll"
+          },
+          "entry": "fixture_entry",
+          "coalition": [
+            "owner"
+          ],
+          "query_outcome_matcher": {
+            "tag": "ConstructedResultMatcherV1",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "final_replay_expectation": {
+            "tag": "NotApplicableV1"
+          }
+        }
+      ]
     }
   ]
 }

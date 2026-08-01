@@ -1,0 +1,14 @@
+entry: clangover_poly_frommsg_source
+
+secret:
+  - {arg: 0, name: bit}
+
+public:
+  - {observable: timing}
+
+expect: shape-only
+
+because:
+  - the source operation is branchless, while target behavior is not represented here
+
+sps: not-run

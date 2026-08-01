@@ -11,4 +11,4 @@
 # SHAPE: br i1 %is_zero
 # SHAPE: ret i8 %private
 
-# CONTRACT: verified 04-authorized-release-first: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Proved
+# CONTRACT: verified 04-authorized-release-first: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed; expected-matcher=Proved

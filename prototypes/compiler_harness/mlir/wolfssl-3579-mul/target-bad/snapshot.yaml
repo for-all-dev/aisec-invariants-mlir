@@ -1,0 +1,16 @@
+entry: wolfssl_3579_mul_rv32_bad_model
+
+secret:
+  - {arg: 0, name: secret_a}
+  - {arg: 1, name: secret_b}
+
+public:
+  - {observable: control}
+  - {observable: timing}
+
+expect: target-risk
+
+because:
+  - both secret operands enter a helper modeled with operand-dependent latency
+
+sps: not-run

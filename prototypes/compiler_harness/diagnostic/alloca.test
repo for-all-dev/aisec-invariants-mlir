@@ -1,4 +1,5 @@
 # REQUIRES: sps-scan-unary
-# RUN: %sps-scan --refine-address %harness/mlir/alloca_size_high_count.unknown.mlir | %FileCheck %s
+# Fixture tier: PreflightV1; output is scanner-specific triage, not Section 10.
+# RUN: %sps-scan --refine-address %harness/mlir/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir | %FileCheck %s
 # CHECK: [secret-dependent-allocation-size] llvm.alloca
 # CHECK: findings: 1

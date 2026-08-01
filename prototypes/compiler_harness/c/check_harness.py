@@ -17,12 +17,17 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+from yaml.tokens import AliasToken, AnchorToken, TagToken
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import sps_aggregation  # noqa: E402  (shared normative aggregation rule)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 C_DIR = ROOT / "c"
 MLIR_DIR = ROOT / "mlir"
 ARTIFACTS_DIR = ROOT / "artifacts"
-SHAPE_MANIFEST = ROOT / "contracts" / "shape-fixtures.json"
 CONFORMANCE_MATRIX = ROOT / "contracts" / "rev4-conformance-matrix.json"
 
 PROVENANCE_FIELDS = (
@@ -35,7 +40,7 @@ PROVENANCE_FIELDS = (
     "License note:",
 )
 
-MLIR_FIELDS = (
+RETIRED_MLIR_HEADER_FIELDS = (
     "// case:",
     "// entry:",
     "// classification:",
@@ -45,7 +50,9 @@ MLIR_FIELDS = (
     "// secret:",
     "// public:",
     "// diagnostic focus:",
-    "// evidence boundary:",
+    "// fixture tier:",
+    "// fixture scope:",
+    "// normative target:",
 )
 
 LEGACY_RESULT_FIELDS = (
@@ -56,62 +63,116 @@ LEGACY_RESULT_FIELDS = (
     "// outstanding obligations:",
     "// result rows:",
     "// target tuple:",
-    "// l1 disposition:",
+    "// " + "l" + "1 disposition:",
 )
 
-CLASSIFICATIONS = frozenset(
+LEGACY_BOUNDARY_FIELDS = (
+    "// " + "evidence boundary:",
+    "// " + "detection boundary:",
+)
+
+AUTHORITATIVE_RESULT_FIELDS = (
+    "// model status:",
+    "// ModelStatus:",
+    "// deployment status:",
+    "// DeploymentStatus:",
+    "// policy review status:",
+    "// product disposition:",
+)
+
+IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
+MLIR_SYMBOL = re.compile(r"[A-Za-z_.$][A-Za-z0-9_.$-]*\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+LEGACY_LEVEL = re.compile(r"\bL[0-4]\b")
+SNAPSHOT_EXPECTATIONS = frozenset(
     {
-        "compiler-generated-minimized",
-        "modeled-from-verified-assembly",
-        "modeled-fixed-target",
-        "modeled-helper-call-without-contract",
-        "modeled-test-profile",
-        "seeded-semantic-harness",
-        "reduced-runtime-model",
+        "violation",
+        "no-violation",
+        "unknown",
+        "relational-check",
+        "target-risk",
+        "shape-only",
     }
 )
-
-MODEL_STATUS = frozenset({"Proved", "Counterexample", "Unknown"})
-DEPLOYMENT_STATUS = frozenset({"Open", "Closed"})
-POLICY_STATUS = frozenset({"Complete", "Findings", "Incomplete"})
-PRODUCT_DISPOSITION = frozenset({"ProductSafe", "ReplayableCounterexample", "Blocked"})
-IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
-SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-EVIDENCE_LEVEL = re.compile(r"\bL[0-4]\b")
-COALITION = re.compile(r"\{(?:[a-z][a-z0-9-]*(?:,[a-z][a-z0-9-]*)*)?\}\Z")
+SNAPSHOT_OBSERVABLES = frozenset(
+    {"address", "allocation-size", "control", "release-identity", "return", "timing"}
+)
+SNAPSHOT_SPS_STATES = frozenset(
+    {"not-run", "proved", "counterexample", "unknown", "error"}
+)
+PUBLIC_REASON_CLASSES_V1 = frozenset(
+    {
+        "AliasBindingMismatch",
+        "AllocaSizeNotWorldStructural",
+        "ArtifactMismatch",
+        "ContractAllocationUnsupported",
+        "ContractReleaseUnsupported",
+        "CouplingFiberCoverageFailure",
+        "DiagnosticHealthFailure",
+        "ExpectedHighVariationAbsent",
+        "FreezeMayChoose",
+        "HorizonDerivationMismatch",
+        "HorizonDerivationUnsupported",
+        "IndirectCall",
+        "InvalidDiagnosticShortcut",
+        "LayoutDependentPointerComparison",
+        "LoopRemainder",
+        "ManifestMismatch",
+        "MechanismNondeterminismUnsupported",
+        "NormalizerMismatch",
+        "OpenModelObligations",
+        "OutputBindingIncomplete",
+        "OutputBindingOverlap",
+        "OutputClosureMismatch",
+        "PONFFPArithmeticUnsupported",
+        "PONFIntrinsicUnsupported",
+        "PersistentInvariantEncodingUnsupported",
+        "PipelineMismatch",
+        "PlacementMismatch",
+        "PoisonSemanticsUnsupported",
+        "PossibleUB",
+        "PublicBoundBindingMismatch",
+        "Recursion",
+        "ReleaseActivationMismatch",
+        "ReleaseCarrierMismatch",
+        "ReleaseConformanceMismatch",
+        "ReleaseConformanceUnknown",
+        "ResidualVector",
+        "ResourceLimit",
+        "SolverTimeout",
+        "StableIdentityMismatch",
+        "ToolInconsistency",
+        "UnclassifiedAnnotation",
+        "UnclassifiedIR",
+        "UninitializedLoadProducesUndef",
+        "UninitializedOutputByte",
+        "UnsupportedAddressObservationProfile",
+        "UnsupportedOpcode",
+        "UnsupportedStackProtector",
+        "UnsupportedType",
+        "VacuousAdmission",
+    }
+)
 REQUIRED_CONFORMANCE_IDS = {
     *(f"NF-A{index:02d}" for index in range(1, 16)),
     *(f"NF-CM{index:02d}" for index in range(1, 13)),
 }
 
-# Each bundle contains the theorem-facing form of a corrected MLIR shape seed.
-SEMANTIC_BUNDLES = {
-    "abi_alias_disjoint.control.mlir": "abi-alias-disjoint",
-    "abi_alias_mayalias_overlap.bad.mlir": "abi-alias-mayalias-overlap",
-    "abi_alias_missing_binding.unknown.mlir": "abi-alias-missing-binding",
-    "alloca_size_high_count.unknown.mlir": "alloca-size-high",
-    "alloca_size_public.control.mlir": "alloca-size-public",
-    "audience_mismatch.bad.mlir": "audience-mismatch",
-    "bound_exhausted_loop.unknown.mlir": "bound-exhausted-public",
-    "bound_secret_trip_count.bad.mlir": "bound-secret-trip-count",
-    "launder_scan.model_proved.p4_open.mlir": "launder-scan",
-}
-
 ERROR_BLOCK = re.compile(
-    r"(?m)^\s*// CONFIDENTIALITY ERROR: .+\n"
+    r"(?m)^\s*// PREFLIGHT FINDING: .+\n"
     r"\s*// secret source: .+\n"
     r"\s*// observable effect: .+\n"
     r"\s*// reason: .+\n"
-    r"\s*// detection boundary: .+\n"
+    r"\s*// preflight expectation: .+\n"
     r"\s*(?!//)(?:[%^}]|[a-zA-Z]).+"
 )
 
 REPAIR_BLOCK = re.compile(
-    r"(?m)^\s*// CONFIDENTIALITY REPAIR: .+\n"
+    r"(?m)^\s*// PREFLIGHT CONTROL: .+\n"
     r"\s*// secret source: .+\n"
     r"\s*// (?:removed observable|safe effect): .+\n"
     r"\s*// reason: .+\n"
-    r"\s*// detection boundary: .+\n"
+    r"\s*// preflight expectation: .+\n"
     r"\s*(?!//)(?:[%^}]|[a-zA-Z]).+"
 )
 
@@ -208,6 +269,8 @@ def check_provenance() -> list[str]:
 
     for path in c_sources():
         text = path.read_text()
+        if LEGACY_LEVEL.search(text):
+            fail(errors, path, "retired numbered-level vocabulary is forbidden; name the SPS responsibility")
         for field in PROVENANCE_FIELDS:
             if field not in text:
                 fail(errors, path, f"missing provenance field {field!r}")
@@ -230,131 +293,367 @@ def check_provenance() -> list[str]:
     return errors
 
 
-def required_capabilities(name: str) -> list[str]:
-    caps = {"canonical-bitcode-v1", "policy-binding-v1", "whole-entry-product-v1"}
-    lowered = name.lower()
-    if any(token in lowered for token in ("alias", "offset", "overwritten", "leftover", "redis")):
-        caps.update({"byte-memory-v1", "alias-v1"})
-    if any(token in lowered for token in ("release", "audience", "error_oracle", "ckks")):
-        caps.update({"release-ledger-v1", "coalition-audience-v1"})
-    if any(token in lowered for token in ("wrong_party", "wrong_host")):
-        caps.add("coalition-audience-v1")
-    if any(token in lowered for token in ("precision", "predecessor", "bound", "alloca")):
-        caps.add("relational-v1")
-    if any(token in lowered for token in ("kyberslash", "clangover", "wolfssl", "launder")):
-        caps.add("final-binary-p4-v1")
-    return sorted(caps)
+class StrictSnapshotLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects duplicate keys and merge semantics."""
 
 
-def shape_record(path: Path) -> dict[str, object]:
-    text = path.read_text()
-    entries = field_values(text, "// entry:")
-    entry = entries[0] if len(entries) == 1 else "<invalid>"
-    focus = field_values(text, "// diagnostic focus:")
-    classification = field_values(text, "// classification:")
-    return {
-        "sha256": digest(path),
-        "scope": "preflight-only",
-        "entry": entry,
-        "classification": classification[0] if len(classification) == 1 else "<invalid>",
-        "diagnostic_focus": focus[0] if len(focus) == 1 else "<invalid>",
-        "semantic_bundle": SEMANTIC_BUNDLES.get(path.name),
-        "pending_capabilities": required_capabilities(path.name),
-    }
+def _construct_snapshot_mapping(
+    loader: StrictSnapshotLoader, node: yaml.MappingNode, deep: bool = False
+) -> dict[str, object]:
+    mapping: dict[str, object] = {}
+    for key_node, value_node in node.value:
+        if key_node.tag == "tag:yaml.org,2002:merge" or key_node.value == "<<":
+            raise yaml.constructor.ConstructorError(
+                None, None, "merge keys are not allowed", key_node.start_mark
+            )
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str):
+            raise yaml.constructor.ConstructorError(
+                None, None, "mapping keys must be strings", key_node.start_mark
+            )
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                None, None, f"duplicate key {key!r}", key_node.start_mark
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
 
 
-def shape_manifest_snapshot() -> dict[str, object]:
-    return {
-        "schema_version": "sps-shape-manifest-v1",
-        "scope": "preflight-only",
-        "fixed_observation_model": "Theta_ct",
-        "model_status_authoritative": False,
-        "fixtures": {
-            path.name: shape_record(path) for path in sorted(MLIR_DIR.glob("*.mlir"))
-        },
-    }
+StrictSnapshotLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_snapshot_mapping
+)
 
 
-def write_shape_manifest() -> None:
-    SHAPE_MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    SHAPE_MANIFEST.write_text(json.dumps(shape_manifest_snapshot(), indent=2, sort_keys=True) + "\n")
-
-
-def check_shape_manifest() -> list[str]:
-    errors: list[str] = []
-    if not SHAPE_MANIFEST.is_file():
-        fail(errors, SHAPE_MANIFEST, "missing; run check_harness.py update-manifest")
-        return errors
+def read_snapshot(errors: list[str], path: Path) -> dict[str, object] | None:
     try:
-        actual = json.loads(SHAPE_MANIFEST.read_text())
-    except (OSError, json.JSONDecodeError) as error:
-        fail(errors, SHAPE_MANIFEST, f"cannot parse: {error}")
-        return errors
-    expected = shape_manifest_snapshot()
-    if actual != expected:
-        fail(errors, SHAPE_MANIFEST, "stale or incomplete; run check_harness.py update-manifest")
-    return errors
+        text = path.read_text()
+        for token in yaml.scan(text):
+            if isinstance(token, (AliasToken, AnchorToken, TagToken)):
+                raise ValueError("aliases, anchors, and explicit tags are not allowed")
+        value = yaml.load(text, Loader=StrictSnapshotLoader)
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        fail(errors, path, f"cannot parse strict snapshot YAML: {error}")
+        return None
+    if not isinstance(value, dict):
+        fail(errors, path, "top-level snapshot must be a mapping")
+        return None
+    required = {"entry", "secret", "public", "expect", "because", "sps"}
+    allowed = required | {"allowed", "finding"}
+    actual = set(value)
+    if not required <= actual or not actual <= allowed:
+        fail(
+            errors,
+            path,
+            "snapshot fields must contain exactly the required fields plus optional "
+            f"allowed/finding; missing={sorted(required - actual)}, "
+            f"extra={sorted(actual - allowed)}",
+        )
+        return None
+    return value
+
+
+def _entry_arguments(
+    errors: list[str], path: Path, text: str, entry: str
+) -> list[tuple[str, str]] | None:
+    matches = list(
+        re.finditer(rf"(?m)^\s*llvm\.func\s+@{re.escape(entry)}\s*\(", text)
+    )
+    if len(matches) != 1:
+        fail(errors, path, f"entry {entry!r} must name exactly one llvm.func")
+        return None
+    opening = matches[0].end() - 1
+    depth = 0
+    quoted = False
+    escaped = False
+    closing = None
+    for index in range(opening, len(text)):
+        character = text[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+            continue
+        if character == '"':
+            quoted = True
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth == 0:
+                closing = index
+                break
+    if closing is None:
+        fail(errors, path, f"entry {entry!r} has an unterminated parameter list")
+        return None
+    arguments: list[tuple[str, str]] = []
+    for position, argument in enumerate(
+        split_llvm_arguments(text[opening + 1 : closing])
+    ):
+        match = re.match(r"\s*%([A-Za-z0-9_.$-]+)\s*:\s*(.+)\Z", argument, re.S)
+        if not match:
+            fail(errors, path, f"entry argument {position} is not a named LLVM argument")
+            return None
+        arguments.append((match.group(1), match.group(2).strip()))
+    return arguments
+
+
+def _string_list(
+    errors: list[str], path: Path, value: object, field: str, *, allow_empty: bool
+) -> list[str] | None:
+    if (
+        not isinstance(value, list)
+        or (not allow_empty and not value)
+        or any(not isinstance(item, str) or not item.strip() for item in value)
+    ):
+        qualifier = "possibly empty" if allow_empty else "nonempty"
+        fail(errors, path, f"{field} must be a {qualifier} list of nonempty strings")
+        return None
+    return value
+
+
+def _argument_reference(
+    errors: list[str],
+    path: Path,
+    item: object,
+    arguments: list[tuple[str, str]],
+    index_key: str,
+    context: str,
+) -> tuple[int, str] | None:
+    if not isinstance(item, dict) or set(item) != {index_key, "name"}:
+        fail(errors, path, f"{context} must contain exactly {index_key!r} and 'name'")
+        return None
+    index = item.get(index_key)
+    name = item.get("name")
+    if isinstance(index, bool) or not isinstance(index, int) or index < 0:
+        fail(errors, path, f"{context} argument index must be a nonnegative integer")
+        return None
+    if index >= len(arguments):
+        fail(errors, path, f"{context} argument index {index} is out of range")
+        return None
+    if not isinstance(name, str) or name != arguments[index][0]:
+        fail(
+            errors,
+            path,
+            f"{context} name must match argument {index} ({arguments[index][0]!r})",
+        )
+        return None
+    if index_key == "memory_at_arg" and "!llvm.ptr" not in arguments[index][1]:
+        fail(errors, path, f"{context} argument {index} is not pointer-typed")
+        return None
+    return (index, name)
+
+
+def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
+    errors: list[str] = []
+    records: list[dict[str, object]] = []
+    snapshot_paths = sorted(MLIR_DIR.rglob("snapshot.yaml"))
+    mlir_paths = sorted(MLIR_DIR.rglob("*.mlir"))
+
+    if not snapshot_paths:
+        fail(errors, MLIR_DIR, "no snapshot.yaml fixtures were discovered")
+    for mlir_path in mlir_paths:
+        if not (mlir_path.parent / "snapshot.yaml").is_file():
+            fail(errors, mlir_path, "fixture MLIR has no sibling snapshot.yaml")
+
+    entries: dict[str, Path] = {}
+    for snapshot_path in snapshot_paths:
+        try:
+            relative_parent = snapshot_path.parent.relative_to(MLIR_DIR)
+        except ValueError:
+            fail(errors, snapshot_path, "snapshot is outside mlir/")
+            continue
+        if len(relative_parent.parts) != 2:
+            fail(errors, snapshot_path, "snapshot must live at mlir/<family>/<case>/")
+        siblings = sorted(snapshot_path.parent.glob("*.mlir"))
+        if len(siblings) != 1:
+            fail(errors, snapshot_path, "snapshot must have exactly one sibling .mlir file")
+            continue
+        mlir_path = siblings[0]
+        value = read_snapshot(errors, snapshot_path)
+        if value is None:
+            continue
+
+        entry = value.get("entry")
+        if not isinstance(entry, str) or not MLIR_SYMBOL.fullmatch(entry):
+            fail(errors, snapshot_path, "entry must be one unquoted MLIR symbol")
+            continue
+        previous = entries.get(entry)
+        if previous is not None:
+            fail(errors, snapshot_path, f"entry duplicates {previous.relative_to(ROOT)}")
+        else:
+            entries[entry] = snapshot_path
+
+        text = mlir_path.read_text()
+        arguments = _entry_arguments(errors, mlir_path, text, entry)
+        if arguments is None:
+            continue
+        if f"// CHECK-LABEL: llvm.func @{entry}" not in text:
+            fail(errors, mlir_path, "entry must have a matching CHECK-LABEL")
+
+        secret = value.get("secret")
+        if not isinstance(secret, list):
+            fail(errors, snapshot_path, "secret must be a list")
+            secret = []
+        seen_secret: set[int] = set()
+        for position, item in enumerate(secret):
+            reference = _argument_reference(
+                errors, snapshot_path, item, arguments, "arg", f"secret[{position}]"
+            )
+            if reference is not None and reference[0] in seen_secret:
+                fail(errors, snapshot_path, f"secret argument {reference[0]} is duplicated")
+            elif reference is not None:
+                seen_secret.add(reference[0])
+
+        public = value.get("public")
+        if not isinstance(public, list) or not public:
+            fail(errors, snapshot_path, "public must be a nonempty list")
+            public = []
+        seen_public: set[tuple[str, object]] = set()
+        for position, item in enumerate(public):
+            reference: tuple[str, object] | None = None
+            if isinstance(item, dict) and set(item) == {"arg", "name"}:
+                parsed = _argument_reference(
+                    errors, snapshot_path, item, arguments, "arg", f"public[{position}]"
+                )
+                if parsed is not None:
+                    reference = ("arg", parsed[0])
+            elif isinstance(item, dict) and set(item) == {"memory_at_arg", "name"}:
+                parsed = _argument_reference(
+                    errors,
+                    snapshot_path,
+                    item,
+                    arguments,
+                    "memory_at_arg",
+                    f"public[{position}]",
+                )
+                if parsed is not None:
+                    reference = ("memory_at_arg", parsed[0])
+            elif isinstance(item, dict) and set(item) == {"observable"}:
+                observable = item.get("observable")
+                if observable not in SNAPSHOT_OBSERVABLES:
+                    fail(errors, snapshot_path, f"public[{position}] has an unknown observable")
+                else:
+                    reference = ("observable", observable)
+            else:
+                fail(
+                    errors,
+                    snapshot_path,
+                    f"public[{position}] must be an arg, memory_at_arg, or observable item",
+                )
+            if reference is not None and reference in seen_public:
+                fail(errors, snapshot_path, f"public observation {reference!r} is duplicated")
+            elif reference is not None:
+                seen_public.add(reference)
+
+        expectation = value.get("expect")
+        if expectation not in SNAPSHOT_EXPECTATIONS:
+            fail(errors, snapshot_path, "expect has an unknown value")
+        if _string_list(
+            errors, snapshot_path, value.get("because"), "because", allow_empty=False
+        ) is None:
+            pass
+        if "allowed" in value:
+            _string_list(
+                errors, snapshot_path, value.get("allowed"), "allowed", allow_empty=False
+            )
+        if "finding" in value:
+            if value.get("finding") != "violation":
+                fail(errors, snapshot_path, "finding, when present, must be 'violation'")
+            if expectation != "unknown":
+                fail(errors, snapshot_path, "finding: violation requires expect: unknown")
+            if "PREFLIGHT FINDING:" not in text:
+                fail(errors, snapshot_path, "finding: violation requires a PREFLIGHT FINDING block")
+
+        sps_state = value.get("sps")
+        if sps_state not in SNAPSHOT_SPS_STATES:
+            fail(errors, snapshot_path, "sps has an unknown value")
+        artifact = snapshot_path.parent / "artifact.bc"
+        manifest = snapshot_path.parent / "sps-manifest.sps.json"
+        report = snapshot_path.parent / "sps-report.sps.json"
+        if artifact.is_file() != manifest.is_file():
+            fail(errors, snapshot_path, "artifact.bc and sps-manifest.sps.json must appear together")
+        if sps_state == "not-run" and report.exists():
+            fail(errors, snapshot_path, "sps-report.sps.json is incompatible with sps: not-run")
+        if sps_state != "not-run" and not all(
+            path.is_file() for path in (artifact, manifest, report)
+        ):
+            fail(errors, snapshot_path, "a completed SPS state requires bitcode, manifest, and report")
+        if sps_state in SNAPSHOT_SPS_STATES and sps_state != "not-run":
+            fail(
+                errors,
+                snapshot_path,
+                "non-not-run SPS states remain disabled until the production verifier validates the report",
+            )
+
+        for field in RETIRED_MLIR_HEADER_FIELDS:
+            if field_values(text, field):
+                fail(errors, mlir_path, f"retired MLIR header field {field!r}; use snapshot.yaml")
+        for field in LEGACY_RESULT_FIELDS:
+            if field_values(text, field):
+                fail(errors, mlir_path, f"legacy result field {field!r} is forbidden")
+        for field in AUTHORITATIVE_RESULT_FIELDS:
+            if field_values(text, field):
+                fail(errors, mlir_path, f"preflight fixture forbids authoritative field {field!r}")
+        if LEGACY_LEVEL.search(text):
+            fail(errors, mlir_path, "retired numbered-level vocabulary is forbidden")
+        if any(field in text for field in LEGACY_BOUNDARY_FIELDS):
+            fail(errors, mlir_path, "legacy boundary metadata is forbidden")
+        if "--verify-diagnostics" in text or "expected-error @" in text:
+            fail(errors, mlir_path, "fixture contains an unimplemented semantic diagnostic oracle")
+        if re.search(r"sps\.alias\s*=", text):
+            fail(errors, mlir_path, "self-authoritative sps.alias is forbidden")
+        if "sps.world_structural_size" in text:
+            fail(errors, mlir_path, "self-authoritative world-structural binding is forbidden")
+        if len(ERROR_BLOCK.findall(text)) != text.count("PREFLIGHT FINDING:"):
+            fail(errors, mlir_path, "has an incomplete or non-adjacent preflight finding block")
+        if len(REPAIR_BLOCK.findall(text)) != text.count("PREFLIGHT CONTROL:"):
+            fail(errors, mlir_path, "has an incomplete or non-adjacent preflight control block")
+
+        records.append(
+            {
+                "path": snapshot_path,
+                "mlir": mlir_path,
+                "entry": entry,
+                "secret": value.get("secret"),
+                "public": value.get("public"),
+                "allowed": value.get("allowed", []),
+                "expect": expectation,
+                "sps": sps_state,
+            }
+        )
+
+    by_case = {record["path"].parent: record for record in records}
+    for case_dir, bad in sorted(by_case.items(), key=lambda item: str(item[0])):
+        case_name = case_dir.name
+        if case_name == "bad":
+            fixed_name = "fixed"
+        elif case_name.endswith("-bad"):
+            fixed_name = f"{case_name[:-4]}-fixed"
+        else:
+            continue
+        fixed = by_case.get(case_dir.parent / fixed_name)
+        if fixed is None:
+            continue
+        for field in ("secret", "public", "allowed"):
+            if bad[field] != fixed[field]:
+                fail(
+                    errors,
+                    fixed["path"],
+                    f"paired bad/fixed {field} boundary differs from {bad['path'].relative_to(ROOT)}",
+                )
+    return records, errors
+
+
+def check_snapshots() -> list[str]:
+    return snapshot_records()[1]
 
 
 def check_annotations() -> list[str]:
-    errors: list[str] = []
-    for path in sorted(MLIR_DIR.glob("*.mlir")):
-        text = path.read_text()
-        values: dict[str, str] = {}
-        for field in MLIR_FIELDS:
-            found = field_values(text, field)
-            if len(found) != 1 or not found[0]:
-                fail(errors, path, f"MLIR header field {field!r} must occur once and be nonempty")
-            else:
-                values[field] = found[0]
-
-        for field in LEGACY_RESULT_FIELDS:
-            if field_values(text, field):
-                fail(errors, path, f"legacy result field {field!r} belongs in a bundle sidecar")
-        if "--verify-diagnostics" in text or "expected-error @" in text:
-            fail(errors, path, "shape fixture contains an unimplemented semantic diagnostic oracle")
-
-        classification = values.get("// classification:")
-        if classification and classification not in CLASSIFICATIONS:
-            fail(errors, path, "unknown classification")
-        focus = values.get("// diagnostic focus:")
-        if focus and not IDENTIFIER.fullmatch(focus):
-            fail(errors, path, "diagnostic focus must be one lower-kebab identifier")
-        boundary = values.get("// evidence boundary:")
-        if boundary and not EVIDENCE_LEVEL.search(boundary):
-            fail(errors, path, "evidence boundary must name L0 through L4")
-
-        entry = shape_record(path)["entry"]
-        if entry == "<invalid>" or f"llvm.func @{entry}" not in text:
-            fail(errors, path, "entry must name a function in the file")
-        elif f"// CHECK-LABEL: llvm.func @{entry}" not in text:
-            fail(errors, path, "entry must have a matching CHECK-LABEL")
-
-        c_source = values.get("// c source:")
-        if c_source:
-            candidate = (MLIR_DIR / c_source).resolve()
-            try:
-                candidate.relative_to(C_DIR.resolve())
-            except ValueError:
-                fail(errors, path, "c source must resolve inside c/")
-            else:
-                if candidate.suffix != ".c" or not candidate.is_file():
-                    fail(errors, path, f"c source does not exist: {c_source}")
-
-        if re.search(r"sps\.alias\s*=", text):
-            fail(errors, path, "self-authoritative sps.alias is forbidden; use alias_candidate + ABI sidecar")
-        if "sps.world_structural_size" in text:
-            fail(errors, path, "self-authoritative world-structural binding is forbidden")
-
-        error_count = text.count("CONFIDENTIALITY ERROR:")
-        repair_count = text.count("CONFIDENTIALITY REPAIR:")
-        if len(ERROR_BLOCK.findall(text)) != error_count:
-            fail(errors, path, "has an incomplete or non-adjacent confidentiality error block")
-        if len(REPAIR_BLOCK.findall(text)) != repair_count:
-            fail(errors, path, "has an incomplete or non-adjacent confidentiality repair block")
-
-    errors.extend(check_shape_manifest())
-    return errors
+    """Compatibility alias for older harness invocations."""
+    return check_snapshots()
 
 
 def read_json(errors: list[str], path: Path) -> dict[str, object] | None:
@@ -369,15 +668,58 @@ def read_json(errors: list[str], path: Path) -> dict[str, object] | None:
     return value
 
 
+def nested_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        return set(value) | set().union(*(nested_keys(item) for item in value.values()))
+    if isinstance(value, list):
+        return set().union(*(nested_keys(item) for item in value))
+    return set()
+
+
+def exact_keys(
+    errors: list[str],
+    path: Path,
+    value: dict[str, object],
+    expected: set[str],
+    context: str,
+) -> bool:
+    actual = set(value)
+    if actual == expected:
+        return True
+    fail(
+        errors,
+        path,
+        f"{context} fields must be exactly {sorted(expected)}; "
+        f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}",
+    )
+    return False
+
+
 def coalition_members(errors: list[str], path: Path, value: object) -> tuple[str, ...] | None:
-    if not isinstance(value, str) or not COALITION.fullmatch(value):
-        fail(errors, path, f"invalid coalition {value!r}")
+    if not isinstance(value, list) or any(not isinstance(member, str) for member in value):
+        fail(errors, path, f"coalition must be an array of principal identifiers: {value!r}")
         return None
-    members = () if value == "{}" else tuple(value[1:-1].split(","))
-    if tuple(sorted(set(members))) != members:
-        fail(errors, path, f"coalition must be sorted and duplicate-free: {value}")
+    members = tuple(value)
+    if tuple(sorted(set(members))) != members or any(
+        not IDENTIFIER.fullmatch(member) for member in members
+    ):
+        fail(errors, path, f"coalition must be sorted, duplicate-free, and canonical: {value!r}")
         return None
     return members
+
+
+def reason_class_id(
+    errors: list[str], path: Path, value: object, context: str
+) -> str | None:
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"reasonClassId"}
+        or not isinstance(value.get("reasonClassId"), str)
+        or value.get("reasonClassId") not in PUBLIC_REASON_CLASSES_V1
+    ):
+        fail(errors, path, f"{context} must name one exact PublicReasonClassesV1 member")
+        return None
+    return str(value["reasonClassId"])
 
 
 def expected_coalitions(errors: list[str], path: Path, policy: dict[str, object]) -> set[tuple[str, ...]]:
@@ -418,74 +760,254 @@ def expected_coalitions(errors: list[str], path: Path, policy: dict[str, object]
     return closure
 
 
-def check_status_record(
-    errors: list[str], path: Path, oracle: dict[str, object], policy: dict[str, object]
-) -> None:
-    model = oracle.get("model_status")
-    deployment = oracle.get("deployment_status")
-    policy_review = oracle.get("policy_review_status")
-    rows = oracle.get("product_rows")
-    blockers = oracle.get("global_blockers")
-    if not isinstance(model, dict) or model.get("kind") not in MODEL_STATUS:
-        fail(errors, path, "invalid model_status domain")
-    elif model.get("kind") == "Counterexample" and model.get("witness") != "required-replayable":
-        fail(errors, path, "Counterexample must require a replayable witness")
-    elif model.get("kind") == "Unknown" and not model.get("reason"):
-        fail(errors, path, "Unknown requires a reason")
-    if not isinstance(deployment, dict) or deployment.get("kind") not in DEPLOYMENT_STATUS:
-        fail(errors, path, "invalid deployment_status domain")
-    elif deployment.get("kind") == "Open" and not deployment.get("obligations"):
-        fail(errors, path, "Open deployment status requires obligations")
-    elif deployment.get("kind") == "Closed" and not deployment.get("p4_evidence_bundle"):
-        fail(errors, path, "Closed deployment status requires a P4EvidenceBundle")
-    if not isinstance(policy_review, dict) or policy_review.get("kind") not in POLICY_STATUS:
-        fail(errors, path, "invalid policy_review_status domain")
-    elif policy_review.get("kind") == "Findings" and not policy_review.get("findings"):
-        fail(errors, path, "Findings policy status requires findings")
-    elif policy_review.get("kind") == "Incomplete" and not policy_review.get("reason"):
-        fail(errors, path, "Incomplete policy status requires a reason")
-    if not isinstance(blockers, list) or any(not isinstance(item, str) for item in blockers):
-        fail(errors, path, "global_blockers must be an array of stable reasons")
-        blockers = []
+def check_expected_run(
+    errors: list[str], path: Path, report: dict[str, object], policy: dict[str, object]
+) -> str | None:
+    exact_keys(
+        errors,
+        path,
+        report,
+        {
+            "candidate_bitcode_sha256",
+            "claimable_from_checked_in_pair",
+            "current_harness_status",
+            "expected",
+            "fixture_tier",
+            "format_id",
+            "required_checker_feature",
+        },
+        "candidate expected-run record",
+    )
+    if report.get("format_id") != "SPS-Harness-Candidate-Expected-Run-v1":
+        fail(errors, path, "unsupported candidate expected-run format")
+    if report.get("fixture_tier") != {"tag": "PreflightV1"}:
+        fail(errors, path, "candidate expected-run fixture tier must be PreflightV1")
+    if report.get("claimable_from_checked_in_pair") is not False:
+        fail(errors, path, "candidate pair cannot claim a Rev4 result")
+    if report.get("required_checker_feature") != "sps-verifier":
+        fail(errors, path, "candidate expected run must require the SPS verifier")
+
+    current = report.get("current_harness_status")
+    if (
+        not isinstance(current, dict)
+        or set(current) != {"tag", "reasons"}
+        or current.get("tag") != "PendingV1"
+        or not isinstance(current.get("reasons"), list)
+        or not current.get("reasons")
+        or any(not isinstance(reason, str) or not reason for reason in current["reasons"])
+    ):
+        fail(errors, path, "current harness status must be PendingV1 with stable reasons")
+
+    expected = report.get("expected")
+    if not isinstance(expected, dict):
+        fail(errors, path, "expected run matcher is missing")
+        return None
+    exact_keys(
+        errors,
+        path,
+        expected,
+        {
+            "audit_all_expectations",
+            "entry",
+            "expected_deployment_status",
+            "expected_model_status",
+            "expected_policy_review_status",
+        },
+        "expected run matcher",
+    )
+
+    rows = expected.get("audit_all_expectations")
     if not isinstance(rows, list) or not rows:
-        fail(errors, path, "product_rows must be a nonempty array")
-        return
+        fail(errors, path, "audit_all_expectations must be a nonempty array")
+        rows = []
     seen: set[tuple[str, ...]] = set()
-    dispositions: list[str] = []
-    for row in rows:
+    ordered_coalitions: list[tuple[str, ...]] = []
+    accepted_bad_state = False
+    unavailable_reasons: set[str] = set()
+    for index, row in enumerate(rows):
         if not isinstance(row, dict):
-            fail(errors, path, "coalition row must be an object")
+            fail(errors, path, f"audit-all row {index} must be an object")
             continue
-        coalition = row.get("coalition")
-        members = coalition_members(errors, path, coalition)
-        if members is None:
-            pass
-        elif members in seen:
-            fail(errors, path, f"duplicate coalition {coalition}")
-        else:
+        exact_keys(
+            errors,
+            path,
+            row,
+            {"coalition", "query_outcome", "replay_expectation"},
+            f"audit-all row {index}",
+        )
+        members = coalition_members(errors, path, row.get("coalition"))
+        if members is not None:
+            ordered_coalitions.append(members)
+            if members in seen:
+                fail(errors, path, f"duplicate coalition {list(members)!r}")
             seen.add(members)
-        disposition = row.get("product_disposition")
-        if disposition not in PRODUCT_DISPOSITION:
-            fail(errors, path, f"invalid product disposition for {coalition}")
+
+        query = row.get("query_outcome")
+        replay = row.get("replay_expectation")
+        if not isinstance(query, dict):
+            fail(errors, path, f"audit-all row {index} query_outcome must be an object")
+            continue
+        if not isinstance(replay, dict):
+            fail(errors, path, f"audit-all row {index} replay_expectation must be an object")
+            continue
+
+        query_tag = query.get("tag")
+        replay_tag = replay.get("tag")
+        if query_tag == "ConstructedResultMatcherV1":
+            exact_keys(
+                errors,
+                path,
+                query,
+                {"query_disposition", "raw_solver_result", "tag"},
+                f"audit-all row {index} constructed result",
+            )
+            disposition = query.get("query_disposition")
+            raw = query.get("raw_solver_result")
+            if raw == "UNSAT":
+                if disposition != {"tag": "Discharged"}:
+                    fail(errors, path, f"audit-all row {index} UNSAT must be Discharged")
+                if replay != {"tag": "NotApplicableV1"}:
+                    fail(errors, path, f"audit-all row {index} UNSAT replay must be NotApplicableV1")
+            elif raw == "SAT":
+                if disposition != {"tag": "CandidateOnly"}:
+                    fail(errors, path, f"audit-all row {index} SAT must remain CandidateOnly")
+                exact_keys(
+                    errors,
+                    path,
+                    replay,
+                    {"bad_state_class", "tag"},
+                    f"audit-all row {index} accepted replay matcher",
+                )
+                if replay_tag != "AcceptedBadStateRequiredV1" or not isinstance(
+                    replay.get("bad_state_class"), str
+                ) or not IDENTIFIER.fullmatch(str(replay.get("bad_state_class"))):
+                    fail(errors, path, f"audit-all row {index} SAT requires a canonical accepted-bad-state matcher")
+                else:
+                    accepted_bad_state = True
+            elif raw == "UNKNOWN":
+                if not isinstance(disposition, dict):
+                    fail(errors, path, f"audit-all row {index} UNKNOWN disposition must be an object")
+                    disposition_reason = None
+                else:
+                    exact_keys(
+                        errors,
+                        path,
+                        disposition,
+                        {"args", "tag"},
+                        f"audit-all row {index} Unknown disposition",
+                    )
+                    args = disposition.get("args")
+                    disposition_reason = (
+                        reason_class_id(errors, path, args[0], "query Unknown reason")
+                        if disposition.get("tag") == "Unknown"
+                        and isinstance(args, list)
+                        and len(args) == 1
+                        else None
+                    )
+                    if disposition_reason is None:
+                        fail(errors, path, f"audit-all row {index} UNKNOWN needs one canonical reason")
+                exact_keys(
+                    errors,
+                    path,
+                    replay,
+                    {"reason", "tag"},
+                    f"audit-all row {index} unavailable replay",
+                )
+                replay_reason = reason_class_id(errors, path, replay.get("reason"), "replay reason")
+                if replay_tag != "NotAvailableV1" or replay_reason != disposition_reason:
+                    fail(errors, path, f"audit-all row {index} UNKNOWN query and replay reasons must agree")
+                if disposition_reason is not None:
+                    unavailable_reasons.add(disposition_reason)
+            else:
+                fail(errors, path, f"audit-all row {index} has unsupported raw solver result")
+        elif query_tag == "NotConstructedResultMatcherV1":
+            exact_keys(
+                errors,
+                path,
+                query,
+                {"reason", "tag"},
+                f"audit-all row {index} not-constructed result",
+            )
+            query_reason = reason_class_id(errors, path, query.get("reason"), "query reason")
+            exact_keys(
+                errors,
+                path,
+                replay,
+                {"reason", "tag"},
+                f"audit-all row {index} unavailable replay",
+            )
+            replay_reason = reason_class_id(errors, path, replay.get("reason"), "replay reason")
+            if replay_tag != "NotAvailableV1" or query_reason != replay_reason:
+                fail(errors, path, f"audit-all row {index} not-constructed query and replay reasons must agree")
+            if query_reason is not None:
+                unavailable_reasons.add(query_reason)
         else:
-            dispositions.append(str(disposition))
-        if disposition == "ReplayableCounterexample" and row.get("replay") != "required":
-            fail(errors, path, f"counterexample row {coalition} lacks replay requirement")
-        if disposition == "Blocked" and not row.get("reason"):
-            fail(errors, path, f"blocked row {coalition} lacks a reason")
+            fail(errors, path, f"audit-all row {index} has an unsupported query-outcome tag")
+
     required_rows = expected_coalitions(errors, path, policy)
     if seen != required_rows:
-        missing = sorted(required_rows - seen)
-        extra = sorted(seen - required_rows)
-        fail(errors, path, f"coalition rows are not the exact downward closure; missing={missing}, extra={extra}")
-    if isinstance(model, dict) and dispositions:
-        aggregate = (
-            "Counterexample"
-            if "ReplayableCounterexample" in dispositions
-            else "Unknown" if blockers or "Blocked" in dispositions else "Proved"
+        fail(
+            errors,
+            path,
+            "audit-all rows are not the exact coalition downward closure; "
+            f"missing={sorted(required_rows - seen)}, extra={sorted(seen - required_rows)}",
         )
-        if model.get("kind") != aggregate:
-            fail(errors, path, f"future oracle ModelStatus is inconsistent with blockers/product rows; expected {aggregate}")
+    required_order = sorted(required_rows, key=lambda coalition: (len(coalition), coalition))
+    if ordered_coalitions != required_order:
+        fail(errors, path, "audit-all rows must follow the canonical coalition query order")
+
+    model = expected.get("expected_model_status")
+    if not isinstance(model, dict):
+        fail(errors, path, "expected_model_status must be an object")
+    else:
+        tag = model.get("tag")
+        aggregate = "Counterexample" if accepted_bad_state else "Unknown" if unavailable_reasons else "Proved"
+        if tag != aggregate:
+            fail(errors, path, f"expected_model_status must aggregate to {aggregate}")
+        if tag == "Proved":
+            exact_keys(errors, path, model, {"tag"}, "Proved matcher")
+        elif tag == "Counterexample":
+            exact_keys(errors, path, model, {"receipt_matcher", "tag"}, "Counterexample matcher")
+            if model.get("receipt_matcher") != {"tag": "FreshProtectedReceiptMatcherV1"}:
+                fail(errors, path, "Counterexample must match a fresh protected receipt, not expose a witness")
+        elif tag == "Unknown":
+            exact_keys(errors, path, model, {"args", "tag"}, "Unknown matcher")
+            args = model.get("args")
+            if isinstance(args, list):
+                for value in args:
+                    reason_class_id(errors, path, value, "Unknown reason")
+            # spec:4192-4196 -- exactly one open blocker carries its own class;
+            # two or more distinct classes collapse to OpenModelObligations,
+            # which is never itself a row reason. A subset test against the row
+            # reasons therefore rejected the mandated answer and admitted a
+            # narrower one. Shared rule: tools/sps_aggregation.py.
+            required_model = sps_aggregation.expected_model_status(
+                accepted_bad_replay=False, blockers=unavailable_reasons
+            )
+            if model != required_model:
+                fail(
+                    errors,
+                    path,
+                    "expected_model_status must aggregate to "
+                    f"{sps_aggregation.describe(unavailable_reasons)}",
+                )
+        else:
+            fail(errors, path, "unsupported expected_model_status tag")
+
+    deployment = expected.get("expected_deployment_status")
+    if deployment != {
+        "tag": "Open",
+        "args": [{"tag": "P4EvidenceProfileUnavailable"}],
+    }:
+        fail(errors, path, "checked-in candidate deployment must remain Open(P4EvidenceProfileUnavailable)")
+    if expected.get("expected_policy_review_status") != {"tag": "Complete"}:
+        fail(errors, path, "candidate policy-review matcher must be Complete")
+
+    entry = expected.get("entry")
+    if not isinstance(entry, str) or not entry:
+        fail(errors, path, "expected run entry must be a nonempty symbol")
+        return None
+    return entry
 
 
 def check_conformance_matrix() -> list[str]:
@@ -493,7 +1015,7 @@ def check_conformance_matrix() -> list[str]:
     matrix = read_json(errors, CONFORMANCE_MATRIX)
     if matrix is None:
         return errors
-    if matrix.get("schema_version") != "sps-rev4-conformance-matrix-v1":
+    if matrix.get("schema_version") != "SPS-Harness-Rev4-Conformance-Matrix-v2":
         fail(errors, CONFORMANCE_MATRIX, "unsupported schema_version")
     cases = matrix.get("cases")
     if not isinstance(cases, list):
@@ -533,15 +1055,13 @@ def check_conformance_matrix() -> list[str]:
 
 def check_artifacts() -> list[str]:
     errors: list[str] = []
-    expected_dirs = set(SEMANTIC_BUNDLES.values())
-    actual_dirs = {path.name for path in ARTIFACTS_DIR.iterdir() if path.is_dir()} if ARTIFACTS_DIR.exists() else set()
-    for name in sorted(expected_dirs - actual_dirs):
-        fail(errors, ARTIFACTS_DIR / name, "required semantic bundle is missing")
-    for name in sorted(actual_dirs - expected_dirs):
-        fail(errors, ARTIFACTS_DIR / name, "bundle is not referenced by a shape fixture")
+    candidate_dirs = (
+        sorted(path for path in ARTIFACTS_DIR.iterdir() if path.is_dir())
+        if ARTIFACTS_DIR.exists()
+        else []
+    )
 
-    for name in sorted(expected_dirs & actual_dirs):
-        directory = ARTIFACTS_DIR / name
+    for directory in candidate_dirs:
         required = (
             "artifact.bc",
             "artifact.ll",
@@ -577,10 +1097,14 @@ def check_artifacts() -> list[str]:
             fail(errors, directory / "artifact.json", "derived LLVM IR digest is not SHA-256")
         elif declared_ll_hash != ll_hash:
             fail(errors, directory / "artifact.json", "derived LLVM IR hash mismatch")
-        if identity.get("schema_version") != "sps-artifact-candidate-v1":
-            fail(errors, directory / "artifact.json", "unsupported candidate schema")
+        if identity.get("format_id") != "SPS-Harness-Candidate-Artifact-v1":
+            fail(errors, directory / "artifact.json", "unsupported candidate artifact format")
         if identity.get("artifact_role") != "checked-in-bitcode-candidate":
             fail(errors, directory / "artifact.json", "artifact role must remain an explicit candidate")
+        if identity.get("fixture_tier") != {"tag": "PreflightV1"}:
+            fail(errors, directory / "artifact.json", "candidate artifact tier must be PreflightV1")
+        if identity.get("claimable") is not False:
+            fail(errors, directory / "artifact.json", "candidate artifact must remain non-claimable")
         if "canonical_bitcode_sha256" in identity or "NFConforms" in identity:
             fail(errors, directory / "artifact.json", "candidate envelope contains a forbidden conformance claim")
         profile = identity.get("rev4_profile")
@@ -628,30 +1152,32 @@ def check_artifacts() -> list[str]:
             for filename in ("policy.json", "abi.json", "contracts.json", "release-table.json", "expected-report.json"):
                 if sidecar_hashes.get(filename) != digest(directory / filename):
                     fail(errors, directory / "artifact.json", f"candidate digest mismatch for {filename}")
-        if policy.get("schema_version") != "sps-fixture-policy-v0":
-            fail(errors, directory / "policy.json", "unsupported fixture policy schema")
-        if abi.get("schema_version") != "sps-fixture-abi-v0":
-            fail(errors, directory / "abi.json", "unsupported fixture ABI schema")
-        if contracts.get("schema_version") != "sps-fixture-contracts-v0":
-            fail(errors, directory / "contracts.json", "unsupported fixture contracts schema")
-        if release_table.get("schema_version") != "sps-fixture-release-table-v0":
-            fail(errors, directory / "release-table.json", "unsupported fixture release-table schema")
-        if report.get("schema_version") != "sps-fixture-oracle-v0":
-            fail(errors, directory / "expected-report.json", "unsupported fixture oracle schema")
-        if report.get("claimable_from_checked_in_pair") is not False:
-            fail(errors, directory / "expected-report.json", "LLVM17 candidate cannot claim a Rev4 result")
-        current = report.get("current_harness_status")
-        if (
-            not isinstance(current, dict)
-            or current.get("kind") != "Pending"
-            or not current.get("reasons")
-        ):
-            fail(errors, directory / "expected-report.json", "current harness status must remain Pending with reasons")
-        oracle = report.get("oracle")
-        if not isinstance(oracle, dict):
-            fail(errors, directory / "expected-report.json", "oracle object is missing")
-            continue
-        entry = oracle.get("entry")
+        expected_formats = (
+            (directory / "policy.json", policy, "SPS-Harness-Candidate-Policy-v1"),
+            (directory / "abi.json", abi, "SPS-Harness-Candidate-ABI-v1"),
+            (
+                directory / "contracts.json",
+                contracts,
+                "SPS-Harness-Candidate-Contracts-v1",
+            ),
+            (
+                directory / "release-table.json",
+                release_table,
+                "SPS-Harness-Candidate-Release-Table-v1",
+            ),
+        )
+        for sidecar_path, sidecar, expected_format in expected_formats:
+            if sidecar.get("format_id") != expected_format:
+                fail(errors, sidecar_path, f"unsupported candidate format; expected {expected_format}")
+        forbidden_abi_authority = {"confidentiality", "visibility"} & nested_keys(abi)
+        if forbidden_abi_authority:
+            fail(
+                errors,
+                directory / "abi.json",
+                "ABI must not author confidentiality or visibility labels; policy is authoritative",
+            )
+
+        entry = check_expected_run(errors, directory / "expected-report.json", report, policy)
         if not isinstance(entry, str) or abi.get("entry") != entry:
             fail(errors, directory, "ABI and report must bind the same entry")
         if isinstance(entry, str):
@@ -818,7 +1344,6 @@ def check_artifacts() -> list[str]:
             isinstance(item, dict) and item.get("entry") == entry for item in placements
         ) != 1:
             fail(errors, directory / "policy.json", "entry must have exactly one placement")
-        check_status_record(errors, directory / "expected-report.json", oracle, policy)
     errors.extend(check_conformance_matrix())
     return errors
 
@@ -827,21 +1352,37 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "check",
-        choices=("provenance", "annotations", "artifacts", "all", "update-manifest"),
+        choices=(
+            "provenance",
+            "snapshots",
+            "annotations",
+            "artifacts",
+            "all",
+            "list-fixtures",
+        ),
         default="all",
         nargs="?",
     )
     args = parser.parse_args()
-    if args.check == "update-manifest":
-        write_shape_manifest()
-        print(f"wrote {SHAPE_MANIFEST.relative_to(ROOT)}")
+    if args.check == "list-fixtures":
+        records, errors = snapshot_records()
+        if errors:
+            print("\n".join(f"error: {message}" for message in errors), file=sys.stderr)
+            return 1
+        for record in records:
+            case = record["path"].parent.relative_to(MLIR_DIR)
+            print(
+                f"{case}: expect={record['expect']} sps={record['sps']} "
+                f"entry={record['entry']}"
+            )
+        print(f"{len(records)} fixtures")
         return 0
 
     errors: list[str] = []
     if args.check in ("provenance", "all"):
         errors.extend(check_provenance())
-    if args.check in ("annotations", "all"):
-        errors.extend(check_annotations())
+    if args.check in ("snapshots", "annotations", "all"):
+        errors.extend(check_snapshots())
     if args.check in ("artifacts", "all"):
         errors.extend(check_artifacts())
     if errors:

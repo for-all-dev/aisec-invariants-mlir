@@ -1,0 +1,18 @@
+entry: release_carrier_pinned_control
+
+secret:
+  - {arg: 0, name: raw}
+
+public:
+  - {memory_at_arg: 2, name: sink}
+  - {observable: release-identity}
+
+allowed:
+  - sink may receive only a value authorized by a bound and conforming p_v1 release carrier
+
+expect: shape-only
+
+because:
+  - a direct pinned wrapper call preserves release identity before publication
+
+sps: not-run

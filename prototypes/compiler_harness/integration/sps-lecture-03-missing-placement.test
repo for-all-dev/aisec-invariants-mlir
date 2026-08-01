@@ -10,4 +10,4 @@
 # SHAPE-NOT: br i1
 # SHAPE-NOT: global
 
-# CONTRACT: verified 03-missing-placement: fixture-contract only; claimable=false; ModelStatus=not-computed; expected=Unknown(PlacementMismatch)
+# CONTRACT: verified 03-missing-placement: fixture-contract only; tier=PreflightV1; claimable=false; ModelStatus=not-computed; expected-matcher=Unknown(PlacementMismatch)

@@ -1,14 +1,17 @@
 {
-  "schema_version": "sps-rev4-conformance-matrix-v1",
+  "schema_version": "SPS-Harness-Rev4-Conformance-Matrix-v2",
   "authority": "SPS_Rev4_LLVM_Normal_Form_and_Conformance_Profile.md sections 15-16",
   "status_meaning": "A seed preserves a relevant shape or expected disposition; it is not a passing conformance test until recaptured by LLVM 22.1.8 and executed by the Rev4 verifier.",
+  "tier_rule": "preflight-seed cases preserve review shapes only; only a conformance fixture may exercise NFConforms or match SPSRunReportV1",
   "required_conformance_fixture_records": [
-    "artifact-identity",
-    "canonical-bitcode",
-    "ordered-pass-trace",
-    "normalizer-trace",
-    "normal-form-audit-inventory",
-    "expected-result"
+    "artifact.bc",
+    "artifact-identity.sps.json",
+    "identity-evidence.sps.json",
+    "manifest.sps.json",
+    "ordered-pass-trace.sps.json",
+    "normalizer-trace.sps.json",
+    "normal-form-audit-inventory.sps.json",
+    "expected/run-report.matcher.json"
   ],
   "cases": [
     {
@@ -23,8 +26,9 @@
       "id": "NF-A02",
       "title": "Strict scalar arithmetic",
       "expected": "Accept only flag-free defined scalar arithmetic and unambiguous strict FP semantics",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a02-scalar-fp-surface.test"],
+      "gap": "Both sides of the Lemma R5.0N line are now pinned under LLVM 17.0.6: an admitted-only module (load/store/same-width bitcast/phi/select/fneg/fcmp plus flag-free integer arithmetic with checked div and shift operands) assembles, verifies, and round-trips with a zero rejected-opcode count, and fadd, fptrunc/fpext, and sitofp/fptosi/uitofp arms are each separated from it by tools/nf_surface_gate.py --profile fp-closure, whose Unknown(PONFFPArithmeticUnsupported) string is a harness expectation record. The gate is a syntactic single-file opcode scan: it does not compute the frozen-closure NoAmbiguousNaNResult_e(T) premise, does not follow calls or intrinsics, and does not run the transition-rule audit"
     },
     {
       "id": "NF-A03",
@@ -45,8 +49,9 @@
       "id": "NF-A05",
       "title": "Complete fixed-vector scalarization",
       "expected": "Accept only after complete scalarization leaves no vector type or operation",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a05-vector-scalarization.test"],
+      "gap": "The quantitative criterion has a real zero: an escape-free scalar-ABI <4 x i32> lane-wise function carrying lanes, a splat and a reversing constant shuffle, a vector select, and a vector PHI drops from 21 residual vector items to 0 under LLVM 17.0.6 opt -passes=scalarizer, with the lane structure visible as four scalar selects and four scalar PHIs. Two companions that look scalarized stay nonzero: a private alloca <4 x i32> buffer leaves 1 item after -scalarize-load-store and 9 without it. The count is over <N x T> tokens in one textual module, not the Rev4 residual audit inventory over a frozen identity-bound LLVM 22.1.8 artifact, and zero is a necessary shape rather than acceptance"
     },
     {
       "id": "NF-A06",
@@ -68,7 +73,7 @@
       "expected": "Accept an occurrence-preserved release carrier only after exact count, ABI-role, and local expression/guard equivalence checks",
       "harness_status": "preflight-seed",
       "seeds": ["integration/rev4-high-value-release-marker.test"],
-      "gap": "Twenty-one carrier and binding variants are pinned as nonclaimable oracles; P1/PONF equivalence and replay remain unimplemented"
+      "gap": "Twenty-one carrier and binding variants are pinned as nonclaimable oracles; exact carrier equivalence, PONF construction, and replay remain unimplemented"
     },
     {
       "id": "NF-A09",
@@ -88,7 +93,7 @@
     {
       "id": "NF-A11",
       "title": "Eligible lockstep product",
-      "expected": "ProductSafe may hold only after the audit-all product proves all branch, loop, event, failure, and termination bad states unreachable",
+      "expected": "An AuditAll safety query may be Discharged only after UNSAT proves every branch, loop, event, failure, and termination bad state unreachable",
       "harness_status": "preflight-seed",
       "seeds": [
         "integration/rev4-high-value-output-closure.test",
@@ -124,7 +129,7 @@
       "title": "Target-bound timing-risk lint",
       "expected": "Emit timing-risk records without changing NFConforms or ModelStatus; leave DeploymentStatus Open absent paired P4 evidence",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/launder-scan", "mlir/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
+      "seeds": ["artifacts/launder-scan", "mlir/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
       "gap": "The select and division shapes are seeds only; no normative TimingRiskLintRecord is emitted"
     },
     {
@@ -139,8 +144,9 @@
       "id": "NF-CM02",
       "title": "Residual target-legal masked/vector operation",
       "expected": "Unknown(ResidualVector)",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-cm02-residual-vector.test"],
+      "gap": "Both NF-CM02 failure modes are pinned as cardinalities under LLVM 17.0.6. Target-legality: with -mattr=+avx2 exactly 2 masked intrinsic call sites (masked.load and masked.store of <4 x i32>) survive scalarize-masked-mem-intrin while masked.scatter is expanded; at baseline x86-64 zero survive yet the residual vector inventory rises from 32 to 39, so the pass running is not closure. Unsplittable vector: opt -passes=scalarizer leaves define <4 x i32> @lanewise intact because the vector type escapes through the ABI. Unknown(ResidualVector) appears only as a harness expectation string; no ModelStatus, DeploymentStatus, or PolicyReviewStatus is computed, and the normative refusal at the LLVM 22.1.8 boundary is not implemented"
     },
     {
       "id": "NF-CM03",
@@ -167,9 +173,9 @@
     {
       "id": "NF-CM06",
       "title": "Divergent controls forced into lockstep",
-      "expected": "Counterexample(ReplayableWitness)",
+      "expected": "AuditAll SAT remains CandidateOnly until exact replay reaches Bad_A; the final public result is Counterexample(receiptId)",
       "harness_status": "preflight-seed",
-      "seeds": ["artifacts/bound-secret-trip-count", "mlir/predecessor_choice_blockarg.bad.mlir"]
+      "seeds": ["artifacts/bound-secret-trip-count", "mlir/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir"]
     },
     {
       "id": "NF-CM07",

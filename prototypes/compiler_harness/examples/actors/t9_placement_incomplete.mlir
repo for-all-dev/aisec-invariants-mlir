@@ -3,7 +3,7 @@
 // DESIGN EXAMPLE. Not part of the enforced corpus; see README.md.
 //
 // T9 -- incomplete placement table, and why the honest answer is
-// `Unknown(ManifestMismatch)`.
+// `Unknown(PlacementMismatch)`.
 //
 // Two functions are reachable. `@serve_placed` has a declared host.
 // `@serve_unplaced` does NOT appear in `sps.placement` at all.
@@ -35,12 +35,12 @@
 // placement, asserting opposite outcomes -- the same "policy is an input"
 // discipline as the t3/t4 pair.
 //
-// product rows (per entry):
-//   @serve_placed    {}       ProductSafe
-//   @serve_placed    {alice}  ProductSafe
-//   @serve_unplaced  {}       Blocked(ManifestMismatch)
-//   @serve_unplaced  {alice}  Blocked(ManifestMismatch)
-// future artifact ModelStatus: Unknown(ManifestMismatch)
+// AuditAll fixture expectations (not computed results):
+//   @serve_placed    {}       UNSAT / Discharged
+//   @serve_placed    {alice}  UNSAT / Discharged
+//   @serve_unplaced  {}       NotConstructed / PlacementMismatch
+//   @serve_unplaced  {alice}  NotConstructed / PlacementMismatch
+// future ModelStatus matcher: Unknown(PlacementMismatch)
 //
 // CHECK-LABEL: llvm.func @serve_placed
 // CHECK-LABEL: llvm.func @serve_unplaced

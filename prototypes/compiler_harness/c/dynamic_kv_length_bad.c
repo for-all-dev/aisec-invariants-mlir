@@ -28,7 +28,8 @@
  * Relationship to upstream:
  *   Models two public count outputs associated with a private sequence
  *   length. It contains no allocation, dynamic shape, loop, or scheduler
- *   event; mapping the fields to those real effects is an L4 obligation.
+ *   event; allocation and scheduling applicability are outside this reduced
+ *   fixture's claim.
  *
  * Secret inputs:
  *   secret_length and private_result; private_result is returned only through

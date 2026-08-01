@@ -9,8 +9,10 @@
  *
  * Relationship to upstream:
  *   Not derived from an upstream CVE. This is the C-level origin of the
- *   release-carrier fixture family: release_carrier_pinned.control.mlir,
- *   release_carrier_lost.bad.mlir, and release_carrier_marker_only.bad.mlir.
+ *   release-carrier fixture family:
+ *   mlir/release-carrier/pinned-control/release_carrier_pinned.control.mlir,
+ *   mlir/release-carrier/lost-bad/release_carrier_lost.bad.mlir, and
+ *   mlir/release-carrier/marker-only-bad/release_carrier_marker_only.bad.mlir.
  *
  * Secret inputs:
  *   raw

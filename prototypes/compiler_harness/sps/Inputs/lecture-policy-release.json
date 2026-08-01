@@ -1,0 +1,125 @@
+{
+  "formatId": "SPS-Harness-Lecture-Policy-Release-v1",
+  "authority": {
+    "tier": {
+      "tag": "PreflightV1"
+    },
+    "claimable": false,
+    "nf_conforms": "NotEvaluated",
+    "model_status": "NotComputed",
+    "deployment_status": "NotComputed",
+    "statement": "Harness transcription of the DECLARED policy visibility bases and release audiences shared by the seven lecture cases. It exists so tools/check_sps_run_report.py can DERIVE the exact ReleasePolicyLintV1 list from the normative predicates in specification sections 12 and 19 instead of mirroring a lecture expected.logical.yaml. It is not a canonical SPS PolicyManifest or ReleaseTable, carries no digest, and computes no ModelStatus."
+  },
+  "transcribed_from": [
+    "SPS/SPS_Lecture_Notes/artifacts/common/policy-manifest.logical.yaml",
+    "SPS/SPS_Lecture_Notes/artifacts/common/release-secret-world.logical.yaml",
+    "SPS/SPS_Lecture_Notes/artifacts/common/release-lowbit-to-observer.logical.yaml",
+    "SPS/SPS_Lecture_Notes/artifacts/common/release-secret-to-owner.logical.yaml",
+    "SPS/SPS_Lecture_Notes/artifacts/common/release-table-intent.logical.yaml"
+  ],
+  "transcription_note": "Only declared inputs are transcribed: principals, derived coalitions, the component visibility basis, expected-variable assertions, the review threshold, the enabled lint set, and per-release audience/expression facts. No lint scope tuple and no expected outcome row is copied.",
+  "principals": [
+    "observer",
+    "owner"
+  ],
+  "components": [
+    "secret"
+  ],
+  "derivedCoalitions": [
+    [],
+    [
+      "observer"
+    ],
+    [
+      "owner"
+    ]
+  ],
+  "componentVisibility": {
+    "worldVisible": [],
+    "memberVisible": {
+      "observer": [],
+      "owner": [
+        "secret"
+      ]
+    },
+    "minimallyJointVisible": []
+  },
+  "expectedVariableAssertions": [
+    {
+      "assertionId": "expect.secret.observer",
+      "entry": "fixture_entry",
+      "coalition": [
+        "observer"
+      ],
+      "component": "secret"
+    }
+  ],
+  "capacityWarningThresholdBits": {
+    "numerator": 64,
+    "denominator": 1
+  },
+  "enabledLintSet": [
+    "IdentityReleaseOfHigh",
+    "WorldAudienceContributionOverThreshold",
+    "ExpectedVariableDeclaredWorldVisible",
+    "CoalitionEntryTotalOverThreshold"
+  ],
+  "releases": {
+    "q.lowbit": {
+      "identityComponentRef": {
+        "tag": "None"
+      },
+      "expressionNote": "Extract(0,0) of ComponentRef(secret,EntryInitial,BV(8)); not the identity AST, so IdentityReleaseOfHigh cannot fire for any coalition.",
+      "audience": {
+        "worldVisible": false,
+        "memberVisible": [
+          "observer"
+        ],
+        "minimallyJointVisible": []
+      }
+    },
+    "q.secret": {
+      "identityComponentRef": {
+        "tag": "Some",
+        "value": "secret"
+      },
+      "expressionNote": "Byte-exactly ComponentRef(secret,EntryInitial,BV(8)).",
+      "audience": {
+        "worldVisible": true,
+        "memberVisible": [],
+        "minimallyJointVisible": []
+      }
+    },
+    "q.secret.owner": {
+      "identityComponentRef": {
+        "tag": "Some",
+        "value": "secret"
+      },
+      "expressionNote": "Byte-exactly ComponentRef(secret,EntryInitial,BV(8)).",
+      "audience": {
+        "worldVisible": false,
+        "memberVisible": [
+          "owner"
+        ],
+        "minimallyJointVisible": []
+      }
+    }
+  },
+  "caseReleaseBindings": {
+    "01-secret-branch": [],
+    "02-branchless-repair": [],
+    "03-missing-placement": [],
+    "04-authorized-release-first": [
+      "q.secret"
+    ],
+    "05-branch-before-release": [
+      "q.secret"
+    ],
+    "06-equal-release-stays-active": [
+      "q.lowbit"
+    ],
+    "07-wrong-audience-stays-active": [
+      "q.secret.owner"
+    ]
+  }
+}

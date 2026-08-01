@@ -27,8 +27,8 @@
  *
  * Relationship to upstream:
  *   Writes the same public length for every secret and guess. It contains no
- *   compressor, padding, or transport event, so production mitigation remains
- *   an L4 obligation.
+ *   compressor, padding, or transport event, so it makes no production
+ *   mitigation or source-to-runtime correspondence claim.
  *
  * Secret inputs:
  *   secret_byte

@@ -5,7 +5,7 @@
 # that boundary so no downstream consumer assumes the theorem object contains
 # policy that was already discarded during translation.
 
-# RUN: %mlir-translate --mlir-to-llvmir %harness/mlir/release_carrier_pinned.control.mlir -o %t.ll
+# RUN: %mlir-translate --mlir-to-llvmir %harness/mlir/release-carrier/pinned-control/release_carrier_pinned.control.mlir -o %t.ll
 # RUN: %FileCheck %s --check-prefix=LLVM --implicit-check-not='sps.' --input-file=%t.ll
 
 # LLVM-LABEL: define i32 @sps_release_p_v1(

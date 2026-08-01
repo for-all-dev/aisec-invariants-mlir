@@ -1,4 +1,20 @@
 {
+  "format_id": "SPS-Harness-Candidate-ABI-v1",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "public_count",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "public_sink",
+      "kind": "root",
+      "root_id": "public-sink",
+      "extent_bytes": 4,
+      "output": "world"
+    }
+  ],
   "admission_constraints": [
     {
       "argument": "public_count",
@@ -10,23 +26,7 @@
     "complete": true,
     "relations": []
   },
-  "arguments": [
-    {
-      "confidentiality": "WorldStructural",
-      "index": 0,
-      "kind": "scalar",
-      "name": "public_count"
-    },
-    {
-      "extent_bytes": 4,
-      "index": 1,
-      "kind": "root",
-      "name": "public_sink",
-      "output": "world"
-    }
-  ],
-  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219",
-  "entry": "bound_exhausted_public_loop",
   "initialized_regions": [],
-  "schema_version": "sps-fixture-abi-v0"
+  "entry": "bound_exhausted_public_loop",
+  "candidate_bitcode_sha256": "d52620666765d47a3df0e8f8caaad1c4ed5d543581b4ef103bf963086d8b1219"
 }

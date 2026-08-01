@@ -262,6 +262,9 @@ _sps_verifier = _configured_executable("SPS_VERIFIER")
 _sps_teaching_materialized = os.environ.get("SPS_TEACHING_MATERIALIZED", "")
 if _sps_teaching_materialized:
     _sps_teaching_materialized = os.path.abspath(_sps_teaching_materialized)
+_sps_error_materialized = os.environ.get("SPS_ERROR_MATERIALIZED", "")
+if _sps_error_materialized:
+    _sps_error_materialized = os.path.abspath(_sps_error_materialized)
 
 
 def _optional_command(path, unavailable):
@@ -291,6 +294,12 @@ config.substitutions.extend(
             _quote(_sps_teaching_materialized)
             if _sps_teaching_materialized
             else "sps-teaching-materialized-unavailable",
+        ),
+        (
+            "%sps-error-materialized",
+            _quote(_sps_error_materialized)
+            if _sps_error_materialized
+            else "sps-error-materialized-unavailable",
         ),
         ("%python", _quote(sys.executable)),
         ("%make", _optional_command(_make, "make-unavailable")),
@@ -360,6 +369,8 @@ if _sps_verifier:
     config.available_features.add("sps-verifier")
 if _sps_teaching_materialized and os.path.isdir(_sps_teaching_materialized):
     config.available_features.add("sps-teaching-materialized")
+if _sps_error_materialized and os.path.isdir(_sps_error_materialized):
+    config.available_features.add("sps-error-materialized")
 
 if _llvm_config:
     try:

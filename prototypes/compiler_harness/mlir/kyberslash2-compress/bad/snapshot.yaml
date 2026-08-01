@@ -1,0 +1,14 @@
+entry: kyberslash2_compress_bad
+
+secret:
+  - {arg: 0, name: coefficient}
+
+public:
+  - {observable: timing}
+
+expect: target-risk
+
+because:
+  - a secret-derived numerator reaches llvm.udiv before the four-bit mask
+
+sps: not-run

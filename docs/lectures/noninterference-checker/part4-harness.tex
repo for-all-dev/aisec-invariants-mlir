@@ -224,3 +224,52 @@ Three further gaps are worth naming precisely:
       can currently catch an analysis that \emph{misses} a leak but not one that
       \emph{invents} one.
 \end{itemize}
+
+\subsection{The gap the corpus does not know it has}
+\label{sec:compilergap}
+
+Every fixture above describes a leak that a \emph{programmer} wrote. Twenty
+reproduced compiler transformations (Part~\ref{part:lowering}) describe leaks
+that a \emph{compiler} introduced, and the corpus has essentially no coverage of
+them.
+
+The distinction is not academic. A programmer-authored leak is present in the
+source, so source review can find it and the fixture merely regression-tests the
+tool. A compiler-introduced leak is absent from the source \emph{and} absent
+from the analysed IR --- no review of either finds it, and the tool is the only
+thing that could.
+
+Worst of all is the direction with zero coverage:
+
+\begin{center}
+leaky source $\;\longrightarrow\;$ \textbf{clean \code{-O2} IR} $\;\longrightarrow\;$ leaky binary
+\end{center}
+
+Mid-end speculation turns a secret branch into a select, which reads as a repair.
+The backend's cmov-to-branch conversion turns it back into a branch. An IR-level
+checker sees the middle stage and reports \Verified{}. That is not a missing
+fixture; it is a missing \emph{axis} --- nothing in the corpus asserts anything
+about a level below the one it analyses.
+
+Three further findings show the corpus can be actively misleading here:
+
+\begin{itemize}[nosep,leftmargin=1.4em]
+\item \textbf{The compiler undoes the corpus's own repairs.} Giving each tenant a
+      separately scoped buffer is the natural fix for the LeftoverLocals pair.
+      Stack colouring merges the two allocations back onto one frame offset, with
+      runtime-confirmed residue --- and the lifetime markers that prove temporal
+      separation are exactly what authorises the merge.
+\item \textbf{A policy gate can be deleted outright.} A measured
+      fail-closed-to-fail-open regression: the same program traps at \code{-O0}
+      and, at \code{-O2} with the enforcement slot optimised away, performs the
+      release and exits successfully.
+\item \textbf{Metadata is discarded on merge.} When two arms are sunk into one,
+      unknown metadata kinds are dropped rather than intersected, leaving a
+      secret store to a public pointer carrying no label at all. Under the
+      convention that unlabelled means public, that is a false negative
+      manufactured by a routine optimisation.
+\end{itemize}
+
+Closing this gap does not mean writing twenty more fixtures at the same level. It
+means the corpus must be able to state a fact about \emph{two} levels at once,
+which is what Part~\ref{part:lowering} is about.

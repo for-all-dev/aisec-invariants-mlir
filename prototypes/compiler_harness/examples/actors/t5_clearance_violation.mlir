@@ -23,10 +23,10 @@
 // closed-world reading of `sps.visibility` is therefore required: anything not
 // granted is denied. An open-world reading would make this artifact look clean.
 //
-// product rows:
-//   {}             ProductSafe
-//   {alice}        ReplayableCounterexample  item-outside-declared-visibility
-// future artifact ModelStatus: Counterexample(ReplayableWitness)
+// AuditAll fixture expectations (not computed results):
+//   {}             UNSAT / Discharged
+//   {alice}        SAT / CandidateOnly / accepted Bad_A replay required
+// future ModelStatus matcher: Counterexample(receiptId), contingent on replay
 //
 // CHECK-LABEL: llvm.func @serve_two_items
 // CHECK: llvm.store %{{.*}}sps.item = "embeddings"
@@ -61,7 +61,8 @@ module attributes {
     // secret source: %raw_prompt is declared high and carries item raw_prompt
     // observable effect: alice_channel receives 4 and 8 for two prompts
     // reason: raw_prompt grants visibility to no principal, and absence of a grant is a denial under the closed-world reading
-    // detection boundary: L1 resolves visibility per item, not per principal; L2 supplies the 4/8 witness
+    // fixture check: policy-derived visibility is item-specific; values 4/8
+    // form only a candidate until exact AuditAll replay reaches Bad_A
     llvm.store %raw_prompt, %alice_channel
         {sps.audience = ["alice"], sps.item = "raw_prompt"} : i32, !llvm.ptr
 

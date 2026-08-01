@@ -1,4 +1,5 @@
 # REQUIRES: sps-scan-unary
-# RUN: %sps-scan --refine-address %harness/mlir/secret_embedding_index.bad.mlir | %FileCheck %s
+# Fixture tier: PreflightV1; output is scanner-specific triage, not Section 10.
+# RUN: %sps-scan --refine-address %harness/mlir/secret-embedding-index/bad/secret_embedding_index.bad.mlir | %FileCheck %s
 # CHECK: [secret-dependent-address]
 # CHECK: findings: 1

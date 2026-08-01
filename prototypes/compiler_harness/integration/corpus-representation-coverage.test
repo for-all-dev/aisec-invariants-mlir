@@ -9,6 +9,6 @@
 # CHECK: verified C -> bitcode: 45
 # CHECK: verified C -> LLVM -> MLIR: 44; expected inline-asm refusals: 1
 # CHECK: verified MLIR -> LLVM -> bitcode: 53
-# CHECK: verified textual LLVM: 19
-# CHECK: verified frozen bitcode fresh-reparse fixpoints: 9
+# CHECK: verified textual LLVM: 21
+# CHECK: verified checked-in bitcode fresh-reparse fixpoints: 9
 # CHECK: verified machine basic-block snapshots: 7

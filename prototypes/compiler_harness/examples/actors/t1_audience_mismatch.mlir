@@ -17,7 +17,8 @@
 //   - For {bob}, the carrier payload is concealed, the obligation remains
 //     active, and the later Bob-visible store reaches the bad state.
 //
-// The product is safe at {alice} and has a replayable counterexample at {bob},
+// AuditAll is discharged at {alice}; at {bob}, SAT remains CandidateOnly until
+// exact replay reaches Bad_A,
 // with no containment relation between those coalitions. A checker that evaluates
 // only the authored maximal coalition {alice, bob} never visits {bob} alone and
 // reports the artifact clean.
@@ -25,12 +26,12 @@
 // This is why the specification forbids deduplicating results from coalition
 // monotonicity, and why a report may not omit a derived coalition.
 //
-// product rows:
-//   {}             ProductSafe
-//   {alice}        ProductSafe
-//   {bob}          ReplayableCounterexample  bob-visible-output-while-obligation-active
-//   {alice,bob}    ProductSafe
-// future artifact ModelStatus: Counterexample(ReplayableWitness)
+// AuditAll fixture expectations (not computed results):
+//   {}             UNSAT / Discharged
+//   {alice}        UNSAT / Discharged
+//   {bob}          SAT / CandidateOnly / accepted Bad_A replay required
+//   {alice,bob}    UNSAT / Discharged
+// future ModelStatus matcher: Counterexample(receiptId), contingent on replay
 //
 // The empty coalition observes neither principal channel, while the joint
 // coalition contains alice and is covered by the declared audience. The future
@@ -85,7 +86,8 @@ module attributes {
     // secret source: %released is derived from high %logits by masked_class_v1
     // observable effect: bob_channel receives class indices 3 and 5 for two logit vectors
     // reason: masked_class_v1 stays concealed from bob, so its obligation remains active
-    // detection boundary: L1 compares the store's audience against the release policy; L2 supplies the 3/5 witness
+    // fixture check: audience-specific ledger remains active; an AuditAll SAT
+    // candidate using values 3/5 must independently replay to Bad_A
     llvm.store %released, %bob_channel {sps.audience = ["bob"]} : i32, !llvm.ptr
 
     llvm.return

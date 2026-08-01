@@ -3,7 +3,7 @@ SHELL := /bin/sh
 include toolchains.mk
 
 .PHONY: all verify compile-host regen-mlir check-codegen check-equivalence \
-	check-provenance check-annotations clean clangover clangover-models \
+	check-provenance check-snapshots check-annotations clean clangover clangover-models \
 	wolfssl-3580 wolfssl-3579 kyberslash
 
 PYTHON ?= python3
@@ -200,11 +200,13 @@ check-equivalence: $(EQUIV_BIN)
 check-provenance:
 	$(PYTHON) check_harness.py provenance
 
-check-annotations:
-	$(PYTHON) check_harness.py annotations
+check-snapshots:
+	$(PYTHON) check_harness.py snapshots
 
-verify: compile-host check-provenance check-annotations check-equivalence check-codegen regen-mlir
-	@for f in ../mlir/*.mlir; do $(MLIR_OPT) --verify-each "$$f" -o /dev/null; done
+check-annotations: check-snapshots
+
+verify: compile-host check-provenance check-snapshots check-equivalence check-codegen regen-mlir
+	@find ../mlir -name '*.mlir' -type f -exec $(MLIR_OPT) --verify-each '{}' -o /dev/null \;
 	@echo "C compilation, code-generation checks, and checked-in MLIR parsing succeeded"
 
 clean:

@@ -1,5 +1,5 @@
 {
-  "candidate_bitcode_sha256": "d87a54b4a4b57ee8f12497662e759fa6ae94800cb8ba6da8233f033e3ec2bb6a",
+  "format_id": "SPS-Harness-Candidate-Release-Table-v1",
   "entries": [],
-  "schema_version": "sps-fixture-release-table-v0"
+  "candidate_bitcode_sha256": "d87a54b4a4b57ee8f12497662e759fa6ae94800cb8ba6da8233f033e3ec2bb6a"
 }

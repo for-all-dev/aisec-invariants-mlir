@@ -38,7 +38,7 @@
  *   affected profile's operand-dependent latency contract; without a helper
  *   timing summary, the confidentiality verdict is unknown rather than safe.
  *   Applying that affected profile to a real target remains conditional until
- *   L4 validates the helper-timing evidence.
+ *   deployment evidence validates the helper-timing evidence.
  *
  * Canonical compiler command:
  *   clang -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -S wolfssl_3579_mul_vulnerable.c

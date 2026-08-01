@@ -1,0 +1,14 @@
+entry: alloca_size_public_control
+
+secret: []
+
+public:
+  - {arg: 0, name: public_count}
+  - {observable: allocation-size}
+
+expect: no-violation
+
+because:
+  - allocation size is derived only from the declared public count
+
+sps: not-run
