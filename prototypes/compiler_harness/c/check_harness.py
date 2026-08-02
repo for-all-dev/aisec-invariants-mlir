@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import checkpoint_model  # noqa: E402  (shared Snapshot V3 contract)
+import counterexample_pair  # noqa: E402  (non-claimable synthetic pair contract)
 import fixture_layout  # noqa: E402  (shared fixture discovery)
 import sps_aggregation  # noqa: E402  (shared normative aggregation rule)
 import sps_interfaces  # noqa: E402  (SPS-owned wire registry)
@@ -84,7 +85,15 @@ MLIR_SYMBOL = re.compile(r"[A-Za-z_.$][A-Za-z0-9_.$-]*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 LEGACY_LEVEL = re.compile(r"\bL[0-4]\b")
 SNAPSHOT_OBSERVABLES = frozenset(
-    {"address", "allocation-size", "control", "release-identity", "return", "timing"}
+    {
+        "address",
+        "allocation-size",
+        "control",
+        "release-identity",
+        "return",
+        "timing",
+        "transfer",
+    }
 )
 INTERFACE_REGISTRY = sps_interfaces.load_default_registry()
 PUBLIC_REASON_CLASS_IDS = frozenset(
@@ -334,11 +343,26 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
     errors: list[str] = []
     records: list[dict[str, object]] = []
     snapshot_paths = sorted(FIXTURES_DIR.rglob("snapshot.yaml"))
+    pair_paths = sorted(FIXTURES_DIR.rglob(counterexample_pair.FILENAME))
     mlir_paths = fixture_layout.fixture_mlir_paths(ROOT)
     authoring_owners: dict[Path, Path] = {}
 
     if not snapshot_paths:
         fail(errors, FIXTURES_DIR, "no snapshot.yaml fixtures were discovered")
+    for pair_path in pair_paths:
+        try:
+            relative_parent = pair_path.parent.relative_to(FIXTURES_DIR)
+        except ValueError:
+            fail(errors, pair_path, "counterexample pair is outside fixtures/")
+            continue
+        if len(relative_parent.parts) != 2:
+            fail(
+                errors,
+                pair_path,
+                "counterexample pair must live at fixtures/<family>/<case>/",
+            )
+        if not (pair_path.parent / "snapshot.yaml").is_file():
+            fail(errors, pair_path, "counterexample pair has no sibling snapshot.yaml")
     for mlir_path in mlir_paths:
         if not (mlir_path.parent / "snapshot.yaml").is_file():
             fail(errors, mlir_path, "fixture MLIR has no sibling snapshot.yaml")
@@ -396,6 +420,12 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
 
         policy_path = snapshot_path.parent / "policy.sps.yaml"
         abi_path = snapshot_path.parent / "abi.sps.yaml"
+        contracts_path = snapshot_path.parent / "contracts.sps.yaml"
+        pair: counterexample_pair.CounterexamplePair | None = None
+        try:
+            pair = counterexample_pair.load_fixture_pair(value)
+        except counterexample_pair.CounterexamplePairError as error:
+            fail(errors, snapshot_path, str(error))
         case_sources = sorted(
             path
             for suffix in ("*.c", "*.cc", "*.cpp", "*.cxx")
@@ -455,7 +485,15 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
                     snapshot_path,
                     "source-annotated case c_evidence omits its ABI primary source",
                 )
-            for owned_path in [*case_sources, policy_path, abi_path]:
+            if contracts_path.exists() and (
+                not contracts_path.is_file() or contracts_path.is_symlink()
+            ):
+                fail(
+                    errors,
+                    contracts_path,
+                    "optional contract authoring sidecar must be a regular file",
+                )
+            for owned_path in [*case_sources, policy_path, abi_path, contracts_path]:
                 if not owned_path.exists():
                     continue
                 if owned_path.is_symlink():
@@ -568,6 +606,10 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
                 "public": value.public,
                 "allowed": value.allowed,
                 "snapshot": value,
+                "counterexample_pair": pair,
+                "counterexample_pair_digest": (
+                    pair.canonical_digest if pair is not None else None
+                ),
                 "pipelines": value.pipelines,
                 "final": value.final,
             }

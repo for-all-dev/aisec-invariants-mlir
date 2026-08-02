@@ -9,13 +9,16 @@
 //
 module {
   llvm.func @wolfssl_3580_select_fixed(
-      %table_index: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},
-      %scan_index: i32,
-      %table_value: i32) -> i32 {
+      %table: !llvm.ptr {sps.abi_root_ref = "table", sps.label = "public"},
+      %table_index: i32 {
+        sps.component_ref = "table-index",
+        sps.fixture_refs = ["snapshot.secret[0]"],
+        sps.label = "high"}) -> i32 {
+    %table_value = llvm.load %table : !llvm.ptr -> i32
     %zero = llvm.mlir.constant(0 : i32) : i32
     %one = llvm.mlir.constant(1 : i32) : i32
     %thirty_one = llvm.mlir.constant(31 : i32) : i32
-    %x = llvm.xor %scan_index, %table_index : i32
+    %x = llvm.xor %zero, %table_index : i32
     %neg_x = llvm.sub %zero, %x : i32
     %nonzero_bits = llvm.or %x, %neg_x : i32
     %top = llvm.lshr %nonzero_bits, %thirty_one : i32

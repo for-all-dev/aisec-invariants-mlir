@@ -1,8 +1,9 @@
 {
-  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
   "harnessCase": "precision-control/identical-successor",
   "referenceCaseId": "identical-successor",
   "entry": "identical_successor_control",
+  "counterexamplePair": null,
   "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
   "files": [
     {"role": "abi", "path": "abi.sps.yaml", "sha256": "cc1d47481eff624b07687ab96abe313d115fbf277f32d2c565a980516d0150b2"},

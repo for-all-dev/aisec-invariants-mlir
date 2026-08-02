@@ -4,7 +4,7 @@ entry:
   id: wrong_host_fhe_reveal_bad
   symbol: wrong_host_fhe_reveal_bad
   host: compute
-  function-type: i32 (i32, i32, ptr, ptr)
+  function-type: i32 (i32, i32)
   return:
     llvm-type: i32
     bit-width: 32
@@ -18,34 +18,10 @@ carriers:
     argument: 1
     llvm-type: i32
     bit-width: 32
-roots:
-  authorized-client-plaintext:
-    argument: 2
-    host: authorized-client-endpoint
-    extent-bytes: 4
-    alignment: 4
-    permission: write-only
-    initialization: uninitialized
-    ownership: caller
-    output: authorized-client-plaintext
-  unauthorized-server-plaintext:
-    argument: 3
-    host: server-endpoint
-    extent-bytes: 4
-    alignment: 4
-    permission: write-only
-    initialization: uninitialized
-    ownership: caller
-    output: unauthorized-server-plaintext
+roots: {}
 aliases:
   complete: true
-  relations:
-  - relation: disjoint
-    roots:
-    - authorized-client-plaintext
-    - unauthorized-server-plaintext
+  relations: []
 terminal-output-order:
   normal-value:
-  - authorized-client-plaintext
-  - unauthorized-server-plaintext
   - return

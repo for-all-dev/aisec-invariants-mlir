@@ -20,7 +20,7 @@
 # CHECK: abi-alias-disjoint: artifact.ll does not reassemble to exact artifact.bc bytes
 
 # A lowering-inert readable edit may move the live source hash away from the
-# capture-time provenance hash. Exercise that policy independently of the nine
+# capture-time provenance hash. Exercise that policy independently of the eight
 # already-drifted checked-in fixtures.
 
 # RUN: rm -rf %t.lowering-inert-drift

@@ -1,0 +1,25 @@
+format-id: SPS-Harness-Authoring-Contracts-v1
+claim-boundary: NonClaimableAuthoringLocator
+contracts:
+- id: transfer-alice
+  locator: {callee: sps_transfer_audience_alice, call-ordinal: 0}
+  source-host: compute
+  destination-host: alice-endpoint
+  signature: {arguments: [i32], result: void}
+  memory-effects: []
+  choice: Unit
+  total: true
+  deterministic: true
+  representation: SPS-ContractWire-v2
+  limitations: [NoFunctionSemantics, NotCanonicalContractTableV2]
+- id: transfer-bob
+  locator: {callee: sps_transfer_audience_bob, call-ordinal: 0}
+  source-host: compute
+  destination-host: bob-endpoint
+  signature: {arguments: [i32], result: void}
+  memory-effects: []
+  choice: Unit
+  total: true
+  deterministic: true
+  representation: SPS-ContractWire-v2
+  limitations: [NoFunctionSemantics, NotCanonicalContractTableV2]

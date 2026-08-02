@@ -1,8 +1,9 @@
 {
-  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
   "harnessCase": "precision-control/overwritten-slot",
   "referenceCaseId": "overwritten-slot",
   "entry": "overwritten_slot_control",
+  "counterexamplePair": null,
   "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
   "files": [
     {"role": "abi", "path": "abi.sps.yaml", "sha256": "e4787da4c8e1c5c8d1892ef69e808e72635eff4c9ecccb28eac38b909888675d"},
@@ -17,7 +18,7 @@
     {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
   ],
   "roots": [
-    {"referenceRoot": "slot", "storageKind": "InternalAlloca", "abiRoot": null, "argumentIndex": null, "argumentName": null, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
+    {"referenceRoot": "slot", "component": null, "storageKind": "InternalAlloca", "abiRoot": null, "argumentIndex": null, "argumentName": null, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
   ],
   "observations": [
     {"kind": "Output", "field": "valueBytes"}

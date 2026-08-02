@@ -48,11 +48,11 @@ COUNTEREXAMPLE_CASES = {
     "audience-mismatch/bad": "bob-visible-output-while-release-obligation-active",
     "breach-compressed-length/bad": "public-wire-length-mismatch",
     "ckks-release/bad": "raw-unauthorized-public-release-mismatch",
-    "clangover-poly-frommsg/lowered-bad": "world-control-timing-mismatch",
+    "clangover-poly-frommsg/lowered-bad": "world-control-successor-mismatch",
     "dynamic-kv-length/bad": "public-counts-mismatch",
     "explicit-error-oracle/bad": "public-error-detail-mismatch",
-    "kyberslash1-poly-tomsg/bad": "timing-cost-mismatch",
-    "kyberslash2-compress/bad": "timing-cost-mismatch",
+    "kyberslash1-poly-tomsg/target-bad": "target-control-successor-mismatch",
+    "kyberslash2-compress/target-bad": "target-control-successor-mismatch",
     "leftoverlocals-scratch/bad": "next-tenant-output-mismatch",
     "loop-bounds/secret-trip-count-bad": "world-control-location-mismatch",
     "predecessor-choice/blockarg-bad": "public-output-block-argument-mismatch",
@@ -64,8 +64,8 @@ COUNTEREXAMPLE_CASES = {
     "redis-pool-reuse/bad": "actor-b-return-payload-mismatch",
     "secret-embedding-index/bad": "address-trace-mismatch",
     "secret-logging-checkpoint/bad": "public-log-checkpoint-payload-mismatch",
-    "wolfssl-3579-mul/target-bad": "helper-timing-cost-mismatch",
-    "wolfssl-3580-mask/target-bad": "world-control-timing-mismatch",
+    "wolfssl-3579-mul/target-bad": "target-control-successor-mismatch",
+    "wolfssl-3580-mask/target-bad": "world-control-successor-mismatch",
     "wrong-host-fhe-reveal/bad": "unauthorized-server-output-mismatch",
     "wrong-party-plaintext/bad": "unauthorized-mailbox-output-mismatch",
 }
@@ -75,6 +75,8 @@ UNKNOWN_CASES = {
     "alloca-size/high-count-unknown": "AllocaSizeNotWorldStructural",
     "launder-scan/barrier-fixed": "UnsupportedOpcode",
     "loop-bounds/public-bound-exhausted-unknown": "LoopRemainder",
+    "kyberslash1-poly-tomsg/bad": "OpenModelObligations",
+    "kyberslash2-compress/bad": "OpenModelObligations",
     "release-carrier/lost-bad": "ReleaseCarrierMismatch",
     "release-carrier/marker-only-bad": "ReleaseCarrierMismatch",
     "release-carrier/pinned-control": "ReleaseCarrierMismatch",
@@ -89,7 +91,6 @@ CANDIDATE_CASES = frozenset(
         "abi-alias/missing-binding-unknown",
         "alloca-size/high-count-unknown",
         "alloca-size/public-control",
-        "audience-mismatch/bad",
         "launder-scan/model-clean-p4-open",
         "loop-bounds/public-bound-exhausted-unknown",
         "loop-bounds/secret-trip-count-bad",
@@ -112,22 +113,22 @@ def main() -> int:
     assert set(view) == {"format_id", "results", "summary"}
     assert view["format_id"] == FORMAT_ID
     assert view["summary"] == {
-        "fixtures": 60,
+        "fixtures": 62,
         "expected_proved": 26,
         "expected_counterexample": 25,
-        "expected_unknown": 9,
+        "expected_unknown": 11,
         "compared": 0,
     }
 
     rows = view["results"]
-    assert isinstance(rows, list) and len(rows) == 60
+    assert isinstance(rows, list) and len(rows) == 62
     assert [row["case"] for row in rows] == sorted(row["case"] for row in rows)
     by_case = {row["case"]: row for row in rows}
 
     expected_cases = set(PROVED_CASES) | set(COUNTEREXAMPLE_CASES) | set(UNKNOWN_CASES)
     assert len(PROVED_CASES) == 26
     assert len(COUNTEREXAMPLE_CASES) == 25
-    assert len(UNKNOWN_CASES) == 9
+    assert len(UNKNOWN_CASES) == 11
     assert expected_cases == set(by_case)
 
     for case, row in by_case.items():

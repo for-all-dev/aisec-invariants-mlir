@@ -96,14 +96,16 @@
         "name": "p",
         "kind": "root",
         "root_id": "p",
-        "extent_bytes": 4
+        "extent_bytes": 4,
+        "output": "p"
       },
       {
         "index": 2,
         "name": "q",
         "kind": "root",
         "root_id": "q",
-        "extent_bytes": 4
+        "extent_bytes": 4,
+        "output": "q"
       },
       {
         "index": 3,
@@ -114,21 +116,14 @@
         "output": "world"
       }
     ],
-    "admission_constraints": [
-      {
-        "kind": "required-alias-realization",
-        "left": "p",
-        "right": "q",
-        "realization": "EqualBase"
-      }
-    ],
+    "admission_constraints": [],
     "alias_topology": {
       "complete": true,
       "relations": [
         {
           "left": "p",
           "right": "q",
-          "relation": "MayAlias"
+          "relation": "SameAllocation"
         },
         {
           "left": "p",
@@ -142,13 +137,7 @@
         }
       ]
     },
-    "initialized_regions": [
-      {
-        "root": "q",
-        "offset": 0,
-        "width": 4
-      }
-    ],
+    "initialized_regions": [],
     "entry": "abi_alias_mayalias_overlap"
   },
   "contracts": {

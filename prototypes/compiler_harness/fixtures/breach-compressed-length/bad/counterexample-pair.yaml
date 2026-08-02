@@ -1,0 +1,32 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: breach_compressed_length_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    public-guess:
+      bitvector:
+        width: 8
+        hex: "00"
+    encrypted-body:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_left:
+    secret-byte:
+      bitvector:
+        width: 8
+        hex: "00"
+  high_right:
+    secret-byte:
+      bitvector:
+        width: 8
+        hex: "01"
+expected:
+  bad_state: public-wire-length-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: public-wire-length

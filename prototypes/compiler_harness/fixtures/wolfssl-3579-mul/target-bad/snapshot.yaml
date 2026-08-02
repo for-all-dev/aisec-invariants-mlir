@@ -14,14 +14,15 @@ expect:
   final:
     model:
       status: Counterexample
-      bad_state: helper-timing-cost-mismatch
+      bad_state: target-control-successor-mismatch
     deployment: Open
     policy: Complete
     events:
-    - kind: Latency
-      field: configuredClass
+    - kind: BranchSuccessor
+      field: successor
       first_bad: true
-    because: both secret operands enter a helper modeled with operand-dependent latency
+    because: the hand-authored target helper model branches on secret_a while
+      the real helper binding remains a separate deployment obligation
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -48,17 +49,17 @@ expect:
           - wolfssl_3579_mul_rv32_bad_model
         operation.names:
           ordered:
-          - llvm.call
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.mul
           - llvm.return
-        call.callees:
+        function.signatures:
           contains:
-          - __muldi3
-        function.attributes:
+          - wolfssl_3579_mul_rv32_bad_model|(i64,i64)->i64
+        branch.successor_shapes:
           contains:
-          - __muldi3|sps.contract_status|"unverified_target_profile_assumption"
-          - __muldi3|sps.helper_latency|"operand_dependent"
-          - __muldi3|sps.helper_profile|"affected-rv32i-muldi3-v2"
-          - __muldi3|sps.real_target_applicability|"deployment_evidence_required"
+          - wolfssl_3579_mul_rv32_bad_model|targets=bb1,bb2|same-target=false|args=;
     rv32-backend-risk:
       kind: assembly
       function: wolfssl_3579_mul_vulnerable

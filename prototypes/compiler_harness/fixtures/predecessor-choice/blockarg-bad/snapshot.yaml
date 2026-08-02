@@ -6,8 +6,7 @@ secret:
 - arg: 0
   name: secret_bit
 public:
-- memory_at_arg: 1
-  name: public_sink
+- observable: return
 expect:
   final:
     model:
@@ -16,8 +15,9 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: BranchSuccessor
-      field: successor
+    - kind: Output
+      field: valueBytes
+      id: return
       first_bad: true
     because: the secret predecessor choice selects block argument 10 or 20
   pipelines:
@@ -47,8 +47,8 @@ expect:
         operation.names:
           ordered:
           - llvm.mlir.constant
+          - llvm.icmp
           - llvm.cond_br
-          - llvm.store
         operation.occurrences.llvm.mlir.constant:
           count:
             min: 2

@@ -49,8 +49,10 @@ expect:
         operation.names:
           ordered:
           - llvm.call
+          - llvm.call
           - llvm.store
           - llvm.return
         call.callees:
           contains:
           - ckks_sanitize_model
+          - llvm.sps.release

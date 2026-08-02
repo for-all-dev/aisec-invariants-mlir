@@ -15,8 +15,8 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: LoopContinuation
-      field: continueOrExit
+    - kind: BranchSuccessor
+      field: successor
       first_bad: true
     because: secret counts zero and one choose different first loop successors
     reference: candidate/expected-report.json

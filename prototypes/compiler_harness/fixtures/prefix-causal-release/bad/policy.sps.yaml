@@ -8,14 +8,14 @@ adversaries:
 hosts:
   compute:
     visibility: secret
+  public-endpoint:
+    visibility: public
 components:
   secret:
     lifecycle: entry-input
     type: bv32
     visibility: secret
-outputs:
-  public-channel:
-    visibility: public
+outputs: {}
 releases:
   policy-h:
     locator:

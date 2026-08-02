@@ -39,19 +39,18 @@
 // fixture decays into its own paired control and stops testing anything.
 module {
   llvm.func @predecessor_choice_blockarg_bad(
-      %secret_bit: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},
-      %public_sink: !llvm.ptr {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}) {
+      %secret_bit: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}) -> i32 {
+    %zero = llvm.mlir.constant(0 : i32) : i32
     %low = llvm.mlir.constant(10 : i32) : i32
     %high = llvm.mlir.constant(20 : i32) : i32
+    %condition = llvm.icmp "ne" %secret_bit, %zero : i32
     // PREFLIGHT FINDING: secret selects the merge block argument
     // secret source: %secret_bit chooses which predecessor edge reaches ^merge
     // observable effect: the public sink receives 10 or 20 according to the secret
     // reason: dependence closed only over SSA operands misses the predecessor gating fact
     // preflight expectation: preflight diagnostic predecessor-choice closure over block arguments
-    llvm.cond_br %secret_bit, ^merge(%low : i32), ^merge(%high : i32)
+    llvm.cond_br %condition, ^merge(%low : i32), ^merge(%high : i32)
   ^merge(%selected: i32):
-    llvm.store %selected, %public_sink
-        {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"} : i32, !llvm.ptr
-    llvm.return
+    llvm.return {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"} %selected : i32
   }
 }

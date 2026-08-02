@@ -21,6 +21,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: return
       first_bad: true
     because: the public return reloads the secret byte at offset 4
   pipelines:

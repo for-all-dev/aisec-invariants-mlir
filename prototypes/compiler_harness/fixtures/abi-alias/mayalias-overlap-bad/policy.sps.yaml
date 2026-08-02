@@ -13,12 +13,10 @@ components:
     lifecycle: entry-input
     type: bv32
     visibility: secret
-  q-input:
-    lifecycle: entry-input
-    type: bytes
-    visibility: public
 outputs:
   p:
+    visibility: secret
+  q:
     visibility: secret
   public-output:
     visibility: public

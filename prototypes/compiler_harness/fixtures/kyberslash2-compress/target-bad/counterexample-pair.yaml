@@ -1,0 +1,23 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: kyberslash2_compress_target_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    coefficient:
+      bitvector:
+        width: 16
+        hex: "0000"
+  high_right:
+    coefficient:
+      bitvector:
+        width: 16
+        hex: "0001"
+expected:
+  bad_state: target-control-successor-mismatch
+  first_difference:
+    kind: BranchSuccessor
+    field: successor

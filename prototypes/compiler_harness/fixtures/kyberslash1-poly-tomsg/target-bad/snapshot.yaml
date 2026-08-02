@@ -1,0 +1,57 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: kyberslash1_poly_tomsg_target_bad
+c_evidence:
+- fixtures/kyberslash1-poly-tomsg/target-bad/kyberslash1_poly_tomsg_target_bad.c
+secret:
+- arg: 0
+  name: coefficient
+public:
+- observable: control
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: target-control-successor-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+      first_bad: true
+    because: the hand-authored target model branches on whether the secret
+      coefficient is zero
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - kyberslash1_poly_tomsg_target_bad
+        function.signatures:
+          contains:
+          - kyberslash1_poly_tomsg_target_bad|(i16)->i8
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+        branch.successor_shapes:
+          contains:
+          - kyberslash1_poly_tomsg_target_bad|targets=bb1,bb2|same-target=false|args=;

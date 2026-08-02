@@ -210,7 +210,7 @@ def main() -> None:
     ):
         matcher.load_candidate_expectation(sidecar)
         checked += 1
-    assert checked == 9
+    assert checked == 8
     assert tracked_candidate_hashes() == before
 
     build_root = Path(os.environ["LIT_BUILD_ROOT"])

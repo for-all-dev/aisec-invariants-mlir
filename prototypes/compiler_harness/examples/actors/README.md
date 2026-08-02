@@ -2,8 +2,10 @@
 
 These MLIR files are live design notes outside the enforced corpus. They parse
 and pin shapes, but their comment rows are not verifier output. The main
-machine-checked future-oracle example is the candidate bundle at
-`../../fixtures/audience-mismatch/bad/candidate/`.
+machine-checked preflight example is the authoring boundary and synthetic pair
+under `../../fixtures/audience-mismatch/bad/`. Its former Candidate-v2 bundle
+was retired because that format cannot represent the two cross-host scalar
+transfer contracts.
 
 ## Why every derived coalition needs a row
 

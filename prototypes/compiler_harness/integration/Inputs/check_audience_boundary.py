@@ -13,21 +13,21 @@ EXPECTED_COALITIONS = [
         "members": ["alice", "bob"],
         "visible-components": [],
         "visible-hosts": ["alice-endpoint", "bob-endpoint"],
-        "visible-outputs": ["alice-channel", "bob-channel"],
+        "visible-outputs": [],
         "authorized-releases": ["masked-class"],
     },
     {
         "members": ["alice"],
         "visible-components": [],
         "visible-hosts": ["alice-endpoint"],
-        "visible-outputs": ["alice-channel"],
+        "visible-outputs": [],
         "authorized-releases": ["masked-class"],
     },
     {
         "members": ["bob"],
         "visible-components": [],
         "visible-hosts": ["bob-endpoint"],
-        "visible-outputs": ["bob-channel"],
+        "visible-outputs": [],
         "authorized-releases": [],
     },
     {
@@ -70,6 +70,36 @@ def main() -> None:
             raise SystemExit(
                 f"audience release {key} mismatch: expected {expected!r}, got {release.get(key)!r}"
             )
+    contracts = value.get("contracts")
+    expected_contracts = [
+        {
+            "id": "transfer-alice",
+            "callee": "sps_transfer_audience_alice",
+            "call-ordinal": 0,
+            "source-host": "compute",
+            "destination-host": "alice-endpoint",
+            "signature": "void (i32)",
+            "claim-boundary": "NonClaimableAuthoringLocator",
+        },
+        {
+            "id": "transfer-bob",
+            "callee": "sps_transfer_audience_bob",
+            "call-ordinal": 0,
+            "source-host": "compute",
+            "destination-host": "bob-endpoint",
+            "signature": "void (i32)",
+            "claim-boundary": "NonClaimableAuthoringLocator",
+        },
+    ]
+    if not isinstance(contracts, list) or len(contracts) != len(expected_contracts):
+        raise SystemExit(f"audience contract rows mismatch: {contracts!r}")
+    for actual, expected in zip(contracts, expected_contracts, strict=True):
+        for key, expected_value in expected.items():
+            if actual.get(key) != expected_value:
+                raise SystemExit(
+                    f"audience contract {key} mismatch: expected {expected_value!r}, "
+                    f"got {actual.get(key)!r}"
+                )
     print("audience source boundary matches all four coalition rows")
 
 

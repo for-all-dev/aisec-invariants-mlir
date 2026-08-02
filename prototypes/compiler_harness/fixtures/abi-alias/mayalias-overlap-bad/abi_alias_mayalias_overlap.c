@@ -1,5 +1,5 @@
 /*
- * Case: MT-CM5 admitted may-alias overlap
+ * Case: MT-CM5 fixed same-allocation overlap (legacy mayalias fixture path)
  *
  * Original C source:
  *   none
@@ -14,11 +14,12 @@
  *   secret
  *
  * Public inputs:
- *   the initialized q value, public-output target, and admitted may-alias topology
+ *   the fixed same-allocation topology and public-output target
  *
  * Security intent:
- *   Written for this harness. The ABI admits p and q aliasing, including p ==
- * q, so the reload can disclose secret through public-output. The sibling
+ *   Written for this harness. The ABI fixes p and q as two views of one
+ *   allocation, so the store through p initializes the bytes loaded through q
+ *   and the reload can disclose secret through public-output. The sibling
  * policy.sps.yaml owns visibility and the sibling abi.sps.yaml owns the
  * concrete carrier, root, and alias bindings.
  *

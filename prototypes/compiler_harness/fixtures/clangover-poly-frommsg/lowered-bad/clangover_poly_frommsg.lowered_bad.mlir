@@ -12,21 +12,32 @@ module {
   //   btl %ecx, %r8d
   //   jae .LBB0_4
   llvm.func @clangover_poly_frommsg_x86_bad_model(
-      %bit: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}) -> i16 {
-    %zero = llvm.mlir.constant(0 : i16) : i16
-    %constant = llvm.mlir.constant(1665 : i16) : i16
+      %out: !llvm.ptr {sps.abi_root_ref = "out", sps.output_ref = "out"},
+      %msg: !llvm.ptr {
+        sps.abi_root_ref = "msg",
+        sps.fixture_refs = ["snapshot.secret[0]"],
+        sps.label = "high"}) {
+    %message_byte = llvm.load %msg : !llvm.ptr -> i8
+    %one8 = llvm.mlir.constant(1 : i8) : i8
+    %bit = llvm.and %message_byte, %one8 : i8
+    %zero8 = llvm.mlir.constant(0 : i8) : i8
+    %is_one = llvm.icmp "ne" %bit, %zero8 : i8
+    %zero16 = llvm.mlir.constant(0 : i16) : i16
+    %constant16 = llvm.mlir.constant(1665 : i16) : i16
     // PREFLIGHT FINDING: secret-dependent branch
-    // secret source: %bit is derived from the secret message
-    // observable effect: branch direction and execution timing
-    // reason: inputs differing only in %bit select different successors
-    // preflight expectation: unary scanner flags the candidate-secret branch in this target model
-    llvm.cond_br %bit, ^taken, ^not_taken {
-      sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"],
-      sps.observable_candidate = ["control", "timing"]
+    // secret source: %is_one is derived from the byte loaded through secret root %msg
+    // observable effect: the observer-visible compute host exposes the immediate successor
+    // reason: messages beginning with 0x00 and 0x01 select different target blocks
+    // preflight expectation: the target-control oracle selects BranchSuccessor.successor as first bad
+    llvm.cond_br %is_one, ^taken, ^not_taken {
+      sps.fixture_refs = ["snapshot.public[0]"],
+      sps.observable_candidate = ["control"]
     }
   ^taken:
-    llvm.return %constant : i16
+    llvm.store %constant16, %out : i16, !llvm.ptr
+    llvm.return
   ^not_taken:
-    llvm.return %zero : i16
+    llvm.store %zero16, %out : i16, !llvm.ptr
+    llvm.return
   }
 }

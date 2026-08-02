@@ -20,6 +20,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: public-log
       first_bad: true
     because: the token is copied directly into both public outputs
   pipelines:

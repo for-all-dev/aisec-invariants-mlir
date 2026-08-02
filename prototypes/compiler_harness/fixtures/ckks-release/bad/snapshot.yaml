@@ -20,6 +20,10 @@ expect:
     events:
     - kind: Release
       field: valueBytes
+      id: sanitized-release
+    - kind: Output
+      field: valueBytes
+      id: public-release
       first_bad: true
     because: raw approximate plaintext is stored directly to the public release sink
   pipelines:
@@ -50,4 +54,8 @@ expect:
           - ckks_unsafe_release_bad
         operation.names:
           ordered:
+          - llvm.call
           - llvm.store
+        call.callees:
+          contains:
+          - llvm.sps.release

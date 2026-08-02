@@ -1,0 +1,23 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: audience_mismatch_bad
+coalition:
+- bob
+inputs:
+  low_equal: {}
+  high_left:
+    logits:
+      bitvector:
+        width: 32
+        hex: "00000003"
+  high_right:
+    logits:
+      bitvector:
+        width: 32
+        hex: "00000005"
+expected:
+  bad_state: bob-visible-output-while-release-obligation-active
+  first_difference:
+    kind: Transfer
+    field: valueBytes

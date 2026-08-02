@@ -10,6 +10,21 @@
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
 module {
+  llvm.func @llvm.sps.release(i32)
+
+  llvm.func @ckks_sanitize_model(
+      %raw_approximate_plaintext: i32,
+      %public_sanitizer_mask: i32,
+      %certificate_ok: i32) -> i32 {
+    %one = llvm.mlir.constant(1 : i32) : i32
+    %zero = llvm.mlir.constant(0 : i32) : i32
+    %valid = llvm.and %certificate_ok, %one : i32
+    %certificate_mask = llvm.sub %zero, %valid : i32
+    %masked_plaintext = llvm.and %raw_approximate_plaintext, %public_sanitizer_mask : i32
+    %sanitized = llvm.and %masked_plaintext, %certificate_mask : i32
+    llvm.return %sanitized : i32
+  }
+
   llvm.func @ckks_unsafe_release_bad(
       %raw_approximate_plaintext: i32 {
         sps.component_ref = "raw-approximate-plaintext",
@@ -21,6 +36,15 @@ module {
         sps.fixture_refs = ["public-memory:public_release"],
         sps.output_ref = "public-release",
         sps.sink_class = "public"}) -> i32 {
+    %sanitized = llvm.call @ckks_sanitize_model(
+      %raw_approximate_plaintext,
+      %public_sanitizer_mask,
+      %certificate_ok) : (i32, i32, i32) -> i32
+    llvm.call @llvm.sps.release(%sanitized) {
+      sps.fixture_refs = ["release:sanitized-release"],
+      sps.release_ref = "sanitized-release",
+      sps.site_alias = "sanitized-release"
+    } : (i32) -> ()
     // PREFLIGHT FINDING: raw approximate plaintext reaches the public release sink
     // secret source: %raw_approximate_plaintext is an unsanitized decryption result
     // observable effect: the public release sink receives the raw value

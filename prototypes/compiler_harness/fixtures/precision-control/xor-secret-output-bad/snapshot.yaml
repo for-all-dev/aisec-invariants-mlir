@@ -17,6 +17,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: return
       first_bad: true
     because: secret xor zero returns the secret on a public output
   pipelines:

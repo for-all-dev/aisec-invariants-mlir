@@ -1,0 +1,23 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: wrong_party_plaintext_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    plaintext:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    plaintext:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: unauthorized-mailbox-output-mismatch
+  first_difference:
+    kind: Transfer
+    field: valueBytes

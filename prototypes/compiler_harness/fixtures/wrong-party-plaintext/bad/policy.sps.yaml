@@ -25,15 +25,5 @@ components:
       world: false
       members: [authorized]
       joint: []
-outputs:
-  authorized-mailbox:
-    visibility:
-      world: false
-      members: [authorized]
-      joint: []
-  unauthorized-mailbox:
-    visibility:
-      world: false
-      members: [observer]
-      joint: []
+outputs: {}
 releases: {}

@@ -15,8 +15,10 @@ void clangover_poly_frommsg_fixed(int16_t out[256], const uint8_t msg[32]);
 
 uint8_t kyberslash1_poly_tomsg_vulnerable(uint16_t coefficient);
 uint8_t kyberslash1_poly_tomsg_fixed(uint16_t coefficient);
+uint8_t kyberslash1_poly_tomsg_target_bad(uint16_t coefficient);
 uint8_t kyberslash2_compress_vulnerable(uint16_t coefficient);
 uint8_t kyberslash2_compress_fixed(uint16_t coefficient);
+uint8_t kyberslash2_compress_target_bad(uint16_t coefficient);
 
 uint32_t wolfssl_3580_mask_vulnerable(const uint32_t table[16],
                                       uint32_t table_index);
@@ -86,19 +88,11 @@ void secret_logging_checkpoint_fixed(uint32_t service_account_token,
                                      uint32_t *public_log,
                                      uint32_t *public_checkpoint);
 uint32_t wrong_host_fhe_reveal_bad(uint32_t ciphertext_handle,
-                                   uint32_t revealed_plaintext,
-                                   uint32_t *authorized_client_plaintext,
-                                   uint32_t *unauthorized_server_plaintext);
+                                   uint32_t revealed_plaintext);
 uint32_t wrong_host_fhe_reveal_fixed(uint32_t ciphertext_handle,
-                                     uint32_t revealed_plaintext,
-                                     uint32_t *authorized_client_plaintext,
-                                     uint32_t *unauthorized_server_plaintext);
-void wrong_party_plaintext_bad(uint32_t plaintext,
-                               uint32_t *authorized_mailbox,
-                               uint32_t *unauthorized_mailbox);
-void wrong_party_plaintext_fixed(uint32_t plaintext,
-                                 uint32_t *authorized_mailbox,
-                                 uint32_t *unauthorized_mailbox);
+                                     uint32_t revealed_plaintext);
+void wrong_party_plaintext_bad(uint32_t plaintext);
+void wrong_party_plaintext_fixed(uint32_t plaintext);
 
 void abi_alias_missing_binding(unsigned secret, unsigned *p, unsigned *q,
                                unsigned *public_output);
@@ -111,15 +105,14 @@ void abi_alias_explicit_same_actual(unsigned secret, unsigned *shared,
 void alloca_size_high_count(int secret_bit, unsigned *public_sink);
 void alloca_size_public_control(unsigned public_count, unsigned *public_sink);
 uint32_t argmax_release_body(const int32_t logits[10]);
-void audience_mismatch_bad(unsigned logits, unsigned *alice_channel,
-                           unsigned *bob_channel);
+void audience_mismatch_bad(unsigned logits);
 void bound_secret_trip_count_bad(int secret_count, unsigned *public_sink);
 void bound_exhausted_public_loop(int public_count, unsigned *public_sink);
 uint64_t launder_scan_bad(int secret, uint64_t x, const uint64_t *p);
 uint64_t launder_scan_folded_bad(int secret, uint64_t x, const uint64_t *p);
 uint64_t launder_scan_fixed(int secret, uint64_t x, const uint64_t *p);
 unsigned predecessor_choice_blockarg_bad(int secret_bit);
-void prefix_causal_release_bad(unsigned secret, unsigned *public_channel);
+void prefix_causal_release_bad(unsigned secret);
 unsigned identical_successor_control(int high_condition,
                                      unsigned public_value);
 unsigned different_successor_bad(int high_condition, unsigned public_value);
@@ -138,6 +131,40 @@ uint32_t sha256_round_release_body(uint32_t e, uint32_t f, uint32_t g,
                                    uint32_t h, uint32_t k, uint32_t w);
 
 static int failures;
+static uint32_t transfer_audience_alice;
+static uint32_t transfer_audience_bob;
+static uint32_t transfer_fhe_authorized_client;
+static uint32_t transfer_fhe_server;
+static uint32_t transfer_party_authorized;
+static uint32_t transfer_party_observer;
+static uint32_t transfer_prefix_public;
+
+/* Runtime-only endpoint realizations; fixture authoring keeps these external. */
+void sps_transfer_audience_alice(uint32_t value) {
+  transfer_audience_alice = value;
+}
+
+void sps_transfer_audience_bob(uint32_t value) {
+  transfer_audience_bob = value;
+}
+
+void sps_transfer_fhe_authorized_client(uint32_t value) {
+  transfer_fhe_authorized_client = value;
+}
+
+void sps_transfer_fhe_server(uint32_t value) { transfer_fhe_server = value; }
+
+void sps_transfer_party_authorized(uint32_t value) {
+  transfer_party_authorized = value;
+}
+
+void sps_transfer_party_observer(uint32_t value) {
+  transfer_party_observer = value;
+}
+
+void sps_transfer_prefix_public(uint32_t value) {
+  transfer_prefix_public = value;
+}
 
 static void expect_u64(const char *name, uint64_t got, uint64_t want) {
   (void)name;
@@ -166,7 +193,13 @@ static void check_kyberslash(void) {
   for (uint32_t c = 0; c < 3329u; ++c) {
     expect_u64("kyberslash1", kyberslash1_poly_tomsg_vulnerable((uint16_t)c),
                kyberslash1_poly_tomsg_fixed((uint16_t)c));
+    expect_u64("kyberslash1 target-control",
+               kyberslash1_poly_tomsg_target_bad((uint16_t)c),
+               kyberslash1_poly_tomsg_fixed((uint16_t)c));
     expect_u64("kyberslash2", kyberslash2_compress_vulnerable((uint16_t)c),
+               kyberslash2_compress_fixed((uint16_t)c));
+    expect_u64("kyberslash2 target-control",
+               kyberslash2_compress_target_bad((uint16_t)c),
                kyberslash2_compress_fixed((uint16_t)c));
   }
 }
@@ -196,11 +229,12 @@ static void check_semantic_harnesses(void) {
   uint32_t bad_detail_alt = 0, fixed_detail_alt = 0;
   uint32_t table[16];
 
-  wrong_party_plaintext_bad(77u, &a, &b);
-  wrong_party_plaintext_fixed(77u, &c, &d);
-  expect_u64("wrong party authorized", a, c);
-  expect_u64("wrong party bad leak", b, 77u);
-  expect_u64("wrong party fixed redaction", d, 0u);
+  wrong_party_plaintext_bad(77u);
+  expect_u64("wrong party authorized", transfer_party_authorized, 77u);
+  expect_u64("wrong party bad leak", transfer_party_observer, 77u);
+  wrong_party_plaintext_fixed(77u);
+  expect_u64("wrong party fixed authorized", transfer_party_authorized, 77u);
+  expect_u64("wrong party fixed redaction", transfer_party_observer, 0u);
 
   secret_logging_checkpoint_bad(0xaceu, &a, &b, &c);
   expect_u64("logging bad private state", a, 0xaceu);
@@ -278,11 +312,14 @@ static void check_semantic_harnesses(void) {
   expect_u64("dynamic second fixed work count", d, 64u);
 
   expect_u64("wrong-host return",
-             wrong_host_fhe_reveal_bad(9u, 1234u, &a, &b),
-             wrong_host_fhe_reveal_fixed(9u, 1234u, &c, &d));
-  expect_u64("wrong-host authorized", a, c);
-  expect_u64("wrong-host bad unauthorized leak", b, 1234u);
-  expect_u64("wrong-host fixed unauthorized", d, 0u);
+             wrong_host_fhe_reveal_bad(9u, 1234u), 9u);
+  expect_u64("wrong-host authorized", transfer_fhe_authorized_client, 1234u);
+  expect_u64("wrong-host bad unauthorized leak", transfer_fhe_server, 1234u);
+  expect_u64("wrong-host fixed return",
+             wrong_host_fhe_reveal_fixed(9u, 1234u), 9u);
+  expect_u64("wrong-host fixed authorized", transfer_fhe_authorized_client,
+             1234u);
+  expect_u64("wrong-host fixed unauthorized", transfer_fhe_server, 0u);
 
   expect_u64("ckks return", ckks_unsafe_release_bad(55u, 12u, 1u, &a),
              ckks_unsafe_release_fixed(55u, 12u, 1u, &b));
@@ -406,9 +443,9 @@ static void check_remaining_models(void) {
   logits[7] = 8;
   expect_u64("argmax later maximum", argmax_release_body(logits), 7u);
 
-  audience_mismatch_bad(0x1234u, &p, &q);
-  expect_u64("audience authorized payload", p, 0x34u);
-  expect_u64("audience unauthorized payload", q, 0x34u);
+  audience_mismatch_bad(0x1234u);
+  expect_u64("audience authorized payload", transfer_audience_alice, 0x34u);
+  expect_u64("audience unauthorized payload", transfer_audience_bob, 0x34u);
 
   out = 1u;
   bound_secret_trip_count_bad(0, &out);
@@ -436,9 +473,9 @@ static void check_remaining_models(void) {
   expect_u64("predecessor false", predecessor_choice_blockarg_bad(0), 20u);
   expect_u64("predecessor true", predecessor_choice_blockarg_bad(1), 10u);
 
-  out = 0u;
-  prefix_causal_release_bad(0x4567u, &out);
-  expect_u64("prefix-causal early observation", out, 0x4567u);
+  prefix_causal_release_bad(0x4567u);
+  expect_u64("prefix-causal early observation", transfer_prefix_public,
+             0x4567u);
 
   expect_u64("release wrapper", sps_release_invalid_callable(0xf3u, 0x3cu), 0x30u);
   release_carrier(0xf3u, 0x0fu, 0xf0u, carrier);

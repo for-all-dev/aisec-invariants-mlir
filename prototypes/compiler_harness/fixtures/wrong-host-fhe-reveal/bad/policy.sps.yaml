@@ -30,16 +30,6 @@ components:
       members: [authorized-client]
       joint: []
 outputs:
-  authorized-client-plaintext:
-    visibility:
-      world: false
-      members: [authorized-client]
-      joint: []
-  unauthorized-server-plaintext:
-    visibility:
-      world: false
-      members: [observer]
-      joint: []
   return:
     visibility: public
 releases: {}

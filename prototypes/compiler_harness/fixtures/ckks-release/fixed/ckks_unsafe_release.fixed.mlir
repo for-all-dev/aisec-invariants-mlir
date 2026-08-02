@@ -10,6 +10,8 @@
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
 module {
+  llvm.func @llvm.sps.release(i32)
+
   llvm.func @ckks_sanitize_model(
       %raw_approximate_plaintext: i32,
       %public_sanitizer_mask: i32,
@@ -41,14 +43,18 @@ module {
       %raw_approximate_plaintext,
       %public_sanitizer_mask,
       %certificate_ok) : (i32, i32, i32) -> i32
+    llvm.call @llvm.sps.release(%sanitized) {
+      sps.fixture_refs = ["release:sanitized-release"],
+      sps.release_ref = "sanitized-release",
+      sps.site_alias = "sanitized-release"
+    } : (i32) -> ()
     // PREFLIGHT CONTROL: release exactly the named sanitizer's policy function
     // secret source: %raw_approximate_plaintext enters the declared sanitizer boundary
-    // removed observable: the sink receives no raw detail beyond ckks_masked_release_candidate
+    // removed observable: the sink receives no raw detail beyond sanitized-release
     // reason: this policy-tagged store consumes %sanitized, not the raw plaintext
     // preflight expectation: preserve sanitizer-before-release ordering for later binding
     llvm.store %sanitized, %public_release {
       "sps.fixture_refs" = ["store:sanitized-public-release"],
-      "sps.release_ref" = "ckks_masked_release_candidate",
       "sps.sink_class" = "public",
       "sps.site_alias" = "ckks-public-release"
     } : i32, !llvm.ptr

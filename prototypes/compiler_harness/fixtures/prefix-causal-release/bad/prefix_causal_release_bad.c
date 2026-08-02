@@ -17,7 +17,7 @@
  *   secret
  *
  * Public inputs:
- *   the public channel target and the release policy identity
+ *   the public endpoint identity and the release policy identity
  *
  * Expected confidentiality issue:
  *   The secret is written to a public channel at step 1, and only afterwards
@@ -62,12 +62,12 @@
 SPS_HELPER("policy-h")
 unsigned sps_release_policy_h_candidate(unsigned raw) { return raw; }
 
+extern void sps_transfer_prefix_public(unsigned value);
+
 SPS_ENTRY("prefix_causal_release_bad")
-void prefix_causal_release_bad(unsigned secret SPS_COMPONENT("secret"),
-                               unsigned *public_channel
-                                   SPS_ROOT("public-channel")) {
+void prefix_causal_release_bad(unsigned secret SPS_COMPONENT("secret")) {
   /* Step 1: the secret is observable here, before any release is performed. */
-  *public_channel = secret;
+  sps_transfer_prefix_public(secret);
 
   /* Step 2: the authorized release cannot retroactively excuse step 1. */
   (void)sps_release_policy_h_candidate(secret);

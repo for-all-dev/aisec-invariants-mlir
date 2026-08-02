@@ -3,8 +3,8 @@
 
 No checked-in bundle currently has two AuditAll rows blocked for *different*
 reasons, so the spec:4192-4196 collapse was unexercised. This helper mutates an
-isolated copy of the `audience-mismatch` bundle (four derived coalition rows)
-into that shape so contracts/aggregation-collapse.test can drive it.
+isolated copy of the `launder-scan` bundle's two derived coalition rows into
+that shape so contracts/aggregation-collapse.test can drive it.
 
 It is test scaffolding, not a fixture generator: it only ever writes under the
 `--root` copy it is given.
@@ -18,14 +18,14 @@ import json
 import sys
 from pathlib import Path
 
-BUNDLE = "audience-mismatch"
-CANDIDATE_RELATIVE = Path("fixtures/audience-mismatch/bad/candidate")
+BUNDLE = "launder-scan"
+CANDIDATE_RELATIVE = Path("fixtures/launder-scan/model-clean-p4-open/candidate")
 # Two distinct PublicReasonClassesV2 members, neither of them the collapse class.
 BLOCKERS = ("SolverTimeout", "PossibleUB")
 
 
 def blocked_rows(rows: list[dict]) -> None:
-    for row, reason in zip(rows[1:3], BLOCKERS, strict=True):
+    for row, reason in zip(rows[:2], BLOCKERS, strict=True):
         row["query_outcome"] = {
             "tag": "NotConstructedResultMatcherV2",
             "reason": {"reasonClassId": reason},

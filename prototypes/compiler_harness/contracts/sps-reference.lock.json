@@ -1,11 +1,11 @@
 {
   "formatId": "SPS-Harness-Reference-Lock-v1",
   "claimBoundary": "ExecutableReferenceOnly",
-  "treeSha256": "a6104601a3aa7174c82e53b20a2358bd47595e1b089b6124dccf88c3d817c223",
+  "treeSha256": "3dd9141e58fd5a2da5b79e095d1083799f17a300129f4cefb5da99bde87dae0a",
   "interfaceLockSha256": "0e9597c441cb1d1ee3025c0d74d32498e23b75cf00a9acdfe0a4dc474b181473",
   "counts": {
     "fixtureCases": 19,
-    "unitTests": 18,
+    "unitTests": 20,
     "executableFamilies": 10,
     "profileFamilies": 61
   },
@@ -22,8 +22,8 @@
     },
     {
       "path": "reference/README.md",
-      "sha256": "f504030cd13998c86928ba6934c6a70c37552bf5504d4696bb7debf20f75b3c0",
-      "size": 12493
+      "sha256": "e5278b2493d3dec186fedbf54747ba875dc59bada22b1a2d124596a5cdd67aef",
+      "size": 15286
     },
     {
       "path": "reference/assurance-status.json",
@@ -151,6 +151,11 @@
       "size": 1854
     },
     {
+      "path": "reference/sps_ref/counterexample.py",
+      "sha256": "a9ea227dfb0c817da7d181c79ce61823c1983eaa5ad075b9efb5159451e743df",
+      "size": 10138
+    },
+    {
       "path": "reference/sps_ref/encoding.py",
       "sha256": "e2631a6799dc975d805c615a16e8e8459bab88dc80ea9124bd3da86bfd96f30f",
       "size": 2823
@@ -167,8 +172,8 @@
     },
     {
       "path": "reference/sps_ref/evidence.py",
-      "sha256": "10f0fb1f7ef5cd577ed8efce3b5becdeb785c75151846691bc295f8ca45d3de6",
-      "size": 44819
+      "sha256": "0cbf359b525b6e3e9ba1c93f63a31f6830685e17b0be7efedb01298546fd43ab",
+      "size": 49057
     },
     {
       "path": "reference/sps_ref/expand.py",
@@ -211,6 +216,11 @@
       "size": 11443
     },
     {
+      "path": "reference/sps_ref/strict_yaml.py",
+      "sha256": "75fcb2b90305e7594dcde36ce0ae2c387af9c85f192c86f52ee592e84521a92a",
+      "size": 6565
+    },
+    {
       "path": "reference/sps_ref/terminal.py",
       "sha256": "7fac006c112e6e8172cdab2ece7dee887646468663b0d5d3319d5a48fb9c1d68",
       "size": 15583
@@ -222,8 +232,8 @@
     },
     {
       "path": "reference/tests/test_reference.py",
-      "sha256": "cf12567fecdbe01f4a483dfdf0fe44453070bcaedb8e55f255ceb84e2dee34e3",
-      "size": 29881
+      "sha256": "30bcd2d435a9a6f91846c9a56ee707adf535f141ddad230935c4d4dae739f5b2",
+      "size": 39276
     }
   ]
 }

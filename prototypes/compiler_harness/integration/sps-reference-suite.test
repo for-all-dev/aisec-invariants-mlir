@@ -12,7 +12,7 @@
 # RUN: grep -c '^PASS ' %t.out | %FileCheck %s --check-prefix=CASE-COUNT
 # RUN: not grep -E 'ModelStatus|SPS-PONF-v2' %t.out
 
-# CHECK: Ran 18 tests
+# CHECK: Ran 20 tests
 # CHECK: OK
 # CHECK: PASS bad-circuit-mutation-rejected
 # CHECK: PASS replay-wire-valid

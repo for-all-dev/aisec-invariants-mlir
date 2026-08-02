@@ -383,6 +383,105 @@ def namespace_collision_abi() -> dict[str, object]:
     }
 
 
+def contract_source(
+    *,
+    declaration: str = "extern void remote_transfer(uint32_t value);",
+    definition: str = "",
+) -> str:
+    return f"""\
+#include <stdint.h>
+#include <sps/annotations.h>
+
+{declaration}
+{definition}
+SPS_ENTRY("contract-entry")
+void boundary(uint32_t value SPS_COMPONENT("value"))
+{{
+  remote_transfer(value);
+}}
+"""
+
+
+def contract_policy() -> dict[str, object]:
+    return {
+        "entry": "contract-entry",
+        "observation-model": "constant-time",
+        "principals": ["observer"],
+        "adversaries": {"maximal": [["observer"]]},
+        "hosts": {
+            "compute": {"visibility": "secret"},
+            "remote": {"visibility": "public"},
+        },
+        "components": {
+            "value": {
+                "lifecycle": "entry-input",
+                "type": "bv32",
+                "visibility": "secret",
+            }
+        },
+        "outputs": {},
+        "releases": {},
+    }
+
+
+def contract_abi() -> dict[str, object]:
+    return {
+        "source": "boundary.c",
+        "relation": "provenance-only",
+        "entry": {
+            "id": "contract-entry",
+            "symbol": "boundary",
+            "host": "compute",
+            "function-type": "void (i32)",
+            "return": "void",
+        },
+        "carriers": {"value": {"argument": 0, "llvm-type": "i32", "bit-width": 32}},
+        "roots": {},
+        "aliases": {"complete": True, "relations": []},
+        "terminal-output-order": {"normal-void": []},
+    }
+
+
+def contract_authoring() -> dict[str, object]:
+    return {
+        "format-id": "SPS-Harness-Authoring-Contracts-v1",
+        "claim-boundary": "NonClaimableAuthoringLocator",
+        "contracts": [
+            {
+                "id": "remote-transfer",
+                "locator": {"callee": "remote_transfer", "call-ordinal": 0},
+                "source-host": "compute",
+                "destination-host": "remote",
+                "signature": {"arguments": ["i32"], "result": "void"},
+                "memory-effects": [],
+                "choice": "Unit",
+                "total": True,
+                "deterministic": True,
+                "representation": "SPS-ContractWire-v2",
+                "limitations": [
+                    "NoFunctionSemantics",
+                    "NotCanonicalContractTableV2",
+                ],
+            }
+        ],
+    }
+
+
+def write_contract_case(
+    case: Path,
+    *,
+    source_text: str | None = None,
+    contracts_value: dict[str, object] | None = None,
+) -> None:
+    write_case(
+        case,
+        source_text=source_text or contract_source(),
+        policy_value=contract_policy(),
+        abi_value=contract_abi(),
+    )
+    dump(case / "contracts.sps.yaml", contracts_value or contract_authoring())
+
+
 def write_case(
     case: Path,
     *,
@@ -567,6 +666,96 @@ def main() -> None:
         assert resolved["coalitions"][2]["visible-outputs"] == ["bob-channel"]
         assert resolved["coalitions"][2]["authorized-releases"] == []
         print("resolved temporary audience boundary and canonical coalition closure")
+
+        contract_case = root / "contract-locator"
+        write_contract_case(contract_case)
+        contract_report = root / "contract-report.json"
+        contract_resolved = root / "contract-resolved.json"
+        run(
+            command(
+                harness,
+                contract_case,
+                extractor,
+                clang,
+                contract_report,
+                contract_resolved,
+            ),
+            environment=environment,
+        )
+        contract_report_value = json.loads(
+            contract_report.read_text(encoding="utf-8")
+        )
+        contract_resolved_value = json.loads(
+            contract_resolved.read_text(encoding="utf-8")
+        )
+        assert contract_report_value["blockers"] == ["OpenModelObligations"]
+        assert "ContractLocatorsResolved" in contract_report_value["completedChecks"]
+        assert contract_resolved_value["contracts"][0]["claim-boundary"] == (
+            "NonClaimableAuthoringLocator"
+        )
+        assert contract_resolved_value["contracts"][0]["signature"] == "void (i32)"
+
+        local_definition = contract_source(
+            declaration="static void remote_transfer(uint32_t value);",
+            definition="static void remote_transfer(uint32_t value) { (void)value; }",
+        )
+        write_contract_case(contract_case, source_text=local_definition)
+        expect_rejected(
+            harness,
+            contract_case,
+            extractor,
+            clang,
+            environment,
+            "external declarations for contract callee",
+        )
+
+        wrong_ordinal = contract_authoring()
+        wrong_ordinal["contracts"][0]["locator"]["call-ordinal"] = 1
+        write_contract_case(contract_case, contracts_value=wrong_ordinal)
+        expect_rejected(
+            harness,
+            contract_case,
+            extractor,
+            clang,
+            environment,
+            "call ordinal 1 is out of range",
+        )
+
+        pointer_source = contract_source(
+            declaration="extern void remote_transfer(uint32_t *value);"
+        ).replace("remote_transfer(value);", "remote_transfer(&value);")
+        write_contract_case(contract_case, source_text=pointer_source)
+        expect_rejected(
+            harness,
+            contract_case,
+            extractor,
+            clang,
+            environment,
+            "must have a scalar, non-variadic signature",
+        )
+
+        float_contract = contract_authoring()
+        float_contract["contracts"][0]["signature"] = {
+            "arguments": ["float"],
+            "result": "void",
+        }
+        float_source = contract_source(
+            declaration="extern void remote_transfer(float value);"
+        ).replace("remote_transfer(value);", "remote_transfer((float)value);")
+        write_contract_case(
+            contract_case,
+            source_text=float_source,
+            contracts_value=float_contract,
+        )
+        expect_rejected(
+            harness,
+            contract_case,
+            extractor,
+            clang,
+            environment,
+            "string does not match '^i[1-9][0-9]*$'",
+        )
+        print("resolved and fail-closed checked nonclaimable contract locators")
 
         incomplete_aliases = copy.deepcopy(abi())
         incomplete_aliases["aliases"] = {"complete": False, "relations": []}

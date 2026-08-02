@@ -6,8 +6,7 @@ secret:
 - arg: 1
   name: revealed_plaintext
 public:
-- memory_at_arg: 3
-  name: unauthorized_server_plaintext
+- observable: transfer
 allowed:
 - revealed plaintext may be written only to authorized_client_plaintext
 expect:
@@ -17,7 +16,7 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: Output
+    - kind: Transfer
       field: valueBytes
     because: the unauthorized server receives zero while plaintext stays at the authorized
       client
@@ -29,6 +28,7 @@ expect:
           contains:
           - ABICarriersResolved
           - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
           - NormalLLVMAnnotationResidueAbsent
           - PolicyIdsResolved
           - ReleaseLocatorResolved
@@ -37,8 +37,10 @@ expect:
           count:
             eq: 0
         blockers:
+          contains:
+          - OpenModelObligations
           count:
-            eq: 0
+            eq: 1
     modeled-shape:
       kind: mlir
       properties:
@@ -47,6 +49,11 @@ expect:
           - wrong_host_fhe_reveal_fixed
         operation.names:
           ordered:
-          - llvm.store
+          - llvm.call
           - llvm.mlir.constant
+          - llvm.call
           - llvm.return
+        call.callees:
+          contains:
+          - sps_transfer_fhe_authorized_client
+          - sps_transfer_fhe_server

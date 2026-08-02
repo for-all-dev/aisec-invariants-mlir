@@ -159,6 +159,7 @@ def c_source_layout_errors(root: Path = ROOT) -> list[str]:
 
         abi_path = case_dir / "abi.sps.yaml"
         policy_path = case_dir / "policy.sps.yaml"
+        contracts_path = case_dir / "contracts.sps.yaml"
         if not policy_path.is_file() or policy_path.is_symlink():
             errors.append(
                 f"{policy_path.relative_to(root)}: every fixture case requires a local policy sidecar"
@@ -200,6 +201,14 @@ def c_source_layout_errors(root: Path = ROOT) -> list[str]:
                             f"{abi_path.relative_to(root)}: primary source {source_name!r} "
                             "is not a local translation unit"
                         )
+
+        if os.path.lexists(contracts_path) and (
+            not contracts_path.is_file() or contracts_path.is_symlink()
+        ):
+            errors.append(
+                f"{contracts_path.relative_to(root)}: optional contract authoring "
+                "sidecar must be a case-local regular file"
+            )
 
         snapshot_path = case_dir / "snapshot.yaml"
         try:

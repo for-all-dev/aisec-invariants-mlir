@@ -1,8 +1,9 @@
 {
-  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
   "harnessCase": "precision-control/xor-cancellation",
   "referenceCaseId": "xor-cancellation",
   "entry": "xor_cancellation_control",
+  "counterexamplePair": null,
   "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
   "files": [
     {"role": "abi", "path": "abi.sps.yaml", "sha256": "3d06ffc9a307be951375b8c818675094cc636fbd2d139ffdc93e75a0a23c105e"},

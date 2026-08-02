@@ -18,6 +18,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: public-output
       first_bad: true
     because: the wrapper passes the same shared pointer to both helper pointer slots
   pipelines:

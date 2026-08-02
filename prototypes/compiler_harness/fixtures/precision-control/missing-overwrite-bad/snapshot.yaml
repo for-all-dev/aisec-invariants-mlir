@@ -19,6 +19,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: return
       first_bad: true
     because: without the public overwrite the returned reload contains the secret
   pipelines:

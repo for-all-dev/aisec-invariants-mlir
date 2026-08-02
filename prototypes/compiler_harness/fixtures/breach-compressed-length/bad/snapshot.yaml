@@ -18,6 +18,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: public-wire-length
       first_bad: true
     because: matching the public guess changes stored wire length from 32 to 31
   pipelines:

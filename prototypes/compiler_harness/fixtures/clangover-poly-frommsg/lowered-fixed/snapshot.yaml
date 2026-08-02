@@ -4,8 +4,8 @@ c_evidence:
 - fixtures/clangover-poly-frommsg/lowered-fixed/clangover_ct_cmov.c
 - fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c
 secret:
-- arg: 0
-  name: bit
+- arg: 1
+  name: msg
 public:
 - observable: control
 - observable: timing
@@ -16,10 +16,12 @@ expect:
     deployment: Open
     policy: Complete
     events:
+    - kind: BranchSuccessor
+      field: successor
     - kind: Latency
       field: configuredClass
     because: the included helper selects through mask dataflow without a conditional
-      branch
+      branch; modeled latency classes are equal while target closure remains open
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -45,10 +47,17 @@ expect:
         function.names:
           contains:
           - clangover_poly_frommsg_fixed
+        function.signatures:
+          contains:
+          - clangover_poly_frommsg_fixed|(!llvm.ptr,!llvm.ptr)->()
         operation.names:
           ordered:
+          - llvm.load
           - llvm.mlir.constant
+          - llvm.and
+          - llvm.zext
           - llvm.call
+          - llvm.store
           - llvm.return
           excludes:
           - llvm.cond_br

@@ -12,6 +12,11 @@ Every case lives at `fixtures/<family>/<case>/` and contains exactly one MLIR
 file plus one `snapshot.yaml`. A source-annotated case also owns one primary C
 file, `policy.sps.yaml`, and `abi.sps.yaml` in that same directory; a case may
 add a sibling support translation unit when the compiler boundary requires it.
+An expected-`Counterexample` case additionally owns exactly one fixed-name
+`counterexample-pair.yaml`; `Proved` and `Unknown` cases must not have one.
+Cases with cross-host external-call locators may own a nonclaimable
+`contracts.sps.yaml` authoring sidecar, which is not a canonical SPS contract
+table.
 No source or sidecar may be shared with another case. Snapshot V3 states the
 expected final judgment and the sparse endpoint properties that matter to the
 fixture; lit separately owns how those endpoints are produced:
@@ -54,18 +59,62 @@ expect:
 The `format_id` literal keeps this fixture record disjoint from every SPS-owned
 wire interface. Argument numbers are stable references; names are checked display aids. Public
 items may also identify a public argument or one of the closed observations
-`address`, `allocation-size`, `control`, `release-identity`, `return`, and
-`timing`. `allowed` adds a minimal release or audience rule only when needed.
+`address`, `allocation-size`, `control`, `release-identity`, `return`, `timing`,
+and `transfer`. `allowed` adds a minimal release or audience rule only when needed.
 There is no scalar verdict, execution field, test path, capability list, input
 graph, endpoint-adapter wrapper, or report-materialization state. Every
 snapshot has one `expect.final`: 26 fixtures expect `Proved`, 25 expect
-`Counterexample`, and 9 expect `Unknown`; all explicitly expect deployment
+`Counterexample`, and 11 expect `Unknown`; all explicitly expect deployment
 `Open` and policy `Complete`. A `Counterexample` names its bad-state class and
 one selected event field as `first_bad`. `Proved` and `Counterexample` cases
 select at least one closed SPS event field; selectors never contain event
-payloads or full traces. The nine existing candidates add only
+payloads or full traces. The eight existing candidates add only
 `reference: candidate/expected-report.json`, which is authenticated through the
 sibling manifest and checked for agreement with the final axes.
+
+## Synthetic counterexample pairs
+
+The snapshot owns the human security oracle; it does not own concrete input
+values. Every one of the 25 expected-`Counterexample` fixtures therefore keeps
+one public synthetic pair beside it:
+
+```yaml
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: xor_secret_output_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    secret:
+      bitvector: {width: 32, hex: "00000000"}
+  high_right:
+    secret:
+      bitvector: {width: 32, hex: "00000001"}
+expected:
+  bad_state: public-output-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: return
+```
+
+The input maps are keyed by policy component ID. They exactly partition the
+entry-state components into coalition-visible `low_equal` values and
+coalition-hidden values for the two lanes. Scalars use full ABI-width,
+fixed-width lowercase hexadecimal bitvectors; initialized root inputs use an
+exact byte length and two lowercase hexadecimal digits per byte. At least one
+High component differs. The expected bad state and earliest semantic event
+must exactly match the snapshot's sole `first_bad` selector.
+
+This file is a fixture input, not a solver model, trace, exact replay witness,
+or public receipt. It contains no topology, admission predicate, derived event
+sequence, backend result, `ProductSafe`, or `ModelStatus`. Four precision bad
+reductions additionally bind the pair's raw SHA-256 in relation binding v2 and
+independently replay it; even there, the witness-free reference result stores
+neither the pair values nor a normative disposition.
 
 The inventory scans lit `RUN` and `REQUIRES` lines to derive ownership and
 capability gates. Each declared pipeline has exactly one RUN binding and each
@@ -78,6 +127,24 @@ equality for `bad`/`fixed` and `*-bad`/`*-fixed` pairs, pipeline lineage and lit
 bindings, and the absence of authoritative result claims. It rejects aliases,
 anchors, explicit tags, merge keys, duplicate keys, path escapes, and unknown
 fields.
+
+### Cross-host authoring locators
+
+An optional `contracts.sps.yaml` makes a cross-host call explicit without
+pretending to materialize `ContractTableV2`. Its closed
+`SPS-Harness-Authoring-Contracts-v1` rows bind a stable contract ID to one
+direct external scalar call ordinal, the entry source host, one distinct
+destination host, an integer-only signature, empty memory effects, Unit choice,
+total/deterministic intent, and `SPS-ContractWire-v2`. Every row must retain the
+limitations `NoFunctionSemantics` and `NotCanonicalContractTableV2`.
+
+The source-boundary resolver checks those locators against the C declaration
+and call, includes their endpoint hosts in policy-host coverage, and emits
+`ContractLocatorsResolved`. It also always emits `OpenModelObligations`: the
+sidecar contains no canonical contract function semantics and cannot discharge
+a model gate. Cross-host fixtures therefore use scalar contract calls rather
+than pretending that an entry on one host may directly load or store an ABI
+root owned by another host.
 
 ## Lit checkpoint convention
 
@@ -119,7 +186,7 @@ not a Rev4 diagnostic disposition or run-report result.
 ## Authority boundary
 
 MLIR is convenient for authoring and reviewing a seed, but Rev4 analyzes frozen
-canonical LLVM bitcode. Nine selected cases also contain a local `candidate/`
+canonical LLVM bitcode. Eight selected cases also contain a local `candidate/`
 directory, where:
 
 1. LLVM 17.0.6 currently produces candidate `artifact.bc`;
@@ -147,9 +214,9 @@ under `../p4-risk/`; they never turn a shape file into an SPS proof or
 counterexample.
 
 Those candidates remain quarantined by the `candidate/` boundary. Their exact
-bytes pipelines protect the current nine captures, and a compact `reference`
+bytes pipelines protect the current eight captures, and a compact `reference`
 authenticates each existing expected-run sidecar without copying its query,
-replay, receipt, or audit machinery into Snapshot V3. The other 51 fixtures
+replay, receipt, or audit machinery into Snapshot V3. The other 54 fixtures
 state the same final axes directly without manufacturing candidate artifacts.
 A future conformance `artifact.bc` must be deliberately frozen and accompanied
 by canonical SPS inputs and an actual run report. The expected final block is
@@ -183,6 +250,12 @@ counterexample, AuditAll is `sat` or `unsat`, and the required backends agree.
 Repeated PONF, lowering, digest, solver, and replay requirements live in the
 shared `SPS-Reference-Relation-v1` profile rather than being copied into every
 snapshot.
+
+For the four expected-bad precision cases, binding v2 also raw-digest-binds
+the fixed sibling counterexample pair. The reference validator rematerializes
+the reduced values without truncation, checks admission and Low equality, and
+independently reproduces the earliest declared difference. The four safe
+bindings carry an explicit `counterexamplePair: null`.
 
 The binding records the full 32-bit arguments and roots next to their 1–2-bit
 finite counterparts and explicitly says `ExecutableReferenceOnly`,

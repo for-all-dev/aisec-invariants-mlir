@@ -1,5 +1,4 @@
 // RUN: %checkpoint-runner run --snapshot fixtures/audience-mismatch/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
-// RUN: %checkpoint-runner check-existing --snapshot fixtures/audience-mismatch/bad/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/audience-mismatch/bad/candidate/artifact.bc --records %t.checkpoints
 // RUN: %checkpoint-runner finalize --test fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir --records %t.checkpoints
 
 //
@@ -10,8 +9,8 @@
 // policy owns visibility, ABI owns representation, and neither source nor MLIR
 // metadata replaces the frozen NFv2 release carrier.
 //
-// THE FIXTURE THAT MOTIVATED THE RECORD SHAPE. One release, two stores whose IR
-// differs only in destination, and FOUR different answers depending on who is
+// THE FIXTURE THAT MOTIVATED THE RECORD SHAPE. One release, two cross-host
+// scalar calls whose IR differs only in destination, and FOUR answers depending on who is
 // asking.
 //
 // The {alice} product is safe, while the {bob} product supplies a replayable
@@ -34,42 +33,42 @@
 // not run an unimplemented SPS pass.
 //
 module {
-  llvm.func @sps_release_masked_class_candidate(i32) -> i32
+  llvm.func @llvm.sps.release(i32)
+  llvm.func @sps_transfer_audience_alice(i32)
+  llvm.func @sps_transfer_audience_bob(i32)
 
   llvm.func @audience_mismatch_bad(
       %logits: i32 {
         sps.component_ref = "logits",
-        sps.fixture_refs = ["secret:logits"]},
-      %alice_channel: !llvm.ptr {
-        sps.abi_root_ref = "alice-channel",
-        sps.output_ref = "alice-channel",
-        sps.fixture_refs = ["root:alice-channel"]},
-      %bob_channel: !llvm.ptr {
-        sps.abi_root_ref = "bob-channel",
-        sps.fixture_refs = ["public-memory:bob_channel"],
-        sps.output_ref = "bob-channel"}) {
-
-    %released = llvm.call @sps_release_masked_class_candidate(%logits)
-        {sps.fixture_refs = ["call:masked-class-release"],
-         sps.release_ref = "masked-class"} : (i32) -> i32
+        sps.fixture_refs = ["secret:logits"],
+        sps.label = "high"}) {
+    %mask = llvm.mlir.constant(255 : i32) : i32
+    %released = llvm.and %logits, %mask : i32
+    llvm.call @llvm.sps.release(%released) {
+      sps.fixture_refs = ["release:masked-class"],
+      sps.release_ref = "masked-class",
+      sps.site_alias = "masked-class"
+    } : (i32) -> ()
 
     // Authorized: alice is the declared audience.
-    llvm.store %released, %alice_channel {
-      sps.fixture_refs = ["store:alice-channel"],
-      sps.output_ref = "alice-channel",
-      sps.site_alias = "alice-channel-store"
-    } : i32, !llvm.ptr
+    llvm.call @sps_transfer_audience_alice(%released) {
+      sps.contract_ref = "transfer-alice",
+      sps.fixture_refs = ["transfer:alice-endpoint"],
+      sps.transfer_destination = "alice-endpoint",
+      sps.transfer_source = "compute"
+    } : (i32) -> ()
 
     // PREFLIGHT FINDING: released value delivered outside its declared audience
     // secret source: %released is derived from concealed %logits by masked-class
-    // observable effect: bob_channel receives class indices 3 and 5 for two logit vectors
+    // observable effect: Bob's endpoint receives class indices 3 and 5 for two logit vectors
     // reason: masked-class is outside Bob's audience, so its obligation remains active
-    // preflight expectation: unary scanner flags a store outside the candidate release audience
-    llvm.store %released, %bob_channel {
-      sps.fixture_refs = ["store:bob-channel"],
-      sps.output_ref = "bob-channel",
-      sps.site_alias = "bob-channel-store"
-    } : i32, !llvm.ptr
+    // preflight expectation: preserve the explicit Bob-destination contract call for exact binding
+    llvm.call @sps_transfer_audience_bob(%released) {
+      sps.contract_ref = "transfer-bob",
+      sps.fixture_refs = ["transfer:bob-endpoint"],
+      sps.transfer_destination = "bob-endpoint",
+      sps.transfer_source = "compute"
+    } : (i32) -> ()
 
     llvm.return
   }

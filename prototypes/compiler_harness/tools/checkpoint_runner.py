@@ -26,6 +26,7 @@ import yaml
 
 import checkpoint_extractors
 import checkpoint_model
+import counterexample_pair
 
 
 RUNNER_VERSION = "checkpoint-runner-v2"
@@ -638,6 +639,28 @@ def _validate_relation_reference(
         ) from error
     if binding.get("harnessCase") != snapshot.case:
         raise RunnerError("relation-reference binding names the wrong harness case")
+    snapshot_rows = [
+        row for row in binding.get("files", []) if row.get("role") == "snapshot"
+    ]
+    if len(snapshot_rows) != 1:
+        raise RunnerError("relation-reference binding lacks one exact snapshot file role")
+    bound_snapshot = (
+        binding_path.resolve().parent.parent / snapshot_rows[0]["path"]
+    ).resolve()
+    if bound_snapshot != snapshot.path.resolve():
+        raise RunnerError(
+            "relation-reference snapshot file role does not bind the active snapshot"
+        )
+    try:
+        selected_pair = counterexample_pair.load_fixture_pair(snapshot)
+    except counterexample_pair.CounterexamplePairError as error:
+        raise RunnerError(
+            f"relation-reference counterexample pair differs from Snapshot V3: {error}"
+        ) from error
+    if (selected_pair is None) != (binding.get("counterexamplePair") is None):
+        raise RunnerError(
+            "relation-reference pair selection differs from the active snapshot status"
+        )
 
     profile_path = reference_root / "profiles" / "reference-relation-v1.json"
     try:
@@ -648,6 +671,8 @@ def _validate_relation_reference(
             profile_path,
             fixture=fixture,
             binding=binding,
+            fixture_path=fixture_path,
+            binding_path=binding_path,
         )
         projected = evidence.project_relation_result(validated)
     except Exception as error:

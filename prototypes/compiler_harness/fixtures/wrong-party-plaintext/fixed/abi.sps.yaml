@@ -4,40 +4,16 @@ entry:
   id: wrong_party_plaintext_fixed
   symbol: wrong_party_plaintext_fixed
   host: compute
-  function-type: void (i32, ptr, ptr)
+  function-type: void (i32)
   return: void
 carriers:
   plaintext:
     argument: 0
     llvm-type: i32
     bit-width: 32
-roots:
-  authorized-mailbox:
-    argument: 1
-    host: authorized-mailbox-endpoint
-    extent-bytes: 4
-    alignment: 4
-    permission: write-only
-    initialization: uninitialized
-    ownership: caller
-    output: authorized-mailbox
-  unauthorized-mailbox:
-    argument: 2
-    host: observer-mailbox-endpoint
-    extent-bytes: 4
-    alignment: 4
-    permission: write-only
-    initialization: uninitialized
-    ownership: caller
-    output: unauthorized-mailbox
+roots: {}
 aliases:
   complete: true
-  relations:
-  - relation: disjoint
-    roots:
-    - authorized-mailbox
-    - unauthorized-mailbox
+  relations: []
 terminal-output-order:
-  normal-void:
-  - authorized-mailbox
-  - unauthorized-mailbox
+  normal-void: []

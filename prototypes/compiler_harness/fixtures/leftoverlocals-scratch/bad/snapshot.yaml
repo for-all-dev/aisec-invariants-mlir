@@ -18,6 +18,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: next-tenant-output
       first_bad: true
     because: the prior tenant's scratch value is reloaded and published to the next
       tenant

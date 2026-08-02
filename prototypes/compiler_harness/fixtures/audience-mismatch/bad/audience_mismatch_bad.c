@@ -16,14 +16,12 @@
  *   logits
  *
  * Public inputs:
- *   the world-public static release policy and its declared audience. The two
- *   pointer arguments are structural channel roots whose visibility is assigned
- *   by the case-local policy rather than by their C types.
+ *   the world-public static release policy and its declared audience.
  *
  * Expected confidentiality issue:
  *   One value is released exactly once, under a policy whose declared audience
- *   is {alice}. It is then delivered to two principal channels. The two stores
- *   are identical apart from their destination.
+ *   is {alice}. Two explicit scalar contract calls then transfer that value to
+ *   the Alice and Bob endpoints.
  *
  *   For coalitions containing alice, the prefix-causal release ledger retires
  *   the matching obligation. For {bob}, the carrier payload remains concealed,
@@ -65,15 +63,16 @@ static unsigned sps_release_masked_class_candidate(unsigned raw) {
   return raw & 0xffu;
 }
 
-SPS_ENTRY("audience-mismatch")
-void audience_mismatch_bad(unsigned logits SPS_COMPONENT("logits"),
-                           unsigned *alice_channel SPS_ROOT("alice-channel"),
-                           unsigned *bob_channel SPS_ROOT("bob-channel")) {
+extern void sps_transfer_audience_alice(unsigned value);
+extern void sps_transfer_audience_bob(unsigned value);
+
+SPS_ENTRY("audience_mismatch_bad")
+void audience_mismatch_bad(unsigned logits SPS_COMPONENT("logits")) {
   unsigned released = sps_release_masked_class_candidate(logits);
 
   /* Authorized: Alice is the declared audience of masked-class. */
-  *alice_channel = released;
+  sps_transfer_audience_alice(released);
 
-  /* NOT authorized for {bob}. Byte-identical operation, different verdict. */
-  *bob_channel = released;
+  /* NOT authorized for {bob}. Same payload, different destination host. */
+  sps_transfer_audience_bob(released);
 }

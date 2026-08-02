@@ -142,7 +142,7 @@ ABI order rather than infer return-before-root or root-before-return.
 
 ## Harness reduction binding
 
-`SPS-Harness-Reference-Reduction-Binding-v1` binds the reduction to exact
+`SPS-Harness-Reference-Reduction-Binding-v2` binds the reduction to exact
 snapshot, C, MLIR, policy, ABI, and relation-fixture byte digests. Paths are
 canonical POSIX paths relative to the containing harness case and may not
 escape that directory. `harnessCase` has the exact form
@@ -163,10 +163,10 @@ and scalar ABI positions may not overlap. Root mappings have two
 disjoint alternatives:
 
 - `storageKind: ABIArgument` requires string `abiRoot`, numeric
-  `argumentIndex`, string `argumentName`, null `allocationSite`, and a program
-  root with `terminalOutput: true`;
+  `argumentIndex`, string `argumentName`, a string policy `component`, null
+  `allocationSite`, and a program root with `terminalOutput: true`;
 - `storageKind: InternalAlloca` requires null `abiRoot`, `argumentIndex`, and
-  `argumentName`, a
+  `argumentName`, and `component`, plus a
   stable `allocationSite`, `initialClassification: Uninitialized`,
   `terminalVisibility: NotTerminalOutput`, and a program root with
   `terminalOutput: false`.
@@ -188,6 +188,69 @@ The closed observation vocabulary is `BranchSuccessor/successor` and
 `ExecutableReferenceOnly`, `HandAuthoredReduction`, `NotFrozenLLVM`, and
 `ReducedBitWidth`.
 
+Binding v2 also has the required `counterexamplePair` field. An expected-safe
+relation uses `null`. An expected-bad relation uses exactly
+`{"path":"counterexample-pair.yaml","sha256":"..."}` and binds the raw bytes
+of that fixed sibling. A selected pair cannot be supplied by digest alone:
+generation and contextual endpoint validation both load, hash, materialize,
+and independently replay it.
+
+## Synthetic counterexample pair
+
+`counterexample-pair.yaml` is public, human-authored test data with no
+normative claim effect. Its closed shape is:
+
+```yaml
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: xor_secret_output_bad
+coalition:
+  - observer
+inputs:
+  low_equal: {}
+  high_left:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: public-output-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: return
+```
+
+The three input partitions are exact maps over entry-state policy components
+and initialized ABI roots. Scalars use full-ABI-width, fixed-width lowercase
+hex bitvectors. Roots use a block `bytes` mapping containing `length` and
+`hex`, with two lowercase hexadecimal digits per byte.
+Low inputs occur once under `low_equal`; High inputs occur in both lane maps,
+and at least one High component must differ. Write-only or initially
+uninitialized output roots are replay state and are not pair inputs.
+
+For a reference-supported reduction, every scalar value must materialize into
+the reduced width without truncation, and every authored root must equal the
+reduced program's exact initialized entry bytes. Independent replay then
+checks both lane admissions, Low equality, an actual bad state, its earliest
+semantic `kind`/`field`, and the optional event `id`. The YAML reader accepts
+only two-space block mappings, scalar sequences, JSON-like scalars, and the
+exact `{}` empty-map literal; aliases, anchors, tags, merges, duplicate keys,
+comments, nulls, floats, and general flow collections are rejected.
+
+The pair is deliberately not an SPS solver model, external primitive
+assignment, restricted replay artifact, or public counterexample receipt. No
+pair value, replay flag, model, or trace is copied into
+`SPS-Reference-Evidence-Result-v1`; the binding digest transitively binds the
+raw pair and successful replay acts only as a fail-closed generation and
+validation gate.
+
 ## Witness-free result API
 
 Harness code imports:
@@ -203,12 +266,16 @@ self digest. That two-argument form is deliberately structural.
 
 Before consuming a stored endpoint as evidence, the harness calls
 `validate_relation_result(value, profile_path_or_value, fixture=fixture,
-binding=binding)`. The contextual form additionally reconstructs the exact
+binding=binding, fixture_path=fixture_path, binding_path=binding_path)`. The
+paths are mandatory when the binding selects a counterexample pair. The
+contextual form additionally reconstructs the exact
 query inventory from the declared High inputs, rebuilds and audits each
 reference PONF and deterministic SMT input, checks their digests, checks all
 top-level fixture/reduction/program/coalition bindings, and checks outcomes and
-the AuditAll first difference against the fixture oracle. Projection is safe
-only after that contextual validation; it does not independently load sidecars.
+the AuditAll first difference against the fixture oracle. It also rehashes,
+materializes, and independently replays the selected pair. Projection is safe
+only after that contextual validation; it does not independently load other
+sidecars.
 `project_relation_result(value)` returns only:
 
 - `query.admission-nonempty`;

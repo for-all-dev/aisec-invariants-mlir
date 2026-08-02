@@ -6,8 +6,7 @@ secret:
 - arg: 0
   name: plaintext
 public:
-- memory_at_arg: 2
-  name: unauthorized_mailbox
+- observable: transfer
 allowed:
 - plaintext may be written only to authorized_mailbox
 expect:
@@ -18,7 +17,7 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: Output
+    - kind: Transfer
       field: valueBytes
       first_bad: true
     because: plaintext is copied across the audience boundary
@@ -30,6 +29,7 @@ expect:
           contains:
           - ABICarriersResolved
           - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
           - NormalLLVMAnnotationResidueAbsent
           - PolicyIdsResolved
           - ReleaseLocatorResolved
@@ -38,8 +38,10 @@ expect:
           count:
             eq: 0
         blockers:
+          contains:
+          - OpenModelObligations
           count:
-            eq: 0
+            eq: 1
     modeled-shape:
       kind: mlir
       properties:
@@ -48,7 +50,9 @@ expect:
           - wrong_party_plaintext_bad
         operation.names:
           ordered:
-          - llvm.store
-        operation.occurrences.llvm.store:
-          count:
-            min: 2
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - sps_transfer_party_authorized
+          - sps_transfer_party_observer

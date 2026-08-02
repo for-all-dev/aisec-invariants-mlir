@@ -31,7 +31,7 @@
 # RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir'); p.write_text(p.read_text() + '// model status: Proved\n')"
 # RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/wolfssl-3579-mul/target-unknown/snapshot.yaml'); p.write_text(p.read_text().replace('SPS-Harness-Fixture-Snapshot-v3', 'SPS-Run-Report-v2', 1))"
 # RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/wrong-host-fhe-reveal/fixed/snapshot.yaml'); p.write_text(p.read_text().replace('kind: mlir', 'kind: mlir\n      execution: active', 1))"
-# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/explicit-error-oracle/bad/snapshot.yaml'); p.write_text(p.read_text().replace('field: payload', 'field: payload\n      valueBytes: secret', 1))"
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/fixtures/explicit-error-oracle/bad/snapshot.yaml'); p.write_text(p.read_text().replace('field: valueBytes', 'field: valueBytes\n      valueBytes: secret', 1))"
 # RUN: not %python %t.root/c/check_harness.py snapshots 2>&1 | %FileCheck %s
 
 # CHECK: fixtures/secret-logging-checkpoint/fixed/secret_logging_checkpoint.fixed.mlir: fixture MLIR has no sibling snapshot.yaml

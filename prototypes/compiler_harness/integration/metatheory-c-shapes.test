@@ -65,11 +65,9 @@
 # AUDIENCE-NEXT: %[[RELEASED:.*]] = call i32 @sps_release_masked_class_candidate(i32 {{.*}}%[[LOGITS]])
 # AUDIENCE-NEXT: store i32 %[[RELEASED]], ptr %released
 # AUDIENCE-NEXT: %[[ALICE_VALUE:.*]] = load i32, ptr %released
-# AUDIENCE-NEXT: %[[ALICE:.*]] = load ptr, ptr %alice_channel.addr
-# AUDIENCE-NEXT: store i32 %[[ALICE_VALUE]], ptr %[[ALICE]]
+# AUDIENCE-NEXT: call void @sps_transfer_audience_alice(i32 {{.*}}%[[ALICE_VALUE]])
 # AUDIENCE-NEXT: %[[BOB_VALUE:.*]] = load i32, ptr %released
-# AUDIENCE-NEXT: %[[BOB:.*]] = load ptr, ptr %bob_channel.addr
-# AUDIENCE-NEXT: store i32 %[[BOB_VALUE]], ptr %[[BOB]]
+# AUDIENCE-NEXT: call void @sps_transfer_audience_bob(i32 {{.*}}%[[BOB_VALUE]])
 
 # RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -I%harness/include -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count_bad.c -o %t.bound-secret.ll
 # RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -I%harness/include -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O0 -Xclang -disable-O0-optnone -S -emit-llvm %fixtures/loop-bounds/public-bound-exhausted-unknown/bound_exhausted_public_loop.c -o %t.bound-public.ll
@@ -144,7 +142,6 @@
 # PREFIX-LABEL: define{{.*}} @prefix_causal_release_bad(
 # PREFIX: store i32 %secret, ptr %secret.addr
 # PREFIX: %[[SECRET:.*]] = load i32, ptr %secret.addr
-# PREFIX: %[[CHANNEL:.*]] = load ptr, ptr %public_channel.addr
-# PREFIX-NEXT: store i32 %[[SECRET]], ptr %[[CHANNEL]]
+# PREFIX-NEXT: call void @sps_transfer_prefix_public(i32 {{.*}}%[[SECRET]])
 # PREFIX: %[[RELEASE_INPUT:.*]] = load i32, ptr %secret.addr
 # PREFIX-NEXT: call i32 @sps_release_policy_h_candidate(i32 {{.*}}%[[RELEASE_INPUT]])

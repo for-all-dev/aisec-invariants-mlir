@@ -10,15 +10,16 @@ public:
 expect:
   final:
     model:
-      status: Counterexample
-      bad_state: timing-cost-mismatch
+      status: Unknown
+      reason: OpenModelObligations
     deployment: Open
     policy: Complete
     events:
     - kind: Latency
       field: configuredClass
-      first_bad: true
-    because: a secret-derived numerator reaches llvm.udiv before the four-bit mask
+    because: a secret-derived numerator reaches llvm.udiv before the four-bit mask,
+      but the unary latency diagnostic does not discharge the relational target-cost
+      model
   pipelines:
     source-boundary:
       kind: diagnostic

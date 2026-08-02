@@ -32,33 +32,30 @@
 // is that it occurs after the observation it would be used to excuse.
 //
 module {
-  llvm.func @sps_release_policy_h_candidate(i32) -> i32
+  llvm.func @llvm.sps.release(i32)
+  llvm.func @sps_transfer_prefix_public(i32)
 
   llvm.func @prefix_causal_release_bad(
       %secret: i32 {
         sps.component_ref = "secret",
         sps.fixture_refs = ["secret:secret"],
-        sps.label = "high"},
-      %public_channel: !llvm.ptr {
-        sps.fixture_refs = ["public-memory:public_channel"],
-        sps.output_ref = "public-channel",
-        sps.sink_class = "public"}) {
+        sps.label = "high"}) {
     // PREFLIGHT FINDING: secret observed before its authorized release
     // secret source: %secret reaches the public channel at step 1
     // observable effect: the public channel word differs between two secrets
     // reason: the prefix-causal ledger cannot let a later release excuse step 1
     // preflight expectation: preflight diagnostic prefix-ordered release ledger over the entry
-    llvm.store %secret, %public_channel {
-      sps.fixture_refs = ["store:pre-release-observation"],
-      sps.label = "high",
-      sps.sink_class = "public",
-      sps.site_alias = "pre-release-observation"
-    } : i32, !llvm.ptr
-    %released = llvm.call @sps_release_policy_h_candidate(%secret) {
-      sps.fixture_refs = ["call:later-release"],
-      sps.release_ref = "policy_h_candidate",
-      sps.site_alias = "later-release-call"
-    } : (i32) -> i32
+    llvm.call @sps_transfer_prefix_public(%secret) {
+      sps.contract_ref = "public-transfer",
+      sps.fixture_refs = ["transfer:pre-release-observation"],
+      sps.transfer_destination = "public-endpoint",
+      sps.transfer_source = "compute"
+    } : (i32) -> ()
+    llvm.call @llvm.sps.release(%secret) {
+      sps.fixture_refs = ["release:policy-h"],
+      sps.release_ref = "policy-h",
+      sps.site_alias = "later-release"
+    } : (i32) -> ()
     llvm.return
   }
 }

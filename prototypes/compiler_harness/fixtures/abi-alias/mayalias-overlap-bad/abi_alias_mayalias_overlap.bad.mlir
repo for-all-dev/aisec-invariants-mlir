@@ -3,8 +3,8 @@
 // RUN: %checkpoint-runner finalize --test fixtures/abi-alias/mayalias-overlap-bad/abi_alias_mayalias_overlap.bad.mlir --records %t.checkpoints
 
 //
-// scope note: the independent ABI sidecar admits p==q; exact product replays that
-// realization and two secret values yield two public output values.
+// scope note: the independent ABI sidecar fixes p and q as zero-offset views
+// of one allocation; two secret values therefore yield two public outputs.
 //
 // The sps.abi_root_ref attributes are documentary root locators only. The checked
 // ABI sidecar, not the IR, authorizes the overlapping realization.
@@ -31,8 +31,8 @@ module {
     %reloaded = llvm.load %q : !llvm.ptr -> i32
     // PREFLIGHT FINDING: admitted overlapping roots expose the secret
     // secret source: %secret is stored through p
-    // observable effect: when p equals q, public_output receives the secret
-    // reason: MayAlias requires the overlapping realization to remain in the product
+    // observable effect: the q reload receives the secret stored through p
+    // reason: the fixed same-allocation ABI topology gives p and q one allocation key
     // preflight expectation: preserve the store/load/public-sink shape for later ABI binding
     llvm.store %reloaded, %public_output {
       sps.fixture_refs = ["store:q-to-public-output"],

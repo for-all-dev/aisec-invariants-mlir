@@ -3,7 +3,7 @@ entry: wolfssl_3580_rv32_bad_model
 c_evidence:
 - fixtures/wolfssl-3580-mask/target-bad/wolfssl_3580_mask_vulnerable.c
 secret:
-- arg: 0
+- arg: 1
   name: table_index
 public:
 - observable: control
@@ -12,16 +12,16 @@ expect:
   final:
     model:
       status: Counterexample
-      bad_state: world-control-timing-mismatch
+      bad_state: world-control-successor-mismatch
     deployment: Open
     policy: Complete
     events:
     - kind: BranchSuccessor
       field: successor
       first_bad: true
-    - kind: Latency
-      field: configuredClass
-    because: equality with the public scan index controls a target-model branch
+    because: equality between the secret table index and the modeled public scan
+      position controls a target-model branch; target timing remains a deployment
+      question
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -46,10 +46,18 @@ expect:
         function.names:
           contains:
           - wolfssl_3580_rv32_bad_model
+        function.signatures:
+          contains:
+          - wolfssl_3580_rv32_bad_model|(!llvm.ptr,i32)->i32
         operation.names:
           ordered:
+          - llvm.mlir.constant
           - llvm.icmp
           - llvm.cond_br
+          - llvm.load
+        branch.successor_shapes:
+          contains:
+          - wolfssl_3580_rv32_bad_model|targets=bb1,bb2|same-target=false|args=;
     rv32-backend-risk:
       kind: assembly
       function: wolfssl_3580_mask_vulnerable

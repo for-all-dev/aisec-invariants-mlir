@@ -22,8 +22,12 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: Error
-      field: payload
+    - kind: Release
+      field: valueBytes
+      id: padding-status
+    - kind: Output
+      field: valueBytes
+      id: public-error-detail
       first_bad: true
     because: public_error_detail reveals more than the allowed validity bit
   pipelines:
@@ -57,7 +61,11 @@ expect:
           - llvm.mlir.constant
           - llvm.and
           - llvm.xor
+          - llvm.call
           - llvm.store
+        call.callees:
+          contains:
+          - llvm.sps.release
         operation.occurrences.llvm.store:
           count:
             min: 2

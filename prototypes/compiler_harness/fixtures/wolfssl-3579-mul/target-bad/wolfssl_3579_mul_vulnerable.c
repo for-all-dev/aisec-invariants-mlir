@@ -30,15 +30,14 @@
  *   secret_a and secret_b
  *
  * Public inputs:
- *   selected target/helper profile; the bad MLIR fixture names
- *   affected-rv32i-muldi3-v2
+ *   selected target and helper implementation
  *
  * Expected confidentiality issue:
- *   Backend legalization emits __muldi3. The call is unsafe under the named
- *   affected profile's operand-dependent latency contract; without a helper
- *   timing summary, the confidentiality verdict is unknown rather than safe.
- *   Applying that affected profile to a real target remains conditional until
- *   deployment evidence validates the helper-timing evidence.
+ *   Backend legalization emits __muldi3. The sibling MLIR is a synthetic
+ *   target-control oracle with an explicit secret-dependent helper branch;
+ *   it is not a latency table or a claim about the deployed helper body.
+ *   Applying that model to a real target remains conditional until deployment
+ *   evidence validates the helper implementation.
  *
  * Canonical compiler command:
  *   clang -I../../../include -O3 --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -S

@@ -29,10 +29,19 @@ module {
   }
 
   llvm.func @clangover_poly_frommsg_fixed(
-      %bit: i16 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}) -> i16 {
-    %zero = llvm.mlir.constant(0 : i16) : i16
-    %constant = llvm.mlir.constant(1665 : i16) : i16
-    %coefficient = llvm.call @clangover_ct_cmov_model(%zero, %constant, %bit) : (i16, i16, i16) -> i16
-    llvm.return %coefficient : i16
+      %out: !llvm.ptr {sps.abi_root_ref = "out", sps.output_ref = "out"},
+      %msg: !llvm.ptr {
+        sps.abi_root_ref = "msg",
+        sps.fixture_refs = ["snapshot.secret[0]"],
+        sps.label = "high"}) {
+    %message_byte = llvm.load %msg : !llvm.ptr -> i8
+    %one8 = llvm.mlir.constant(1 : i8) : i8
+    %bit8 = llvm.and %message_byte, %one8 : i8
+    %bit16 = llvm.zext %bit8 : i8 to i16
+    %zero16 = llvm.mlir.constant(0 : i16) : i16
+    %constant16 = llvm.mlir.constant(1665 : i16) : i16
+    %coefficient = llvm.call @clangover_ct_cmov_model(%zero16, %constant16, %bit16) : (i16, i16, i16) -> i16
+    llvm.store %coefficient, %out : i16, !llvm.ptr
+    llvm.return
   }
 }

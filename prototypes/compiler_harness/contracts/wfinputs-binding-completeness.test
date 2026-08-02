@@ -1,6 +1,6 @@
 # CROSS-FILE IDENTIFIER BINDING FOR THE CANDIDATE BUNDLES (WFInputs section 3).
 #
-# The nine case-local candidate bundles carry {policy,abi,contracts,
+# The eight case-local candidate bundles carry {policy,abi,contracts,
 # release-table,expected-report}.json bound by sha256 into artifact.json.
 # c/check_harness.py validates each sidecar in isolation. It does NOT check
 # that an identifier written in one sidecar resolves in another, so a policy
@@ -27,82 +27,36 @@
 # the normative boundary is 22.1.8 and is absent. Silence proves nothing.
 #
 # The negative arms follow integration/candidate-bundles/interfaces-negative.test: copy the tree
-# into a per-arm isolated root (%t.a .. %t.e), mutate exactly one field, REPAIR
+# into a per-arm isolated root, mutate exactly one field, REPAIR
 # the artifact.json sidecar digest so the envelope binding is not what fails,
 # and assert the specific diagnostic. Each arm gets its own root so one
 # mutation cannot mask or be masked by another.
 
 # --- positive arm: the real tree binds ---------------------------------------
 # RUN: %python %harness/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=CLEAN
-# CLEAN: wfinputs binding checks passed: 9 candidate bundles
+# CLEAN: wfinputs binding checks passed: 8 candidate bundles
 # CLEAN: checked: cross-file identifier resolution
 # CLEAN: not checked: WFInputs items 4, 5, 9, 10, 12, 14
 
 # Non-vacuity for the timing migration: the explicit empty contract is present
-# in ALL NINE bundles, not merely somewhere. Pinned as a count, because
+# in ALL EIGHT bundles, not merely somewhere. Pinned as a count, because
 # presence is the easy half.
 # RUN: grep -l '"latencyClassId": "lat.fixed.1"' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=TIMINGCOUNT
-# TIMINGCOUNT: {{^9$}}
+# TIMINGCOUNT: {{^8$}}
 # And every one of them is the EMPTY contract: an empty choice domain,
 # occurrence map, latency table and coupling map (spec section 2.5.1). Four
-# empty fields across nine bundles is exactly 36 lines; a bundle that dropped
+# empty fields across eight bundles is exactly 32 lines; a bundle that dropped
 # or populated any one of them moves the count.
 # RUN: grep -hE '"(choiceDomain|latencyMeaning)": \[\]|"(occurrences|pairedChoiceCoupling)": \{\}' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=EMPTYTE
-# EMPTYTE: {{^36$}}
+# EMPTYTE: {{^32$}}
 
-# --- shared tree setup for the negative arms ---------------------------------
-# RUN: rm -rf %t.a %t.b %t.c %t.d %t.e
+# The retired audience bundle was the only Candidate-v2 release-table instance.
+# Its replacement uses authoring contracts for cross-host transfers, which the
+# Candidate-v2 mirrors cannot express. The old release-domain negative arms are
+# therefore removed rather than kept alive with fabricated release semantics.
 
-# --- (a) policy binds a release id that dom(R) does not contain --------------
-# WFInputs item 3 requires dom(M.releaseBindings) = dom(R). Per
-# SPS_Lecture_Notes/part5-soundness.tex:296-298 a manifest whose release
-# bindings no longer match dom(R) is Unknown(ManifestMismatch); the tool NAMES
-# that reason class as reporting text and still emits no ModelStatus.
-# RUN: mkdir -p %t.a/tools
-# RUN: cp %harness/tools/check_wfinputs.py %t.a/tools/check_wfinputs.py
-# RUN: cp %harness/tools/fixture_layout.py %t.a/tools/fixture_layout.py
-# RUN: cp %harness/tools/checkpoint_model.py %t.a/tools/checkpoint_model.py
-# RUN: cp -R %fixtures %t.a/fixtures
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.a/fixtures/audience-mismatch/bad/candidate'); side=root/'policy.json'; value=json.loads(side.read_text()); value['release_bindings']=['totally_bogus_release_id_not_in_table']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
-# RUN: not %python %t.a/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=BINDDOM
-# Both inclusions are reported: the dangling binding and the now-unbound entry.
-# BINDDOM: fixtures/audience-mismatch/bad/candidate/policy.json: release_bindings[0]: release id 'totally_bogus_release_id_not_in_table' does not resolve to any release-table entries id; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
-# BINDDOM: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].id: release id 'masked-class' is not bound by policy release_bindings; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
-# The reason class is quoted as reporting text, never issued as a result.
-# BINDDOM: no ModelStatus, DeploymentStatus, PolicyReviewStatus, receipt, or witness is computed
-# Pinned as a cardinality: exactly the two domain-equality violations name a
-# reason class, and nothing else in the run does.
-# RUN: not %python %t.a/tools/check_wfinputs.py 2>&1 | grep -c "would-be disposition reason class: " | %FileCheck %s --check-prefix=BINDDOMCOUNT
-# BINDDOMCOUNT: {{^2$}}
-
-# --- (b) a release audience names an undeclared principal --------------------
-# audience-mismatch is the bundle that exists to teach the audience relation.
-# 'mallory' is in no policy.principals, hence in no coalition derived from the
-# basis, so no audience relation can be computed for the entry (item 2 forbids
-# authored overrides; item 3 requires the reference to resolve).
-# RUN: mkdir -p %t.b/tools
-# RUN: cp %harness/tools/check_wfinputs.py %t.b/tools/check_wfinputs.py
-# RUN: cp %harness/tools/fixture_layout.py %t.b/tools/fixture_layout.py
-# RUN: cp %harness/tools/checkpoint_model.py %t.b/tools/checkpoint_model.py
-# RUN: cp -R %fixtures %t.b/fixtures
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.b/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['audience']=['mallory']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
-# RUN: not %python %t.b/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=AUDIENCE
-# AUDIENCE: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].audience[0]: principal 'mallory' is not declared in policy principals, so it belongs to no coalition derived from the policy basis (WFInputs items 2, 3 and 8)
-# AUDIENCE: wfinputs binding checks failed
-
-# --- (c) a release footprint names an undeclared component -------------------
-# WFInputs items 3 and 4: the footprint is the declared component extent of the
-# release; an unresolvable component means the terminal output schedule cannot
-# be shown to cover it exactly once.
-# RUN: mkdir -p %t.c/tools
-# RUN: cp %harness/tools/check_wfinputs.py %t.c/tools/check_wfinputs.py
-# RUN: cp %harness/tools/fixture_layout.py %t.c/tools/fixture_layout.py
-# RUN: cp %harness/tools/checkpoint_model.py %t.c/tools/checkpoint_model.py
-# RUN: cp -R %fixtures %t.c/fixtures
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.c/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['footprint']=['ghost_component']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
-# RUN: not %python %t.c/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=FOOTPRINT
-# FOOTPRINT: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].footprint[0]: component 'ghost_component' is not declared in policy components (WFInputs items 3 and 4)
-# FOOTPRINT: wfinputs binding checks failed
+# --- shared tree setup for the remaining negative arms -----------------------
+# RUN: rm -rf %t.d %t.e
 
 # --- (d) the fixed observation model is replaced -----------------------------
 # Spec section 7 fixes exactly one observation model for Rev-4 and states that

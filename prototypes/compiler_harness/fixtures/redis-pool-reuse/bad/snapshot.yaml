@@ -19,6 +19,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: return
       first_bad: true
     because: the cancellation path returns actor A's response to actor B
   pipelines:

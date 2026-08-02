@@ -81,7 +81,7 @@
 # be refused by the generator's spec validator, not only by the fixture reader.
 # RUN: not %python %S/../tools/mutate_aggregation_fixture.py --root %t.narrow --check-specs 2>&1 | %FileCheck %s --check-prefix=SPECS
 
-# SPECS: audience-mismatch: unavailable AuditAll must aggregate to 2 blockers ['PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
+# SPECS: launder-scan: unavailable AuditAll must aggregate to 2 blockers ['PossibleUB', 'SolverTimeout'] -> Unknown(OpenModelObligations)
 
 # The rule must be satisfiable, not a blanket refusal: the same two-blocker
 # fixture with the mandated collapse is accepted.

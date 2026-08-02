@@ -1,8 +1,9 @@
 {
-  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
   "harnessCase": "precision-control/offset-disjoint",
   "referenceCaseId": "offset-disjoint",
   "entry": "offset_disjoint_control",
+  "counterexamplePair": null,
   "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
   "files": [
     {"role": "abi", "path": "abi.sps.yaml", "sha256": "34083aef35896fcbbb759e97bda2256b737d7e12176bd91a7ae1e979b9de55f0"},
@@ -17,7 +18,7 @@
     {"referenceInput": "secret-byte", "component": "secret-byte", "argumentIndex": 1, "argumentName": "secret_byte", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
   ],
   "roots": [
-    {"referenceRoot": "buffer", "storageKind": "ABIArgument", "abiRoot": "buffer", "argumentIndex": 0, "argumentName": "buffer", "allocationSite": null, "byteLength": 9, "initialClassification": "Low", "terminalVisibility": "High", "offsets": [4, 8]}
+    {"referenceRoot": "buffer", "component": "buffer-input", "storageKind": "ABIArgument", "abiRoot": "buffer", "argumentIndex": 0, "argumentName": "buffer", "allocationSite": null, "byteLength": 9, "initialClassification": "Low", "terminalVisibility": "High", "offsets": [4, 8]}
   ],
   "observations": [
     {"kind": "Output", "field": "valueBytes"}

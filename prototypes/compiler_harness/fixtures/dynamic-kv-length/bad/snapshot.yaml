@@ -20,6 +20,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: public-allocation-count
       first_bad: true
     because: secret_length is stored into public_allocation_count
   pipelines:

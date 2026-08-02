@@ -9,7 +9,7 @@
   "derived_llvm_ir_sha256": "18245f01f47d783abe7ea755f65c5c973a62434e0f491593aba46804c9f8957e",
   "candidate_sidecar_sha256": {
     "policy.json": "341581f01abf677c6667b38e29a16956a9957a1a0dc549214495fa32965ba7b1",
-    "abi.json": "dce42a7a9d2b8117164d3315b6045049c17a5b394dbc1a9cfc8893189cb72a5f",
+    "abi.json": "807dafca31f582303b2da94a77279b46d023b6b44714155a36ed76791994c0be",
     "contracts.json": "a76b55504fa8b591dd09dfcd718c690fa13924be52a6eda7785677d541bfa407",
     "release-table.json": "809af5d6735135e393e2dfe3902c328ee09707269816efc5860915948b5d34ae",
     "expected-report.json": "777b13e6e2148e2f72b5b92e45bcafcc822cb9efdaf3bb3da93d0570e33f88fe"

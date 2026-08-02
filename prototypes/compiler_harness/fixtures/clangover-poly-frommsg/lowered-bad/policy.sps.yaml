@@ -7,7 +7,11 @@ adversaries:
   - - observer
 hosts:
   compute:
-    visibility: secret
+    visibility:
+      world: false
+      members:
+      - observer
+      joint: []
 components:
   msg-input:
     lifecycle: entry-input

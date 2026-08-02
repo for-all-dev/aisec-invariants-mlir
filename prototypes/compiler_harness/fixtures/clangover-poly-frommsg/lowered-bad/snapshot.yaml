@@ -3,8 +3,8 @@ entry: clangover_poly_frommsg_x86_bad_model
 c_evidence:
 - fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
 secret:
-- arg: 0
-  name: bit
+- arg: 1
+  name: msg
 public:
 - observable: control
 - observable: timing
@@ -12,16 +12,15 @@ expect:
   final:
     model:
       status: Counterexample
-      bad_state: world-control-timing-mismatch
+      bad_state: world-control-successor-mismatch
     deployment: Open
     policy: Complete
     events:
     - kind: BranchSuccessor
       field: successor
       first_bad: true
-    - kind: Latency
-      field: configuredClass
-    because: the secret bit selects different target-model successors
+    because: a bit loaded from the secret message selects different target-model
+      successors; target timing remains a deployment question
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -46,9 +45,19 @@ expect:
         function.names:
           contains:
           - clangover_poly_frommsg_x86_bad_model
+        function.signatures:
+          contains:
+          - clangover_poly_frommsg_x86_bad_model|(!llvm.ptr,!llvm.ptr)->()
         operation.names:
           ordered:
+          - llvm.load
+          - llvm.and
+          - llvm.icmp
           - llvm.cond_br
+          - llvm.store
+        branch.successor_shapes:
+          contains:
+          - clangover_poly_frommsg_x86_bad_model|targets=bb1,bb2|same-target=false|args=;
     x86-backend-risk:
       kind: assembly
       function: clangover_poly_frommsg_vulnerable

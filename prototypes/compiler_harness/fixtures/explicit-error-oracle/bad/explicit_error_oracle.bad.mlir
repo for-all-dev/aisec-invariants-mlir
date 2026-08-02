@@ -8,6 +8,8 @@
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
 module {
+  llvm.func @llvm.sps.release(i32)
+
   llvm.func @explicit_error_oracle_bad(
       %padding_is_valid: i32 {
         sps.component_ref = "padding-is-valid",
@@ -29,10 +31,13 @@ module {
     %one = llvm.mlir.constant(1 : i32) : i32
     %valid_bit = llvm.and %padding_is_valid, %one : i32
     %status = llvm.xor %valid_bit, %one : i32
-    // CANDIDATE RELEASE SITE: authorization of the validity bit is sidecar-bound.
+    llvm.call @llvm.sps.release(%status) {
+      sps.fixture_refs = ["release:padding-status"],
+      sps.release_ref = "padding-status",
+      sps.site_alias = "padding-status"
+    } : (i32) -> ()
     llvm.store %status, %public_status {
       "sps.fixture_refs" = ["store:padding-validity-status"],
-      "sps.release_ref" = "padding_validity_candidate",
       "sps.sink_class" = "public",
       "sps.site_alias" = "padding-validity-status"
     } : i32, !llvm.ptr

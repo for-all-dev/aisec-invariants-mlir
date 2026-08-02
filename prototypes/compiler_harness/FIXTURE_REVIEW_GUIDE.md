@@ -35,7 +35,7 @@ boundaries explicit:
   `ModelStatus`.
 - Snapshot V3 records the expected final SPS axes plus sparse typed checkpoint
   evidence. The checked-in `expected-report.json` files are authenticated,
-  nonclaimable references for the nine candidate fixtures.
+  nonclaimable references for the eight candidate fixtures.
 
 Filename suffixes mean:
 
@@ -71,25 +71,29 @@ Use the same sequence for every ranked section:
 1. **Read `snapshot.yaml`.** Confirm the entry, relevant secret arguments,
    public observations, optional release/audience allowance, expectation, and
    short reason.
-2. **Inspect the sibling MLIR.** Confirm the argument numbers and names, the
+2. **For a Counterexample, read `counterexample-pair.yaml`.** Confirm that its
+   coalition, full-width Low-equal/High-varying inputs, bad-state class, and
+   earliest semantic difference match the snapshot and policy/ABI sidecars.
+   Treat it as public synthetic test data, not a normative witness.
+3. **Inspect the sibling MLIR.** Confirm the argument numbers and names, the
    decisive operation, and the `FileCheck` assertions agree with the snapshot.
-3. **Execute the behavior mentally.** Write down the observable trace for two
+4. **Execute the behavior mentally.** Write down the observable trace for two
    secret values while holding all declared public inputs equal.
-4. **Compare every twin.** A bad/fixed pair must differ only in the intended
+5. **Compare every twin.** A bad/fixed pair must differ only in the intended
    repair. A control must genuinely reject the trivial always-report or
    always-refuse strategy.
-5. **Read the C provenance header.** Confirm the source relationship and that
+6. **Read the C provenance header.** Confirm the source relationship and that
    the reduction still represents the behavior claimed by the snapshot.
-6. **Inspect independent bindings.** When a semantic bundle exists, do not infer
+7. **Inspect independent bindings.** When a semantic bundle exists, do not infer
    policy, audience, alias topology, or contracts from variable names or LLVM
    syntax.
-7. **Check the result boundary.** Record only fixture intent and the plausible
+8. **Check the result boundary.** Record only fixture intent and the plausible
    future disposition. Do not promote a preflight check to a current theorem
    result.
-8. **Check P4 separately.** If target code generation matters, verify the exact
+9. **Check P4 separately.** If target code generation matters, verify the exact
    target, compiler, flags, and stage. Do not generalize one assembly snapshot
    to other targets.
-9. **Run the supporting tests.** A passing test confirms the checked shape, not
+10. **Run the supporting tests.** A passing test confirms the checked shape, not
    the entire security argument.
 
 For each section, record:
@@ -137,7 +141,7 @@ distinction between payload equality and coalition authorization.
 
 | Situation | C evidence | MLIR evidence | Bundle | Intended distinction |
 | --- | --- | --- | --- | --- |
-| Release visible outside its declared audience | [audience_mismatch_bad.c](fixtures/audience-mismatch/bad/audience_mismatch_bad.c) | [audience_mismatch.bad.mlir](fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir) | [candidate](fixtures/audience-mismatch/bad/candidate/) | Alice is authorized; Bob sees the same payload without being in the release audience. The future `{bob}` product row is the counterexample row. |
+| Release visible outside its declared audience | [audience_mismatch_bad.c](fixtures/audience-mismatch/bad/audience_mismatch_bad.c) | [audience_mismatch.bad.mlir](fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir) | — | Alice is authorized; Bob sees the same payload without being in the release audience. The future `{bob}` product row is the counterexample row. |
 | Plaintext sent to the wrong party | [bad](fixtures/wrong-party-plaintext/bad/wrong_party_plaintext_bad.c), [fixed](fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext_fixed.c) | [bad](fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir), [fixed](fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext.fixed.mlir) | — | The bad case writes both mailboxes; the fixed case preserves the authorized mailbox and redacts only the unauthorized one. |
 | FHE plaintext revealed on the wrong host | [bad](fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal_bad.c), [fixed](fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal_fixed.c) | [bad](fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal.bad.mlir), [fixed](fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal.fixed.mlir) | — | The ciphertext handle remains public; only the authorized client may receive revealed plaintext. |
 
@@ -149,12 +153,14 @@ distinction between payload equality and coalition authorization.
   and return behavior.
 - [ ] Confirm zero is a declared redaction sentinel rather than an accidental
   semantic change.
-- [ ] In `audience-mismatch`, verify `release-table.json` declares audience
-  `{alice}`, the LLVM entry has exactly one carrier call, and the ABI binds two
-  distinct output roots.
+- [ ] In `audience-mismatch`, verify the policy declares audience `{alice}`,
+  the MLIR entry has exactly one `llvm.sps.release`, and `contracts.sps.yaml`
+  binds the two scalar calls from `compute` to the Alice and Bob endpoints.
+- [ ] Verify the transfer contract IDs and destination hosts resolve from the
+  authoring sidecar; do not infer them from callee names or locator attributes.
 - [ ] Verify the `{bob}` product row remains bad even though `{alice}` and
   `{alice,bob}` are safe.
-- [ ] Do not infer authorization from pointer names, store order, or identical
+- [ ] Do not infer authorization from callee names, call order, or identical
   payload bytes.
 - [ ] Keep FHE cryptographic correctness outside the reduced host-placement
   claim.
@@ -261,7 +267,7 @@ whose independently bound ABI topology changes the future disposition.
 | --- | --- | --- | --- | --- |
 | Explicit same actual | [abi_alias_explicit_same_actual.c](fixtures/abi-alias/explicit-same-actual-bad/abi_alias_explicit_same_actual.c) | [abi_alias_explicit_same_actual.bad.mlir](fixtures/abi-alias/explicit-same-actual-bad/abi_alias_explicit_same_actual.bad.mlir) | — | Direct preflight witness: the caller passes one object for both pointer parameters. |
 | Missing topology | [abi_alias_missing_binding.c](fixtures/abi-alias/missing-binding-unknown/abi_alias_missing_binding.c) | [abi_alias_missing_binding.unknown.mlir](fixtures/abi-alias/missing-binding-unknown/abi_alias_missing_binding.unknown.mlir) | [candidate](fixtures/abi-alias/missing-binding-unknown/candidate/) | `Unknown(AliasBindingMismatch)` |
-| `MayAlias` with equal-base realization | same source | [abi_alias_mayalias_overlap.bad.mlir](fixtures/abi-alias/mayalias-overlap-bad/abi_alias_mayalias_overlap.bad.mlir) | [candidate](fixtures/abi-alias/mayalias-overlap-bad/candidate/) | `AuditAll` SAT remains `CandidateOnly`; accepted exact replay yields `Counterexample(receiptId)`. |
+| Fixed `SameAllocation` topology (legacy `mayalias` path) | same source | [abi_alias_mayalias_overlap.bad.mlir](fixtures/abi-alias/mayalias-overlap-bad/abi_alias_mayalias_overlap.bad.mlir) | [candidate](fixtures/abi-alias/mayalias-overlap-bad/candidate/) | One exact zero-offset allocation class makes the store through `p` feed the load through `q`; `AuditAll` SAT remains `CandidateOnly` until exact replay. |
 | Proved `Disjoint` control | same source | [abi_alias_disjoint.control.mlir](fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir) | [candidate](fixtures/abi-alias/disjoint-control/candidate/) | `Proved`, after all still-missing Rev4 premises are implemented |
 
 ### Manual checks
@@ -270,10 +276,9 @@ whose independently bound ABI topology changes the future disposition.
   `q`, and publish the loaded value.
 - [ ] Verify no LLVM `noalias` attribute or distinct SSA name is treated as the
   independent ABI proof.
-- [ ] Inspect `abi.json` in each bundle and compare `complete`, `relations`, and
-  any required alias realization.
-- [ ] In the may-alias case, replay `p == q` and confirm the public output
-  changes with the secret.
+- [ ] Inspect `abi.json` in each bundle and compare `complete` and `relations`.
+- [ ] In the fixed same-allocation case, confirm `p` and `q` are one zero-offset
+  allocation class and the public output changes with the secret.
 - [ ] In the disjoint control, confirm initialized memory for `q` and complete
   pairwise topology are represented.
 - [ ] Ensure an implementation distinguishes all four cases; always-refuse
@@ -593,8 +598,8 @@ target-dependent.
 
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
-| `poly_tomsg` secret division | [bad](fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg_vulnerable.c), [fixed](fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg_fixed.c) | [bad](fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir), [fixed](fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg.fixed.mlir) | Replace secret `udiv` with reviewed reciprocal/shift arithmetic. |
-| `poly_compress` secret division | [bad](fixtures/kyberslash2-compress/bad/kyberslash2_compress_vulnerable.c), [fixed](fixtures/kyberslash2-compress/fixed/kyberslash2_compress_fixed.c) | [bad](fixtures/kyberslash2-compress/bad/kyberslash2_compress.bad.mlir), [fixed](fixtures/kyberslash2-compress/fixed/kyberslash2_compress.fixed.mlir) | Same operation-class distinction under a different rounding expression. |
+| `poly_tomsg` secret division | [bad](fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg_vulnerable.c), [target bad](fixtures/kyberslash1-poly-tomsg/target-bad/kyberslash1_poly_tomsg_target_bad.c), [fixed](fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg_fixed.c) | [source risk](fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir), [synthetic target branch](fixtures/kyberslash1-poly-tomsg/target-bad/kyberslash1_poly_tomsg.target_bad.mlir), [fixed](fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg.fixed.mlir) | The unary `udiv` risk leaves model obligations open; only the explicit target branch has a synthetic counterexample pair. |
+| `poly_compress` secret division | [bad](fixtures/kyberslash2-compress/bad/kyberslash2_compress_vulnerable.c), [target bad](fixtures/kyberslash2-compress/target-bad/kyberslash2_compress_target_bad.c), [fixed](fixtures/kyberslash2-compress/fixed/kyberslash2_compress_fixed.c) | [source risk](fixtures/kyberslash2-compress/bad/kyberslash2_compress.bad.mlir), [synthetic target branch](fixtures/kyberslash2-compress/target-bad/kyberslash2_compress.target_bad.mlir), [fixed](fixtures/kyberslash2-compress/fixed/kyberslash2_compress.fixed.mlir) | The same source-risk/target-oracle distinction under a different rounding expression. |
 
 ### Manual checks
 
@@ -603,7 +608,8 @@ target-dependent.
   coefficients in the declared domain.
 - [ ] Check no `udiv` remains in the reviewed fixed LLVM shape.
 - [ ] Review overflow, width, truncation, and rounding behavior.
-- [ ] Keep source-operation triage separate from target latency guarantees.
+- [ ] Keep source-operation triage separate from both synthetic target-control
+  oracles and target latency guarantees.
 
 ### Supporting tests
 
@@ -658,7 +664,7 @@ target-profile-bound, and missing summaries remain unknown.
 
 ## Cross-cutting artifact review
 
-Perform this review for each of the nine semantic bundles referenced above.
+Perform this review for each of the eight semantic bundles referenced above.
 Review bundle members in this order:
 
 1. `artifact.json`
@@ -772,7 +778,7 @@ to passed.
 
 ## Completeness ledger
 
-The 12-rank semantic queue accounts for all 60 checked-in MLIR fixture files:
+The 12-rank semantic queue accounts for all 62 checked-in MLIR fixture files:
 
 | Rank | Family | MLIR files |
 | ---: | --- | ---: |
@@ -786,19 +792,19 @@ The 12-rank semantic queue accounts for all 60 checked-in MLIR fixture files:
 | 8 | Release carriers | 3 |
 | 9 | Relational precision | 9 |
 | 10 | Backend-created observations | 6 |
-| 11 | Variable-latency arithmetic | 4 |
+| 11 | Variable-latency arithmetic | 6 |
 | 12 | Target-profile helpers | 8 |
-|  | **Total** | **60** |
+|  | **Total** | **62** |
 
 The cross-cutting review additionally covers:
 
-- 63 C evidence/helper files plus the equivalence driver (64 compiled C inputs);
-- 9 candidate semantic bundles and their 9 `.bc`/derived `.ll` pairs;
-- 60 direct `expect.final` judgments, with no report-materialization or
-  execution state in the snapshots; 9 candidate fixtures additionally carry
-  authenticated compact references and the other 51 state their final axes
+- 65 C evidence/helper files plus the equivalence driver (66 compiled C inputs);
+- 8 candidate semantic bundles and their 8 `.bc`/derived `.ll` pairs;
+- 62 direct `expect.final` judgments, with no report-materialization or
+  execution state in the snapshots; 8 candidate fixtures additionally carry
+  authenticated compact references and the other 54 state their final axes
   entirely inline;
-- expected model totals of 26 `Proved`, 25 `Counterexample`, and 9 `Unknown`,
+- expected model totals of 26 `Proved`, 25 `Counterexample`, and 11 `Unknown`,
   all with expected deployment `Open` and policy `Complete`;
 - 16 fixtures with separate raw and canonicalized structural endpoints;
 - 2 additional checked-in LLVM inputs and 1 release-marker LLVM input;
@@ -808,8 +814,8 @@ The cross-cutting review additionally covers:
 - the candidate-bundle integration, general integration, diagnostic, and P4
   test strata.
 
-The verified post-migration lit inventory is 144 tests. In the current
-capability environment, `make check` completes with 133 passed and 11
+The verified post-migration lit inventory is 154 tests. In the current
+capability environment, `make check` completes with 143 passed and 11
 `UNSUPPORTED`. The unsupported tests require capabilities such as the unary
 scanner, exact Rev4.1 verifier and materialized bundles, RV32 GCC, NFv2
 intrinsic/code-generation support, or external source-annotation data.
@@ -849,7 +855,7 @@ Do not sign off the fixture set until all of the following are true:
 - [ ] Every fixed/control case blocks a trivial always-report or always-refuse
   implementation.
 - [ ] C intent, MLIR shape, and sidecar bindings agree.
-- [ ] The nine candidate bundles pass integrity and interface checks.
+- [ ] The eight candidate bundles pass integrity and interface checks.
 - [ ] Target-specific claims are tied to exact targets and stages.
 - [ ] Unsupported optional tests are recorded explicitly.
 - [ ] No diagnostic, preflight shape, expected oracle, or P4 snapshot is

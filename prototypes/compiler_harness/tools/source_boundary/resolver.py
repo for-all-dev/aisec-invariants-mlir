@@ -22,6 +22,7 @@ from source_boundary import schema as authoring_schema
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INCLUDE = ROOT / "include"
 DEFAULT_SCHEMAS = ROOT / "source-annotations" / "schemas"
+AUTHORING_CONTRACT_SCHEMA = Path(__file__).with_name("contracts.schema.json")
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9._-]*$")
 ANNOTATIONS = {
     "sps.entry=": "entry",
@@ -249,9 +250,54 @@ def _emitted_function_type(rendered: str, symbol: str) -> str:
     return "{} ({})".format(return_match.group(1), ", ".join(parameter_types))
 
 
+def _emitted_contract_function_type(rendered: str, symbol: str) -> str:
+    """Return the type of one external scalar contract declaration."""
+    declarations: list[str] = []
+    lines = iter(rendered.splitlines())
+    for line in lines:
+        declaration = line.strip()
+        if not declaration.startswith("declare "):
+            continue
+        while ")" not in declaration:
+            try:
+                declaration += " " + next(lines).strip()
+            except StopIteration as error:
+                raise BoundaryError(
+                    "generated LLVM ended inside a contract declaration"
+                ) from error
+        declarations.append(declaration)
+
+    marker = f"@{symbol}("
+    matches = [declaration for declaration in declarations if marker in declaration]
+    if len(matches) != 1:
+        raise BoundaryError(
+            f"generated LLVM has {len(matches)} external declarations for "
+            f"contract callee {symbol!r}"
+        )
+    declaration = matches[0]
+    symbol_offset = declaration.index(marker)
+    return_match = re.search(
+        rf"(?:^|\s)(void|i[1-9][0-9]*|float|double)\s+@{re.escape(symbol)}\($",
+        declaration[: symbol_offset + len(marker)],
+    )
+    if return_match is None:
+        raise BoundaryError(
+            f"contract callee {symbol!r} has an unsupported return or symbol shape"
+        )
+    opening = symbol_offset + len(marker) - 1
+    closing = _matching_parenthesis(declaration, opening)
+    parameters = _split_llvm_parameters(declaration[opening + 1 : closing])
+    parameter_types = [_llvm_parameter_type(parameter) for parameter in parameters]
+    if any(parameter == "..." or parameter.startswith("ptr") for parameter in parameter_types):
+        raise BoundaryError(
+            f"cross-host contract callee {symbol!r} must have a scalar, non-variadic signature"
+        )
+    return "{} ({})".format(return_match.group(1), ", ".join(parameter_types))
+
+
 def _normal_llvm(
     source: Path, clang: Path, include: Path, symbol: str | None
-) -> str | None:
+) -> tuple[str | None, str]:
     language, standard = _language(source)
     with tempfile.TemporaryDirectory() as temporary:
         llvm_path = Path(temporary) / "normal.ll"
@@ -293,7 +339,10 @@ def _normal_llvm(
         raise BoundaryError(
             "normal LLVM contains source-annotation residue: " + ", ".join(present)
         )
-    return _emitted_function_type(rendered, symbol) if symbol is not None else None
+    return (
+        _emitted_function_type(rendered, symbol) if symbol is not None else None,
+        rendered,
+    )
 
 
 def _annotation(value: Any, where: str) -> tuple[str, str] | None:
@@ -597,7 +646,104 @@ def _validate_expression_width(
     raise BoundaryError(f"{where} contains an unsupported expression")
 
 
-def _validate_policy(policy: dict[str, Any], entry: dict[str, Any], abi: dict[str, Any]) -> dict[str, Any]:
+def _validate_contracts(
+    contracts: dict[str, Any] | None,
+    *,
+    entry: dict[str, Any],
+    abi: dict[str, Any],
+    policy: dict[str, Any],
+    rendered_llvm: str,
+) -> list[dict[str, Any]]:
+    if contracts is None:
+        return []
+
+    rows = contracts["contracts"]
+    identifiers = [row["id"] for row in rows]
+    if identifiers != sorted(identifiers) or len(identifiers) != len(set(identifiers)):
+        raise BoundaryError(
+            "contract authoring rows must be sorted by unique stable contract ID"
+        )
+
+    entry_host = abi["entry"]["host"]
+    declared_hosts = set(policy["hosts"])
+    calls = sorted(entry.get("calls", []), key=lambda item: item.get("offset", -1))
+    bound_sites: set[tuple[str, int]] = set()
+    resolved: list[dict[str, Any]] = []
+    for row in rows:
+        contract_id = row["id"]
+        source_host = row["source-host"]
+        destination_host = row["destination-host"]
+        if source_host != entry_host:
+            raise BoundaryError(
+                f"contract {contract_id!r} source host must equal entry host {entry_host!r}"
+            )
+        if destination_host == source_host:
+            raise BoundaryError(
+                f"contract {contract_id!r} must cross two distinct hosts"
+            )
+        unknown_hosts = {source_host, destination_host} - declared_hosts
+        if unknown_hosts:
+            raise BoundaryError(
+                f"contract {contract_id!r} references undeclared hosts "
+                f"{sorted(unknown_hosts)!r}"
+            )
+
+        locator = row["locator"]
+        callee = locator["callee"]
+        ordinal = locator["call-ordinal"]
+        direct_calls = [
+            call
+            for call in calls
+            if call.get("direct") is True and call.get("callee") == callee
+        ]
+        if ordinal >= len(direct_calls):
+            raise BoundaryError(
+                f"contract {contract_id!r} call ordinal {ordinal} is out of range "
+                f"for callee {callee!r}"
+            )
+        site = (callee, ordinal)
+        if site in bound_sites:
+            raise BoundaryError(f"contract call site {site!r} is bound more than once")
+        bound_sites.add(site)
+
+        signature = row["signature"]
+        scalar_types = [*signature["arguments"]]
+        if signature["result"] != "void":
+            scalar_types.append(signature["result"])
+        if any(re.fullmatch(r"i[1-9][0-9]*", item) is None for item in scalar_types):
+            raise BoundaryError(
+                f"contract {contract_id!r} supports only integer Bool/BV scalar types"
+            )
+        expected_type = "{} ({})".format(
+            signature["result"], ", ".join(signature["arguments"])
+        )
+        actual_type = _emitted_contract_function_type(rendered_llvm, callee)
+        if actual_type != expected_type:
+            raise BoundaryError(
+                f"contract {contract_id!r} signature mismatch: authoring has "
+                f"{expected_type!r}, emitted LLVM has {actual_type!r}"
+            )
+        resolved.append(
+            {
+                "id": contract_id,
+                "callee": callee,
+                "call-ordinal": ordinal,
+                "source-host": source_host,
+                "destination-host": destination_host,
+                "signature": expected_type,
+                "source-offset": direct_calls[ordinal].get("offset"),
+                "claim-boundary": contracts["claim-boundary"],
+            }
+        )
+    return resolved
+
+
+def _validate_policy(
+    policy: dict[str, Any],
+    entry: dict[str, Any],
+    abi: dict[str, Any],
+    contracts: list[dict[str, Any]],
+) -> dict[str, Any]:
     principals = set(policy["principals"])
     if len(principals) != len(policy["principals"]):
         raise BoundaryError("principals contain duplicates")
@@ -606,7 +752,12 @@ def _validate_policy(policy: dict[str, Any], entry: dict[str, Any], abi: dict[st
         raise BoundaryError(
             f"policy entry {policy['entry']!r} does not match source entry {entry_id!r}"
         )
-    expected_hosts = {abi["entry"]["host"], *(root["host"] for root in abi["roots"].values())}
+    expected_hosts = {
+        abi["entry"]["host"],
+        *(root["host"] for root in abi["roots"].values()),
+        *(row["source-host"] for row in contracts),
+        *(row["destination-host"] for row in contracts),
+    }
     if set(policy["hosts"]) != expected_hosts:
         raise BoundaryError(
             f"policy hosts do not exactly cover ABI hosts; expected {sorted(expected_hosts)!r}"
@@ -1011,6 +1162,14 @@ def resolve(
 
     policy = _load_yaml(policy_path, schemas / "policy.schema.json")
     abi = _load_yaml(abi_path, schemas / "abi.schema.json")
+    contracts_path = source.parent / "contracts.sps.yaml"
+    contracts: dict[str, Any] | None = None
+    if os.path.lexists(contracts_path):
+        if contracts_path.is_symlink() or not contracts_path.is_file():
+            raise BoundaryError(
+                "optional contracts.sps.yaml must be a case-local regular file"
+            )
+        contracts = _load_yaml(contracts_path, AUTHORING_CONTRACT_SCHEMA)
     if (
         Path(abi["source"]).name != abi["source"]
         or Path(abi["source"]).suffix not in SOURCE_SUFFIXES
@@ -1038,12 +1197,21 @@ def resolve(
                 )
             helpers[helper_id] = helper
         _normal_llvm(support, clang, include, None)
-    emitted_function_type = _normal_llvm(source, clang, include, abi["entry"]["symbol"])
+    emitted_function_type, rendered_llvm = _normal_llvm(
+        source, clang, include, abi["entry"]["symbol"]
+    )
     assert emitted_function_type is not None
     abi_resolution, abi_blockers = _validate_abi(
         abi, entry, policy, emitted_function_type
     )
-    policy_resolution = _validate_policy(policy, entry, abi)
+    contract_resolution = _validate_contracts(
+        contracts,
+        entry=entry,
+        abi=abi,
+        policy=policy,
+        rendered_llvm=rendered_llvm,
+    )
+    policy_resolution = _validate_policy(policy, entry, abi, contract_resolution)
     releases = _validate_releases(policy, entry, helpers)
 
     resolved = {
@@ -1058,6 +1226,7 @@ def resolve(
         **abi_resolution,
         **policy_resolution,
         "releases": releases,
+        "contracts": contract_resolution,
     }
     completed = sorted(
         {
@@ -1073,6 +1242,10 @@ def resolve(
     blockers = set(abi_blockers)
     if releases:
         blockers.add("ReleaseCarrierMismatch")
+    if contract_resolution:
+        completed.append("ContractLocatorsResolved")
+        completed.sort()
+        blockers.add("OpenModelObligations")
     report = {
         "formatId": "SPS-Harness-Stage-Report-v2",
         "fixtureTier": {"tag": "CandidateOnly"},

@@ -17,7 +17,7 @@ roots:
     host: compute
     extent-bytes: 4
     alignment: 4
-    permission: write-only
+    permission: read-write
     initialization: uninitialized
     ownership: caller
     output: p
@@ -26,10 +26,10 @@ roots:
     host: compute
     extent-bytes: 4
     alignment: 4
-    permission: read-only
-    initialization: initialized
+    permission: read-write
+    initialization: uninitialized
     ownership: caller
-    input: q-input
+    output: q
   public-output:
     argument: 3
     host: compute
@@ -46,7 +46,7 @@ aliases:
     roots:
     - p
     - public-output
-  - relation: may-alias
+  - relation: same-allocation
     roots:
     - p
     - q
@@ -57,4 +57,5 @@ aliases:
 terminal-output-order:
   normal-void:
   - p
+  - q
   - public-output

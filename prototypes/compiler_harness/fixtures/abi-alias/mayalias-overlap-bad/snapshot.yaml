@@ -18,8 +18,9 @@ expect:
     events:
     - kind: Output
       field: valueBytes
+      id: public-output
       first_bad: true
-    because: the admitted p equals q case makes the public reload contain secret
+    because: fixed same-allocation roots make the q reload observe the secret store through p
     reference: candidate/expected-report.json
   pipelines:
     source-boundary:
@@ -37,10 +38,8 @@ expect:
           count:
             eq: 0
         blockers:
-          contains:
-          - AliasBindingMismatch
           count:
-            eq: 1
+            eq: 0
     modeled-shape:
       kind: mlir
       properties:

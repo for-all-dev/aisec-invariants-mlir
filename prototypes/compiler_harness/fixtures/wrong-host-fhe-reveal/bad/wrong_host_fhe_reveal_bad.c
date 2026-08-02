@@ -26,14 +26,14 @@
  *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models a reveal result being placed in both client and unauthorized
- *   server mailboxes. It performs no cryptography.
+ *   Models scalar transfers of a reveal result to both an authorized client
+ *   and an unauthorized server endpoint. It performs no cryptography.
  *
  * Secret inputs:
  *   revealed_plaintext
  *
  * Public inputs:
- *   ciphertext_handle and mailbox addresses
+ *   ciphertext_handle and the static endpoint contract bindings
  *
  * Expected confidentiality issue:
  *   The server receives plaintext despite lacking reveal authority.
@@ -48,16 +48,15 @@
 #include <sps/annotations.h>
 #include <stdint.h>
 
+extern void sps_transfer_fhe_authorized_client(uint32_t value);
+extern void sps_transfer_fhe_server(uint32_t value);
+
 SPS_ENTRY("wrong_host_fhe_reveal_bad")
 SPS_RETURN_OUTPUT("return")
 uint32_t wrong_host_fhe_reveal_bad(
     uint32_t ciphertext_handle SPS_COMPONENT("ciphertext-handle"),
-    uint32_t revealed_plaintext SPS_COMPONENT("revealed-plaintext"),
-    uint32_t *authorized_client_plaintext
-        SPS_ROOT("authorized-client-plaintext"),
-    uint32_t *unauthorized_server_plaintext
-        SPS_ROOT("unauthorized-server-plaintext")) {
-  *authorized_client_plaintext = revealed_plaintext;
-  *unauthorized_server_plaintext = revealed_plaintext;
+    uint32_t revealed_plaintext SPS_COMPONENT("revealed-plaintext")) {
+  sps_transfer_fhe_authorized_client(revealed_plaintext);
+  sps_transfer_fhe_server(revealed_plaintext);
   return ciphertext_handle;
 }

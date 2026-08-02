@@ -21,8 +21,9 @@ expect:
     deployment: Open
     policy: Complete
     events:
-    - kind: Error
-      field: payload
+    - kind: Release
+      field: valueBytes
+      id: padding-status
     because: sanctioned status remains while the detailed error is replaced by zero
   pipelines:
     source-boundary:
@@ -55,8 +56,12 @@ expect:
           - llvm.mlir.constant
           - llvm.and
           - llvm.xor
+          - llvm.call
           - llvm.store
           - llvm.return
+        call.callees:
+          contains:
+          - llvm.sps.release
         operation.occurrences.llvm.mlir.constant:
           count:
             min: 2

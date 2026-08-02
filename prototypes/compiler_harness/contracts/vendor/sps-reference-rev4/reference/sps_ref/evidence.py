@@ -9,6 +9,10 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 from .canonical import canonical_bytes, canonical_digest, load_json_bytes
+from .counterexample import (
+    load_counterexample_pair,
+    validate_and_replay_counterexample_pair,
+)
 from .engine import compile_program
 from .errors import ReferenceError, SchemaError, SolverUnavailableError
 from .model import parse_coalition, parse_program, require_exact_keys, require_identifier
@@ -251,10 +255,11 @@ def validate_reduction_binding(
             "coalition",
             "observations",
             "limitations",
+            "counterexamplePair",
         },
         "reduction binding",
     )
-    if value["formatId"] != "SPS-Harness-Reference-Reduction-Binding-v1":
+    if value["formatId"] != "SPS-Harness-Reference-Reduction-Binding-v2":
         raise SchemaError("wrong reduction binding format")
     _require_harness_case(value["harnessCase"], "reduction binding.harnessCase")
     for field in ("referenceCaseId", "entry"):
@@ -263,13 +268,19 @@ def validate_reduction_binding(
     if value["referenceCaseId"] != fixture["caseId"] or value["entry"] != program["entryId"]:
         raise SchemaError("reduction binding fixture or entry identity differs")
     _validate_file_rows(value["files"], binding_path, fixture_path)
-    argument_indices, argument_names = _validate_argument_rows(
+    argument_indices, argument_names, argument_components = _validate_argument_rows(
         value["arguments"], program
     )
-    root_indices, root_names = _validate_root_rows(value["roots"], program)
-    if argument_indices & root_indices or argument_names & root_names:
+    root_indices, root_names, root_components = _validate_root_rows(
+        value["roots"], program
+    )
+    if (
+        argument_indices & root_indices
+        or argument_names & root_names
+        or argument_components & root_components
+    ):
         raise SchemaError(
-            "binding scalar and root ABI argument mappings must be disjoint"
+            "binding scalar and root ABI mappings must be disjoint"
         )
     _validate_coalition_mapping(value["coalition"], fixture["input"]["coalition"])
     observations = value["observations"]
@@ -295,6 +306,9 @@ def validate_reduction_binding(
         raise SchemaError("binding omits the expected first-difference observation")
     if value["limitations"] != list(REQUIRED_LIMITATIONS):
         raise SchemaError("binding limitations differ from the required exact inventory")
+    _validate_counterexample_pair_row(
+        value["counterexamplePair"], fixture, binding_path
+    )
     return value
 
 
@@ -315,6 +329,14 @@ def run_relation_fixture(
     coalition = parse_coalition(fixture["input"]["coalition"])
     left = compile_program(program, "L")
     right = compile_program(program, "R")
+    _validate_bound_counterexample_pair(
+        fixture,
+        binding,
+        left,
+        right,
+        coalition,
+        binding_path=binding_path,
+    )
     query_specs = [
         ("ReferenceAdmissionNonempty", None),
         *(
@@ -374,6 +396,8 @@ def run_relation_fixture(
         profile,
         fixture=fixture,
         binding=binding,
+        fixture_path=fixture_path,
+        binding_path=binding_path,
     )
 
 
@@ -383,6 +407,8 @@ def validate_relation_result(
     *,
     fixture: Mapping[str, Any] | None = None,
     binding: Mapping[str, Any] | None = None,
+    fixture_path: Path | None = None,
+    binding_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate canonical result shape and, when supplied, its exact context.
 
@@ -466,7 +492,13 @@ def validate_relation_result(
             "contextual relation-result validation requires fixture and binding"
         )
     if fixture is not None and binding is not None:
-        _validate_relation_result_context(value, fixture, binding)
+        _validate_relation_result_context(
+            value,
+            fixture,
+            binding,
+            fixture_path=fixture_path,
+            binding_path=binding_path,
+        )
     return value
 
 
@@ -504,9 +536,17 @@ def _validate_relation_result_context(
     value: Mapping[str, Any],
     raw_fixture: Mapping[str, Any],
     raw_binding: Mapping[str, Any],
+    *,
+    fixture_path: Path | None,
+    binding_path: Path | None,
 ) -> None:
     fixture = validate_relation_fixture(dict(raw_fixture))
-    binding = validate_reduction_binding(dict(raw_binding), fixture)
+    binding = validate_reduction_binding(
+        dict(raw_binding),
+        fixture,
+        fixture_path=fixture_path,
+        binding_path=binding_path,
+    )
     program = parse_program(fixture["input"]["program"])
     coalition = parse_coalition(fixture["input"]["coalition"])
     descriptor = {
@@ -531,6 +571,14 @@ def _validate_relation_result_context(
 
     left = compile_program(program, "L")
     right = compile_program(program, "R")
+    _validate_bound_counterexample_pair(
+        fixture,
+        binding,
+        left,
+        right,
+        coalition,
+        binding_path=binding_path,
+    )
     specs = [
         ("ReferenceAdmissionNonempty", None),
         *(
@@ -753,6 +801,76 @@ def _validate_result_query(row, profile, index):
             raise SchemaError("relation result first difference is outside the closed vocabulary")
 
 
+def _validate_counterexample_pair_row(
+    row: Any,
+    fixture: Mapping[str, Any],
+    binding_path: Path | None,
+) -> None:
+    audit_status = fixture["expected"]["auditAll"]["status"]
+    if audit_status == "unsat":
+        if row is not None:
+            raise SchemaError("UNSAT relation binding requires counterexamplePair: null")
+        return
+    if row is None:
+        raise SchemaError("SAT relation binding requires a counterexample pair")
+    require_exact_keys(row, {"path", "sha256"}, "binding counterexamplePair")
+    if row["path"] != "counterexample-pair.yaml":
+        raise SchemaError("binding counterexamplePair must name the fixed sibling path")
+    _validate_digest(row["sha256"], "binding counterexamplePair digest")
+    if binding_path is not None:
+        raw = _read_counterexample_pair_bytes(row, binding_path)
+        # Parse here as part of binding validation; semantic replay follows only
+        # after the exact reduced program has been compiled.
+        load_counterexample_pair(raw, str(_counterexample_pair_path(binding_path)))
+
+
+def _counterexample_pair_path(binding_path: Path) -> Path:
+    return (binding_path.resolve().parent.parent / "counterexample-pair.yaml").resolve()
+
+
+def _read_counterexample_pair_bytes(
+    row: Mapping[str, Any], binding_path: Path
+) -> bytes:
+    case_root = binding_path.resolve().parent.parent
+    target = _counterexample_pair_path(binding_path)
+    try:
+        target.relative_to(case_root)
+    except ValueError as exc:
+        raise SchemaError("counterexample pair resolves outside its case directory") from exc
+    try:
+        raw = target.read_bytes()
+    except OSError as exc:
+        raise SchemaError(f"cannot read counterexample pair: {exc}") from exc
+    if hashlib.sha256(raw).hexdigest() != row["sha256"]:
+        raise SchemaError("counterexample pair raw-byte digest mismatch")
+    return raw
+
+
+def _validate_bound_counterexample_pair(
+    fixture: Mapping[str, Any],
+    binding: Mapping[str, Any],
+    left,
+    right,
+    coalition,
+    *,
+    binding_path: Path | None,
+) -> None:
+    row = binding["counterexamplePair"]
+    if row is None:
+        return
+    if binding_path is None:
+        raise SchemaError(
+            "counterexample-pair replay requires the reduction binding path"
+        )
+    target = _counterexample_pair_path(binding_path)
+    pair = load_counterexample_pair(
+        _read_counterexample_pair_bytes(row, binding_path), str(target)
+    )
+    validate_and_replay_counterexample_pair(
+        pair, fixture, binding, left, right, coalition
+    )
+
+
 def _validate_file_rows(rows, binding_path, fixture_path):
     if not isinstance(rows, list):
         raise SchemaError("binding files must be a list")
@@ -764,6 +882,10 @@ def _validate_file_rows(rows, binding_path, fixture_path):
         path = row["path"]
         if role not in FILE_ROLES or not isinstance(path, str):
             raise SchemaError("binding file role or path is invalid")
+        if role == "snapshot" and path != "snapshot.yaml":
+            raise SchemaError(
+                "binding snapshot role must name the fixed case-local snapshot.yaml"
+            )
         pure = PurePosixPath(path)
         if pure.is_absolute() or str(pure) != path or any(part in {"", ".", ".."} for part in pure.parts):
             raise SchemaError("binding file path is not canonical case-relative POSIX")
@@ -824,7 +946,7 @@ def _validate_argument_rows(rows, program):
         seen.append(row["referenceInput"])
     if seen != sorted(by_id):
         raise SchemaError("binding arguments must exactly cover sorted reference inputs")
-    return argument_indices, argument_names
+    return argument_indices, argument_names, components
 
 
 def _validate_root_rows(rows, program):
@@ -834,13 +956,14 @@ def _validate_root_rows(rows, program):
     used_offsets = _program_root_offsets(program)
     seen: list[str] = []
     abi_roots: set[str] = set()
+    components: set[str] = set()
     allocation_sites: set[str] = set()
     argument_indices: set[int] = set()
     argument_names: set[str] = set()
     for index, row in enumerate(rows):
         require_exact_keys(
             row,
-            {"referenceRoot", "storageKind", "abiRoot", "argumentIndex", "argumentName", "allocationSite", "byteLength", "initialClassification", "terminalVisibility", "offsets"},
+            {"referenceRoot", "component", "storageKind", "abiRoot", "argumentIndex", "argumentName", "allocationSite", "byteLength", "initialClassification", "terminalVisibility", "offsets"},
             f"binding root {index}",
         )
         require_identifier(row["referenceRoot"], f"binding root {index}.referenceRoot")
@@ -850,6 +973,7 @@ def _validate_root_rows(rows, program):
         if row["storageKind"] == "ABIArgument":
             if (
                 not isinstance(row["abiRoot"], str)
+                or not isinstance(row["component"], str)
                 or not isinstance(row["argumentIndex"], int)
                 or isinstance(row["argumentIndex"], bool)
                 or row["argumentIndex"] < 0
@@ -861,6 +985,7 @@ def _validate_root_rows(rows, program):
                     "ABIArgument mapping has illegal mixed or missing fields"
                 )
             require_identifier(row["abiRoot"], f"binding root {index}.abiRoot")
+            require_identifier(row["component"], f"binding root {index}.component")
             require_identifier(row["argumentName"], f"binding root {index}.argumentName")
             if row["initialClassification"] not in {"Low", "High"} or row["terminalVisibility"] not in {"Low", "High"}:
                 raise SchemaError("ABI root classification is invalid")
@@ -870,6 +995,7 @@ def _validate_root_rows(rows, program):
                 )
             if (
                 row["abiRoot"] in abi_roots
+                or row["component"] in components
                 or row["argumentIndex"] in argument_indices
                 or row["argumentName"] in argument_names
             ):
@@ -877,11 +1003,13 @@ def _validate_root_rows(rows, program):
                     "binding ABI root IDs, argument indices, and names must be unique"
                 )
             abi_roots.add(row["abiRoot"])
+            components.add(row["component"])
             argument_indices.add(row["argumentIndex"])
             argument_names.add(row["argumentName"])
         elif row["storageKind"] == "InternalAlloca":
             if (
                 row["abiRoot"] is not None
+                or row["component"] is not None
                 or row["argumentIndex"] is not None
                 or row["argumentName"] is not None
                 or not isinstance(row["allocationSite"], str)
@@ -912,7 +1040,7 @@ def _validate_root_rows(rows, program):
         seen.append(row["referenceRoot"])
     if seen != sorted(by_id):
         raise SchemaError("binding roots must exactly cover sorted reference roots")
-    return argument_indices, argument_names
+    return argument_indices, argument_names, components
 
 
 def _program_root_offsets(program):

@@ -1,7 +1,7 @@
 # The sidecars are theorem inputs, so hash-consistent metadata must still agree
-# with the LLVM module it describes. Mutate both an ABI root and a carrier
-# multiplicity while repairing the envelope digests; structural validation must
-# reject the resulting bundle for module-interface reasons.
+# with the LLVM module it describes. Mutate an ABI root while repairing the
+# envelope digest; structural validation must reject the resulting bundle for
+# module-interface reasons.
 
 # RUN: rm -rf %t.root
 # RUN: mkdir -p %t.root/c
@@ -12,22 +12,21 @@
 # RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
 # RUN: cp %harness/tools/checkpoint_model.py %t.root/tools/checkpoint_model.py
 # RUN: cp %harness/tools/checkpoint_extractors.py %t.root/tools/checkpoint_extractors.py
+# RUN: cp %harness/tools/counterexample_pair.py %t.root/tools/counterexample_pair.py
 # RUN: cp -R %fixtures %t.root/fixtures
 # RUN: cp -R %harness/contracts %t.root/contracts
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/disjoint-control/candidate'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['audit_all_expectations'][0]['query_outcome']['query_disposition']={'tag':'CandidateOnly'}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/mayalias-overlap-bad/candidate'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['expected_model_status']={'tag':'Counterexample','witness':'not-public'}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/missing-binding-unknown/candidate'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['audit_all_expectations'][0]['replay_expectation']['reason']={'reasonClassId':'NotAReason'}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/audience-mismatch/bad/candidate'); side=root/'abi.json'; value=json.loads(side.read_text()); value['arguments'][0]['confidentiality']='High'; value['arguments'][1]['kind']='scalar'; side.write_text(json.dumps(value,indent=2,sort_keys=True)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['abi.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2,sort_keys=True)+'\n')"
-# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['multiplicity']=2; side.write_text(json.dumps(value,indent=2,sort_keys=True)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2,sort_keys=True)+'\n')"
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/disjoint-control/candidate'); side=root/'abi.json'; value=json.loads(side.read_text()); value['arguments'][0]['confidentiality']='High'; value['arguments'][1]['kind']='scalar'; side.write_text(json.dumps(value,indent=2,sort_keys=True)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['abi.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2,sort_keys=True)+'\n')"
 # RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/fixtures/alloca-size/public-control/candidate/artifact.json'); v=json.loads(p.read_text()); v['source_mlir_sha256']='not-a-digest'; p.write_text(json.dumps(v,indent=2)+'\n')"
 # RUN: not %python %t.root/c/check_harness.py artifacts 2>&1 | %FileCheck %s
 
+# CHECK: fixtures/abi-alias/disjoint-control/candidate/abi.json: ABI must not author confidentiality or visibility labels
 # CHECK: fixtures/abi-alias/disjoint-control/candidate/expected-report.json: audit-all row 0 UNSAT must be Discharged
+# CHECK: fixtures/abi-alias/disjoint-control/candidate/abi.json: ABI scalar argument 1 is pointer-typed
 # CHECK: fixtures/abi-alias/mayalias-overlap-bad/candidate/expected-report.json: Counterexample matcher fields must be exactly
 # CHECK: fixtures/abi-alias/mayalias-overlap-bad/candidate/expected-report.json: Counterexample must match a fresh protected receipt, not expose a witness
 # CHECK: fixtures/abi-alias/missing-binding-unknown/candidate/expected-report.json: replay reason must name one exact PublicReasonClassesV2 member
 # CHECK: fixtures/abi-alias/missing-binding-unknown/candidate/expected-report.json: audit-all row 0 not-constructed query and replay reasons must agree
 # CHECK: fixtures/alloca-size/public-control/candidate/artifact.json: capture-time source MLIR digest is not SHA-256
-# CHECK: fixtures/audience-mismatch/bad/candidate/abi.json: ABI must not author confidentiality or visibility labels
-# CHECK: fixtures/audience-mismatch/bad/candidate/abi.json: ABI scalar argument 1 is pointer-typed
-# CHECK: fixtures/audience-mismatch/bad/candidate/release-table.json: carrier 'sps_release_masked_class_candidate' multiplicity does not match direct calls

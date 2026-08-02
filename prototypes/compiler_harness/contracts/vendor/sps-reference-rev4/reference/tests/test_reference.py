@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import sys
 import os
+import hashlib
 import shutil
 import subprocess
+import tempfile
 import unittest
 from copy import deepcopy
 from dataclasses import replace
@@ -15,6 +17,10 @@ if str(REFERENCE_DIR) not in sys.path:
     sys.path.insert(0, str(REFERENCE_DIR))
 
 from sps_ref.canonical import canonical_bytes, canonical_digest, load_json_bytes
+from sps_ref.counterexample import (
+    load_counterexample_pair,
+    validate_and_replay_counterexample_pair,
+)
 from sps_ref.encoding import decode_bits, encode_bits
 from sps_ref.engine import compile_program
 from sps_ref.evidence import (
@@ -150,6 +156,118 @@ def _internal_load_program(*, overwrite: bool = True) -> dict:
         "admission": {"bool": True},
         "statements": statements,
     }
+
+
+def _bad_relation_fixture() -> dict:
+    program = _program()
+    program["inputs"][0]["width"] = 2
+    program["abi"]["return"]["width"] = 2
+    return {
+        "formatId": "SPS-Executable-Reference-Fixture-v3",
+        "familyId": "NF-FX-OUTPUT-RETURN",
+        "caseId": "selected-pair-bad",
+        "kind": "relation",
+        "requirementRefs": ["Normative 21.4"],
+        "input": {
+            "program": program,
+            "coalition": {
+                "id": "observer",
+                "principals": ["observer"],
+                "controlledHosts": ["caller"],
+            },
+        },
+        "expected": {
+            "auditAll": {
+                "status": "sat",
+                "firstDifference": {"kind": "Output", "field": "valueBytes"},
+            },
+            "admissionNonempty": "sat",
+            "highVariation": [{"componentId": "value", "status": "sat"}],
+            "terminalOutputSurface": "unsat",
+        },
+    }
+
+
+def _bad_relation_binding(pair_digest: str = "0" * 64) -> dict:
+    return {
+        "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+        "harnessCase": "precision-control/selected-pair-bad",
+        "referenceCaseId": "selected-pair-bad",
+        "entry": "test.entry",
+        "files": [
+            {
+                "role": role,
+                "path": "snapshot.yaml" if role == "snapshot" else f"{role}.json",
+                "sha256": "0" * 64,
+            }
+            for role in ("abi", "c", "mlir", "policy", "referenceFixture", "snapshot")
+        ],
+        "arguments": [
+            {
+                "referenceInput": "value",
+                "component": "secret",
+                "argumentIndex": 0,
+                "argumentName": "secret",
+                "fullWidth": 32,
+                "reducedWidth": 2,
+                "classification": "High",
+            }
+        ],
+        "roots": [],
+        "coalition": {
+            "referenceCoalitionId": "observer",
+            "policyAdversaryId": "maximal",
+            "policyAdversaryIndex": 0,
+            "principals": ["observer"],
+            "controlledHosts": ["caller"],
+            "hostMappings": [
+                {
+                    "referenceHost": "caller",
+                    "policyHost": None,
+                    "boundaryClass": "PublicObservationEndpoint",
+                }
+            ],
+        },
+        "observations": [{"kind": "Output", "field": "valueBytes"}],
+        "limitations": [
+            "ExecutableReferenceOnly",
+            "HandAuthoredReduction",
+            "NotFrozenLLVM",
+            "ReducedBitWidth",
+        ],
+        "counterexamplePair": {
+            "path": "counterexample-pair.yaml",
+            "sha256": pair_digest,
+        },
+    }
+
+
+def _pair_yaml(*, left: str = "00000000", right: str = "00000001", event_id: str = "return.value") -> bytes:
+    return f"""format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: test.entry
+coalition:
+  - observer
+inputs:
+  low_equal: {{}}
+  high_left:
+    secret:
+      bitvector:
+        width: 32
+        hex: \"{left}\"
+  high_right:
+    secret:
+      bitvector:
+        width: 32
+        hex: \"{right}\"
+expected:
+  bad_state: public-output-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: {event_id}
+""".encode("utf-8")
 class ReferenceTests(unittest.TestCase):
     def test_nonbyte_padding_is_canonical(self) -> None:
         raw = encode_bits(1, 1, "LittleEndian")
@@ -420,6 +538,139 @@ class ReferenceTests(unittest.TestCase):
                 run_concrete_query(query, left, right, coalition).status, expected
             )
 
+    def test_selected_counterexample_pair_is_strict_and_replayed(self) -> None:
+        fixture = validate_relation_fixture(_bad_relation_fixture())
+        binding = validate_reduction_binding(_bad_relation_binding(), fixture)
+        program = fixture["input"]["program"]
+        coalition = parse_coalition(fixture["input"]["coalition"])
+        left = compile_program(program, "L")
+        right = compile_program(program, "R")
+        pair = load_counterexample_pair(_pair_yaml(), "selected pair")
+        validate_and_replay_counterexample_pair(
+            pair, fixture, binding, left, right, coalition
+        )
+
+        mutations = {
+            "no-high-variation": _pair_yaml(right="00000000"),
+            "lossy-reduction": _pair_yaml(right="00000004"),
+            "wrong-event-id": _pair_yaml(event_id="wrong.return"),
+            "duplicate-key": _pair_yaml().replace(
+                b"entry: test.entry\n", b"entry: test.entry\nentry: duplicate\n"
+            ),
+            "anchor": _pair_yaml().replace(
+                b"bad_state: public-output-mismatch",
+                b"bad_state: &state public-output-mismatch",
+            ),
+        }
+        for name, raw in mutations.items():
+            with self.subTest(name=name), self.assertRaises((SchemaError, ReplayError)):
+                mutated = load_counterexample_pair(raw, f"selected pair {name}")
+                validate_and_replay_counterexample_pair(
+                    mutated, fixture, binding, left, right, coalition
+                )
+
+        constrained = deepcopy(fixture)
+        constrained["input"]["program"]["admission"] = {
+            "eq": [
+                {"var": "value"},
+                {"const": {"width": 2, "value": 0}},
+            ]
+        }
+        constrained_left = compile_program(constrained["input"]["program"], "L")
+        constrained_right = compile_program(constrained["input"]["program"], "R")
+        with self.assertRaises(ReplayError):
+            validate_and_replay_counterexample_pair(
+                pair,
+                constrained,
+                binding,
+                constrained_left,
+                constrained_right,
+                coalition,
+            )
+
+    def test_relation_run_and_context_revalidate_bound_pair(self) -> None:
+        if shutil.which(os.environ.get("Z3", "") or "z3") is None:
+            self.skipTest("Z3 is required for the relation endpoint test")
+        fixture = _bad_relation_fixture()
+        pair_raw = _pair_yaml()
+        binding = _bad_relation_binding(hashlib.sha256(pair_raw).hexdigest())
+        with tempfile.TemporaryDirectory() as temporary:
+            case_root = Path(temporary) / "case"
+            relation_root = case_root / "relation-reference"
+            relation_root.mkdir(parents=True)
+            fixture_path = relation_root / "fixture.json"
+            binding_path = relation_root / "binding.json"
+            pair_path = case_root / "counterexample-pair.yaml"
+            fixture_path.write_bytes(canonical_bytes(fixture))
+            pair_path.write_bytes(pair_raw)
+            paths = {
+                "abi": "abi.json",
+                "c": "c.json",
+                "mlir": "mlir.json",
+                "policy": "policy.json",
+                "referenceFixture": "relation-reference/fixture.json",
+                "snapshot": "snapshot.yaml",
+            }
+            for role, relative in paths.items():
+                target = case_root / relative
+                if role != "referenceFixture":
+                    target.write_bytes(role.encode("ascii"))
+                binding["files"][list(paths).index(role)] = {
+                    "role": role,
+                    "path": relative,
+                    "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+                }
+            binding_path.write_bytes(canonical_bytes(binding))
+
+            result = run_relation_fixture(
+                fixture,
+                binding,
+                fixture_path=fixture_path,
+                binding_path=binding_path,
+            )
+            result_bytes = canonical_relation_result_bytes(result)
+            for forbidden in (
+                b'"counterexamplePair"',
+                b'"witness"',
+                b'"model"',
+                b'"trace"',
+                b'"replayAccepted"',
+            ):
+                self.assertNotIn(forbidden, result_bytes)
+            validate_relation_result(
+                result,
+                load_reference_profile(),
+                fixture=fixture,
+                binding=binding,
+                fixture_path=fixture_path,
+                binding_path=binding_path,
+            )
+            rebound = deepcopy(binding)
+            snapshot_row = next(
+                row for row in rebound["files"] if row["role"] == "snapshot"
+            )
+            snapshot_row["path"] = "policy.json"
+            snapshot_row["sha256"] = hashlib.sha256(
+                (case_root / "policy.json").read_bytes()
+            ).hexdigest()
+            with self.assertRaises(SchemaError):
+                validate_reduction_binding(
+                    rebound,
+                    fixture,
+                    fixture_path=fixture_path,
+                    binding_path=binding_path,
+                )
+            pair_path.write_bytes(_pair_yaml(right="00000002"))
+            with self.assertRaises(SchemaError):
+                validate_relation_result(
+                    result,
+                    load_reference_profile(),
+                    fixture=fixture,
+                    binding=binding,
+                    fixture_path=fixture_path,
+                    binding_path=binding_path,
+                )
+
     def test_terminal_surface_detects_closed_mutation_matrix(self) -> None:
         program = _program()
         compiled = compile_program(program, "L")
@@ -541,12 +792,16 @@ class ReferenceTests(unittest.TestCase):
         validate_relation_fixture(fixture)
         digest = "0" * 64
         binding = {
-            "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+            "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
             "harnessCase": "precision-control/binding-internal",
             "referenceCaseId": "binding.internal",
             "entry": "test.internal",
             "files": [
-                {"role": role, "path": f"{role}.json", "sha256": digest}
+                {
+                    "role": role,
+                    "path": "snapshot.yaml" if role == "snapshot" else f"{role}.json",
+                    "sha256": digest,
+                }
                 for role in ("abi", "c", "mlir", "policy", "referenceFixture", "snapshot")
             ],
             "arguments": [
@@ -554,7 +809,7 @@ class ReferenceTests(unittest.TestCase):
                 {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 1, "classification": "High"},
             ],
             "roots": [
-                {"referenceRoot": "slot", "storageKind": "InternalAlloca", "abiRoot": None, "argumentIndex": None, "argumentName": None, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
+                {"referenceRoot": "slot", "component": None, "storageKind": "InternalAlloca", "abiRoot": None, "argumentIndex": None, "argumentName": None, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
             ],
             "coalition": {
                 "referenceCoalitionId": "observer",
@@ -568,6 +823,7 @@ class ReferenceTests(unittest.TestCase):
             },
             "observations": [{"kind": "Output", "field": "valueBytes"}],
             "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"],
+            "counterexamplePair": None,
         }
         validate_reduction_binding(binding, fixture)
         for field in ("component", "argumentIndex", "argumentName"):

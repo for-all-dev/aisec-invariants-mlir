@@ -26,14 +26,15 @@
  *   seeded-semantic-harness
  *
  * Relationship to upstream:
- *   Models the wrong-party disclosure class with two explicit mailboxes.
+ *   Models the wrong-party disclosure class with two explicit scalar endpoint
+ *   transfer contracts.
  *   It is not a reproduction of the linked hosted-system incident.
  *
  * Secret inputs:
  *   plaintext
  *
  * Public inputs:
- *   mailbox addresses and party authorization policy
+ *   endpoint identities and party authorization policy
  *
  * Expected confidentiality issue:
  *   The plaintext is copied to the unauthorized party's mailbox.
@@ -48,11 +49,11 @@
 #include <sps/annotations.h>
 #include <stdint.h>
 
+extern void sps_transfer_party_authorized(uint32_t value);
+extern void sps_transfer_party_observer(uint32_t value);
+
 SPS_ENTRY("wrong_party_plaintext_bad")
-void wrong_party_plaintext_bad(
-    uint32_t plaintext SPS_COMPONENT("plaintext"),
-    uint32_t *authorized_mailbox SPS_ROOT("authorized-mailbox"),
-    uint32_t *unauthorized_mailbox SPS_ROOT("unauthorized-mailbox")) {
-  *authorized_mailbox = plaintext;
-  *unauthorized_mailbox = plaintext;
+void wrong_party_plaintext_bad(uint32_t plaintext SPS_COMPONENT("plaintext")) {
+  sps_transfer_party_authorized(plaintext);
+  sps_transfer_party_observer(plaintext);
 }

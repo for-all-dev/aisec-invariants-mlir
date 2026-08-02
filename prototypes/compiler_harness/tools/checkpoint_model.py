@@ -649,10 +649,19 @@ def _parse_final(value: Any, where: str) -> FinalExpectation:
     if status in {"Proved", "Counterexample"} and not events:
         raise CheckpointError(f"{where}.events: {status} requires event coverage")
     first_bad_count = sum(event.first_bad for event in events)
-    if first_bad_count > 1:
-        raise CheckpointError(f"{where}.events: at most one event may be first_bad")
+    if status == "Counterexample" and first_bad_count != 1:
+        raise CheckpointError(
+            f"{where}.events: Counterexample requires exactly one first_bad event"
+        )
     if first_bad_count and status != "Counterexample":
         raise CheckpointError(f"{where}.events: first_bad is legal only for Counterexample")
+    if status == "Counterexample":
+        first_bad_event = next(event for event in events if event.first_bad)
+        if first_bad_event.kind in EVENT_ID_KINDS and first_bad_event.id is None:
+            raise CheckpointError(
+                f"{where}.events: first_bad {first_bad_event.kind} event "
+                "requires a logical ID"
+            )
 
     reference = None
     if "reference" in final:

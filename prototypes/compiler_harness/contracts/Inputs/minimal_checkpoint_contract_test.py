@@ -113,12 +113,40 @@ def main() -> int:
 
     mutate_rejected(model, root, proved, proved_first_bad, "legal only for Counterexample")
 
+    def no_first_bad(value: dict[str, Any]) -> None:
+        value["expect"]["final"]["events"][0].pop("first_bad")
+
+    mutate_rejected(
+        model,
+        root,
+        counterexample,
+        no_first_bad,
+        "Counterexample requires exactly one first_bad event",
+    )
+
     def two_first_bad(value: dict[str, Any]) -> None:
         event = copy.deepcopy(value["expect"]["final"]["events"][0])
         event["first_bad"] = True
         value["expect"]["final"]["events"].append(event)
 
-    mutate_rejected(model, root, counterexample, two_first_bad, "at most one event")
+    mutate_rejected(
+        model,
+        root,
+        counterexample,
+        two_first_bad,
+        "Counterexample requires exactly one first_bad event",
+    )
+
+    def first_bad_missing_logical_id(value: dict[str, Any]) -> None:
+        value["expect"]["final"]["events"][0].pop("id")
+
+    mutate_rejected(
+        model,
+        root,
+        counterexample,
+        first_bad_missing_logical_id,
+        "first_bad Output event requires a logical ID",
+    )
 
     def raw_payload(value: dict[str, Any]) -> None:
         value["expect"]["final"]["events"][0]["valueBytes"] = "secret"
@@ -241,14 +269,14 @@ def main() -> int:
 
     snapshots = model.load_snapshots(root)
     inventory = model.build_inventory(root)
-    assert len(snapshots) == 60
-    assert sum(len(item.pipelines) for item in snapshots) == 168
+    assert len(snapshots) == 62
+    assert sum(len(item.pipelines) for item in snapshots) == 171
     assert model.outcome_totals(snapshots) == {
         "Counterexample": 25,
         "Proved": 26,
-        "Unknown": 9,
+        "Unknown": 11,
     }
-    assert sum(item.final.reference is not None for item in snapshots) == 9
+    assert sum(item.final.reference is not None for item in snapshots) == 8
     assert sum(
         event.first_bad
         for snapshot in snapshots
@@ -256,8 +284,8 @@ def main() -> int:
     ) == 25
     assert all(item.final.deployment == "Open" for item in snapshots)
     assert all(item.final.policy == "Complete" for item in snapshots)
-    assert len(inventory.run_bindings) == 168
-    assert len(inventory.finalizers) == 73
+    assert len(inventory.run_bindings) == 171
+    assert len(inventory.finalizers) == 75
 
     source = next(item for item in inventory.snapshots if item.case == "kyberslash1-poly-tomsg/bad")
     assert source.pipelines["scanner-diagnostic"].requires == ("sps-scan-unary",)

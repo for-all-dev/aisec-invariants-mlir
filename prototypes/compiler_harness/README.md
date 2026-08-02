@@ -49,15 +49,18 @@ then review these families in order:
 These are faithful minimal reductions and compiler-pipeline regressions, not a
 full Kyber or ML-KEM application test suite.
 
-1. **KyberSlash1 and KyberSlash2.** Read the bad and fixed snapshots and MLIR
+1. **KyberSlash1 and KyberSlash2.** Read the bad, fixed, and synthetic
+   target-bad snapshots and MLIR
    under [KyberSlash1 `poly_tomsg`](fixtures/kyberslash1-poly-tomsg/) and
    [KyberSlash2 `poly_compress`](fixtures/kyberslash2-compress/), followed by
    the C source and sidecars in each case directory. Then read
    [the LLVM code-generation test](integration/kyberslash-codegen.test) and
    [the C behavior-equivalence test](integration/equivalence.test). The direct
-   secret-derived `udiv` is the simplest timing case: the repair preserves the
-   tested result over coefficients `0..3328` while replacing division with
-   reciprocal multiplication and shifting. The optional
+   secret-derived `udiv` is the simplest timing case: the source-risk snapshots
+   remain `Unknown(OpenModelObligations)`, while the target-bad siblings provide
+   nonclaimable synthetic `BranchSuccessor.successor` counterexample oracles.
+   The repair preserves the tested result over coefficients `0..3328` while
+   replacing division with reciprocal multiplication and shifting. The optional
    [unary latency diagnostic](diagnostic/latency.test) is scanner triage only,
    not theorem evidence or target-level timing closure.
 2. **Clangover / ML-KEM.** Read the
@@ -89,7 +92,7 @@ guide's ranking or imply a severity order.
 
 | Directory | What it checks | What it cannot claim |
 | --- | --- | --- |
-| `fixtures/` | Case-local MLIR/snapshot bundles; source-annotated cases also own their C and policy/ABI YAML | Any `ModelStatus` |
+| `fixtures/` | Case-local MLIR/snapshot bundles; source-annotated cases also own their C and policy/ABI YAML, and expected-bad cases own public synthetic pairs | Any `ModelStatus` or exact replay witness |
 | `diagnostic/` | The current unary scanner's five finding classes | Relational proof, replay, or proof from silence |
 | `integration/candidate-bundles/` | Candidate `.bc`/derived `.ll` integrity and harness-namespaced matcher consistency | `NFConforms` or a current verifier report |
 | `integration/` | C provenance, concrete witnesses, import, LLVM shape, candidate-bundle checks, the ungated NFv2 release-carrier structural contract, capability-gated NFv2 preservation/codegen contracts, the digest-locked executable SPS reference snapshot, the seven SPS lecture contracts, executable metatheory witnesses, and the NF-A02/A05/A06/A07/A09/A14/CM02/CM03 preflight surfaces | Whole-entry noninterference, `NFConforms`, or a current `ModelStatus` |
@@ -111,14 +114,22 @@ lineage, report materialization, or `NFConforms`; lit owns those concerns.
 Passing endpoint observations are build-local harness evidence, never SPS
 reports.
 
-All 60 fixtures state their expected final judgment directly. The model split
-is 26 `Proved`, 25 `Counterexample`, and 9 `Unknown`; every fixture expects
+All 62 fixtures state their expected final judgment directly. The model split
+is 26 `Proved`, 25 `Counterexample`, and 11 `Unknown`; every fixture expects
 deployment `Open` and policy review `Complete`. Relevant `Proved` and
 `Counterexample` fixtures also select the security-relevant SPS event fields
 covered by that judgment, without embedding traces, payloads, witnesses, or
-receipts. Nine fixtures authenticate their existing candidate expected-run
-sidecar through a compact `reference`; the other 51 require no candidate
+receipts. Eight fixtures authenticate their existing candidate expected-run
+sidecar through a compact `reference`; the other 54 require no candidate
 artifact. Sixteen fixtures separately inspect raw and canonicalized MLIR.
+
+Each of the 25 `Counterexample` fixtures also has a fixed sibling
+`counterexample-pair.yaml`. The snapshot says what should differ; the pair
+supplies one full-width public synthetic Low-equal, High-varying input pair.
+This makes the example reproducible without putting values or traces into
+Snapshot V3. It is still `NonClaimableFixtureOracle` test data—not an SPS
+solver model, restricted witness, or receipt. See
+[the pair schema and authority boundary](fixtures/README.md#synthetic-counterexample-pairs).
 
 Eight precision-control fixtures additionally run a digest-bound
 `relation-reference` pipeline. Its hand-authored finite reduction checks
@@ -150,6 +161,10 @@ protected-evidence bindings, and an `SPSRunReportV2`. Review-only `artifact.ll`
 must always be derived from that frozen bitcode. Harness matcher records use
 `SPS-Harness-*` format identifiers so they cannot be confused with normative
 SPS objects.
+Cross-host fixture shapes may additionally use a sibling `contracts.sps.yaml`
+to bind integer-only scalar call locators to endpoint hosts. This harness-only
+authoring file always leaves `OpenModelObligations`; it is not
+`ContractTableV2` and contains no contract function semantics.
 The complete packaging and rematerialization contract is
 [`contracts/FIXTURE_TIERS.md`](contracts/FIXTURE_TIERS.md).
 
@@ -176,7 +191,7 @@ make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled dri
 make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
 make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
 make list-tests        # discovery audit
-make list-fixture-status # pipeline/state/endpoint inventory for all 60 cases
+make list-fixture-status # pipeline/state/endpoint inventory for all 62 cases
 make list-fixture-results # expected/actual/comparison terminal result table
 ```
 
@@ -218,7 +233,7 @@ targets or tools produce `UNSUPPORTED`, not a fabricated success.
 
 The executable reference bridge is deliberately narrower than the exact
 verifier path. `make check-sps-reference` verifies the vendored closure before
-and after execution, runs all 19 reference cases and 18 unit tests, and records
+and after execution, runs all 19 reference cases and 20 unit tests, and records
 coverage of 10 of the profile's 61 fixture families. Its claim boundary is
 `ExecutableReferenceOnly`: it cannot emit `NFConforms`, `Proved`, or another
 computed `ModelStatus`, and it is not a third fixture tier. Z3 is required;
@@ -270,8 +285,8 @@ and materialized inputs, invoke the lit `%sps-verifier` directly with the
 declared bundle, and match the producer executable's SHA-256 to
 `proofConfiguration.exactVerifierBuildDigest`. It must also carry exactly one
 typed expected contract; an authenticated report with an unexpected result
-cannot pass a regression test. Nine candidate cases delegate to digest-bound
-expected-run sidecars, while 51 compare against inline typed report, status,
+cannot pass a regression test. Eight candidate cases delegate to digest-bound
+expected-run sidecars, while 54 compare against inline typed report, status,
 AuditAll, and replay matchers. Once report and verifier authentication succeed,
 an unexpected report is retained below the build root for result inspection
 while the checkpoint records `FailedV1`. Counterexample contracts that require
@@ -305,7 +320,7 @@ one of those forms does not establish an NFv2 carrier.
 
 ## The `.bc` / `.ll` ownership contract
 
-Nine fixture cases contain a local `candidate/` bundle with both forms requested
+Eight fixture cases contain a local `candidate/` bundle with both forms requested
 for compiler-pipeline review. Each bundle is colocated with the MLIR/snapshot
 case it describes:
 
@@ -425,5 +440,5 @@ The error-event fixture is deliberately split in two. The checked-in
 nonclaimable `CandidateOnly` contract whose validator pins `DeclaredFailure`, the
 mandatory verifier-UB error field, payload projection, and both exact event
 orders. It is not an SPS report input. Rev4.1 requires a separately
-materialized V2 bundle. The nine case-local candidate ABIs under
+materialized V2 bundle. The eight case-local candidate ABIs under
 `fixtures/*/*/candidate/` are not V2 materialization inputs.

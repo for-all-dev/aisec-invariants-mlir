@@ -1,4 +1,4 @@
-entry: audience-mismatch
+entry: audience_mismatch_bad
 observation-model: constant-time
 
 principals: [alice, bob]
@@ -29,18 +29,7 @@ components:
     type: bv32
     visibility: secret
 
-outputs:
-  alice-channel:
-    visibility:
-      world: false
-      members: [alice]
-      joint: []
-
-  bob-channel:
-    visibility:
-      world: false
-      members: [bob]
-      joint: []
+outputs: {}
 
 releases:
   masked-class:
