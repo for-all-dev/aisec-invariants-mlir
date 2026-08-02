@@ -15,20 +15,23 @@ SPS_INTERFACE_ROOT ?=
 SPS_SOURCE_ANNOTATIONS_ROOT ?=
 SPS_REFERENCE_ROOT ?=
 Z3 ?=
+SPS_FIXTURE_VERIFIER ?= $(HARNESS_DIR)/verifier/build/sps-fixture-verify
 export SPS_SOURCE_ANNOTATIONS_ROOT
 
 .PHONY: check check-shape check-mlir check-integration check-diagnostic \
 	check-sps check-candidates check-artifacts check-p4-risk check-contracts \
 	check-interfaces check-source-annotations check-checkpoints list-tests \
 	check-sps-reference \
+	build-fixture-verifier check-fixture-verifier check-fixture-verifier-sanitize \
 	list-fixture-status list-fixture-results \
 	bootstrap-lit require-lit
 
-check: require-lit
+check: check-fixture-verifier require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" HOST_CC="$(HOST_CC)" RISCV_GCC="$(RISCV_GCC)" \
 	  SPS_SCAN="$(SPS_SCAN)" SPS_VERIFIER="$(SPS_VERIFIER)" \
 	  SPS_REV41_MATERIALIZED="$(SPS_REV41_MATERIALIZED)" \
+	  SPS_FIXTURE_VERIFIER="$(SPS_FIXTURE_VERIFIER)" \
 	  SPS_REFERENCE_ROOT="$(SPS_REFERENCE_ROOT)" Z3="$(Z3)" \
 	  LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)"
@@ -77,11 +80,21 @@ check-candidates: require-lit
 
 check-artifacts: check-candidates
 
-check-contracts: require-lit
+check-contracts: check-fixture-verifier require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"
 	LLVM_BIN="$(LLVM_BIN)" SPS_REFERENCE_ROOT="$(SPS_REFERENCE_ROOT)" \
+	  SPS_FIXTURE_VERIFIER="$(SPS_FIXTURE_VERIFIER)" \
 	  Z3="$(Z3)" LIT_BUILD_ROOT="$(LIT_BUILD_ROOT)" \
 	  $(LIT) $(LIT_FLAGS) "$(HARNESS_DIR)/contracts"
+
+build-fixture-verifier:
+	$(MAKE) -C "$(HARNESS_DIR)/verifier" all
+
+check-fixture-verifier:
+	$(MAKE) -C "$(HARNESS_DIR)/verifier" check
+
+check-fixture-verifier-sanitize:
+	$(MAKE) -C "$(HARNESS_DIR)/verifier" check-sanitize
 
 check-sps-reference: require-lit
 	@if [ -n "$(Z3)" ]; then \

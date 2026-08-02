@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sps.dev/harness/schemas/SPS-Harness-Fixture-Snapshot.schema.json",
+  "title": "SPS Harness Fixture Snapshot",
+  "description": "The authoritative, test-only expectation for one compiler-harness fixture.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "case",
+    "entry",
+    "expect",
+    "because"
+  ],
+  "properties": {
+    "format": {
+      "const": "SPS-Harness-Fixture-Snapshot"
+    },
+    "case": {
+      "$ref": "#/$defs/caseId"
+    },
+    "entry": {
+      "$ref": "#/$defs/mlirSymbol"
+    },
+    "expect": {
+      "$ref": "#/$defs/expectation"
+    },
+    "because": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+    }
+  },
+  "$defs": {
+    "caseId": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)+$(?![\\s\\S])"
+    },
+    "mlirSymbol": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z_.$][A-Za-z0-9_.$-]*$(?![\\s\\S])"
+    },
+    "stableId": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$(?![\\s\\S])"
+    },
+    "pipelineId": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "eventKind": {
+      "enum": [
+        "BranchSuccessor",
+        "SwitchSuccessor",
+        "CalleeChoice",
+        "LoopContinuation",
+        "Failure",
+        "Termination",
+        "BoundExhausted",
+        "UBRisk",
+        "Memory",
+        "Transfer",
+        "Output",
+        "Release",
+        "Error",
+        "Latency",
+        "ContractMeta"
+      ]
+    },
+    "eventField": {
+      "enum": [
+        "successor",
+        "callee",
+        "continueOrExit",
+        "class",
+        "returnClass",
+        "boundId",
+        "reasonClass",
+        "allocationClass",
+        "offsetClass",
+        "width",
+        "addressSpace",
+        "readOrWrite",
+        "source",
+        "destinations",
+        "representation",
+        "valueBytes",
+        "metadata",
+        "outputId",
+        "footprint",
+        "releaseId",
+        "releaseOrdinal",
+        "errorFieldId",
+        "payload",
+        "configuredClass",
+        "contractId",
+        "metadataFieldId",
+        "typedValue"
+      ]
+    },
+    "eventSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "field": {
+          "$ref": "#/$defs/eventField"
+        },
+        "id": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "oneOf": [
+        {"properties": {"kind": {"const": "BranchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "SwitchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "CalleeChoice"}, "field": {"const": "callee"}}},
+        {"properties": {"kind": {"const": "LoopContinuation"}, "field": {"const": "continueOrExit"}}},
+        {"properties": {"kind": {"const": "Failure"}, "field": {"const": "class"}}},
+        {"properties": {"kind": {"const": "Termination"}, "field": {"const": "returnClass"}}},
+        {"properties": {"kind": {"const": "BoundExhausted"}, "field": {"const": "boundId"}}},
+        {"properties": {"kind": {"const": "UBRisk"}, "field": {"const": "reasonClass"}}},
+        {"properties": {"kind": {"const": "Memory"}, "field": {"enum": ["allocationClass", "offsetClass", "width", "addressSpace", "readOrWrite"]}}},
+        {"properties": {"kind": {"const": "Transfer"}, "field": {"enum": ["source", "destinations", "width", "representation", "valueBytes", "metadata"]}}},
+        {"properties": {"kind": {"const": "Output"}, "field": {"enum": ["outputId", "footprint", "valueBytes"]}}},
+        {"properties": {"kind": {"const": "Release"}, "field": {"enum": ["releaseId", "releaseOrdinal", "valueBytes", "footprint"]}}},
+        {"properties": {"kind": {"const": "Error"}, "field": {"enum": ["errorFieldId", "class", "payload"]}}},
+        {"properties": {"kind": {"const": "Latency"}, "field": {"const": "configuredClass"}}},
+        {"properties": {"kind": {"const": "ContractMeta"}, "field": {"enum": ["contractId", "metadataFieldId", "typedValue"]}}}
+      ]
+    },
+    "position": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Proved"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "cause",
+            "first_difference"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Counterexample"
+            },
+            "cause": {
+              "$ref": "#/$defs/stableId"
+            },
+            "first_difference": {
+              "$ref": "#/$defs/eventSelector"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "reason"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Unknown"
+            },
+            "reason": {
+              "$ref": "#/$defs/stableId"
+            }
+          }
+        }
+      ]
+    },
+    "countMatcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "oneOf": [
+        {
+          "required": ["eq"],
+          "not": {
+            "anyOf": [
+              {"required": ["min"]},
+              {"required": ["max"]}
+            ]
+          }
+        },
+        {
+          "anyOf": [
+            {"required": ["min"]},
+            {"required": ["max"]}
+          ],
+          "not": {
+            "required": ["eq"]
+          }
+        }
+      ],
+      "properties": {
+        "eq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        }
+      }
+    },
+    "safeFactObjectKey": {
+      "type": "string",
+      "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+    },
+    "factValue": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "string",
+          "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/safeFactObjectKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/factValue"
+          }
+        }
+      ]
+    },
+    "matcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "equals": {
+          "$ref": "#/$defs/factValue"
+        },
+        "contains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        "excludes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        "ordered": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        "count": {
+          "$ref": "#/$defs/countMatcher"
+        }
+      }
+    },
+    "propertyMatchers": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "maxLength": 256,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/matcher"
+      }
+    },
+    "structuredPipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "properties"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "mlir",
+            "llvm-ir",
+            "mir",
+            "assembly",
+            "object",
+            "diagnostic",
+            "json",
+            "relation-reference"
+          ]
+        },
+        "properties": {
+          "$ref": "#/$defs/propertyMatchers"
+        }
+      }
+    },
+    "bytesPipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "pipeline": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/structuredPipeline"
+        },
+        {
+          "$ref": "#/$defs/bytesPipeline"
+        }
+      ]
+    },
+    "expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "deployment",
+        "policy",
+        "events",
+        "pipelines"
+      ],
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/position"
+        },
+        "deployment": {
+          "const": "Open"
+        },
+        "policy": {
+          "enum": [
+            "Complete",
+            "Findings",
+            "Incomplete"
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/eventSelector"
+          },
+          "uniqueItems": true
+        },
+        "pipelines": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/pipelineId"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/pipeline"
+          }
+        }
+      }
+    }
+  }
+}

@@ -86,6 +86,10 @@ _make = shutil.which("make")
 _host_cc = shutil.which(os.environ.get("HOST_CC", "cc"))
 _host_cc_command = _quote(os.path.realpath(_host_cc)) if _host_cc else "host-cc-unavailable"
 _z3 = _configured_executable("Z3", "z3")
+_fixture_verifier = _configured_executable(
+    "SPS_FIXTURE_VERIFIER",
+    os.path.join(_root, "verifier", "build", "sps-fixture-verify"),
+)
 if _z3:
     config.environment["Z3"] = _z3
     config.environment["PATH"] = (
@@ -556,6 +560,12 @@ config.substitutions.extend(
             ),
         ),
         (
+            "%fixture-verifier",
+            _optional_command(
+                _fixture_verifier, "sps-fixture-verifier-unavailable"
+            ),
+        ),
+        (
             "%sps-boundary",
             "{} {} --clang {} --llvm-config {}".format(
                 _quote(sys.executable),
@@ -629,6 +639,8 @@ if _sps_reference_root:
     config.available_features.add("sps-reference-upstream")
 if _z3:
     config.available_features.add("z3")
+if _fixture_verifier:
+    config.available_features.add("sps-fixture-verifier")
 if _has_sps_nfv2_intrinsic:
     config.available_features.add("sps-nfv2-intrinsic")
 if _has_sps_nfv2_codegen:

@@ -25,7 +25,10 @@ SPS result.
 Read [the Rev4 preflight workflow](fixtures/REV4_PREFLIGHT_WORKFLOW.md), then
 [the fixture format and authority boundary](fixtures/README.md). These explain
 the different roles of C provenance, review-sized MLIR, candidate bitcode,
-authoritative SPS inputs, and final-machine evidence.
+authoritative SPS inputs, and final-machine evidence. Then read
+[the fixture-verification algorithm](FIXTURE_VERIFICATION.md) for the strict,
+expectation-blind trace, snapshot, and C-verifier interfaces used to check a
+test result without promoting it to an SPS theorem.
 
 ### 2. Learn the core confidentiality concepts through preflight fixtures
 
@@ -98,7 +101,7 @@ guide's ranking or imply a severity order.
 | `integration/` | C provenance, concrete witnesses, import, LLVM shape, candidate-bundle checks, the ungated NFv2 release-carrier structural contract, capability-gated NFv2 preservation/codegen contracts, the digest-locked executable SPS reference snapshot, the seven SPS lecture contracts, executable metatheory witnesses, and the NF-A02/A05/A06/A07/A09/A14/CM02/CM03 preflight surfaces | Whole-entry noninterference, `NFConforms`, or a current `ModelStatus` |
 | `p4-risk/` | Target-specific assembly/code-generation risk evidence | Model proof or closed deployment refinement |
 | `sps/` | The capability-gated Rev4.1 V2 exact-verifier contract | No result without the exact V2 verifier and materialized bundle |
-| `contracts/` | The digest-locked SPS Rev4.1 interface package and executable-reference snapshot, stage-report refusal boundary, cross-file `WFInputs` binding completeness, and typed replay/blocker aggregation | Any fixture `ModelStatus`; these validate interfaces and harness *expectations*, not verifier output |
+| `contracts/` | The digest-locked SPS Rev4.1 interface package and executable-reference snapshot, stage-report refusal boundary, cross-file `WFInputs` binding completeness, typed replay/blocker aggregation, and the test-only C fixture-verifier wire/API contract | Any fixture `ModelStatus`; these validate interfaces and harness *expectations*, not normative SPS output |
 
 Design-only coalition examples live under `examples/`; post-MVP authorization
 and robust-declassification examples live under `examples/integrity/`. Neither
@@ -113,6 +116,13 @@ fixture cares about. It does not describe command execution, capabilities,
 lineage, report materialization, or `NFConforms`; lit owns those concerns.
 Passing endpoint observations are build-local harness evidence, never SPS
 reports.
+
+The strict verifier in [the verification guide](FIXTURE_VERIFICATION.md) is
+the replacement execution boundary for newly materialized traces. Its contract
+tests exercise the closed wire schemas and C/C++ API now; existing V3 fixtures
+remain on the checkpoint runner until their independent producers emit complete
+trace fragments. There is intentionally no adapter that copies V3 expectations
+into an “actual” trace, because that would defeat expectation blindness.
 
 All 65 fixtures state their expected final judgment directly. The model split
 is 27 `Proved`, 26 `Counterexample`, and 12 `Unknown`; every fixture expects
@@ -187,6 +197,8 @@ make check-p4-risk     # target-bound risk evidence only
 make check-sps         # runs the feature-gated semantic suite (unsupported today)
 make check-sps-reference # verifies and executes the locked 19-case reference snapshot
 make check-contracts   # WFInputs binding completeness and the aggregation collapse
+make check-fixture-verifier # strict C and C++ verifier API/unit checks
+make check-fixture-verifier-sanitize # build an isolated ASan/UBSan verifier
 make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled drift
 make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
 make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
