@@ -1,18 +1,62 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: abi_alias_disjoint_control
-
 c_evidence:
-  - ../sources/abi_alias_unproved.c
-
+- fixtures/abi-alias/disjoint-control/abi_alias_disjoint_control.c
 secret:
-  - {arg: 0, name: secret}
-
+- arg: 0
+  name: secret
 public:
-  - {memory_at_arg: 3, name: public_output}
-
-expect: relational-check
-
-because:
-  - secret is stored through p, but the public output reloads disjoint q
-
-sps: not-run
+- memory_at_arg: 3
+  name: public_output
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: secret is stored through p, but the public output reloads disjoint q
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - abi_alias_disjoint_control
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.load
+        argument.attributes:
+          contains:
+          - abi_alias_disjoint_control|1|sps.abi_root_ref|"p"
+          - abi_alias_disjoint_control|2|sps.abi_root_ref|"q"
+          - abi_alias_disjoint_control|3|sps.abi_root_ref|"public-output"
+        operation.occurrences.llvm.store:
+          count:
+            min: 2
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

@@ -1,4 +1,6 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/prefix-causal-release/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/prefix-causal-release/bad/prefix_causal_release.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic orders the observation before the release carrier; exact product
 // replays two secrets whose authorized releases agree while the step-1 channel
@@ -29,13 +31,6 @@
 // an UNAUTHORIZED release. Here the release is entirely legitimate; the defect
 // is that it occurs after the observation it would be used to excuse.
 //
-// CHECK-LABEL: llvm.func @prefix_causal_release_bad
-// CHECK-SAME: {{.*}}sps.component_ref = "secret"
-// CHECK-SAME: sps.fixture_refs = ["secret:secret"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["public-memory:public_channel"]
-// CHECK: llvm.store %[[SECRET:.*]], %{{.*}} {sps.fixture_refs = ["store:pre-release-observation"], sps.label = "high", sps.sink_class = "public", sps.site_alias = "pre-release-observation"}
-// CHECK: llvm.call @sps_release_policy_h_candidate(%[[SECRET]]) {sps.fixture_refs = ["call:later-release"], sps.release_ref = "policy_h_candidate", sps.site_alias = "later-release-call"}
 module {
   llvm.func @sps_release_policy_h_candidate(i32) -> i32
 

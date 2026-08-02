@@ -1,18 +1,66 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: overwritten_slot_control
-
 c_evidence:
-  - ../sources/precision_controls.c
-
+- fixtures/precision-control/overwritten-slot/overwritten_slot_control.c
 secret:
-  - {arg: 0, name: secret}
-
+- arg: 0
+  name: secret
 public:
-  - {memory_at_arg: 3, name: public_sink}
-
-expect: relational-check
-
-because:
-  - a public value fully overwrites the secret slot before the reload
-
-sps: not-run
+- memory_at_arg: 3
+  name: public_sink
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: a public value fully overwrites the secret slot before the reload
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - overwritten_slot_control
+        operation.names:
+          ordered:
+          - llvm.alloca
+          - llvm.store
+          - llvm.load
+        operation.occurrences.llvm.store:
+          count:
+            min: 3
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - overwritten_slot_control
+        operation.names:
+          ordered:
+          - llvm.alloca
+          - llvm.store
+          - llvm.load
+        operation.occurrences.llvm.store:
+          count:
+            min: 2

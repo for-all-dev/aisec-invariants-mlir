@@ -1,0 +1,19 @@
+# REQUIRES: clang, clang-tooling, llvm-config
+
+# Resolve the real case-owned C declaration, policy, ABI, MLIR locators, and
+# candidate release references. This executable checkpoint is authoring evidence
+# only: the helper locator deliberately leaves ReleaseCarrierMismatch until a
+# frozen NFv2 llvm.sps.release carrier exists.
+
+# RUN: %checkpoint-runner run --snapshot fixtures/audience-mismatch/bad/snapshot.yaml --pipeline source-boundary --endpoint %t.source-boundary.json --records %t.checkpoints -- %sps-boundary --source %fixtures/audience-mismatch/bad/audience_mismatch_bad.c --policy %fixtures/audience-mismatch/bad/policy.sps.yaml --abi %fixtures/audience-mismatch/bad/abi.sps.yaml --mlir %fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir --candidate-policy %fixtures/audience-mismatch/bad/candidate/policy.json --candidate-release-table %fixtures/audience-mismatch/bad/candidate/release-table.json --report %t.source-boundary.json --resolved %t.resolved.json
+# RUN: %python %harness/integration/Inputs/check_audience_boundary.py %t.resolved.json
+# RUN: cp %t.resolved.json %t.bad-resolved.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad-resolved.json'); v=json.loads(p.read_text()); v['coalitions'][2]['authorized-releases']=['masked-class']; p.write_text(json.dumps(v))"
+# RUN: not %python %harness/integration/Inputs/check_audience_boundary.py %t.bad-resolved.json 2>&1 | %FileCheck %s --check-prefix=RESOLVED-DRIFT
+# RUN: cp %fixtures/audience-mismatch/bad/candidate/policy.json %t.bad-policy.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad-policy.json'); v=json.loads(p.read_text()); v['release_bindings']=['stale-release']; p.write_text(json.dumps(v))"
+# RUN: not %sps-boundary --source %fixtures/audience-mismatch/bad/audience_mismatch_bad.c --policy %fixtures/audience-mismatch/bad/policy.sps.yaml --abi %fixtures/audience-mismatch/bad/abi.sps.yaml --mlir %fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir --candidate-policy %t.bad-policy.json --candidate-release-table %fixtures/audience-mismatch/bad/candidate/release-table.json --report %t.bad-report.json 2>&1 | %FileCheck %s --check-prefix=CROSS-LAYER-DRIFT
+# RUN: %checkpoint-runner finalize --test integration/audience-source-boundary.test --records %t.checkpoints
+
+# RESOLVED-DRIFT: audience coalition rows mismatch
+# CROSS-LAYER-DRIFT: candidate policy release_bindings mismatch

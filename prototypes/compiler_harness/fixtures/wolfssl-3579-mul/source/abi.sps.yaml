@@ -1,0 +1,27 @@
+source: wolfssl_3579_mul_vulnerable.c
+relation: provenance-only
+entry:
+  id: wolfssl_3579_mul_source
+  symbol: wolfssl_3579_mul_vulnerable
+  host: compute
+  function-type: i64 (i64, i64)
+  return:
+    llvm-type: i64
+    bit-width: 64
+    output: return
+carriers:
+  secret-a:
+    argument: 0
+    llvm-type: i64
+    bit-width: 64
+  secret-b:
+    argument: 1
+    llvm-type: i64
+    bit-width: 64
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

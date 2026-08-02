@@ -17,7 +17,7 @@
 
 #include "../env/observation.h"
 
-#include "../../../../compiler_harness/c/secret_embedding_index_fixed.c"
+#include "../../../../compiler_harness/fixtures/secret-embedding-index/fixed/secret_embedding_index_fixed.c"
 
 /* Keeps the loaded values live so the loads are not dead-code eliminated
  * before they can stamp read metadata. */

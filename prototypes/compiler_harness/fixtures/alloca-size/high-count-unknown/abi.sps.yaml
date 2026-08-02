@@ -1,0 +1,29 @@
+source: alloca_size_high_count.c
+relation: provenance-only
+entry:
+  id: alloca_size_high_count
+  symbol: alloca_size_high_count
+  host: compute
+  function-type: void (i32, ptr)
+  return: void
+carriers:
+  secret-bit:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots:
+  public-sink:
+    argument: 1
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-sink
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-void:
+  - public-sink

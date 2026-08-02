@@ -1,18 +1,76 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: bound_secret_trip_count_bad
-
 c_evidence:
-  - ../sources/bound_exhausted_loop.c
-
+- fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count_bad.c
 secret:
-  - {arg: 0, name: secret_count}
-
+- arg: 0
+  name: secret_count
 public:
-  - {observable: control}
-
-expect: violation
-
-because:
-  - secret counts zero and one choose different first loop successors
-
-sps: not-run
+- observable: control
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: world-control-location-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: LoopContinuation
+      field: continueOrExit
+      first_bad: true
+    because: secret counts zero and one choose different first loop successors
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - bound_secret_trip_count_bad
+        operation.names:
+          ordered:
+          - llvm.icmp
+          - llvm.cond_br
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - bound_secret_trip_count_bad
+        operation.names:
+          ordered:
+          - llvm.icmp
+          - llvm.cond_br
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256
+    scanner-diagnostic:
+      kind: diagnostic
+      properties:
+        findings:
+          count:
+            eq: 1
+          contains:
+          - secret-dependent-branch
+        blockers:
+          count:
+            eq: 0

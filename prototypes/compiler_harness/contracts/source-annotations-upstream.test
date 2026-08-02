@@ -1,0 +1,9 @@
+# REQUIRES: clang, sps-source-annotations-upstream
+
+# This is the actual cross-repository drift gate. Set
+# SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations.
+# RUN: %python %harness/tools/sync_source_annotations.py --source %sps-source-annotations-root --check | %FileCheck %s
+# RUN: %python %sps-source-annotations-root/tests/check.py | %FileCheck %s --check-prefix=PACKAGE
+
+# CHECK: SPS source-annotation package matches the harness vendor
+# PACKAGE: SPS source-annotation checks passed

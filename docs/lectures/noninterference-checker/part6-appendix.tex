@@ -12,28 +12,32 @@ repository root.
 \toprule
 Path & Contents \\
 \midrule
-\fx{mlir/}
-  & the 45 IR fixtures \\
+\fx{fixtures/}
+  & 54 case directories, each pairing one MLIR shape with its snapshot; family
+    directories also own C evidence and optional case-local candidate bundles \\
 \fx{c/}
-  & C reductions and provenance, one file per fixture family \\
+  & shared build/check support and the executable equivalence driver \\
 \fx{c/check\_harness.py}
-  & the metadata contract: the closed fixture inventory and every structural
-    rule \\
+  & structural validation for snapshots, evidence paths, and case-local
+    candidates \\
 \fx{integration/}
   & metadata, witness-driver, import, and code-generation tests \\
+\fx{integration/candidate-bundles/}
+  & reproducibility and negative tests for the nine nonclaimable candidates \\
 \fx{examples/actors/}
   & actor and ACL design examples; outside the enforced corpus \\
-\fx{mlir/L0\_L1\_L2\_} \fx{PIPELINE.md}
-  & the fixture-by-fixture outcome table \\
+\fx{FIXTURE\_REVIEW\_GUIDE.md}
+  & review order, fixture intent, corpus counts, and manual sign-off criteria \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Two orientation notes for a reader opening the corpus for the first time. The
-metadata contract is the authoritative description of what a fixture is allowed
-to claim --- read it before reading fixtures. And the fixture inventory is
-\emph{closed}: a fixture with no contract entry and a contract entry with no
-fixture both fail, so fixtures and registrations necessarily land together.
+Two orientation notes for a reader opening the corpus for the first time. A
+case's sibling \fx{snapshot.yaml} is the authoritative preflight boundary and
+expectation; its \fx{c\_evidence} paths record provenance, not a claim that the
+MLIR was compiled from that C. The fixture inventory is \emph{closed}: every
+MLIR case has exactly one sibling snapshot and every snapshot has exactly one
+sibling MLIR file, while every family C source is cited by at least one case.
 
 \subsection{Running it}
 
@@ -43,19 +47,20 @@ fixture both fail, so fixtures and registrations necessarily land together.
 Command & Effect \\
 \midrule
 \fx{make check}            & all IR and integration tests \\
-\fx{make check-mlir}       & verifier and shape tests only \\
+\fx{make check-shape}      & all 54 fixture MLIR/snapshot shape tests \\
+\fx{make check-mlir}       & compatibility alias for \fx{check-shape} \\
+\fx{make check-candidates} & the nine candidate-bundle tests \\
+\fx{make check-artifacts}  & compatibility alias for \fx{check-candidates} \\
 \fx{make check-integration}& metadata, witness, import, code generation \\
 \fx{make bootstrap-lit}    & create the pinned local test runner \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Seventeen failures is the correct outcome, and every one of them should be a
-fixture that the metadata contract's \fx{is\_bad()} accepts --- that is, one
-matching \fx{.bad}, \fx{\_bad}, \fx{lowered\_bad}, or \fx{target\_bad}. All four
-markers are in use; \fx{clangover\_poly\_frommsg.lowered\_bad} matches only the
-third. A failure anywhere else is a real regression, and that distinction is
-worth checking mechanically rather than by eye.
+A clean default suite is the correct outcome: executable preflight checks pass,
+while future SPS semantic tests remain unsupported until a Rev-4 verifier and
+canonical materialized bundle are supplied. Neither a green preflight test nor
+an unsupported semantic arm computes \fx{ModelStatus}.
 
 \subsection{The shape of a report}
 

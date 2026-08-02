@@ -1,0 +1,76 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-HOST-RELEASE",
+  "caseId": "release-authorized-retire",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 12",
+    "Normative 21.4"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.release.retire",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return.value",
+          "width": 8,
+          "host": "caller",
+          "byteOrder": "BigEndian"
+        },
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.secret",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "var": "secret"
+          },
+          "audience": [
+            "observer"
+          ],
+          "host": "release.host",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "secret"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "unsat",
+    "firstBadCause": null,
+    "replayAccepted": false
+  }
+}

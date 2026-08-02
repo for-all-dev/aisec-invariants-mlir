@@ -1,5 +1,8 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/high-count-unknown/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/high-count-unknown/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/alloca-size/high-count-unknown/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/alloca-size/high-count-unknown/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir --records %t.checkpoints
+
 //
 // scope note: configuration binding supplies no world-structural size binding for the
 // allocation; preflight diagnostic reaches the allocation site and stops. No exact product conclusion.
@@ -29,19 +32,9 @@
 // universal definedness, so it must be tracked as its own binding rather than
 // folded into a definedness check.
 //
-// CHECK-LABEL: llvm.func @alloca_size_high_count
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: {{.*}}sps.label = "high"
-// CHECK: %[[SMALL:[0-9]+]] = llvm.mlir.constant(64 : i32) : i32
-// CHECK: %[[LARGE:[0-9]+]] = llvm.mlir.constant(128 : i32) : i32
-// CHECK: %[[COUNT:[0-9]+]] = llvm.select %{{.*}}, %[[SMALL]], %[[LARGE]]
-// CHECK: %[[SCRATCH:[0-9]+]] = llvm.alloca %[[COUNT]] x i8 {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["allocation-size"]}
-// CHECK: llvm.store %{{.*}}, %[[SCRATCH]]
 //
 // The secret-selected size operand must survive, or the fixture stops pinning a
 // High-dependent allocation.
-// STABLE: llvm.select
-// STABLE: llvm.alloca
 module {
   llvm.func @alloca_size_high_count(
       %secret_bit: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

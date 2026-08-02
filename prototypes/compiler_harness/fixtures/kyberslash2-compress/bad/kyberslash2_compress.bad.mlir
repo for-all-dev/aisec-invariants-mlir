@@ -1,17 +1,11 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/kyberslash2-compress/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/kyberslash2-compress/bad/kyberslash2_compress.bad.mlir --records %t.checkpoints
+
 //
 // scope note: direct preflight diagnostic variable-time division check
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @kyberslash2_compress_bad
-// CHECK-SAME: %[[COEFFICIENT:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}
-// CHECK: %[[SHIFT:[0-9]+]] = llvm.mlir.constant(4 : i32) : i32
-// CHECK: %[[ROUND:[0-9]+]] = llvm.mlir.constant(1664 : i32) : i32
-// CHECK: %[[DIVISOR:[0-9]+]] = llvm.mlir.constant(3329 : i32) : i32
-// CHECK: %[[SHIFTED:[0-9]+]] = llvm.shl %[[COEFFICIENT]], %[[SHIFT]]
-// CHECK: %[[NUMERATOR:[0-9]+]] = llvm.add %[[SHIFTED]], %[[ROUND]]
-// CHECK: %[[QUOTIENT:[0-9]+]] = llvm.udiv %[[NUMERATOR]], %[[DIVISOR]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["timing"]}
 module {
   llvm.func @kyberslash2_compress_bad(
       %coefficient: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}) -> i32 {

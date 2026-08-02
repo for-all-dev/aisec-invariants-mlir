@@ -1,0 +1,31 @@
+source: redis_pool_reuse_fixed.c
+relation: provenance-only
+entry:
+  id: redis_pool_reuse_fixed
+  symbol: redis_pool_reuse_fixed
+  host: compute
+  function-type: i32 (i32, i32, i32)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  response-owned-by-a:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  response-owned-by-b:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+  request-a-was-cancelled:
+    argument: 2
+    llvm-type: i32
+    bit-width: 32
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

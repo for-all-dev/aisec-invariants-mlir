@@ -1,0 +1,28 @@
+# Snapshot expectations are definite final judgments. They are never copied
+# into an actual report column merely because their checkpoints passed.
+
+# RUN: %checkpoint-runner results --root %harness --json > %t.results.json
+# RUN: %python %S/Inputs/checkpoint_results_test.py %t.results.json | %FileCheck %s --check-prefix=JSON
+# RUN: %checkpoint-runner results --root %harness | %FileCheck %s --check-prefix=TABLE
+
+# JSON: minimal Snapshot V3 result view passed
+# TABLE: CASE
+# TABLE-SAME: EXPECTED_MODEL
+# TABLE-SAME: EXPECTED_DEPLOYMENT
+# TABLE-SAME: EXPECTED_POLICY
+# TABLE-SAME: EVENTS
+# TABLE-SAME: ACTUAL_MODEL
+# TABLE-SAME: COMPARISON
+# TABLE: abi-alias/disjoint-control
+# TABLE-SAME: Proved
+# TABLE-SAME: Open
+# TABLE-SAME: Complete
+# TABLE-SAME: NotCompared
+# TABLE: clangover-poly-frommsg/source
+# TABLE-SAME: Proved
+# TABLE: dynamic-kv-length/bad
+# TABLE-SAME: Counterexample(public-counts-mismatch)
+# TABLE: wolfssl-3580-mask/source
+# TABLE-SAME: Proved
+# TABLE: Actual axes appear only when check-final validates a supplied SPSRunReportV2.
+# TABLE: summary: fixtures=56 expected-proved=26 expected-counterexample=21 expected-unknown=9

@@ -1,0 +1,87 @@
+# The executable-reference bridge is a byte-for-byte, nonclaimable SPS mirror.
+# It carries no generated interface distribution of its own; that much larger
+# package remains under the independent sps-interface lock.
+
+# RUN: env -u SPS_REFERENCE_ROOT %python %harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=VENDOR
+# VENDOR: SPS executable reference source comparison: SKIPPED (SPS_REFERENCE_ROOT unset)
+# VENDOR: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly tree={{[0-9a-f]+}} cases=19 tests=12 families=10/61
+
+# The upstream interface builder is authoritative vendored source, not a
+# harness consumer with a copied normative table.
+# RUN: %python %harness/tools/sps_interfaces.py --check-consumers | %FileCheck %s --check-prefix=CONSUMERS
+# CONSUMERS: verified SPS interface consumers: no copied normative tables
+
+# The lock records the intended coverage counts and the reference JSON never
+# serializes a harness-computed ModelStatus.
+# RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%harness'); lock=json.loads((root/'contracts/sps-reference.lock.json').read_text()); assert lock['formatId']=='SPS-Harness-Reference-Lock-v1'; assert lock['claimBoundary']=='ExecutableReferenceOnly'; assert lock['counts']=={'fixtureCases':19,'unitTests':12,'executableFamilies':10,'profileFamilies':61}; values=[json.loads(p.read_text()) for p in (root/'contracts/vendor/sps-reference-rev4/reference').rglob('*.json')]; walk=lambda v: any(k=='modelStatus' or walk(x) for k,x in v.items()) if isinstance(v,dict) else any(walk(x) for x in v) if isinstance(v,list) else False; assert not any(walk(v) for v in values); print('reference lock boundary and nonclaimable JSON verified')" | %FileCheck %s --check-prefix=BOUNDARY
+# BOUNDARY: reference lock boundary and nonclaimable JSON verified
+
+# Reconstruct an SPS-shaped source root from the lean vendor and exercise the
+# source comparison without depending on an adjacent notes checkout.
+# RUN: rm -rf %t.source
+# RUN: mkdir -p %t.source
+# RUN: cp -R %harness/contracts/vendor/sps-reference-rev4/. %t.source
+# RUN: env SPS_REFERENCE_ROOT=%t.source %python %harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=SOURCE
+# SOURCE: SPS executable reference source comparison: PERFORMED
+# SOURCE: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly
+
+# Exercise update and its resulting offline check in an isolated harness root.
+# RUN: rm -rf %t.harness
+# RUN: mkdir -p %t.harness/tools %t.harness/contracts
+# RUN: cp %harness/tools/sync_sps_reference.py %t.harness/tools/sync_sps_reference.py
+# RUN: cp %harness/contracts/sps-interface.lock.json %t.harness/contracts/sps-interface.lock.json
+# RUN: %python %t.harness/tools/sync_sps_reference.py --source %t.source | %FileCheck %s --check-prefix=UPDATE
+# RUN: env -u SPS_REFERENCE_ROOT %python %t.harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=VENDOR
+# RUN: cmp %harness/contracts/sps-reference.lock.json %t.harness/contracts/sps-reference.lock.json
+# UPDATE: updated {{.*}}/contracts/vendor/sps-reference-rev4
+
+# Copy drift is detected before publication, and failed post-install
+# verification restores the preceding vendor+lock generation.
+# RUN: %python %S/Inputs/sps_reference_sync_test.py %harness/tools/sync_sps_reference.py %t.source %harness/contracts/sps-interface.lock.json 2>&1 | %FileCheck %s --check-prefix=TRANSACTION
+# TRANSACTION: Ran 2 tests
+# TRANSACTION: OK
+# TRANSACTION: SPS reference sync staging and rollback verified
+
+# The sync boundary independently refuses any upstream attempt to close a
+# reference assurance claim, before replacing installed bytes.
+# RUN: rm -rf %t.unsafe
+# RUN: cp -R %t.source %t.unsafe
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.unsafe/reference/assurance-status.json'); v=json.loads(p.read_text()); v['claims'][0]['status']='Proved'; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.harness/tools/sync_sps_reference.py --source %t.unsafe 2>&1 | %FileCheck %s --check-prefix=UNSAFE
+# UNSAFE: SPS reference sync failed: unsafe closed reference assurance claim:
+
+# Recursive fixture discovery prevents an uncatalogued nested JSON from being
+# locked while remaining absent from the executable 19-case catalog.
+# RUN: rm -rf %t.nested
+# RUN: cp -R %t.source %t.nested
+# RUN: mkdir -p %t.nested/reference/fixtures/nested
+# RUN: cp %t.nested/reference/fixtures/replay-wire-valid.json %t.nested/reference/fixtures/nested/uncatalogued.json
+# RUN: not %python %t.harness/tools/sync_sps_reference.py --source %t.nested 2>&1 | %FileCheck %s --check-prefix=NESTED
+# NESTED: SPS reference sync failed: fixture catalog and fixture file closure differ
+
+# A byte mutation, interface-lock drift, source drift, and closure growth each
+# fail closed with a precise reason.
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.harness/contracts/vendor/sps-reference-rev4/reference/fixtures/replay-wire-valid.json'); p.write_bytes(p.read_bytes()+b' ')"
+# RUN: not %python %t.harness/tools/sync_sps_reference.py --check 2>&1 | %FileCheck %s --check-prefix=BYTES
+# BYTES: SPS reference sync failed: vendored reference bytes differ: reference/fixtures/replay-wire-valid.json
+
+# RUN: cp %harness/contracts/vendor/sps-reference-rev4/reference/fixtures/replay-wire-valid.json %t.harness/contracts/vendor/sps-reference-rev4/reference/fixtures/replay-wire-valid.json
+# RUN: mkdir -p %t.harness/contracts/vendor/sps-reference-rev4/reference/__pycache__
+# RUN: cp %harness/contracts/vendor/sps-reference-rev4/reference/fixtures/replay-wire-valid.json %t.harness/contracts/vendor/sps-reference-rev4/reference/__pycache__/injected.pyc
+# RUN: not %python %t.harness/tools/sync_sps_reference.py --check 2>&1 | %FileCheck %s --check-prefix=CACHE
+# CACHE: SPS reference sync failed: Python cache is forbidden in locked reference closure: reference/__pycache__
+# RUN: rm -rf %t.harness/contracts/vendor/sps-reference-rev4/reference/__pycache__
+
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.harness/contracts/sps-interface.lock.json'); p.write_bytes(p.read_bytes()+b' ')"
+# RUN: not %python %t.harness/tools/sync_sps_reference.py --check 2>&1 | %FileCheck %s --check-prefix=INTERFACE
+# INTERFACE: SPS reference sync failed: reference lock interface-lock digest mismatch
+
+# RUN: cp %harness/contracts/sps-interface.lock.json %t.harness/contracts/sps-interface.lock.json
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source/reference/run_reference_checks.py'); p.write_bytes(p.read_bytes()+b' ')"
+# RUN: not %python %harness/tools/sync_sps_reference.py --source %t.source --check 2>&1 | %FileCheck %s --check-prefix=SOURCE-BYTES
+# SOURCE-BYTES: SPS reference sync failed: upstream and vendored reference bytes differ: reference/run_reference_checks.py
+
+# RUN: cp %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py %t.source/reference/run_reference_checks.py
+# RUN: cp %t.source/reference/fixtures/replay-wire-valid.json %t.source/reference/fixtures/unlocked-extra.json
+# RUN: not %python %harness/tools/sync_sps_reference.py --source %t.source --check 2>&1 | %FileCheck %s --check-prefix=SOURCE-CLOSURE
+# SOURCE-CLOSURE: SPS reference sync failed: upstream and vendored reference file closures differ:

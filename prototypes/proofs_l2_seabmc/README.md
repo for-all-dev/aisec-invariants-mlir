@@ -1,9 +1,10 @@
 # proofs_l2_seabmc — self-composition unit proofs over the compiler_harness fixtures
 
-Discharging the **L2** level of `prototypes/compiler_harness/mlir/L0_L1_L2_PIPELINE.md`
-("a relational witness: equal public inputs and authorized releases, different
-secrets, and different observations") with SeaBMC as the engine, instead of
-hand-written `.bad.mlir` witnesses.
+Supplying relational witnesses for the current
+`prototypes/compiler_harness/fixtures/REV4_PREFLIGHT_WORKFLOW.md` fixture
+workflow (equal public inputs and authorized releases, different secrets, and
+different observations) with SeaBMC as the engine, instead of hand-written
+`.bad.mlir` witnesses.
 
 Status: **working.** Two jobs discharge, each as a calibrated pair — the leaky
 fixture yields a counterexample, the repaired one verifies:

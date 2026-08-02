@@ -1,5 +1,8 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/loop-bounds/secret-trip-count-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/loop-bounds/secret-trip-count-bad/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/loop-bounds/secret-trip-count-bad/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/loop-bounds/secret-trip-count-bad/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir --records %t.checkpoints
+
 //
 // scope note: exact product replays secret counts 0 and 1; the first conditional
 // branch chooses exit in one lane and body in the other before any bound exhausts.
@@ -10,14 +13,6 @@
 // trip count is already a replayable structural counterexample; it cannot be
 // relabeled Unknown merely because a later execution might exceed a proof bound.
 //
-// CHECK-LABEL: llvm.func @bound_secret_trip_count_bad
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: {{.*}}sps.label = "high"
-// CHECK: ^[[LOOP:bb[0-9]+]](%[[I:[0-9]+]]: i32):
-// CHECK: %[[CONT:[0-9]+]] = llvm.icmp "slt" %[[I]], %{{.*}} : i32
-// CHECK: llvm.cond_br %[[CONT]], ^[[BODY:bb[0-9]+]], ^[[EXIT:bb[0-9]+]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["control"]}
-// STABLE: llvm.icmp "slt"
-// STABLE: llvm.cond_br
 module {
   llvm.func @bound_secret_trip_count_bad(
       %secret_count: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

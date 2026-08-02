@@ -1,21 +1,50 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: redis_pool_reuse_fixed
-
 c_evidence:
-  - ../sources/redis_pool_reuse_fixed.c
-
+- fixtures/redis-pool-reuse/fixed/redis_pool_reuse_fixed.c
 secret:
-  - {arg: 0, name: response_owned_by_a}
-
+- arg: 0
+  name: response_owned_by_a
 public:
-  - {observable: return}
-
+- observable: return
 allowed:
-  - the return to actor B may contain only actor B's response
-
-expect: no-violation
-
-because:
-  - the function always returns actor B's own response
-
-sps: not-run
+- the return to actor B may contain only actor B's response
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: the function always returns actor B's own response
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - redis_pool_reuse_fixed
+        operation.names:
+          ordered:
+          - llvm.return
+          excludes:
+          - llvm.cond_br

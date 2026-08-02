@@ -1,19 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/redis-pool-reuse/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/redis-pool-reuse/bad/redis_pool_reuse.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic reduced return-flow model; no async cancellation,
 // pooling, or concurrency claim is made by this sequential Rev4 fixture
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @redis_pool_reuse_bad
-// CHECK-SAME: %[[A:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[B:[a-zA-Z0-9_]+]]: i32, %[[CANCEL:[a-zA-Z0-9_]+]]: i32
-// CHECK: %[[ONE:[0-9]+]] = llvm.mlir.constant(1 : i32) : i32
-// CHECK: %[[ZERO:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK: %[[CANCEL_BIT:[0-9]+]] = llvm.and %[[CANCEL]], %[[ONE]]
-// CHECK: %[[CANCELLED:[0-9]+]] = llvm.icmp "ne" %[[CANCEL_BIT]], %[[ZERO]] : i32
-// CHECK: llvm.cond_br %[[CANCELLED]],
-// CHECK: llvm.return {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["return"], sps.sink_class = "public"} %[[A]] : i32
-// CHECK: llvm.return {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["return"], sps.sink_class = "public"} %[[B]] : i32
 module {
   llvm.func @redis_pool_reuse_bad(
       %response_owned_by_a: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

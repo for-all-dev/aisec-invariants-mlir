@@ -8,10 +8,10 @@
   "candidate_bitcode_sha256": "cb072a96fe7d7d66e6bb7709b15cd6ee1df4cfe82660466db9636beb798556df",
   "derived_llvm_ir_sha256": "7546848b1793b6c636fa54c6f7844cd27f4f7a30eeb18ab69469af9b11efed16",
   "candidate_sidecar_sha256": {
-    "policy.json": "b1aa0a4e249a3e15cc850654efb908b9a966b3e4954eb3f89b547d6e74791af6",
+    "policy.json": "421c3107daa50a935f75e4ff56cb838eba02a736cb87e48a23bb34fd3f519d14",
     "abi.json": "1ef80da67c6af589cfea770bdecebf18c62bcf27b104166f327bf1735ea201bd",
     "contracts.json": "ea30f8a44b2e8e4ae2d5870f9befec046d86482dda4ebdf70c658da073fe2382",
-    "release-table.json": "ac37cc123f1bbed04a5084b98c4584158b763c839eaed086c75ccb0ba8ee30b2",
+    "release-table.json": "8cb68fbce8ee12c64d61873633a3b3c951d315416796af476538b6d23186ee81",
     "expected-report.json": "6baaf7f8463616b580c3b83261d0285f52939e6a5f1eb71769f6fc53b51f0301"
   },
   "source_mlir": "../audience_mismatch.bad.mlir",

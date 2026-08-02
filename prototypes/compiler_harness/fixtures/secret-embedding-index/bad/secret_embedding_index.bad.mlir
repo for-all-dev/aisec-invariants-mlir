@@ -1,16 +1,11 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/secret-embedding-index/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/secret-embedding-index/bad/secret_embedding_index.bad.mlir --records %t.checkpoints
+
 //
 // scope note: direct preflight diagnostic address-effect check; no torch-mlir defect is claimed
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @secret_embedding_index_bad
-// CHECK-SAME: %[[TABLE:[a-zA-Z0-9_]+]]: !llvm.ptr, %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}
-// CHECK: %[[MASK:[0-9]+]] = llvm.mlir.constant(15 : i32) : i32
-// CHECK: %[[MASKED:[0-9]+]] = llvm.and %[[SECRET]], %[[MASK]]
-// CHECK: %[[INDEX:[0-9]+]] = llvm.zext %[[MASKED]] : i32 to i64
-// CHECK: %[[SLOT:[0-9]+]] = llvm.getelementptr %[[TABLE]][%[[INDEX]]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["address"]}
-// CHECK: llvm.load %[[SLOT]]
 module {
   llvm.func @secret_embedding_index_bad(
       %table: !llvm.ptr,

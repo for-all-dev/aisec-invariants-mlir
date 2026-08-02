@@ -96,6 +96,8 @@
 # RUN: cp %harness/tools/sps_aggregation.py %t.root/tools/sps_aggregation.py
 # RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
 # RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.root/tools/checkpoint_model.py
+# RUN: cp %harness/tools/checkpoint_extractors.py %t.root/tools/checkpoint_extractors.py
 # RUN: cp -R %harness/contracts %t.root/contracts
 # RUN: cp -R %fixtures %t.root/fixtures
 # RUN: cp -R %harness/integration %t.root/integration

@@ -1,0 +1,18 @@
+# The source-facing contract is owned by SPS and copied byte-for-byte into the
+# harness. Exercise the sync checker without depending on an adjacent SPS tree.
+
+# RUN: rm -rf %t.source
+# RUN: mkdir -p %t.source/include/sps %t.source/schemas
+# RUN: cp %harness/include/sps/annotations.h %t.source/include/sps/annotations.h
+# RUN: cp %harness/source-annotations/schemas/policy.schema.json %t.source/schemas/policy.schema.json
+# RUN: cp %harness/source-annotations/schemas/abi.schema.json %t.source/schemas/abi.schema.json
+# RUN: %python %harness/tools/sync_source_annotations.py --source %t.source --check | %FileCheck %s --check-prefix=MATCH
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source/include/sps/annotations.h'); p.write_bytes(p.read_bytes()+b' ')"
+# RUN: not %python %harness/tools/sync_source_annotations.py --source %t.source --check 2>&1 | %FileCheck %s --check-prefix=HEADER
+# RUN: cp %harness/include/sps/annotations.h %t.source/include/sps/annotations.h
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source/schemas/policy.schema.json'); p.write_bytes(p.read_bytes()+b' ')"
+# RUN: not %python %harness/tools/sync_source_annotations.py --source %t.source --check 2>&1 | %FileCheck %s --check-prefix=SCHEMA
+
+# MATCH: SPS source-annotation package matches the harness vendor
+# HEADER: source-annotation bytes differ: include/sps/annotations.h
+# SCHEMA: source-annotation bytes differ: schemas/policy.schema.json

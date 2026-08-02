@@ -1,0 +1,25 @@
+entry: abi_alias_mayalias_overlap
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  q-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+outputs:
+  p:
+    visibility: secret
+  public-output:
+    visibility: public
+releases: {}

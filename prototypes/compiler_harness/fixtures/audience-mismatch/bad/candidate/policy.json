@@ -75,7 +75,7 @@
     }
   ],
   "release_bindings": [
-    "masked_class_candidate"
+    "masked-class"
   ],
   "invocation_scope": "SingleInvocation",
   "placement": [

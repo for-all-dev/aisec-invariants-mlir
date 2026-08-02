@@ -1,19 +1,59 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: clangover_poly_frommsg_x86_bad_model
-
 c_evidence:
-  - ../sources/clangover_poly_frommsg_vulnerable.c
-
+- fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
 secret:
-  - {arg: 0, name: bit}
-
+- arg: 0
+  name: bit
 public:
-  - {observable: control}
-  - {observable: timing}
-
-expect: target-risk
-
-because:
-  - the secret bit selects different target-model successors
-
-sps: not-run
+- observable: control
+- observable: timing
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: world-control-timing-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+      first_bad: true
+    - kind: Latency
+      field: configuredClass
+    because: the secret bit selects different target-model successors
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - clangover_poly_frommsg_x86_bad_model
+        operation.names:
+          ordered:
+          - llvm.cond_br
+    x86-backend-risk:
+      kind: assembly
+      function: clangover_poly_frommsg_vulnerable
+      properties:
+        instruction.mnemonics:
+          ordered:
+          - btl
+          - jae

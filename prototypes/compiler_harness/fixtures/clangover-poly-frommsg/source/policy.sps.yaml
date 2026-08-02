@@ -1,0 +1,19 @@
+entry: clangover_poly_frommsg_source
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  msg-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: secret
+outputs:
+  out:
+    visibility: secret
+releases: {}

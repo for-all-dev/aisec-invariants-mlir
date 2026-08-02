@@ -19,7 +19,9 @@ MLIR_OPT=${MLIR_OPT:-$LLVM_BIN/mlir-opt}
 
 OUTPUT_DIR=${1:-$HARNESS_DIR/build/clangover-generated}
 EVIDENCE_DIR=$HARNESS_DIR/build/clangover-evidence
-SOURCE_DIR=$HARNESS_DIR/fixtures/clangover-poly-frommsg/sources
+BAD_SOURCE=$HARNESS_DIR/fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
+FIXED_SOURCE=$HARNESS_DIR/fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c
+HELPER_SOURCE=$HARNESS_DIR/fixtures/clangover-poly-frommsg/lowered-fixed/clangover_ct_cmov.c
 
 for tool in "$CLANG" "$MLIR_TRANSLATE" "$MLIR_OPT"; do
   if test ! -x "$tool"; then
@@ -31,27 +33,28 @@ done
 mkdir -p "$OUTPUT_DIR" "$EVIDENCE_DIR"
 
 COMMON_FLAGS="-std=c11 -Wall -Wextra -Wpedantic -fno-builtin"
+COMMON_FLAGS="$COMMON_FLAGS -I$HARNESS_DIR/include"
 TARGET_FLAGS="--target=x86_64-unknown-linux-gnu"
 OPT_FLAGS="-Os -fno-vectorize -fno-slp-vectorize"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S -emit-llvm \
-  "$SOURCE_DIR/clangover_poly_frommsg_vulnerable.c" \
+  "$BAD_SOURCE" \
   -o "$EVIDENCE_DIR/vulnerable.ll"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SOURCE_DIR/clangover_poly_frommsg_vulnerable.c" \
+  "$BAD_SOURCE" \
   -o "$EVIDENCE_DIR/vulnerable.s"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S -emit-llvm \
-  "$SOURCE_DIR/clangover_poly_frommsg_fixed.c" \
+  "$FIXED_SOURCE" \
   -o "$EVIDENCE_DIR/fixed.ll"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SOURCE_DIR/clangover_poly_frommsg_fixed.c" \
+  "$FIXED_SOURCE" \
   -o "$EVIDENCE_DIR/fixed.s"
 
 "$CLANG" $COMMON_FLAGS $TARGET_FLAGS $OPT_FLAGS -S \
-  "$SOURCE_DIR/clangover_ct_cmov.c" \
+  "$HELPER_SOURCE" \
   -o "$EVIDENCE_DIR/ct_cmov.s"
 
 "$MLIR_TRANSLATE" --import-llvm "$EVIDENCE_DIR/vulnerable.ll" \

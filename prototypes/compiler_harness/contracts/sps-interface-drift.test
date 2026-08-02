@@ -5,6 +5,7 @@
 # RUN: %python %harness/tools/sps_interfaces.py --check-consumers | %FileCheck %s --check-prefix=CONSUMERS
 # RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/configuration-rejected.v2.json | %FileCheck %s --check-prefix=REPORT
 # RUN: %python %harness/tools/sps_interfaces.py --validate AggregationInputV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/replay-with-proof-blocker.v2.json | %FileCheck %s --check-prefix=AGGREGATION
+# RUN: %python %harness/tools/sps_interfaces.py --validate ArtifactIdentityEvidenceV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/coalition-closure-identity-evidence.v2.json | %FileCheck %s --check-prefix=COALITION-CLOSURE
 # RUN: %python %harness/tools/sps_interfaces.py --validate AggregationInputV2 %harness/contracts/vendor/sps-rev4.1/vectors/semantic-invalid/replay-with-invalidating-blocker.v2.json --expect-semantic-rule XF-REPLAY-001 | %FileCheck %s --check-prefix=SEMANTIC
 # RUN: not %python %harness/tools/sps_interfaces.py --validate ModelStatusV2 %harness/contracts/vendor/sps-rev4.1/vectors/schema-invalid/public-witness-is-not-receipt.v2.json 2>&1 | %FileCheck %s --check-prefix=WITNESS
 # RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%harness/contracts/vendor/sps-rev4.1'); registry=json.loads((root/'interface-registry.json').read_text()); policy=registry['interfacePolicy']; assert list(policy)==['currentRoots','versionPolicy']; assert policy['versionPolicy']=='v2-only'; assert all(name.endswith('V2') for name in policy['currentRoots']); print('uniform V2 package closure verified')" | %FileCheck %s --check-prefix=V2-ONLY
@@ -42,10 +43,11 @@
 # RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source/dist/interface-registry.json'); raw=p.read_bytes(); p.write_bytes(raw.replace(b'SPS-LLVM-NF-v2', b'SPS-LLVM-NF-x2', 1))"
 # RUN: not env SPS_INTERFACE_ROOT=%t.source %python %harness/tools/sps_interfaces.py --verify-vendor 2>&1 | %FileCheck %s --check-prefix=COUPLED-DRIFT
 
-# VENDOR: verified SPS Rev4.1 interface vendor: SPS-Interfaces-Rev4.1-2026-08-01 bundle=09524b11cec97cf332a8aa675acd333a4e80ceb6e696cf25c4a387d652e4fda8
+# VENDOR: verified SPS Rev4.1 interface vendor: SPS-Interfaces-Rev4.1-2026-08-01 bundle=fab12fd8594f311b6b9922ef9200aa7471b99fbb8f19c4461f62c1dcc3fc87a3
 # CONSUMERS: verified SPS interface consumers: no copied normative tables
 # REPORT: validated canonical SPSRunReportV2:
 # AGGREGATION: validated canonical AggregationInputV2:
+# COALITION-CLOSURE: validated canonical ArtifactIdentityEvidenceV2:
 # SEMANTIC: schema-valid; semantic failure XF-REPLAY-001
 # WITNESS: JSON Schema oneOf matched 0 alternatives
 # V2-ONLY: uniform V2 package closure verified

@@ -1,20 +1,81 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wolfssl_3579_mul_fixed_model
-
 c_evidence:
-  - ../sources/wolfssl_3579_mul_fixed.c
-
+- fixtures/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul_fixed.c
 secret:
-  - {arg: 0, name: secret_a}
-  - {arg: 1, name: secret_b}
-
+- arg: 0
+  name: secret_a
+- arg: 1
+  name: secret_b
 public:
-  - {observable: control}
-  - {observable: timing}
-
-expect: no-violation
-
-because:
-  - a fixed 64-iteration mask-and-add loop avoids the helper and secret control
-
-sps: not-run
+- observable: control
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+    - kind: Latency
+      field: configuredClass
+    because: a fixed 64-iteration mask-and-add loop avoids the helper and secret control
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wolfssl_3579_mul_fixed_model
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.br
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.and
+          - llvm.add
+          - llvm.return
+          excludes:
+          - llvm.call
+        call.callees:
+          excludes:
+          - __muldi3
+        operation.occurrences.llvm.cond_br:
+          count:
+            eq: 1
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 5
+        operation.occurrences.llvm.br:
+          count:
+            min: 2
+    rv32-backend-control:
+      kind: assembly
+      function: wolfssl_3579_mul_fixed
+      properties:
+        instruction.mnemonics:
+          contains:
+          - bnez
+        call.callees:
+          excludes:
+          - __muldi3

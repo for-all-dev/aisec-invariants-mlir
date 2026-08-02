@@ -1,5 +1,7 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/identical-successor/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/identical-successor/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/precision-control/identical-successor/precision_identical_successor.control.mlir --records %t.checkpoints
+
 //
 // scope note: the unary scanner flags a relational review site; a future
 // Section-10 diagnostic must defer the proof question to the exact product.
@@ -19,19 +21,9 @@
 // block-argument operands. Nor may it be repaired
 // by treating a diagnostic disposition as proof-authoritative.
 //
-// CHECK-LABEL: llvm.func @identical_successor_control
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[1]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: %[[VALUE:[0-9]+]] = llvm.mlir.constant(7 : i32) : i32
-// CHECK: llvm.cond_br %{{.*}}, ^[[MERGE:bb[0-9]+]], ^[[MERGE]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["control"]}
-// CHECK: ^[[MERGE]]:
-// CHECK: llvm.store %[[VALUE]], %{{.*}} {sps.fixture_refs = ["snapshot.public[1]"], sps.sink_class = "public"}
 //
 // The second RUN pins that the shape is stable under canonicalization, so the
 // control cannot silently decay into a different scenario.
-// STABLE: llvm.cond_br %{{.*}}, ^[[M:bb[0-9]+]], ^[[M]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["control"]}
 module {
   llvm.func @identical_successor_control(
       %high_condition: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

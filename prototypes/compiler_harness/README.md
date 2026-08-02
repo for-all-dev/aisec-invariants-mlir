@@ -17,7 +17,8 @@ with the evidence boundary, then follow one fixture family vertically. Within
 each family, read `snapshot.yaml`, the sibling MLIR, the bad/fixed or control
 comparison, the C provenance, any candidate bindings, and finally the linked
 supporting tests. The snapshots and MLIR are preflight evidence; every current
-snapshot remains `sps: not-run`.
+snapshot declares nonclaimable pipeline endpoint expectations rather than an
+SPS result.
 
 ### 1. Learn the evidence boundary
 
@@ -51,7 +52,7 @@ full Kyber or ML-KEM application test suite.
 1. **KyberSlash1 and KyberSlash2.** Read the bad and fixed snapshots and MLIR
    under [KyberSlash1 `poly_tomsg`](fixtures/kyberslash1-poly-tomsg/) and
    [KyberSlash2 `poly_compress`](fixtures/kyberslash2-compress/), followed by
-   each family's `sources/` directory. Then read
+   the C source and sidecars in each case directory. Then read
    [the LLVM code-generation test](integration/kyberslash-codegen.test) and
    [the C behavior-equivalence test](integration/equivalence.test). The direct
    secret-derived `udiv` is the simplest timing case: the repair preserves the
@@ -88,13 +89,13 @@ guide's ranking or imply a severity order.
 
 | Directory | What it checks | What it cannot claim |
 | --- | --- | --- |
-| `fixtures/` | Family-local MLIR/snapshot cases, C provenance under `sources/`, and optional case-local candidate bundles | Any `ModelStatus` |
+| `fixtures/` | Case-local MLIR/snapshot bundles; source-annotated cases also own their C and policy/ABI YAML | Any `ModelStatus` |
 | `diagnostic/` | The current unary scanner's five finding classes | Relational proof, replay, or proof from silence |
 | `integration/candidate-bundles/` | Candidate `.bc`/derived `.ll` integrity and harness-namespaced matcher consistency | `NFConforms` or a current verifier report |
-| `integration/` | C provenance, concrete witnesses, import, LLVM shape, candidate-bundle checks, the ungated NFv2 release-carrier structural contract, capability-gated NFv2 preservation/codegen contracts, invalid callable-marker negatives, the seven digest-pinned SPS lecture fixture contracts, executable MT-CM1/MT-CM4 countermodel witnesses, NF-A02/NF-A05/NF-CM02 surfaces, and retirement coverage | Whole-entry noninterference or a current `ModelStatus` |
+| `integration/` | C provenance, concrete witnesses, import, LLVM shape, candidate-bundle checks, the ungated NFv2 release-carrier structural contract, capability-gated NFv2 preservation/codegen contracts, the digest-locked executable SPS reference snapshot, the seven SPS lecture contracts, executable metatheory witnesses, and the NF-A02/A05/A06/A07/A09/A14/CM02/CM03 preflight surfaces | Whole-entry noninterference, `NFConforms`, or a current `ModelStatus` |
 | `p4-risk/` | Target-specific assembly/code-generation risk evidence | Model proof or closed deployment refinement |
 | `sps/` | The capability-gated Rev4.1 V2 exact-verifier contract | No result without the exact V2 verifier and materialized bundle |
-| `contracts/` | The digest-locked SPS Rev4.1 interface package, stage-report refusal boundary, cross-file `WFInputs` binding completeness, and typed replay/blocker aggregation | Any fixture `ModelStatus`; these validate interfaces and harness *expectations*, not verifier output |
+| `contracts/` | The digest-locked SPS Rev4.1 interface package and executable-reference snapshot, stage-report refusal boundary, cross-file `WFInputs` binding completeness, and typed replay/blocker aggregation | Any fixture `ModelStatus`; these validate interfaces and harness *expectations*, not verifier output |
 
 Design-only coalition examples live under `examples/`; post-MVP authorization
 and robust-declassification examples live under `examples/integrity/`. Neither
@@ -102,9 +103,35 @@ directory is discovered as a test suite.
 
 ## Fixture tiers
 
-Every current checked-in semantic seed is preflight-only. Its human snapshot
-says `sps: not-run`; it may preserve MLIR/LLVM shape or candidate policy
-bindings, but it cannot assert `NFConforms` or a computed `ModelStatus`.
+Every current checked-in semantic seed is preflight-only. Its V3 snapshot is a
+pure expectation document: it declares one expected final model/deployment/
+policy judgment and sparse typed properties for the intermediate endpoints the
+fixture cares about. It does not describe command execution, capabilities,
+lineage, report materialization, or `NFConforms`; lit owns those concerns.
+Passing endpoint observations are build-local harness evidence, never SPS
+reports.
+
+All 56 fixtures state their expected final judgment directly. The model split
+is 26 `Proved`, 21 `Counterexample`, and 9 `Unknown`; every fixture expects
+deployment `Open` and policy review `Complete`. Relevant `Proved` and
+`Counterexample` fixtures also select the security-relevant SPS event fields
+covered by that judgment, without embedding traces, payloads, witnesses, or
+receipts. Nine fixtures authenticate their existing candidate expected-run
+sidecar through a compact `reference`; the other 47 require no candidate
+artifact. Twelve fixtures separately inspect raw and canonicalized MLIR.
+
+A passing intermediate checkpoint means only that the observed endpoint
+matched its expected evidence. `finalize` checks that those checkpoint commands
+ran and matched; it is not a security verdict. The eventual authoritative
+endpoint is a validated actual `SPSRunReportV2`, whose model, deployment, and
+policy-review axes expose the end-to-end result. A candidate matcher is applied
+only after verifier execution is authenticated; it never substitutes for the
+report. The snapshot's final block says boldly what that future report is
+expected to contain; it is not copied into the actual-result column. A future
+`check-final --snapshot ... --report ...` comparison authenticates and checks
+an actual report without changing the snapshot schema. A result with an
+`Unknown` model axis or an open deployment/policy axis remains unresolved for
+end-to-end closure.
 
 A future claim requires a new per-case Rev4.1 V2 materialization
 containing frozen `artifact.bc`, exact `ArtifactIdentityV2` evidence, a
@@ -133,10 +160,14 @@ make check-artifacts   # target alias for check-candidates
 make check-integration # C provenance, witnesses, import, and LLVM shape
 make check-p4-risk     # target-bound risk evidence only
 make check-sps         # runs the feature-gated semantic suite (unsupported today)
+make check-sps-reference # verifies and executes the locked 19-case reference snapshot
 make check-contracts   # WFInputs binding completeness and the aggregation collapse
 make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled drift
+make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
+make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
 make list-tests        # discovery audit
-make list-fixture-status # concise expect/sps/entry inventory for all 54 cases
+make list-fixture-status # pipeline/state/endpoint inventory for all 56 cases
+make list-fixture-results # expected/actual/comparison terminal result table
 ```
 
 Only the capability-probed V2 verifier path is active. Supplying a V2 report or
@@ -175,6 +206,18 @@ skipped and the re-verified paths itself, using its own stand-in corpus.
 avoids silently running a stale, unversioned prototype binary. Missing optional
 targets or tools produce `UNSUPPORTED`, not a fabricated success.
 
+The executable reference bridge is deliberately narrower than the exact
+verifier path. `make check-sps-reference` verifies the vendored closure before
+and after execution, runs all 19 reference cases and 12 unit tests, and records
+coverage of 10 of the profile's 61 fixture families. Its claim boundary is
+`ExecutableReferenceOnly`: it cannot emit `NFConforms`, `Proved`, or another
+computed `ModelStatus`, and it is not a third fixture tier. Z3 is required;
+missing CVC5 remains explicitly open. `Z3=/absolute/path/to/z3` selects that
+exact executable, including a custom basename; the runner does not fall back
+to another ambient installation.
+Set `SPS_REFERENCE_ROOT=/path/to/SPS` to additionally require byte-for-byte
+agreement with the authoritative source tree.
+
 ## SPS-owned Rev4.1 interfaces
 
 SPS owns the Rev4.1 serialized records, unions, literals, reason classes, and
@@ -210,6 +253,20 @@ bindings, and exact bitcode bytes. It constructs and validates the closed
 proof, and schedule bindings required for `CompletedV2`. This is a file-boundary
 check; it does not run the verifier, establish `NFConforms`, or authenticate the
 reported `ModelStatus`.
+
+An executable `SPSRunReportV2EndpointV1` is therefore stricter than this
+packaging check. It must be capability-gated on both the exact Rev4.1 verifier
+and materialized inputs, invoke the lit `%sps-verifier` directly with the
+declared bundle, and match the producer executable's SHA-256 to
+`proofConfiguration.exactVerifierBuildDigest`. It must also carry exactly one
+typed expected contract; an authenticated report with an unexpected result
+cannot pass a regression test. Nine candidate cases delegate to digest-bound
+expected-run sidecars, while 47 compare against inline typed report, status,
+AuditAll, and replay matchers. Once report and verifier authentication succeed,
+an unexpected report is retained below the build root for result inspection
+while the checkpoint records `FailedV1`. Counterexample contracts that require
+a `bad_state_class` remain unresolved until an authenticated restricted-evidence
+projection exposes that fact; a public receipt alone is insufficient.
 
 ## Rev4.1 NFv2 release carrier
 
@@ -285,9 +342,14 @@ Rev4 has three independent result axes:
 ```text
 ModelStatus       = Proved | Counterexample(receiptId)
                   | Unknown(PublicDispositionReasonV2)
-DeploymentStatus  = Open(P4EvidenceProfileUnavailable) | Closed(P4EvidenceBundle)
+DeploymentStatus  = Open(P4EvidenceProfileUnavailable)
 PolicyReviewStatusV2 = Complete | Findings(finite set) | Incomplete(Reason)
 ```
+
+The currently vendored Rev4.1 registry has no `DeploymentStatusV2.Closed`
+constructor. Consequently every fixture expectation remains deployment-open,
+and this harness cannot honestly report `EndToEndClosed` until an upstream SPS
+interface revision defines and validates a closed-deployment arm.
 
 The public counterexample constructor carries a fresh restricted-evidence
 `receiptId`, never the witness itself.

@@ -61,12 +61,13 @@
 # RUN: mkdir -p %t.a/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.a/tools/check_wfinputs.py
 # RUN: cp %harness/tools/fixture_layout.py %t.a/tools/fixture_layout.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.a/tools/checkpoint_model.py
 # RUN: cp -R %fixtures %t.a/fixtures
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.a/fixtures/audience-mismatch/bad/candidate'); side=root/'policy.json'; value=json.loads(side.read_text()); value['release_bindings']=['totally_bogus_release_id_not_in_table']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.a/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=BINDDOM
 # Both inclusions are reported: the dangling binding and the now-unbound entry.
 # BINDDOM: fixtures/audience-mismatch/bad/candidate/policy.json: release_bindings[0]: release id 'totally_bogus_release_id_not_in_table' does not resolve to any release-table entries id; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
-# BINDDOM: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].id: release id 'masked_class_candidate' is not bound by policy release_bindings; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
+# BINDDOM: fixtures/audience-mismatch/bad/candidate/release-table.json: entries[0].id: release id 'masked-class' is not bound by policy release_bindings; dom(M.releaseBindings) is not equal to dom(R) (WFInputs item 3) (would-be disposition reason class: ManifestMismatch)
 # The reason class is quoted as reporting text, never issued as a result.
 # BINDDOM: no ModelStatus, DeploymentStatus, PolicyReviewStatus, receipt, or witness is computed
 # Pinned as a cardinality: exactly the two domain-equality violations name a
@@ -82,6 +83,7 @@
 # RUN: mkdir -p %t.b/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.b/tools/check_wfinputs.py
 # RUN: cp %harness/tools/fixture_layout.py %t.b/tools/fixture_layout.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.b/tools/checkpoint_model.py
 # RUN: cp -R %fixtures %t.b/fixtures
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.b/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['audience']=['mallory']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.b/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=AUDIENCE
@@ -95,6 +97,7 @@
 # RUN: mkdir -p %t.c/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.c/tools/check_wfinputs.py
 # RUN: cp %harness/tools/fixture_layout.py %t.c/tools/fixture_layout.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.c/tools/checkpoint_model.py
 # RUN: cp -R %fixtures %t.c/fixtures
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.c/fixtures/audience-mismatch/bad/candidate'); side=root/'release-table.json'; value=json.loads(side.read_text()); value['entries'][0]['footprint']=['ghost_component']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['release-table.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.c/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=FOOTPRINT
@@ -110,6 +113,7 @@
 # RUN: mkdir -p %t.d/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.d/tools/check_wfinputs.py
 # RUN: cp %harness/tools/fixture_layout.py %t.d/tools/fixture_layout.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.d/tools/checkpoint_model.py
 # RUN: cp -R %fixtures %t.d/fixtures
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.d/fixtures/abi-alias/disjoint-control/candidate'); side=root/'policy.json'; value=json.loads(side.read_text()); value['fixed_observation_model']='Theta_something_else_entirely'; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['policy.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.d/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=THETA
@@ -125,6 +129,7 @@
 # RUN: mkdir -p %t.e/tools
 # RUN: cp %harness/tools/check_wfinputs.py %t.e/tools/check_wfinputs.py
 # RUN: cp %harness/tools/fixture_layout.py %t.e/tools/fixture_layout.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.e/tools/checkpoint_model.py
 # RUN: cp -R %fixtures %t.e/fixtures
 # RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.e/fixtures/launder-scan/model-clean-p4-open/candidate'); side=root/'contracts.json'; value=json.loads(side.read_text()); del value['timing_environment']; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['contracts.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
 # RUN: not %python %t.e/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=NOTIMING

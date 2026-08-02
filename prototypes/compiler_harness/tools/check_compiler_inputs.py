@@ -64,6 +64,7 @@ def check(llvm_bin: Path) -> None:
                     "-Wpedantic",
                     "-Werror",
                     "-fno-builtin",
+                    f"-I{ROOT / 'include'}",
                     "-O2",
                     "-c",
                     "-emit-llvm",

@@ -1,0 +1,74 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-OUTPUT-WRITEBACK",
+  "caseId": "output-writeback-high-leak",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 2.2",
+    "Normative 7.3"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.writeback",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": null,
+        "roots": [
+          {
+            "id": "out",
+            "byteLength": 1,
+            "host": "caller",
+            "outputId": "root.out",
+            "initialBytes": [
+              0
+            ],
+            "initialized": [
+              true
+            ]
+          }
+        ]
+      },
+      "statements": [
+        {
+          "op": "store",
+          "site": "store.out",
+          "root": "out",
+          "offset": 0,
+          "value": {
+            "var": "secret"
+          },
+          "byteOrder": "LittleEndian"
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true
+  }
+}

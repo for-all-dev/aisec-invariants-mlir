@@ -1,16 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/breach-compressed-length/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/breach-compressed-length/bad/breach_compressed_length.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic direct output-memory flow; exact product witnesses lengths 31 and 32
 // scope limit: the match-to-length relation is already inlined; no compressor is encoded
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @breach_compressed_length_bad
-// CHECK-SAME: %[[SECRET:[a-zA-Z0-9_]+]]: i8 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[GUESS:[a-zA-Z0-9_]+]]: i8, %[[PRIVATE:[a-zA-Z0-9_]+]]: i32, %[[SINK:[a-zA-Z0-9_]+]]: !llvm.ptr {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
-// CHECK: %[[MATCH:[0-9]+]] = llvm.icmp "eq" %[[SECRET]], %[[GUESS]] : i8
-// CHECK: %[[GAIN:[0-9]+]] = llvm.zext %[[MATCH]] : i1 to i32
-// CHECK: %[[WIRE:[0-9]+]] = llvm.sub {{.*}}, %[[GAIN]]
-// CHECK: llvm.store %[[WIRE]], %[[SINK]] {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
 module {
   llvm.func @breach_compressed_length_bad(
       %secret_byte: i8 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

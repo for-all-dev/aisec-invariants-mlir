@@ -1,34 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br --implicit-check-not=llvm.getelementptr
-// RUN: %mlir-opt %s | %FileCheck %s --check-prefix=COUNT --implicit-check-not=llvm.cond_br --implicit-check-not=llvm.getelementptr
+// RUN: %checkpoint-runner run --snapshot fixtures/secret-embedding-index/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/secret-embedding-index/fixed/secret_embedding_index.fixed.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic source address trace; preservation is checked separately in compiler-conformance evidence
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @secret_embedding_index_fixed
-// CHECK-SAME: %[[TABLE:[a-zA-Z0-9_]+]]: !llvm.ptr, %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}
-// CHECK: %[[ZERO32:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK: %[[ZERO64:[0-9]+]] = llvm.mlir.constant(0 : i64) : i64
-// CHECK: %[[ONE64:[0-9]+]] = llvm.mlir.constant(1 : i64) : i64
-// CHECK: %[[BOUND:[0-9]+]] = llvm.mlir.constant(16 : i64) : i64
-// CHECK: %[[MASK:[0-9]+]] = llvm.mlir.constant(15 : i32) : i32
-// CHECK: %[[MASKED_SECRET:[0-9]+]] = llvm.and %[[SECRET]], %[[MASK]]
-// CHECK-NOT: llvm.getelementptr
-// CHECK: llvm.br ^bb1(%[[ZERO64]], %[[ZERO32]] : i64, i32)
-// CHECK: ^bb1(%[[INDEX:[0-9]+]]: i64,
-// CHECK: %[[IN_RANGE:[0-9]+]] = llvm.icmp "ult" %[[INDEX]], %[[BOUND]] : i64
-// CHECK: llvm.cond_br %[[IN_RANGE]],
-// CHECK-NOT: llvm.getelementptr
-// CHECK: %[[SLOT:[0-9]+]] = llvm.getelementptr %[[TABLE]][%[[INDEX]]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["address"]}
-// CHECK: %[[VALUE:[0-9]+]] = llvm.load %[[SLOT]]
-// CHECK: %[[NEXT_ACC:[0-9]+]] = llvm.or
-// CHECK: %[[NEXT_INDEX:[0-9]+]] = llvm.add %[[INDEX]], %[[ONE64]]
-// CHECK: llvm.br ^bb1(%[[NEXT_INDEX]], %[[NEXT_ACC]] : i64, i32)
-// CHECK-NOT: llvm.getelementptr
-// CHECK: llvm.return
 //
-// COUNT-COUNT-1: llvm.cond_br
-// COUNT-COUNT-1: llvm.getelementptr
 module {
   llvm.func @secret_embedding_index_fixed(
       %table: !llvm.ptr,

@@ -1,19 +1,77 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wolfssl_3580_select_fixed
-
 c_evidence:
-  - ../sources/wolfssl_3580_mask_fixed.c
-
+- fixtures/wolfssl-3580-mask/target-fixed/wolfssl_3580_mask_fixed.c
 secret:
-  - {arg: 0, name: table_index}
-
+- arg: 0
+  name: table_index
 public:
-  - {observable: control}
-  - {observable: timing}
-
-expect: no-violation
-
-because:
-  - a branchless arithmetic mask keeps target-model control independent of the secret
-
-sps: not-run
+- observable: control
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+    - kind: Latency
+      field: configuredClass
+    because: a branchless arithmetic mask keeps target-model control independent of
+      the secret
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wolfssl_3580_select_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.xor
+          - llvm.sub
+          - llvm.or
+          - llvm.lshr
+          - llvm.and
+          - llvm.return
+          excludes:
+          - llvm.cond_br
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 3
+        operation.occurrences.llvm.xor:
+          count:
+            min: 2
+        operation.occurrences.llvm.sub:
+          count:
+            min: 2
+    rv32-backend-control:
+      kind: assembly
+      function: wolfssl_3580_mask_fixed
+      properties:
+        instruction.mnemonics:
+          excludes:
+          - beq
+          - bne
+          - blt
+          - bge

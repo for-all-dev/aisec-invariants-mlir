@@ -1,0 +1,55 @@
+# Run the complete digest-locked SPS executable reference against the
+# independently vendored Rev4.1 interface distribution.  The manifest lives
+# inside that vendor directory; the runner's optional flags deliberately
+# support this harness layout without weakening the builder's closure check.
+
+# REQUIRES: z3
+
+# RUN: %python %harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=LOCK
+# RUN: env PYTHONDONTWRITEBYTECODE=1 %python %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py --interface-dist %harness/contracts/vendor/sps-rev4.1 --interface-manifest %harness/contracts/vendor/sps-rev4.1/upstream-manifest.json > %t.out 2>&1
+# RUN: %python %harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=LOCK
+# RUN: %FileCheck %s --input-file=%t.out
+# RUN: grep -c '^PASS ' %t.out | %FileCheck %s --check-prefix=CASE-COUNT
+# RUN: not grep -E 'ModelStatus|SPS-PONF-v2' %t.out
+
+# CHECK: Ran 12 tests
+# CHECK: OK
+# CHECK: PASS bad-circuit-mutation-rejected
+# CHECK: PASS replay-wire-valid
+# CHECK: SPS executable reference checks: PASSED (19 cases, 10/61 profile families executable)
+# CHECK: Optional cross-solver status: cvc5={{(available-and-checked|unavailable-open)}}
+# CASE-COUNT: 19
+# LOCK: SPS executable reference source comparison: {{SKIPPED.*|PERFORMED.*}}
+# LOCK: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly
+
+# The configured solver path is authoritative even when its basename is not
+# `z3` and no ambient z3 is on PATH. This catches accidental fallback to a
+# different installation.
+# RUN: rm -f %t.z3-custom
+# RUN: ln -s %z3 %t.z3-custom
+# RUN: env Z3=%t.z3-custom PATH=/usr/bin:/bin PYTHONDONTWRITEBYTECODE=1 %python %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py --skip-unit-tests --interface-dist %harness/contracts/vendor/sps-rev4.1 --interface-manifest %harness/contracts/vendor/sps-rev4.1/upstream-manifest.json > %t.custom-z3.out 2>&1
+# RUN: grep -c '^PASS ' %t.custom-z3.out | %FileCheck %s --check-prefix=CASE-COUNT
+
+# The runner independently uses the same recursive fixture-closure rule. A
+# nested JSON cannot be ignored merely because the top-level catalog remains
+# unchanged.
+# RUN: rm -rf %t.reference-root
+# RUN: cp -R %harness/contracts/vendor/sps-reference-rev4 %t.reference-root
+# RUN: mkdir -p %t.reference-root/reference/fixtures/nested
+# RUN: cp %t.reference-root/reference/fixtures/replay-wire-valid.json %t.reference-root/reference/fixtures/nested/uncatalogued.json
+# RUN: not env Z3=%z3 PYTHONDONTWRITEBYTECODE=1 %python %t.reference-root/reference/run_reference_checks.py --skip-unit-tests --interface-dist %harness/contracts/vendor/sps-rev4.1 --interface-manifest %harness/contracts/vendor/sps-rev4.1/upstream-manifest.json 2>&1 | %FileCheck %s --check-prefix=NESTED-RUNNER
+# NESTED-RUNNER: SPS executable reference checks: FAILED: fixture set differs from catalog:
+
+# The override is an exact pair.  Supplying only a dist or only a manifest is
+# rejected instead of falling back into the intentionally lean reference tree.
+# RUN: not env PYTHONDONTWRITEBYTECODE=1 %python %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py --skip-unit-tests --interface-dist %harness/contracts/vendor/sps-rev4.1 2>&1 | %FileCheck %s --check-prefix=PAIR
+# RUN: not env PYTHONDONTWRITEBYTECODE=1 %python %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py --skip-unit-tests --interface-manifest %harness/contracts/vendor/sps-rev4.1/upstream-manifest.json 2>&1 | %FileCheck %s --check-prefix=PAIR
+# PAIR: SPS executable reference checks: FAILED: --interface-dist and --interface-manifest must be supplied together
+
+# A manifest mutation cannot be accepted through the bridge.
+# RUN: rm -rf %t.interfaces
+# RUN: cp -R %harness/contracts/vendor/sps-rev4.1 %t.interfaces
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.interfaces/upstream-manifest.json'); p.write_bytes(p.read_bytes().replace(b'SPS-Interface-Manifest-v2',b'SPS-Interface-Manifest-x2',1))"
+# RUN: not env PYTHONDONTWRITEBYTECODE=1 %python %harness/contracts/vendor/sps-reference-rev4/reference/run_reference_checks.py --skip-unit-tests --interface-dist %t.interfaces --interface-manifest %t.interfaces/upstream-manifest.json 2>&1 | %FileCheck %s --check-prefix=DRIFT
+# DRIFT: SPS executable reference checks: FAILED: Rev4.1 interface package failed validation:
+# DRIFT-SAME: SPS Rev4.1 interface check: FAILED:

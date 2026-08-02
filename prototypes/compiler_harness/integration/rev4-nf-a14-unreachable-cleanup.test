@@ -1,0 +1,98 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-A14 -- VERSIONED UNREACHABLE CLEANUP (preflight seed).
+#
+# SPSFinalDeadCleanup_v2 may remove only entry-unreachable blocks and
+# classifier-approved zero-use instructions.  It may not use a constant guard,
+# a policy premise, or a solver result as an excuse to delete a CFG edge.  This
+# test pins that distinction and then shows that stock simplifycfg,dce is only
+# a broader contrast, not an implementation of the SPS cleanup.
+#
+# Nothing here runs the versioned LLVM 22.1.8 normalizer, produces stable-site
+# telemetry, establishes NFConforms, or computes a ModelStatus.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a14-unreachable-cleanup.ll.in -o %t.before.bc
+# RUN: %opt -passes=verify -disable-output %t.before.bc
+# RUN: %llvm-dis %t.before.bc -o %t.before.ll
+
+# The source contains all three important cases: a genuinely orphaned block,
+# a block behind a literal-false but present CFG edge, and a runtime edge.
+# RUN: %FileCheck %s --check-prefix=A14-BEFORE --input-file=%t.before.ll
+# A14-BEFORE-LABEL: define i32 @a14_dead_cleanup(
+# A14-BEFORE: dead:
+# A14-BEFORE-NEXT: %dead.freeze = freeze i32 poison
+# A14-BEFORE-NEXT: br label %join
+# A14-BEFORE: %value = phi i32 [ %left_value, %left ], [ %right_value, %right ], [ %dead.freeze, %dead ]
+# A14-BEFORE-NEXT: %unused = add i32 %value, 7
+# A14-BEFORE-LABEL: define i32 @a14_literal_false_edge()
+# A14-BEFORE: br i1 false, label %syntactically_reachable, label %exit
+# A14-BEFORE: syntactically_reachable:
+# A14-BEFORE-NEXT: %edge.freeze = freeze i32 poison
+# A14-BEFORE-LABEL: define i32 @a14_runtime_reachable(i1 %guard)
+# A14-BEFORE: br i1 %guard, label %choice, label %exit
+# A14-BEFORE: choice:
+# A14-BEFORE-NEXT: %live.freeze = freeze i32 poison
+
+# The harness oracle computes graph reachability from the textual CFG without
+# folding the literal-false condition.  Its reason strings are expectations for
+# a future SPS run, never computed dispositions.
+# RUN: %python %harness/tools/check_rev4_nf_seeds.py --case a14 %t.before.ll | %FileCheck %s --check-prefix=A14-ORACLE
+# A14-ORACLE: case=NF-A14
+# A14-ORACLE: unreachable-block=@a14_dead_cleanup:dead
+# A14-ORACLE: reachable-freeze-block=@a14_literal_false_edge:syntactically_reachable
+# A14-ORACLE: reachable-freeze-block=@a14_runtime_reachable:choice
+# A14-ORACLE: zero-use-removal-seed=@a14_dead_cleanup:%unused opcode=add classifier-result=NotComputed
+# A14-ORACLE: SPS-Harness-Expectation: Unknown(FreezeMayChoose)
+# A14-ORACLE: tier=CandidateOnly
+# A14-ORACLE-NEXT: nf_conforms=NotEvaluated
+# A14-ORACLE-NEXT: model_status=NotComputed
+# A14-ORACLE-NEXT: deployment_status=NotComputed
+
+# Stock LLVM removes the genuinely dead material, but also folds the
+# literal-false reachable edge and most surrounding control flow.  That makes
+# it useful as a contrast only.  The runtime-reachable freeze must survive.
+# RUN: %opt -passes=simplifycfg,dce %t.before.bc -o %t.stock.bc
+# RUN: %opt -passes=verify -disable-output %t.stock.bc
+# RUN: %llvm-dis %t.stock.bc -o %t.stock.ll
+# RUN: not grep -q '^dead:' %t.stock.ll
+# RUN: not grep -q '%unused' %t.stock.ll
+# RUN: not grep -q '%edge.freeze' %t.stock.ll
+# RUN: grep -c 'freeze i32 poison' %t.stock.ll | %FileCheck %s --check-prefix=A14-STOCK-FREEZE
+# A14-STOCK-FREEZE: 1
+# RUN: %FileCheck %s --check-prefix=A14-STOCK --input-file=%t.stock.ll
+# A14-STOCK-LABEL: define i32 @a14_literal_false_edge()
+# A14-STOCK-NEXT: entry:
+# A14-STOCK-NEXT: ret i32 0
+# A14-STOCK-LABEL: define i32 @a14_runtime_reachable(i1 %guard)
+# A14-STOCK: %live.freeze = freeze i32 poison
+# A14-STOCK: select i1 %guard, i32 %live.freeze, i32 0
+
+# Mutation 1 removes only the literal-false edge.  The IR still verifies, but
+# the graph oracle rejects the now-unreachable companion.
+# RUN: sed '/br i1 false/ s@br i1 false.*@br label %exit@' %harness/integration/Inputs/sps-rev4-nf/a14-unreachable-cleanup.ll.in > %t.no-false-edge.ll
+# RUN: %llvm-as %t.no-false-edge.ll -o %t.no-false-edge.bc
+# RUN: %opt -passes=verify -disable-output %t.no-false-edge.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a14 %t.no-false-edge.ll 2>&1 | %FileCheck %s --check-prefix=A14-NO-EDGE
+# A14-NO-EDGE: error: a14_literal_false_edge: syntactically_reachable must be CFG-reachable
+
+# Mutation 2 preserves the orphaned block and PHI edge but removes its
+# poison/freeze payload.  This prevents an empty dead-block check from passing.
+# RUN: sed 's/%dead.freeze = freeze i32 poison/%dead.freeze = add i32 0, 0/' %harness/integration/Inputs/sps-rev4-nf/a14-unreachable-cleanup.ll.in > %t.no-dead-freeze.ll
+# RUN: %llvm-as %t.no-dead-freeze.ll -o %t.no-dead-freeze.bc
+# RUN: %opt -passes=verify -disable-output %t.no-dead-freeze.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a14 %t.no-dead-freeze.ll 2>&1 | %FileCheck %s --check-prefix=A14-NO-DEAD-FREEZE
+# A14-NO-DEAD-FREEZE: error: a14_dead_cleanup:dead must contain freeze i32 poison
+
+# Mutation 3 preserves the zero-use name/count but replaces the arithmetic seed
+# with a potentially side-effectful external call. Removability cannot be
+# inferred from use count without both pinned classifiers.
+# RUN: sed 's/%unused = add i32 %value, 7/%unused = call i32 @a14_observable()/' %harness/integration/Inputs/sps-rev4-nf/a14-unreachable-cleanup.ll.in > %t.side-effect.ll
+# RUN: %llvm-as %t.side-effect.ll -o %t.side-effect.bc
+# RUN: %opt -passes=verify -disable-output %t.side-effect.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a14 %t.side-effect.ll 2>&1 | %FileCheck %s --check-prefix=A14-SIDE-EFFECT
+# A14-SIDE-EFFECT: error: a14_dead_cleanup:%unused must be the pinned side-effect-free add seed
+
+# INTERPRETATION: green means the candidate preserves the exact distinction
+# between entry-unreachable and merely semantically infeasible material, and
+# that LLVM 17 supplies a deliberately broader cleanup contrast.  It does not
+# mean SPSFinalDeadCleanup_v2 ran or that its telemetry was authenticated.

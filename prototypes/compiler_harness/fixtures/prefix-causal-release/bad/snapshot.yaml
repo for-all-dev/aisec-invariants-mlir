@@ -1,21 +1,59 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: prefix_causal_release_bad
-
 c_evidence:
-  - ../sources/prefix_causal_release_bad.c
-
+- fixtures/prefix-causal-release/bad/prefix_causal_release_bad.c
 secret:
-  - {arg: 0, name: secret}
-
+- arg: 0
+  name: secret
 public:
-  - {memory_at_arg: 1, name: public_channel}
-
+- memory_at_arg: 1
+  name: public_channel
 allowed:
-  - the release may authorize secret only from its own occurrence onward
-
-expect: violation
-
-because:
-  - the public observation occurs before the authorized release
-
-sps: not-run
+- the release may authorize secret only from its own occurrence onward
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: pre-release-public-observation
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      first_bad: true
+    - kind: Release
+      field: valueBytes
+    because: the public observation occurs before the authorized release
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - ReleaseCarrierMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - prefix_causal_release_bad
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.call
+        call.callees:
+          contains:
+          - sps_release_policy_h_candidate

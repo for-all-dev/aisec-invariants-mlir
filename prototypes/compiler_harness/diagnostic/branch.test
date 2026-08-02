@@ -2,6 +2,5 @@
 # Fixture tier: CandidateOnly; output is scanner-specific triage, not Section 10.
 #
 # Unary diagnostic candidate only: this does not establish an SPS ModelStatus.
-# RUN: %sps-scan --refine-address %fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir | %FileCheck %s
-# CHECK: [secret-dependent-branch] llvm.cond_br
-# CHECK: findings: 1
+# RUN: %checkpoint-runner run --snapshot fixtures/loop-bounds/secret-trip-count-bad/snapshot.yaml --pipeline scanner-diagnostic --endpoint - --records %t.checkpoints -- %sps-scan --refine-address %fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

@@ -7,19 +7,35 @@ does not strengthen that claim.
 ## `CandidateOnly`
 
 A human preflight fixture contains one MLIR file and one `snapshot.yaml` with
-`format_id: SPS-Harness-Fixture-Snapshot-v2` under
+`format_id: SPS-Harness-Fixture-Snapshot-v3` under
 `fixtures/<family>/<case>/`. Family C evidence lives under the sibling
-`fixtures/<family>/sources/` directory and records provenance; it is not a
+case directory and records provenance; it is not a
 claim that the C source compiles to the checked-in MLIR or candidate bitcode.
-The snapshot says `sps: not-run` and records only the
-claim-relevant boundary, expectation, and short reason. It may assert parsing,
-shape, or the behavior of a non-authoritative scanner.
+The snapshot records the claim-relevant boundary, one direct expected final
+judgment, sparse SPS event selectors, and typed properties for each declared
+pipeline. Lit owns commands, ownership, capabilities, ordering, and artifact
+paths. Build-local checkpoint observations remain nonclaimable.
+
+All 56 Snapshot V3 fixtures declare a complete expected final judgment. The
+model split is 26 `Proved`, 21 `Counterexample`, and 9 `Unknown`; all declare
+deployment `Open` and policy `Complete`. Nine use a manifest-authenticated
+`reference` to the existing candidate expected-run sidecar; 47 require no
+candidate artifact. An intermediate `PassedV1` or successful `finalize` is not
+a security conclusion, and the expected final block is not an actual report.
+A fixture's actual end-to-end result becomes available only when a separate
+`check-final` path validates an `SPSRunReportV2` and compares its independent
+model, deployment, and policy-review axes with the snapshot expectation.
 
 Nine cases contain a quarantined `candidate/` directory while their LLVM-17
 compiler-pipeline tests remain useful. Each directory contains a local
 `bundle-spec.json`, candidate bitcode and its derived review rendering, plus
 prototype sidecars. These are not frozen Rev4 artifacts and do not alter the
-case snapshot's SPS state.
+fixture tier. Their expected-run sidecars are authenticated expectation
+references, not actual `SPSRunReportV2` values.
+
+The current vendored `DeploymentStatusV2` union has only the `Open` arm. It
+cannot represent `Closed`, so neither these fixtures nor the result view may
+claim `EndToEndClosed` before an upstream SPS interface revision adds that arm.
 
 It must record the following claim boundary:
 

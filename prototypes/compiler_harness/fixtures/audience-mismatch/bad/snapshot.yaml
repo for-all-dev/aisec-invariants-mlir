@@ -1,21 +1,69 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: audience_mismatch_bad
-
 c_evidence:
-  - ../sources/audience_mismatch_bad.c
-
+- fixtures/audience-mismatch/bad/audience_mismatch_bad.c
 secret:
-  - {arg: 0, name: logits}
-
+- arg: 0
+  name: logits
 public:
-  - {memory_at_arg: 2, name: bob_channel}
-
+- memory_at_arg: 2
+  name: bob_channel
 allowed:
-  - only Alice may observe the released class
-
-expect: violation
-
-because:
-  - a release authorized only for Alice is also stored to Bob's channel
-
-sps: not-run
+- only Alice may observe the released class
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: bob-visible-output-while-release-obligation-active
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      first_bad: true
+    - kind: Release
+      field: valueBytes
+    because: a release authorized only for Alice is also stored to Bob's channel
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - CrossLayerReferencesResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - ReleaseCarrierMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_mismatch_bad
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.store
+        call.callees:
+          contains:
+          - sps_release_masked_class_candidate
+        operation.occurrences.llvm.store:
+          count:
+            min: 2
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

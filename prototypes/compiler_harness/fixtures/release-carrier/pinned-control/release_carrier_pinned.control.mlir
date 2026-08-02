@@ -1,4 +1,6 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/release-carrier/pinned-control/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/release-carrier/pinned-control/release_carrier_pinned.control.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic only. No ModelStatus claim.
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
@@ -35,19 +37,6 @@
 // `mlir-opt --inline --cse` and asserts the call survives alongside an unpinned
 // twin where it does not. That compiler fact does not grant NFv2 conformance.
 //
-// CHECK-LABEL: llvm.func @sps_release_invalid_callable
-// CHECK-SAME: passthrough = ["noinline", "nomerge", "noduplicate", "nobuiltin"]
-// CHECK-LABEL: llvm.func @release_carrier_pinned_control
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: llvm.call @sps_release_invalid_callable
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[1]"]
-// CHECK-SAME: sps.observable_candidate = ["release-identity"]
-// CHECK-SAME: sps.site_alias = "p-invalid-callable-release-carrier-call"
-// CHECK: llvm.store {{.*}}sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
 module {
   // The outlined release wrapper. Its body is ordinary optimisable arithmetic;
   // only the boundary is pinned.

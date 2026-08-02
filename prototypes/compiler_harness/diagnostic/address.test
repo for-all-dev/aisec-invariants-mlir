@@ -1,5 +1,4 @@
 # REQUIRES: sps-scan-unary
 # Fixture tier: CandidateOnly; output is scanner-specific triage, not Section 10.
-# RUN: %sps-scan --refine-address %fixtures/secret-embedding-index/bad/secret_embedding_index.bad.mlir | %FileCheck %s
-# CHECK: [secret-dependent-address]
-# CHECK: findings: 1
+# RUN: %checkpoint-runner run --snapshot fixtures/secret-embedding-index/bad/snapshot.yaml --pipeline scanner-diagnostic --endpoint - --records %t.checkpoints -- %sps-scan --refine-address %fixtures/secret-embedding-index/bad/secret_embedding_index.bad.mlir
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

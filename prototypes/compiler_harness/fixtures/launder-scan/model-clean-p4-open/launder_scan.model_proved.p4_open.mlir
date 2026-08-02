@@ -1,5 +1,8 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/launder-scan/model-clean-p4-open/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/launder-scan/model-clean-p4-open/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/launder-scan/model-clean-p4-open/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/launder-scan/model-clean-p4-open/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir --records %t.checkpoints
+
 //
 // candidate target tuple: x86_64-unknown-linux-gnu/generic/O2
 // scope note: this source shape contains one unconditional load and one select;
@@ -11,8 +14,8 @@
 //
 // It is branchless. There is no llvm.cond_br, no secret-dependent control flow,
 // and its differing selected value reaches only an authorized private output. Both
-// ../sources/launder_scan_bad.c (written with a ternary) and
-// ../sources/launder_scan_folded_bad.c (written with the standard arithmetic-mask
+// launder_scan_bad.c (written with a ternary) and the paired case-local
+// ../folded-mask-p4-open/launder_scan_folded_bad.c (written with the standard arithmetic-mask
 // constant-time idiom) compile to exactly this shape -- byte-identical IR --
 // because InstCombine folds the mask back into a select.
 //
@@ -36,21 +39,9 @@
 // run must independently bind frozen bitcode, run the exact product, and assess
 // paired final-machine observation refinement.
 //
-// CHECK-LABEL: llvm.func @launder_scan_model_proved
-// CHECK-SAME: sps.component_ref = "secret"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-NOT: llvm.cond_br
-// CHECK: %[[V:[0-9]+]] = llvm.load
-// CHECK: %[[C:[0-9]+]] = llvm.icmp "ne" %{{.*}}, %{{.*}} : i32
-// CHECK: %[[R:[0-9]+]] = llvm.select %[[C]], %[[V]], %{{.*}} {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]", "snapshot.public[2]"], sps.observable_candidate = ["control", "address", "timing"]}
-// CHECK-NOT: llvm.cond_br
-// CHECK: llvm.store %[[R]], %{{.*}} {sps.output_ref = "owner-private-result", sps.sink_class = "private"
 //
 // The branchlessness must survive canonicalization, or the fixture stops being
 // the analyzed-clean artifact it is modelling.
-// STABLE-NOT: llvm.cond_br
-// STABLE: llvm.select
 module {
   llvm.func @launder_scan_model_proved(
       %secret: i32 {sps.component_ref = "secret", sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

@@ -58,15 +58,17 @@
       "id": "NF-A06",
       "title": "Masked memory to guarded lanes",
       "expected": "Accept exact guarded-lane lowering while retaining every introduced branch and address event",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a06-masked-memory-guarded-lanes.test"],
+      "gap": "LLVM 17 pins guarded active-lane control flow, passthrough values, access counts, offsets, and the stock scalarizer's residual-vector and copied-alignment limitations. LLVM 22.1.8 SPS normalization, exact commonAlignment values, zero residual inventory, branch/address event inventory, and NFConforms remain absent"
     },
     {
       "id": "NF-A07",
       "title": "Closed direct-call analysis inlining",
       "expected": "Accept bounded analysis-time expansion of an eligible acyclic internal direct call without mutating the artifact",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a07-direct-call-expansion.test"],
+      "gap": "Direct, recursive, indirect, and resource-limit shapes plus a mutating stock-inline contrast are pinned. Identity-preserving semantic expansion, exact cap accounting, pointer/memory/event preservation, and a computed disposition remain absent"
     },
     {
       "id": "NF-A08",
@@ -80,8 +82,9 @@
       "id": "NF-A09",
       "title": "Exhausted bounded loop",
       "expected": "Encode BoundExhausted and prove it unreachable from the public semantic bound; K_loop supplies no premise",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a09-bound-exhaustion.test"],
+      "gap": "The canonical loop shape and public-bound 0, 1, and 16 cases, cap shortfall/adequacy, aligned exhaustion, and one-lane mismatch expectations are pinned. ExpandV2, retained BoundExhausted semantics, horizon derivation, adequacy proof, relational solving, and exact replay remain absent"
     },
     {
       "id": "NF-A10",
@@ -122,8 +125,9 @@
       "id": "NF-A14",
       "title": "Versioned unreachable cleanup",
       "expected": "Accept only pinned CFG-unreachable cleanup with recorded sites; reachable unsupported operations remain Unknown",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a14-unreachable-cleanup.test"],
+      "gap": "LLVM 17 input graph reachability and the broader simplifycfg,dce contrast pin orphaned poison/freeze removal, PHI repair, zero-use cleanup, a literal-false CFG edge, and a runtime-reachable freeze. The exact versioned cleanup, stable-site telemetry, residual audit, and computed FreezeMayChoose disposition remain absent"
     },
     {
       "id": "NF-A15",
@@ -153,8 +157,9 @@
       "id": "NF-CM03",
       "title": "ABI attribute stripped",
       "expected": "Unknown(NormalizerMismatch) or Unknown(UnsupportedType)",
-      "harness_status": "pending",
-      "seeds": []
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-cm03-abi-attribute-stripping.test"],
+      "gap": "LLVM 17 round-trip preservation and separate byte-changing mutations cover definition and call-site signext, zeroext, sret, byval, inreg, and fastcc spellings. Exact Class-A audit classification, canonical LLVM 22.1.8 normalizer refusal, and computed NormalizerMismatch or UnsupportedType remain absent"
     },
     {
       "id": "NF-CM04",

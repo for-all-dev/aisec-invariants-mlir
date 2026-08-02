@@ -28,10 +28,11 @@ config.excludes = [
 
 _root = os.path.dirname(os.path.abspath(__file__))
 config.test_source_root = _root
-config.test_exec_root = os.environ.get(
-    "LIT_BUILD_ROOT", os.path.join(_root, "build", "lit")
+config.test_exec_root = os.path.abspath(
+    os.environ.get("LIT_BUILD_ROOT", os.path.join(_root, "build", "lit"))
 )
 os.makedirs(config.test_exec_root, exist_ok=True)
+config.environment["LIT_BUILD_ROOT"] = config.test_exec_root
 
 _llvm_bin = os.path.abspath(
     os.environ.get("LLVM_BIN", "/opt/homebrew/opt/llvm/bin")
@@ -84,6 +85,14 @@ _filecheck = _required_tool("FileCheck")
 _make = shutil.which("make")
 _host_cc = shutil.which(os.environ.get("HOST_CC", "cc"))
 _host_cc_command = _quote(os.path.realpath(_host_cc)) if _host_cc else "host-cc-unavailable"
+_z3 = _configured_executable("Z3", "z3")
+if _z3:
+    config.environment["Z3"] = _z3
+    config.environment["PATH"] = (
+        os.path.dirname(_z3)
+        + os.pathsep
+        + config.environment.get("PATH", "")
+    )
 
 
 def _xcrun_tool(name):
@@ -385,11 +394,54 @@ _has_sps_nfv2_intrinsic = _probe_sps_nfv2_intrinsic()
 _has_sps_nfv2_codegen = _probe_sps_nfv2_codegen(_has_sps_nfv2_intrinsic)
 
 
+def _probe_clang_tooling():
+    if not _llvm_config:
+        return False
+    includedir = _probe_output([_llvm_config, "--includedir"])
+    libdir = _probe_output([_llvm_config, "--libdir"])
+    if not includedir or not libdir:
+        return False
+    header = os.path.join(includedir.strip(), "clang", "Tooling", "Tooling.h")
+    library_root = libdir.strip()
+    libraries = (
+        "libclang-cpp.dylib",
+        "libclang-cpp.so",
+        "libclang-cpp.dll",
+    )
+    return os.path.isfile(header) and any(
+        os.path.isfile(os.path.join(library_root, name)) for name in libraries
+    )
+
+
+_has_clang_tooling = _probe_clang_tooling()
+
+
 _sps_scan = _configured_executable("SPS_SCAN")
 _sps_verifier = _configured_executable("SPS_VERIFIER")
 _sps_rev41_materialized = os.environ.get("SPS_REV41_MATERIALIZED", "")
 if _sps_rev41_materialized:
     _sps_rev41_materialized = os.path.abspath(_sps_rev41_materialized)
+_sps_source_annotations_root = os.environ.get("SPS_SOURCE_ANNOTATIONS_ROOT", "")
+if _sps_source_annotations_root:
+    _sps_source_annotations_root = os.path.abspath(_sps_source_annotations_root)
+    if not os.path.isdir(_sps_source_annotations_root):
+        lit_config.fatal(
+            "SPS_SOURCE_ANNOTATIONS_ROOT is configured but is not a directory: "
+            "{!r}".format(_sps_source_annotations_root)
+        )
+    config.environment["SPS_SOURCE_ANNOTATIONS_ROOT"] = (
+        _sps_source_annotations_root
+    )
+_sps_reference_root = os.environ.get("SPS_REFERENCE_ROOT", "")
+if _sps_reference_root:
+    _sps_reference_root = os.path.abspath(_sps_reference_root)
+    if not os.path.isdir(_sps_reference_root):
+        lit_config.fatal(
+            "SPS_REFERENCE_ROOT is configured but is not a directory: {!r}".format(
+                _sps_reference_root
+            )
+        )
+    config.environment["SPS_REFERENCE_ROOT"] = _sps_reference_root
 
 
 def _probe_sps_rev41_verifier(path):
@@ -460,6 +512,19 @@ config.substitutions.extend(
             if _sps_rev41_materialized
             else "sps-rev41-materialized-unavailable",
         ),
+        (
+            "%sps-source-annotations-root",
+            _quote(_sps_source_annotations_root)
+            if _sps_source_annotations_root
+            else "sps-source-annotations-root-unavailable",
+        ),
+        (
+            "%sps-reference-root",
+            _quote(_sps_reference_root)
+            if _sps_reference_root
+            else "sps-reference-root-unavailable",
+        ),
+        ("%z3", _optional_command(_z3, "z3-unavailable")),
         ("%python", _quote(sys.executable)),
         ("%make", _optional_command(_make, "make-unavailable")),
         ("%host-cc", _host_cc_command),
@@ -478,6 +543,22 @@ config.substitutions.extend(
         ("%llvm_bin", _quote(_llvm_bin)),
         ("%fixtures", _quote(os.path.join(_root, "fixtures"))),
         ("%harness", _quote(_root)),
+        (
+            "%checkpoint-runner",
+            "{} {}".format(
+                _quote(sys.executable),
+                _quote(os.path.join(_root, "tools", "checkpoint_runner.py")),
+            ),
+        ),
+        (
+            "%sps-boundary",
+            "{} {} --clang {} --llvm-config {}".format(
+                _quote(sys.executable),
+                _quote(os.path.join(_root, "tools", "sps_boundary.py")),
+                _optional_command(_clang, "clang-unavailable"),
+                _optional_command(_llvm_config, "llvm-config-unavailable"),
+            ),
+        ),
     ]
 )
 
@@ -517,6 +598,8 @@ if _llvm_dis:
     config.available_features.add("llvm-dis")
 if _llvm_config:
     config.available_features.add("llvm-config")
+if _has_clang_tooling:
+    config.available_features.add("clang-tooling")
 if _llvm_objdump:
     config.available_features.add("llvm-objdump")
 if _llvm_readobj:
@@ -535,6 +618,12 @@ if _has_sps_rev41_verifier:
     config.available_features.add("sps-rev4.1-verifier")
 if _sps_rev41_materialized and os.path.isdir(_sps_rev41_materialized):
     config.available_features.add("sps-rev4.1-materialized")
+if _sps_source_annotations_root and os.path.isdir(_sps_source_annotations_root):
+    config.available_features.add("sps-source-annotations-upstream")
+if _sps_reference_root:
+    config.available_features.add("sps-reference-upstream")
+if _z3:
+    config.available_features.add("z3")
 if _has_sps_nfv2_intrinsic:
     config.available_features.add("sps-nfv2-intrinsic")
 if _has_sps_nfv2_codegen:

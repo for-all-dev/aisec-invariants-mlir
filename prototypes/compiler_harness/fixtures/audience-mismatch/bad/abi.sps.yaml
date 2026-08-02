@@ -1,0 +1,45 @@
+source: audience_mismatch_bad.c
+relation: provenance-only
+
+entry:
+  id: audience-mismatch
+  symbol: audience_mismatch_bad
+  host: compute
+  function-type: "void (i32, ptr, ptr)"
+  return: void
+
+carriers:
+  logits:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+
+roots:
+  alice-channel:
+    argument: 1
+    host: alice-endpoint
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: alice-channel
+
+  bob-channel:
+    argument: 2
+    host: bob-endpoint
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: bob-channel
+
+aliases:
+  complete: true
+  relations:
+    - relation: disjoint
+      roots: [alice-channel, bob-channel]
+
+terminal-output-order:
+  normal-void: [alice-channel, bob-channel]

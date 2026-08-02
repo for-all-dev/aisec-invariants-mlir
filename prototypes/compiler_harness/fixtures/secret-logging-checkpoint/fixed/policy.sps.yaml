@@ -1,0 +1,23 @@
+entry: secret_logging_checkpoint_fixed
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  service-account-token:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs:
+  private-state:
+    visibility: secret
+  public-log:
+    visibility: public
+  public-checkpoint:
+    visibility: public
+releases: {}

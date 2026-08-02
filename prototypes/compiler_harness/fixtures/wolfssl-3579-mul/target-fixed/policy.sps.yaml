@@ -1,0 +1,23 @@
+entry: wolfssl_3579_mul_fixed_model
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  secret-a:
+    lifecycle: entry-input
+    type: bv64
+    visibility: secret
+  secret-b:
+    lifecycle: entry-input
+    type: bv64
+    visibility: secret
+outputs:
+  return:
+    visibility: secret
+releases: {}

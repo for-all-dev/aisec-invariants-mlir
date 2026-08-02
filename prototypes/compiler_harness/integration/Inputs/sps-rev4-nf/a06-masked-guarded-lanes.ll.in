@@ -1,0 +1,44 @@
+; HAND-AUTHORED FIXTURE SHAPES: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact. Tier CandidateOnly.
+;
+; Both functions have a scalar/pointer ABI. The fixed vectors used by the
+; masked intrinsics are built privately from scalar mask bits and passthrough
+; lanes. The align-4 arm is exactly representable by LLVM 17's stock
+; ScalarizeMaskedMemIntrin lowering. The align-16 arm exposes the stock pass's
+; limitation: it gives every generated i32 access alignment 4, while NF-A06's
+; commonAlignment rule requires lane alignments 16,4,8,4 at offsets 0,4,8,12.
+
+target triple = "x86_64-unknown-linux-gnu"
+
+declare <4 x i32> @llvm.masked.load.v4i32.p0(ptr, i32 immarg, <4 x i1>, <4 x i32>)
+declare void @llvm.masked.store.v4i32.p0(<4 x i32>, ptr, i32 immarg, <4 x i1>)
+
+define void @a06_masked_roundtrip_align4(ptr %source, ptr %destination, i1 %mask0, i1 %mask1, i1 %mask2, i1 %mask3, i32 %passthrough0, i32 %passthrough1, i32 %passthrough2, i32 %passthrough3) {
+entry:
+  %mask.0 = insertelement <4 x i1> zeroinitializer, i1 %mask0, i32 0
+  %mask.1 = insertelement <4 x i1> %mask.0, i1 %mask1, i32 1
+  %mask.2 = insertelement <4 x i1> %mask.1, i1 %mask2, i32 2
+  %mask.3 = insertelement <4 x i1> %mask.2, i1 %mask3, i32 3
+  %passthrough.0 = insertelement <4 x i32> zeroinitializer, i32 %passthrough0, i32 0
+  %passthrough.1 = insertelement <4 x i32> %passthrough.0, i32 %passthrough1, i32 1
+  %passthrough.2 = insertelement <4 x i32> %passthrough.1, i32 %passthrough2, i32 2
+  %passthrough.3 = insertelement <4 x i32> %passthrough.2, i32 %passthrough3, i32 3
+  %loaded = call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %source, i32 4, <4 x i1> %mask.3, <4 x i32> %passthrough.3)
+  call void @llvm.masked.store.v4i32.p0(<4 x i32> %loaded, ptr %destination, i32 4, <4 x i1> %mask.3)
+  ret void
+}
+
+define void @a06_masked_roundtrip_align16(ptr %source, ptr %destination, i1 %mask0, i1 %mask1, i1 %mask2, i1 %mask3, i32 %passthrough0, i32 %passthrough1, i32 %passthrough2, i32 %passthrough3) {
+entry:
+  %mask.0 = insertelement <4 x i1> zeroinitializer, i1 %mask0, i32 0
+  %mask.1 = insertelement <4 x i1> %mask.0, i1 %mask1, i32 1
+  %mask.2 = insertelement <4 x i1> %mask.1, i1 %mask2, i32 2
+  %mask.3 = insertelement <4 x i1> %mask.2, i1 %mask3, i32 3
+  %passthrough.0 = insertelement <4 x i32> zeroinitializer, i32 %passthrough0, i32 0
+  %passthrough.1 = insertelement <4 x i32> %passthrough.0, i32 %passthrough1, i32 1
+  %passthrough.2 = insertelement <4 x i32> %passthrough.1, i32 %passthrough2, i32 2
+  %passthrough.3 = insertelement <4 x i32> %passthrough.2, i32 %passthrough3, i32 3
+  %loaded = call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %source, i32 16, <4 x i1> %mask.3, <4 x i32> %passthrough.3)
+  call void @llvm.masked.store.v4i32.p0(<4 x i32> %loaded, ptr %destination, i32 16, <4 x i1> %mask.3)
+  ret void
+}

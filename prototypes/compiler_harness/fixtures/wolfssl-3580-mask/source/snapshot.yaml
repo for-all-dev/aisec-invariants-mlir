@@ -1,19 +1,55 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wolfssl_3580_select_source
-
 c_evidence:
-  - ../sources/wolfssl_3580_mask_vulnerable.c
-
+- fixtures/wolfssl-3580-mask/source/wolfssl_3580_mask_vulnerable.c
 secret:
-  - {arg: 0, name: table_index}
-
+- arg: 0
+  name: table_index
 public:
-  - {observable: control}
-  - {observable: timing}
-
-expect: shape-only
-
-because:
-  - the source equality mask is branchless, while backend behavior is not represented
-
-sps: not-run
+- observable: control
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Latency
+      field: configuredClass
+    because: the branchless equality mask is proved in the modeled timing semantics;
+      backend behavior remains deployment evidence
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wolfssl_3580_select_source
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.zext
+          - llvm.sub
+          - llvm.and
+          - llvm.return
+          excludes:
+          - llvm.cond_br

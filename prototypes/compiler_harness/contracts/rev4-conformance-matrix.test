@@ -1,0 +1,8 @@
+# The fixed Rev4 matrix has no unseeded row. Pin the policy directly so a
+# future relaxation of check_harness.py cannot silently restore `pending`.
+
+# RUN: cp %harness/contracts/rev4-conformance-matrix.json %t.pending.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.pending.json'); v=json.loads(p.read_text()); v['cases'][0]['harness_status']='pending'; p.write_text(json.dumps(v,separators=(',',':')))"
+# RUN: %python -c "import pathlib,runpy; ns=runpy.run_path(r'%harness/c/check_harness.py'); ns['check_conformance_matrix'].__globals__['CONFORMANCE_MATRIX']=pathlib.Path(r'%t.pending.json'); errors=ns['check_conformance_matrix'](); matches=[e for e in errors if 'must have no pending rows' in e]; assert len(matches)==1, errors; print(matches[0])" | %FileCheck %s
+
+# CHECK: the fixed 27-row Rev4 matrix must have no pending rows

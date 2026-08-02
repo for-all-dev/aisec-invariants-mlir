@@ -1,20 +1,11 @@
-// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
+// RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3580-mask/source/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wolfssl-3580-mask/source/wolfssl_3580_mask.source.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic source-operation model; the separate target model records backend evidence
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @wolfssl_3580_select_source
-// CHECK-SAME: %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[SCAN:[a-zA-Z0-9_]+]]: i32, %[[VALUE:[a-zA-Z0-9_]+]]: i32
-// CHECK-NOT: llvm.cond_br
-// CHECK: %[[ZERO:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK: %[[EQUAL:[0-9]+]] = llvm.icmp "eq" %[[SCAN]], %[[SECRET]] {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]} : i32
-// CHECK: %[[EQUAL32:[0-9]+]] = llvm.zext %[[EQUAL]] : i1 to i32
-// CHECK: %[[MASK:[0-9]+]] = llvm.sub %[[ZERO]], %[[EQUAL32]]
-// CHECK-NOT: llvm.cond_br
-// CHECK: %[[SELECTED:[0-9]+]] = llvm.and %[[VALUE]], %[[MASK]]
-// CHECK-NOT: llvm.cond_br
-// CHECK: llvm.return %[[SELECTED]]
 module {
   llvm.func @wolfssl_3580_select_source(
       %table_index: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

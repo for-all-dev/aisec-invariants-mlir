@@ -27,7 +27,7 @@
 # These checks make no ModelStatus claim.
 
 # --- vulnerable form: the secret-dependent op is a select, not a branch -----
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c -o %t.bad.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c -o %t.bad.ll
 # RUN: %FileCheck %s --check-prefix=IR-BAD --input-file=%t.bad.ll
 
 # The message bit selects between 0 and the coefficient, branchlessly.
@@ -42,7 +42,7 @@
 # BAD-BRCOUNT: 2
 
 # --- fixed form: branchless at IR level too, via an outlined cmov -----------
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_fixed.c -o %t.fixed.ll
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm %fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c -o %t.fixed.ll
 # RUN: %FileCheck %s --check-prefix=IR-FIXED --input-file=%t.fixed.ll
 # IR-FIXED-DAG: @clangover_ct_cmov
 # IR-FIXED-NOT: select i1
@@ -54,7 +54,7 @@
 # Same translation unit, same flags, one step further down the pipeline: the
 # branch appears. This pair of facts is what locates the defect below the freeze
 # point rather than inside the frozen module.
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
 # RUN: %FileCheck %s --check-prefix=ASM-BAD --input-file=%t.bad.s
 # ASM-BAD-LABEL: clangover_poly_frommsg_vulnerable:
 # ASM-BAD: btl

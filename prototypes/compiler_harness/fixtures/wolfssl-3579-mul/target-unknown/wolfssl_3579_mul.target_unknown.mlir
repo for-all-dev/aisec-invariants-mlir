@@ -1,16 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-unknown/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wolfssl-3579-mul/target-unknown/wolfssl_3579_mul.target_unknown.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic sees a secret-dependent helper call; helper timing must be supplied through deployment evidence
 // artifact status: hand-written target-call model; no helper timing is assumed
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @__muldi3
-// CHECK-NOT: sps.helper_latency
-// CHECK-LABEL: llvm.func @wolfssl_3579_mul_rv32_unknown_model
-// CHECK-SAME: %[[A:[a-zA-Z0-9_]+]]: i64 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[B:[a-zA-Z0-9_]+]]: i64 {sps.fixture_refs = ["snapshot.secret[1]"], sps.label = "high"}
-// CHECK: %[[PRODUCT:[0-9]+]] = llvm.call @__muldi3(%[[A]], %[[B]]) {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["timing"]}
-// CHECK: llvm.return %[[PRODUCT]] : i64
 
 module {
   llvm.func @__muldi3(%a: i64, %b: i64) -> i64

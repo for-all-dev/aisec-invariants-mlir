@@ -1,0 +1,61 @@
+source: secret_logging_checkpoint_fixed.c
+relation: provenance-only
+entry:
+  id: secret_logging_checkpoint_fixed
+  symbol: secret_logging_checkpoint_fixed
+  host: compute
+  function-type: void (i32, ptr, ptr, ptr)
+  return: void
+carriers:
+  service-account-token:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots:
+  private-state:
+    argument: 1
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: private-state
+  public-log:
+    argument: 2
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-log
+  public-checkpoint:
+    argument: 3
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-checkpoint
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - private-state
+    - public-checkpoint
+  - relation: disjoint
+    roots:
+    - private-state
+    - public-log
+  - relation: disjoint
+    roots:
+    - public-checkpoint
+    - public-log
+terminal-output-order:
+  normal-void:
+  - private-state
+  - public-log
+  - public-checkpoint

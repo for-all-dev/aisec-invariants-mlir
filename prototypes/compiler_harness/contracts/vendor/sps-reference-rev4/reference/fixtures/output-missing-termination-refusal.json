@@ -1,0 +1,34 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-OUTPUT-OMIT",
+  "caseId": "output-missing-termination-refusal",
+  "kind": "refusal",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 20"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.no-return",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 1,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": null,
+        "roots": []
+      },
+      "statements": []
+    }
+  },
+  "expected": {
+    "reason": "ReferenceProfileUnsupported"
+  }
+}

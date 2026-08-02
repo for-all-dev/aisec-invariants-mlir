@@ -1,21 +1,52 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wrong_host_fhe_reveal_fixed
-
 c_evidence:
-  - ../sources/wrong_host_fhe_reveal_fixed.c
-
+- fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal_fixed.c
 secret:
-  - {arg: 1, name: revealed_plaintext}
-
+- arg: 1
+  name: revealed_plaintext
 public:
-  - {memory_at_arg: 3, name: unauthorized_server_plaintext}
-
+- memory_at_arg: 3
+  name: unauthorized_server_plaintext
 allowed:
-  - revealed plaintext may be written only to authorized_client_plaintext
-
-expect: no-violation
-
-because:
-  - the unauthorized server receives zero while plaintext stays at the authorized client
-
-sps: not-run
+- revealed plaintext may be written only to authorized_client_plaintext
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: the unauthorized server receives zero while plaintext stays at the authorized
+      client
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wrong_host_fhe_reveal_fixed
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.mlir.constant
+          - llvm.return

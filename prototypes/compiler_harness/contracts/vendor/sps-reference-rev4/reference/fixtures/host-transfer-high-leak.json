@@ -1,0 +1,60 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-HOST-TRANSFER",
+  "caseId": "host-transfer-high-leak",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 10"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.transfer",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": null,
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "transfer",
+          "site": "transfer.site",
+          "value": {
+            "var": "secret"
+          },
+          "sourceHost": "entry",
+          "destinationHosts": [
+            "remote"
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [],
+      "controlledHosts": [
+        "remote"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true
+  }
+}

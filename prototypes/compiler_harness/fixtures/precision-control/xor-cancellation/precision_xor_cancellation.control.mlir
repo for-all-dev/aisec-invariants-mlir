@@ -1,5 +1,7 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/xor-cancellation/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/xor-cancellation/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/precision-control/xor-cancellation/precision_xor_cancellation.control.mlir --records %t.checkpoints
+
 //
 // scope note: the unary scanner flags a relational review site because its
 // taint abstraction cannot see value congruence; the exact product decides it.
@@ -16,15 +18,7 @@
 // 17.0.6: --canonicalize does NOT fold llvm.xor %a, %a, so the tool will not
 // discharge this on the harness's behalf and the control stays meaningful.
 //
-// CHECK-LABEL: llvm.func @xor_cancellation_control
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: %[[CANCELLED:[0-9]+]] = llvm.xor %[[SECRET:.*]], %[[SECRET]]
-// CHECK: llvm.store %[[CANCELLED]], %{{.*}} {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
 //
-// STABLE: llvm.xor %[[S:.*]], %[[S]]
 module {
   llvm.func @xor_cancellation_control(
       %secret: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

@@ -1,21 +1,13 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/abi-alias/disjoint-control/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/abi-alias/disjoint-control/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/abi-alias/disjoint-control/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir --records %t.checkpoints
+
 //
 // scope note: configuration binding independently binds disjoint p and q;
 // exact product therefore keeps q's public initial bytes independent of the secret store.
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @abi_alias_disjoint_control
-// CHECK-SAME: {{.*}}sps.component_ref = "secret"
-// CHECK-SAME: sps.fixture_refs = ["secret:secret"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: {{.*}}sps.abi_root_ref = "p"
-// CHECK-SAME: {{.*}}sps.abi_root_ref = "q"
-// CHECK-SAME: {{.*}}sps.abi_root_ref = "public-output"
-// CHECK-SAME: sps.fixture_refs = ["public-memory:public_output"]
-// CHECK: llvm.store %{{.*}}, %[[P:.*]] {sps.fixture_refs = ["store:secret-through-p"], sps.label = "high", sps.site_alias = "secret-through-p"}
-// CHECK: %[[V:[0-9]+]] = llvm.load %[[Q:.*]] :
-// CHECK: llvm.store %[[V]], %{{.*}} {sps.fixture_refs = ["store:q-to-public-output"], sps.sink_class = "public", sps.site_alias = "q-to-public-output"}
 module {
   llvm.func @abi_alias_disjoint_control(
       %secret: i32 {

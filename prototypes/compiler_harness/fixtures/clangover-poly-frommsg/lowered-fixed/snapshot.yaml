@@ -1,20 +1,73 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: clangover_poly_frommsg_fixed
-
 c_evidence:
-  - ../sources/clangover_ct_cmov.c
-  - ../sources/clangover_poly_frommsg_fixed.c
-
+- fixtures/clangover-poly-frommsg/lowered-fixed/clangover_ct_cmov.c
+- fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c
 secret:
-  - {arg: 0, name: bit}
-
+- arg: 0
+  name: bit
 public:
-  - {observable: control}
-  - {observable: timing}
-
-expect: no-violation
-
-because:
-  - the included helper selects through mask dataflow without a conditional branch
-
-sps: not-run
+- observable: control
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Latency
+      field: configuredClass
+    because: the included helper selects through mask dataflow without a conditional
+      branch
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+          - SupportTranslationUnitsValidated
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - clangover_poly_frommsg_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.call
+          - llvm.return
+          excludes:
+          - llvm.cond_br
+        call.callees:
+          contains:
+          - clangover_ct_cmov_model
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 2
+    x86-backend-control:
+      kind: assembly
+      properties:
+        instruction.mnemonics:
+          excludes:
+          - jae
+          ordered:
+          - btl
+          - setb
+          - callq
+        call.callees:
+          contains:
+          - clangover_ct_cmov

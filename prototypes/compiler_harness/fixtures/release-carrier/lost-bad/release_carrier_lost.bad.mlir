@@ -1,4 +1,6 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/release-carrier/lost-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/release-carrier/lost-bad/release_carrier_lost.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic carrier binding only. No ModelStatus claim.
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
@@ -67,22 +69,6 @@
 // which must NOT be
 // reported, so that "refuse every inlined module" is not an accepted fix.
 //
-// CHECK-LABEL: llvm.func @release_carrier_lost_bad
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK-NOT: llvm.call @sps_release_invalid_callable
-// CHECK: llvm.and
-// CHECK: llvm.store {{.*}}sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"]
-// CHECK-SAME: sps.observable_candidate = ["release-identity"]
-// CHECK-SAME: sps.release_policy = "p_invalid_callable"
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: llvm.and
-// CHECK: llvm.store {{.*}}sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"]
-// CHECK-SAME: sps.observable_candidate = ["release-identity"]
-// CHECK-SAME: sps.release_policy = "p_invalid_callable"
-// CHECK-SAME: sps.sink_class = "public"
 module {
   llvm.func @release_carrier_lost_bad(
       %raw: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

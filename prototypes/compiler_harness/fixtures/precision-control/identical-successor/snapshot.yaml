@@ -1,19 +1,61 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: identical_successor_control
-
 c_evidence:
-  - ../sources/precision_controls.c
-
+- fixtures/precision-control/identical-successor/identical_successor_control.c
 secret:
-  - {arg: 0, name: high_condition}
-
+- arg: 0
+  name: high_condition
 public:
-  - {observable: control}
-  - {memory_at_arg: 1, name: public_sink}
-
-expect: relational-check
-
-because:
-  - both secret branch arms reach the same successor and store the same constant
-
-sps: not-run
+- observable: control
+- memory_at_arg: 1
+  name: public_sink
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+    - kind: Output
+      field: valueBytes
+    because: both secret branch arms reach the same successor and store the same constant
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - identical_successor_control
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.cond_br
+          - llvm.store
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - identical_successor_control
+        operation.names:
+          ordered:
+          - llvm.cond_br

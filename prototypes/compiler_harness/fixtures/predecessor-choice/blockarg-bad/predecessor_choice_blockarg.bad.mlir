@@ -1,5 +1,7 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/predecessor-choice/blockarg-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/predecessor-choice/blockarg-bad/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic must close dependence over predecessor choice, not only
 // over SSA operand edges; exact product replays secret_bit=0 against secret_bit=1 and
@@ -32,20 +34,9 @@
 // The reason id is deliberately not secret-dependent-control-location: the
 // control locations do NOT differ here. Only the selected block argument does.
 //
-// CHECK-LABEL: llvm.func @predecessor_choice_blockarg_bad
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: %[[LOW:[0-9]+]] = llvm.mlir.constant(10 : i32) : i32
-// CHECK: %[[HIGH:[0-9]+]] = llvm.mlir.constant(20 : i32) : i32
-// CHECK: llvm.cond_br %{{.*}}, ^[[MERGE:bb[0-9]+]](%[[LOW]] : i32), ^[[MERGE]](%[[HIGH]] : i32)
-// CHECK: ^[[MERGE]](%[[SELECTED:[0-9]+]]: i32):
-// CHECK: llvm.store %[[SELECTED]], %{{.*}} {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
 //
 // Already canonical: the differing block-argument operands must survive, or the
 // fixture decays into its own paired control and stops testing anything.
-// STABLE: llvm.cond_br %{{.*}}, ^[[M:bb[0-9]+]](%{{.*}} : i32), ^[[M]](%{{.*}} : i32)
 module {
   llvm.func @predecessor_choice_blockarg_bad(
       %secret_bit: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

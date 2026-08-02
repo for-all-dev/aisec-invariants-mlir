@@ -1,18 +1,57 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: kyberslash2_compress_bad
-
 c_evidence:
-  - ../sources/kyberslash2_compress_vulnerable.c
-
+- fixtures/kyberslash2-compress/bad/kyberslash2_compress_vulnerable.c
 secret:
-  - {arg: 0, name: coefficient}
-
+- arg: 0
+  name: coefficient
 public:
-  - {observable: timing}
-
-expect: target-risk
-
-because:
-  - a secret-derived numerator reaches llvm.udiv before the four-bit mask
-
-sps: not-run
+- observable: timing
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: timing-cost-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Latency
+      field: configuredClass
+      first_bad: true
+    because: a secret-derived numerator reaches llvm.udiv before the four-bit mask
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - kyberslash2_compress_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.shl
+          - llvm.add
+          - llvm.udiv
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 3
+        operation.argument_dependencies:
+          contains:
+          - kyberslash2_compress_bad|llvm.udiv|operand=0|args=0

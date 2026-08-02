@@ -1,0 +1,54 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-BAD-CIRCUIT",
+  "caseId": "bad-circuit-mutation-rejected",
+  "kind": "artifact-mutation",
+  "requirementRefs": [
+    "Normative 21.4 badViolationSourceTable"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.mutation",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 1,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return.value",
+          "width": 1,
+          "host": "caller",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "secret"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [],
+      "controlledHosts": [
+        "caller"
+      ]
+    },
+    "mutation": "replace-first-bad-expression-with-false"
+  },
+  "expected": {
+    "reason": "ReferenceSchemaMismatch"
+  }
+}

@@ -1,5 +1,8 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/loop-bounds/public-bound-exhausted-unknown/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/loop-bounds/public-bound-exhausted-unknown/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/loop-bounds/public-bound-exhausted-unknown/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/loop-bounds/public-bound-exhausted-unknown/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/loop-bounds/public-bound-exhausted-unknown/bound_exhausted_loop.unknown.mlir --records %t.checkpoints
+
 //
 // scope note: with the configuration binding public bound set below public_count, both
 // exact product lanes reach the same modeled BoundExhausted transition; bound adequacy stays
@@ -33,22 +36,9 @@
 // engine cap, which is a separate resource-limit result. Collapsing the two into
 // one identifier is the easiest wrong reduction here.
 //
-// CHECK-LABEL: llvm.func @bound_exhausted_public_loop
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: {{.*}}sps.label = "public"
-// CHECK: llvm.br ^[[LOOP:bb[0-9]+]]
-// CHECK: ^[[LOOP]](%[[I:[0-9]+]]: i32):
-// CHECK: %[[CONT:[0-9]+]] = llvm.icmp "slt" %[[I]], %{{.*}} : i32
-// CHECK: llvm.cond_br %[[CONT]], ^[[BODY:bb[0-9]+]], ^[[EXIT:bb[0-9]+]] {sps.fixture_refs = ["snapshot.public[1]"], sps.observable_candidate = ["control"]}
-// CHECK: ^[[BODY]]:
-// CHECK: llvm.br ^[[LOOP]]
-// CHECK: ^[[EXIT]]:
-// CHECK: llvm.store %{{.*}} {sps.sink_class = "public"}
 //
 // The backedge must survive: a fixture whose loop is unrolled or deleted stops
 // testing bound adequacy entirely.
-// STABLE: llvm.icmp "slt"
-// STABLE: llvm.cond_br
 module {
   llvm.func @bound_exhausted_public_loop(
       %public_count: i32 {sps.fixture_refs = ["snapshot.public[0]"], sps.label = "public", sps.bound_candidate = "public_trip_count_candidate"},

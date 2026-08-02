@@ -1,14 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3580-mask/target-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wolfssl-3580-mask/target-bad/wolfssl_3580_mask.target_bad.mlir --records %t.checkpoints
+
 //
 // scope note: target-model shape plus backend evidence; literal GCC MLIR is not claimed
 // artifact status: hand-written target model derived from reported assembly
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @wolfssl_3580_rv32_bad_model
-// CHECK-SAME: %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[SCAN:[a-zA-Z0-9_]+]]: i32, %[[VALUE:[a-zA-Z0-9_]+]]: i32
-// CHECK: %[[EQ:[0-9]+]] = llvm.icmp "eq" %[[SCAN]], %[[SECRET]] : i32
-// CHECK: llvm.cond_br %[[EQ]], {{.*}} {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]}
 module {
   // Reported RV32I shape:
   //   xor a?, scan_index, table_index

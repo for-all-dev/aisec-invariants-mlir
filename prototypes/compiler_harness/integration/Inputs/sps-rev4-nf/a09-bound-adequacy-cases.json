@@ -1,0 +1,71 @@
+{
+  "formatId": "SPS-Harness-NF-A09-Seeds-v1",
+  "fixtureTier": {"tag": "CandidateOnly"},
+  "llvmVersion": "17.0.6",
+  "cases": [
+    {
+      "caseId": "A09-01",
+      "entryFunction": "a09_public_bound_0",
+      "publicBound": {"boundId": "bound.a09.public-0", "maximum": 0},
+      "engineCap": 1,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "BoundAdequacyCandidateShape", "loopSite": "a09_public_bound_0:loop", "boundId": "bound.a09.public-0", "boundaryEvent": "BoundExhausted", "boundaryTermination": "BoundFailure", "requiredReachability": "Unreachable"}
+    },
+    {
+      "caseId": "A09-02",
+      "entryFunction": "a09_public_bound_1",
+      "publicBound": {"boundId": "bound.a09.public-1", "maximum": 1},
+      "engineCap": 2,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "BoundAdequacyCandidateShape", "loopSite": "a09_public_bound_1:loop", "boundId": "bound.a09.public-1", "boundaryEvent": "BoundExhausted", "boundaryTermination": "BoundFailure", "requiredReachability": "Unreachable"}
+    },
+    {
+      "caseId": "A09-03",
+      "entryFunction": "a09_public_bound_16",
+      "publicBound": {"boundId": "bound.a09.public-16", "maximum": 16},
+      "engineCap": 15,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "ReasonClassSeed", "loopSite": "a09_public_bound_16:loop", "boundId": "bound.a09.public-16", "reasonClassId": "ResourceLimit"}
+    },
+    {
+      "caseId": "A09-04",
+      "entryFunction": "a09_public_bound_16",
+      "publicBound": {"boundId": "bound.a09.public-16", "maximum": 16},
+      "engineCap": 16,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "ReasonClassSeed", "loopSite": "a09_public_bound_16:loop", "boundId": "bound.a09.public-16", "reasonClassId": "ResourceLimit"}
+    },
+    {
+      "caseId": "A09-05",
+      "entryFunction": "a09_public_bound_16",
+      "publicBound": {"boundId": "bound.a09.public-16", "maximum": 16},
+      "engineCap": 17,
+      "capIndependenceGroup": "bound-16-exact-and-above",
+      "expectedObservation": {"tag": "BoundAdequacyCandidateShape", "loopSite": "a09_public_bound_16:loop", "boundId": "bound.a09.public-16", "boundaryEvent": "BoundExhausted", "boundaryTermination": "BoundFailure", "requiredReachability": "Unreachable"}
+    },
+    {
+      "caseId": "A09-06",
+      "entryFunction": "a09_public_bound_16",
+      "publicBound": {"boundId": "bound.a09.public-16", "maximum": 16},
+      "engineCap": 32,
+      "capIndependenceGroup": "bound-16-exact-and-above",
+      "expectedObservation": {"tag": "BoundAdequacyCandidateShape", "loopSite": "a09_public_bound_16:loop", "boundId": "bound.a09.public-16", "boundaryEvent": "BoundExhausted", "boundaryTermination": "BoundFailure", "requiredReachability": "Unreachable"}
+    },
+    {
+      "caseId": "A09-07",
+      "entryFunction": "a09_aligned_remainder",
+      "publicBound": {"boundId": "bound.a09.public-1", "maximum": 1},
+      "engineCap": 2,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "ReasonClassSeed", "loopSite": "a09_aligned_remainder:loop", "boundId": "bound.a09.public-1", "reasonClassId": "LoopRemainder"}
+    },
+    {
+      "caseId": "A09-08",
+      "entryFunction": "a09_high_extra_iteration",
+      "publicBound": {"boundId": "bound.a09.public-1", "maximum": 1},
+      "engineCap": 2,
+      "capIndependenceGroup": null,
+      "expectedObservation": {"tag": "BoundExhaustedLaneMismatchSeed", "loopSite": "a09_high_extra_iteration:loop", "boundId": "bound.a09.public-1", "controlClass": "High", "boundaryEvent": "BoundExhausted", "boundaryTermination": "BoundFailure"}
+    }
+  ]
+}

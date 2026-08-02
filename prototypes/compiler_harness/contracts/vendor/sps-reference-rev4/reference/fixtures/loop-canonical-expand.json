@@ -1,0 +1,58 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-LOOP-CANONICAL",
+  "caseId": "loop-canonical-expand",
+  "kind": "expand",
+  "requirementRefs": [
+    "Normative 4.1",
+    "Normative 21.1 HorizonDerivationV2"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.loop",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "iterations",
+          "width": 2,
+          "classification": "Low",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": null,
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "loop",
+          "site": "loop.site",
+          "boundId": "loop.bound",
+          "boundMaximum": 2,
+          "iterations": {
+            "var": "iterations"
+          },
+          "body": []
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    }
+  },
+  "expected": {
+    "horizon": 6,
+    "nodeKinds": [
+      "LoopEntry",
+      "LoopCopyGuard",
+      "LoopCopyGuard",
+      "BoundRemainder",
+      "LoopExit",
+      "Transition"
+    ]
+  }
+}

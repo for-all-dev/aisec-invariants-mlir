@@ -2,7 +2,7 @@
   "format_id": "SPS-Harness-Candidate-Release-Table-v2",
   "entries": [
     {
-      "id": "masked_class_candidate",
+      "id": "masked-class",
       "audience": [
         "alice"
       ],

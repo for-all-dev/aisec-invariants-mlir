@@ -1,0 +1,61 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-OUTPUT-RETURN",
+  "caseId": "output-return-constant-control",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 11"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.return.control",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 1,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return.value",
+          "width": 1,
+          "host": "caller",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "const": {
+              "width": 1,
+              "value": 0
+            }
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "unsat",
+    "firstBadCause": null,
+    "replayAccepted": false
+  }
+}

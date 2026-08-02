@@ -17,10 +17,8 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
-from yaml.tokens import AliasToken, AnchorToken, TagToken
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import checkpoint_model  # noqa: E402  (shared Snapshot V3 contract)
 import fixture_layout  # noqa: E402  (shared fixture discovery)
 import sps_aggregation  # noqa: E402  (shared normative aggregation rule)
 import sps_interfaces  # noqa: E402  (SPS-owned wire registry)
@@ -85,22 +83,8 @@ IDENTIFIER = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 MLIR_SYMBOL = re.compile(r"[A-Za-z_.$][A-Za-z0-9_.$-]*\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 LEGACY_LEVEL = re.compile(r"\bL[0-4]\b")
-SNAPSHOT_FORMAT_ID = "SPS-Harness-Fixture-Snapshot-v2"
-SNAPSHOT_EXPECTATIONS = frozenset(
-    {
-        "violation",
-        "no-violation",
-        "unknown",
-        "relational-check",
-        "target-risk",
-        "shape-only",
-    }
-)
 SNAPSHOT_OBSERVABLES = frozenset(
     {"address", "allocation-size", "control", "release-identity", "return", "timing"}
-)
-SNAPSHOT_SPS_STATES = frozenset(
-    {"not-run", "proved", "counterexample", "unknown", "error"}
 )
 INTERFACE_REGISTRY = sps_interfaces.load_default_registry()
 PUBLIC_REASON_CLASS_IDS = frozenset(
@@ -224,7 +208,11 @@ def check_provenance() -> list[str]:
         path for path in SUPPORT_C_DIR.glob("*.c") if path.name != "equivalence_driver.c"
     )
     for path in unexpected_support_c:
-        fail(errors, path, "fixture C sources must live in fixtures/<family>/sources/")
+        fail(
+            errors,
+            path,
+            "fixture C sources must live in a fixture case directory",
+        )
 
     for path in c_sources():
         text = path.read_text()
@@ -252,79 +240,14 @@ def check_provenance() -> list[str]:
     return errors
 
 
-class StrictSnapshotLoader(yaml.SafeLoader):
-    """Safe YAML loader that rejects duplicate keys and merge semantics."""
-
-
-def _construct_snapshot_mapping(
-    loader: StrictSnapshotLoader, node: yaml.MappingNode, deep: bool = False
-) -> dict[str, object]:
-    mapping: dict[str, object] = {}
-    for key_node, value_node in node.value:
-        if key_node.tag == "tag:yaml.org,2002:merge" or key_node.value == "<<":
-            raise yaml.constructor.ConstructorError(
-                None, None, "merge keys are not allowed", key_node.start_mark
-            )
-        key = loader.construct_object(key_node, deep=deep)
-        if not isinstance(key, str):
-            raise yaml.constructor.ConstructorError(
-                None, None, "mapping keys must be strings", key_node.start_mark
-            )
-        if key in mapping:
-            raise yaml.constructor.ConstructorError(
-                None, None, f"duplicate key {key!r}", key_node.start_mark
-            )
-        mapping[key] = loader.construct_object(value_node, deep=deep)
-    return mapping
-
-
-StrictSnapshotLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_snapshot_mapping
-)
-
-
-def read_snapshot(errors: list[str], path: Path) -> dict[str, object] | None:
+def read_snapshot(
+    errors: list[str], path: Path
+) -> checkpoint_model.SnapshotV3 | None:
     try:
-        text = path.read_text()
-        for token in yaml.scan(text):
-            if isinstance(token, (AliasToken, AnchorToken, TagToken)):
-                raise ValueError("aliases, anchors, and explicit tags are not allowed")
-        value = yaml.load(text, Loader=StrictSnapshotLoader)
-    except (OSError, ValueError, yaml.YAMLError) as error:
-        fail(errors, path, f"cannot parse strict snapshot YAML: {error}")
+        return checkpoint_model.load_snapshot(path, ROOT)
+    except (OSError, checkpoint_model.CheckpointError) as error:
+        fail(errors, path, str(error))
         return None
-    if not isinstance(value, dict):
-        fail(errors, path, "top-level snapshot must be a mapping")
-        return None
-    required = {
-        "format_id",
-        "entry",
-        "c_evidence",
-        "secret",
-        "public",
-        "expect",
-        "because",
-        "sps",
-    }
-    allowed = required | {"allowed", "finding"}
-    actual = set(value)
-    if not required <= actual or not actual <= allowed:
-        fail(
-            errors,
-            path,
-            "snapshot fields must contain exactly the required fields plus optional "
-            f"allowed/finding; missing={sorted(required - actual)}, "
-            f"extra={sorted(actual - allowed)}",
-        )
-        return None
-    if value["format_id"] != SNAPSHOT_FORMAT_ID:
-        fail(
-            errors,
-            path,
-            f"format_id must be the literal {SNAPSHOT_FORMAT_ID!r}",
-        )
-        return None
-    return value
 
 
 def _entry_arguments(
@@ -375,20 +298,6 @@ def _entry_arguments(
     return arguments
 
 
-def _string_list(
-    errors: list[str], path: Path, value: object, field: str, *, allow_empty: bool
-) -> list[str] | None:
-    if (
-        not isinstance(value, list)
-        or (not allow_empty and not value)
-        or any(not isinstance(item, str) or not item.strip() for item in value)
-    ):
-        qualifier = "possibly empty" if allow_empty else "nonempty"
-        fail(errors, path, f"{field} must be a {qualifier} list of nonempty strings")
-        return None
-    return value
-
-
 def _argument_reference(
     errors: list[str],
     path: Path,
@@ -426,6 +335,7 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
     records: list[dict[str, object]] = []
     snapshot_paths = sorted(FIXTURES_DIR.rglob("snapshot.yaml"))
     mlir_paths = fixture_layout.fixture_mlir_paths(ROOT)
+    authoring_owners: dict[Path, Path] = {}
 
     if not snapshot_paths:
         fail(errors, FIXTURES_DIR, "no snapshot.yaml fixtures were discovered")
@@ -451,42 +361,119 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
         if value is None:
             continue
 
-        evidence = _string_list(
-            errors,
-            snapshot_path,
-            value.get("c_evidence"),
-            "c_evidence",
-            allow_empty=False,
-        )
-        if evidence is not None:
-            if evidence != sorted(set(evidence)):
-                fail(errors, snapshot_path, "c_evidence must be sorted and duplicate-free")
-            family = snapshot_path.parent.parent.resolve()
-            resolved_evidence: list[Path] = []
-            for position, evidence_name in enumerate(evidence):
-                evidence_path = Path(evidence_name)
-                if evidence_path.is_absolute():
-                    fail(errors, snapshot_path, f"c_evidence[{position}] must be relative")
-                    continue
-                resolved = (snapshot_path.parent / evidence_path).resolve()
-                try:
-                    resolved.relative_to(family)
-                except ValueError:
-                    fail(errors, snapshot_path, f"c_evidence[{position}] escapes its fixture family")
-                    continue
-                if resolved.suffix != ".c":
-                    fail(errors, snapshot_path, f"c_evidence[{position}] must name a .c file")
-                elif not resolved.is_file():
-                    fail(errors, snapshot_path, f"c_evidence[{position}] does not exist")
-                else:
-                    resolved_evidence.append(resolved)
-            if len(resolved_evidence) != len(set(resolved_evidence)):
-                fail(errors, snapshot_path, "c_evidence resolves to duplicate C files")
+        evidence = list(value.c_evidence)
+        if evidence != sorted(set(evidence)):
+            fail(errors, snapshot_path, "c_evidence must be sorted and duplicate-free")
+        family = snapshot_path.parent.parent.resolve()
+        resolved_evidence: list[Path] = []
+        for position, evidence_name in enumerate(evidence):
+            try:
+                resolved = checkpoint_model.resolve_root_path(
+                    ROOT, evidence_name, f"c_evidence[{position}]"
+                )
+            except checkpoint_model.CheckpointError as error:
+                fail(errors, snapshot_path, str(error))
+                continue
+            try:
+                resolved.relative_to(family)
+            except ValueError:
+                fail(
+                    errors,
+                    snapshot_path,
+                    f"c_evidence[{position}] escapes its fixture family",
+                )
+                continue
+            if resolved.suffix not in {".c", ".cc", ".cpp", ".cxx"}:
+                fail(
+                    errors,
+                    snapshot_path,
+                    f"c_evidence[{position}] must name a C/C++ source",
+                )
+            else:
+                resolved_evidence.append(resolved)
+        if len(resolved_evidence) != len(set(resolved_evidence)):
+            fail(errors, snapshot_path, "c_evidence resolves to duplicate C files")
 
-        entry = value.get("entry")
-        if not isinstance(entry, str) or not MLIR_SYMBOL.fullmatch(entry):
-            fail(errors, snapshot_path, "entry must be one unquoted MLIR symbol")
-            continue
+        policy_path = snapshot_path.parent / "policy.sps.yaml"
+        abi_path = snapshot_path.parent / "abi.sps.yaml"
+        case_sources = sorted(
+            path
+            for suffix in ("*.c", "*.cc", "*.cpp", "*.cxx")
+            for path in snapshot_path.parent.glob(suffix)
+        )
+        has_source_authoring = policy_path.exists() or abi_path.exists() or bool(case_sources)
+        primary_source: Path | None = None
+        if has_source_authoring:
+            if not policy_path.is_file():
+                fail(errors, snapshot_path, "source-annotated case requires policy.sps.yaml")
+            if not abi_path.is_file():
+                fail(errors, snapshot_path, "source-annotated case requires abi.sps.yaml")
+            if not case_sources:
+                fail(
+                    errors,
+                    snapshot_path,
+                    "source-annotated case must own a sibling primary C/C++ source",
+                )
+            if abi_path.is_file():
+                try:
+                    abi_authoring = checkpoint_model.strict_yaml_load(
+                        abi_path.read_bytes(), source=str(abi_path)
+                    )
+                    abi_source = (
+                        abi_authoring.get("source")
+                        if isinstance(abi_authoring, dict)
+                        else None
+                    )
+                    if (
+                        not isinstance(abi_source, str)
+                        or not abi_source
+                        or Path(abi_source).name != abi_source
+                    ):
+                        fail(errors, abi_path, "ABI source must be a sibling basename")
+                    else:
+                        candidate = snapshot_path.parent / abi_source
+                        if candidate not in case_sources:
+                            fail(
+                                errors,
+                                abi_path,
+                                f"ABI primary source {abi_source!r} is not a sibling C/C++ source",
+                            )
+                        else:
+                            primary_source = candidate.resolve()
+                except (OSError, checkpoint_model.CheckpointError) as error:
+                    fail(errors, abi_path, str(error))
+            expected_evidence = [path.resolve() for path in case_sources]
+            if resolved_evidence != expected_evidence:
+                fail(
+                    errors,
+                    snapshot_path,
+                    "source-annotated case c_evidence must name every sibling C/C++ source",
+                )
+            if primary_source is not None and primary_source not in resolved_evidence:
+                fail(
+                    errors,
+                    snapshot_path,
+                    "source-annotated case c_evidence omits its ABI primary source",
+                )
+            for owned_path in [*case_sources, policy_path, abi_path]:
+                if not owned_path.exists():
+                    continue
+                if owned_path.is_symlink():
+                    fail(errors, owned_path, "case-owned authoring files must not be symlinks")
+                    continue
+                resolved = owned_path.resolve()
+                previous_owner = authoring_owners.get(resolved)
+                if previous_owner is not None and previous_owner != snapshot_path.parent:
+                    fail(
+                        errors,
+                        owned_path,
+                        "case-owned authoring file is shared with "
+                        f"{previous_owner.relative_to(ROOT)}",
+                    )
+                else:
+                    authoring_owners[resolved] = snapshot_path.parent
+
+        entry = value.entry
         previous = entries.get(entry)
         if previous is not None:
             fail(errors, snapshot_path, f"entry duplicates {previous.relative_to(ROOT)}")
@@ -497,13 +484,8 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
         arguments = _entry_arguments(errors, mlir_path, text, entry)
         if arguments is None:
             continue
-        if f"// CHECK-LABEL: llvm.func @{entry}" not in text:
-            fail(errors, mlir_path, "entry must have a matching CHECK-LABEL")
 
-        secret = value.get("secret")
-        if not isinstance(secret, list):
-            fail(errors, snapshot_path, "secret must be a list")
-            secret = []
+        secret = value.secret
         seen_secret: set[int] = set()
         for position, item in enumerate(secret):
             reference = _argument_reference(
@@ -514,10 +496,7 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
             elif reference is not None:
                 seen_secret.add(reference[0])
 
-        public = value.get("public")
-        if not isinstance(public, list) or not public:
-            fail(errors, snapshot_path, "public must be a nonempty list")
-            public = []
+        public = value.public
         seen_public: set[tuple[str, object]] = set()
         for position, item in enumerate(public):
             reference: tuple[str, object] | None = None
@@ -555,46 +534,6 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
             elif reference is not None:
                 seen_public.add(reference)
 
-        expectation = value.get("expect")
-        if expectation not in SNAPSHOT_EXPECTATIONS:
-            fail(errors, snapshot_path, "expect has an unknown value")
-        if _string_list(
-            errors, snapshot_path, value.get("because"), "because", allow_empty=False
-        ) is None:
-            pass
-        if "allowed" in value:
-            _string_list(
-                errors, snapshot_path, value.get("allowed"), "allowed", allow_empty=False
-            )
-        if "finding" in value:
-            if value.get("finding") != "violation":
-                fail(errors, snapshot_path, "finding, when present, must be 'violation'")
-            if expectation != "unknown":
-                fail(errors, snapshot_path, "finding: violation requires expect: unknown")
-            if "PREFLIGHT FINDING:" not in text:
-                fail(errors, snapshot_path, "finding: violation requires a PREFLIGHT FINDING block")
-
-        sps_state = value.get("sps")
-        if sps_state not in SNAPSHOT_SPS_STATES:
-            fail(errors, snapshot_path, "sps has an unknown value")
-        artifact = snapshot_path.parent / "artifact.bc"
-        manifest = snapshot_path.parent / "sps-manifest.sps.json"
-        report = snapshot_path.parent / "sps-report.sps.json"
-        if artifact.is_file() != manifest.is_file():
-            fail(errors, snapshot_path, "artifact.bc and sps-manifest.sps.json must appear together")
-        if sps_state == "not-run" and report.exists():
-            fail(errors, snapshot_path, "sps-report.sps.json is incompatible with sps: not-run")
-        if sps_state != "not-run" and not all(
-            path.is_file() for path in (artifact, manifest, report)
-        ):
-            fail(errors, snapshot_path, "a completed SPS state requires bitcode, manifest, and report")
-        if sps_state in SNAPSHOT_SPS_STATES and sps_state != "not-run":
-            fail(
-                errors,
-                snapshot_path,
-                "non-not-run SPS states remain disabled until the production verifier validates the report",
-            )
-
         for field in RETIRED_MLIR_HEADER_FIELDS:
             if field_values(text, field):
                 fail(errors, mlir_path, f"retired MLIR header field {field!r}; use snapshot.yaml")
@@ -624,12 +563,13 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
                 "path": snapshot_path,
                 "mlir": mlir_path,
                 "entry": entry,
-                "c_evidence": resolved_evidence if evidence is not None else [],
-                "secret": value.get("secret"),
-                "public": value.get("public"),
-                "allowed": value.get("allowed", []),
-                "expect": expectation,
-                "sps": sps_state,
+                "c_evidence": resolved_evidence,
+                "secret": value.secret,
+                "public": value.public,
+                "allowed": value.allowed,
+                "snapshot": value,
+                "pipelines": value.pipelines,
+                "final": value.final,
             }
         )
 
@@ -659,19 +599,16 @@ def snapshot_records() -> tuple[list[dict[str, object]], list[str]]:
         for path in record.get("c_evidence", [])
         if isinstance(path, Path)
     }
-    for source in fixture_layout.family_source_paths(ROOT):
+    for source in fixture_layout.fixture_source_paths(ROOT):
         if source.resolve() not in referenced_c:
-            fail(errors, source, "family C source is not referenced by any snapshot c_evidence")
+            fail(errors, source, "fixture C source is not referenced by any snapshot c_evidence")
     return records, errors
 
 
 def check_snapshots() -> list[str]:
-    return snapshot_records()[1]
-
-
-def check_annotations() -> list[str]:
-    """Compatibility alias for older harness invocations."""
-    return check_snapshots()
+    _, errors = snapshot_records()
+    errors.extend(checkpoint_model.validate_inventory(ROOT))
+    return errors
 
 
 def read_json(errors: list[str], path: Path) -> dict[str, object] | None:
@@ -1054,6 +991,18 @@ def check_conformance_matrix() -> list[str]:
     if set(ids) != REQUIRED_CONFORMANCE_IDS:
         fail(errors, CONFORMANCE_MATRIX, "must enumerate exactly NF-A01..15 and NF-CM01..12")
     allowed = {"pending", "infrastructure-seed", "preflight-seed"}
+    pending_ids = [
+        case.get("id")
+        for case in cases
+        if isinstance(case, dict) and case.get("harness_status") == "pending"
+    ]
+    if pending_ids:
+        fail(
+            errors,
+            CONFORMANCE_MATRIX,
+            "the fixed 27-row Rev4 matrix must have no pending rows; "
+            f"remaining={pending_ids}",
+        )
     for case in cases:
         if not isinstance(case, dict):
             continue
@@ -1448,7 +1397,7 @@ def main() -> int:
         choices=(
             "provenance",
             "snapshots",
-            "annotations",
+            "checkpoints",
             "artifacts",
             "all",
             "list-fixtures",
@@ -1464,9 +1413,20 @@ def main() -> int:
             return 1
         for record in records:
             case = record["path"].parent.relative_to(FIXTURES_DIR)
+            pipelines = record["pipelines"]
+            final = record["final"]
+            pipeline_summary = ",".join(
+                f"{identifier}[{pipeline.kind}]"
+                for identifier, pipeline in pipelines.items()
+            )
             print(
-                f"{case}: expect={record['expect']} sps={record['sps']} "
-                f"entry={record['entry']}"
+                f"{case}: entry={record['entry']} "
+                f"expected-model={final.status} "
+                f"expected-deployment={final.deployment} "
+                f"expected-policy={final.policy} "
+                f"events={len(final.events)} "
+                f"reference={final.reference or '-'} "
+                f"pipelines={pipeline_summary}"
             )
         print(f"{len(records)} fixtures")
         return 0
@@ -1474,8 +1434,10 @@ def main() -> int:
     errors: list[str] = []
     if args.check in ("provenance", "all"):
         errors.extend(check_provenance())
-    if args.check in ("snapshots", "annotations", "all"):
+    if args.check in ("snapshots", "all"):
         errors.extend(check_snapshots())
+    if args.check == "checkpoints":
+        errors.extend(checkpoint_model.validate_inventory(ROOT))
     if args.check in ("artifacts", "all"):
         errors.extend(check_artifacts())
     if errors:

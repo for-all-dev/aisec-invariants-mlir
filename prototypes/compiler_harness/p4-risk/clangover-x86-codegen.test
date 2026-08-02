@@ -1,23 +1,8 @@
 # REQUIRES: clang, x86-target
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
-# RUN: %FileCheck %s --check-prefix=BAD --input-file=%t.bad.s
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/sources/clangover_poly_frommsg_fixed.c -o %t.fixed.s
-# RUN: %FileCheck %s --check-prefix=FIXED --input-file=%t.fixed.s
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/sources/clangover_ct_cmov.c -o %t.helper.s
+# RUN: %checkpoint-runner run --snapshot fixtures/clangover-poly-frommsg/lowered-bad/snapshot.yaml --pipeline x86-backend-risk --endpoint %t.bad.s --records %t.checkpoints -- %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -Os -fno-vectorize -fno-slp-vectorize -S %fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c -o %t.bad.s
+# RUN: %checkpoint-runner run --snapshot fixtures/clangover-poly-frommsg/lowered-fixed/snapshot.yaml --pipeline x86-backend-control --endpoint %t.fixed.s --records %t.checkpoints -- %python %harness/integration/Inputs/compile_clangover_control.py --clang %clang --include %harness/include --primary %fixtures/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c --helper %fixtures/clangover-poly-frommsg/lowered-fixed/clangover_ct_cmov.c --endpoint %t.fixed.s --helper-output %t.helper.s
 # RUN: %FileCheck %s --check-prefix=HELPER --implicit-check-not='j{{[a-z]+}}' --input-file=%t.helper.s
-
-# BAD-LABEL: clangover_poly_frommsg_vulnerable:
-# BAD: btl
-# BAD-NEXT: jae
-
-# FIXED-LABEL: clangover_poly_frommsg_fixed:
-# FIXED-NOT: jae
-# FIXED: btl
-# FIXED-NEXT: setb
-# FIXED-NOT: j
-# FIXED: callq clangover_ct_cmov@PLT
-# FIXED-NOT: jae
-# FIXED: .size clangover_poly_frommsg_fixed
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints
 
 # HELPER-LABEL: clangover_ct_cmov:
 # HELPER-NOT: j

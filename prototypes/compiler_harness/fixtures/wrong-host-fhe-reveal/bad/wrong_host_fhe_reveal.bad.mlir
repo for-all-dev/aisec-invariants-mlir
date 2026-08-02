@@ -1,13 +1,11 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/wrong-host-fhe-reveal/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal.bad.mlir --records %t.checkpoints
+
 //
 // scope note: direct preflight diagnostic host and release-policy violation
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @wrong_host_fhe_reveal_bad
-// CHECK-SAME: %[[CIPHERTEXT:[a-zA-Z0-9_]+]]: i32, %[[PLAINTEXT:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[CLIENT:[a-zA-Z0-9_]+]]: !llvm.ptr, %[[SERVER:[a-zA-Z0-9_]+]]: !llvm.ptr {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
-// CHECK: llvm.store %[[PLAINTEXT]], %[[CLIENT]]
-// CHECK: llvm.store %[[PLAINTEXT]], %[[SERVER]] {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
 module {
   llvm.func @wrong_host_fhe_reveal_bad(
       %ciphertext_handle: i32,

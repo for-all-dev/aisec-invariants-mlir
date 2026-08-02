@@ -2276,6 +2276,29 @@ class Registry:
             },
         )
 
+    @staticmethod
+    def _derived_adversary_coalitions(
+        maximal_coalitions: list[list[str]],
+    ) -> list[tuple[str, list[str]]]:
+        """Return the canonical downward closure of the authored maxima."""
+        coalition_sets: set[tuple[str, ...]] = set()
+        for maximal in maximal_coalitions:
+            principals = sorted(set(maximal))
+            for mask in range(1 << len(principals)):
+                coalition_sets.add(tuple(
+                    principal
+                    for index, principal in enumerate(principals)
+                    if mask & (1 << index)
+                ))
+        coalitions = sorted(
+            (list(principals) for principals in coalition_sets),
+            key=canonical_bytes,
+        )
+        return [
+            (sha256(canonical_bytes(principals)), principals)
+            for principals in coalitions
+        ]
+
     def _required_query_schedule(
         self, canonical_inputs: dict[str, Any]
     ) -> OrderedDict[str, Any]:
@@ -2291,15 +2314,17 @@ class Registry:
         }
         policy = decoded["policy"]
         entries = [row["key"] for row in policy["entries"]]
-        coalitions = [
-            (sha256(canonical_bytes(principals)), principals)
-            for principals in policy["maximalAdversaryCoalitions"]
-        ]
+        coalitions = self._derived_adversary_coalitions(
+            policy["maximalAdversaryCoalitions"]
+        )
         components = self._canonical_map(policy["components"])
         member_visibility = self._canonical_map(
             policy["componentVisibility"]["memberVisible"]
         )
         world_visible = set(policy["componentVisibility"]["worldVisible"])
+        joint_visibility = policy["componentVisibility"][
+            "minimallyJointVisible"
+        ]
         release_entries = {
             entry["releaseId"]: entry
             for entry in decoded["releaseTable"]["entries"]
@@ -2343,12 +2368,18 @@ class Registry:
             )
         for entry_id in entries:
             for coalition_id, principals in coalitions:
+                principal_set = set(principals)
                 for component_id, component in components.items():
                     if entry_id not in component["applicableEntries"]:
                         continue
                     visible = component_id in world_visible or any(
                         component_id in member_visibility.get(principal, [])
                         for principal in principals
+                    ) or any(
+                        visible_component == component_id
+                        and set(joint_principals).issubset(principal_set)
+                        for joint_principals, visible_component
+                        in joint_visibility
                     )
                     if not visible:
                         queries.append(
@@ -3165,10 +3196,14 @@ def check_consumers() -> None:
         r"BLOCKER_SCOPES_V2|CONFIG_REASONS_V[12]|REPORT_FAILURES_V[12])\s*="
     )
     ignored_parts = {".venv", "build", "__pycache__"}
+    reference_vendor = (
+        HARNESS_ROOT / "contracts" / "vendor" / "sps-reference-rev4"
+    )
     paths = sorted(
         path
         for path in HARNESS_ROOT.rglob("*.py")
         if not ignored_parts.intersection(path.relative_to(HARNESS_ROOT).parts)
+        and reference_vendor not in path.parents
         and path.resolve() != Path(__file__).resolve()
     )
     violations: list[str] = []

@@ -1,0 +1,69 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-HOST-RELEASE",
+  "caseId": "host-release-unauthorized-visible",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 12",
+    "Normative 21.4"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.release.unauthorized",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": null,
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.secret",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "var": "secret"
+          },
+          "audience": [
+            "owner"
+          ],
+          "host": "release.host",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "release.host"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true
+  }
+}

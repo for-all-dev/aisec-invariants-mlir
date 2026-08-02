@@ -1,4 +1,6 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/ckks-release/bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/ckks-release/bad/ckks_unsafe_release.bad.mlir --records %t.checkpoints
+
 //
 // input invariant: %certificate_ok is a well-formed Boolean in {0, 1}
 // private result: the function return is not in the public observer projection
@@ -7,11 +9,6 @@
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @ckks_unsafe_release_bad
-// CHECK-SAME: %[[RAW:[a-zA-Z0-9_]+]]: i32 {sps.component_ref = "raw-approximate-plaintext", sps.fixture_refs = ["secret:raw_approximate_plaintext"], sps.label = "high"}
-// CHECK-SAME: %[[SINK:[a-zA-Z0-9_]+]]: !llvm.ptr {sps.fixture_refs = ["public-memory:public_release"], sps.output_ref = "public-release", sps.sink_class = "public"}
-// CHECK: llvm.store %[[RAW]], %[[SINK]] {sps.fixture_refs = ["store:raw-public-release"], sps.label = "high", sps.sink_class = "public", sps.site_alias = "raw-public-release"}
-// CHECK-NOT: sps.release_policy
 module {
   llvm.func @ckks_unsafe_release_bad(
       %raw_approximate_plaintext: i32 {

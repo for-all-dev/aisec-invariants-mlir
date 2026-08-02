@@ -7,19 +7,28 @@ produce a `ModelStatus`.
 
 ## Expected interpretation
 
-The snapshot's `expect` value says what a reviewer should conclude at the
-modeled MLIR boundary: a predicted violation, a negative control, a required
-relational check, an unknown premise, a target risk, or shape-only evidence.
-It routes future work without claiming that work has run. `sps: not-run` makes
-that boundary explicit for every current case.
+Snapshot V3 gives every fixture one direct expected final judgment and sparse
+typed properties for the intermediate endpoints that matter. It contains no
+execution, capability, lineage, adapter, or materialization fields; lit owns
+those operational details. The 56 nonclaimable expectations contain 26
+`Proved`, 21 `Counterexample`, and 9 `Unknown` model results, all with
+deployment `Open` and policy `Complete`. Relevant cases select closed SPS event
+fields, never raw traces or protected evidence. Nine authenticate their
+existing candidate expected-run sidecars through a compact `reference`; the
+other 47 need no candidate artifact.
 
 ## What the current checks establish
 
-`mlir-opt` plus `FileCheck` establishes only that a selected MLIR operation or
-dataflow shape parses and survives the requested transforms. The unary scanner
-may emit an `SPS-Harness-PreflightFinding-v2` review aid. Silence, a control
+The checkpoint runner establishes only that a selected typed MLIR, diagnostic,
+or backend endpoint matches its declared properties. The unary scanner may
+emit an `SPS-Harness-PreflightFinding-v2` review aid. Silence, a control
 fixture, or a preflight finding does not imply any Rev4 diagnostic disposition
 and cannot establish `Proved` or `Counterexample`.
+
+`finalize` is test bookkeeping: it checks that the checkpoints owned by one lit
+test produced matching observations. It is not the fixture's final security
+stage. The snapshot states the expected result now; a future `check-final`
+invocation separately validates and compares an actual `SPSRunReportV2`.
 
 Comments headed `PREFLIGHT FINDING` and `PREFLIGHT CONTROL` are executable
 annotation-shape checks. Their final `preflight expectation` line describes
@@ -73,20 +82,26 @@ ModelStatus = Proved
 source or target-model preflight fixture may identify a deployment risk, but it
 cannot close final-machine observation refinement.
 
+The vendored Rev4.1 registry currently defines only the `Open` deployment arm;
+there is no `DeploymentStatusV2.Closed` constructor. End-to-end closure is
+therefore unavailable until an upstream interface revision supplies and
+validates that arm.
+
 ## Snapshot contract
 
 The sibling `snapshot.yaml` identifies itself as
-`SPS-Harness-Fixture-Snapshot-v2` and records only the entry, same-family C provenance
-in `c_evidence`, claim-relevant secret arguments, public observations, optional
-release/audience allowance, expected fixture interpretation, short reason, and
-SPS execution state. `c_evidence` is not a compilation-origin assertion.
-Folder names supply family and case identity. Source hashes, capability
-inventories, candidate bundle links, and expected reports are intentionally not
-duplicated.
+`SPS-Harness-Fixture-Snapshot-v3` and records the entry, same-family C
+provenance, claim-relevant boundary, expected final axes/event selectors, and
+sparse typed pipeline properties. The inventory derives pipeline ownership and
+capabilities entirely from lit `RUN`/`REQUIRES` lines. `c_evidence` is
+provenance, not a compilation-origin assertion.
 
-For current MLIR fixtures the execution state is always `sps: not-run`. The
-snapshot checker rejects all other states until the production SPS parser and
-verifier are integrated. At that point a non-`not-run` state will additionally
-require the same case folder to contain `artifact.bc`,
-`sps-manifest.sps.json`, and `sps-report.sps.json`; filenames alone never
-establish that a run occurred.
+Observations are nonclaimable YAML under the lit build root. Canonical SPS
+interfaces and actual `SPSRunReportV2` values remain canonical JSON and are
+validated by the vendored V2 interface package. File presence and a future
+matcher alone never establish that a verifier ran.
+
+When a real report becomes available, lit must expose the pinned verifier and
+materialized Rev4.1 inputs. A separate `check-final --snapshot ... --report
+...` path authenticates and validates that report before comparison with
+`expect.final`. Packaging validation alone cannot produce an actual result.

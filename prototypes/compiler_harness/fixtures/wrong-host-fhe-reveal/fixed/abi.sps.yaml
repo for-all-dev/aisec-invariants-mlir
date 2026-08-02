@@ -1,0 +1,51 @@
+source: wrong_host_fhe_reveal_fixed.c
+relation: provenance-only
+entry:
+  id: wrong_host_fhe_reveal_fixed
+  symbol: wrong_host_fhe_reveal_fixed
+  host: compute
+  function-type: i32 (i32, i32, ptr, ptr)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  ciphertext-handle:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  revealed-plaintext:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+roots:
+  authorized-client-plaintext:
+    argument: 2
+    host: authorized-client-endpoint
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: authorized-client-plaintext
+  unauthorized-server-plaintext:
+    argument: 3
+    host: server-endpoint
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: unauthorized-server-plaintext
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - authorized-client-plaintext
+    - unauthorized-server-plaintext
+terminal-output-order:
+  normal-value:
+  - authorized-client-plaintext
+  - unauthorized-server-plaintext
+  - return

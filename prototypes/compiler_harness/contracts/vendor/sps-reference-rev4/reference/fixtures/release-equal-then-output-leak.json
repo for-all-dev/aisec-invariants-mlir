@@ -1,0 +1,79 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-BAD-CIRCUIT",
+  "caseId": "release-equal-then-output-leak",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 12",
+    "Normative 21.4 ledger recurrence"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.release.equal",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return.value",
+          "width": 8,
+          "host": "caller",
+          "byteOrder": "BigEndian"
+        },
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.constant",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "const": {
+              "width": 8,
+              "value": 0
+            }
+          },
+          "audience": [
+            "observer"
+          ],
+          "host": "release.host",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "secret"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true
+  }
+}

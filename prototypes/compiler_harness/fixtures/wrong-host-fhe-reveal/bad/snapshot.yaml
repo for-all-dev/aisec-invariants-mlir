@@ -1,21 +1,54 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wrong_host_fhe_reveal_bad
-
 c_evidence:
-  - ../sources/wrong_host_fhe_reveal_bad.c
-
+- fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal_bad.c
 secret:
-  - {arg: 1, name: revealed_plaintext}
-
+- arg: 1
+  name: revealed_plaintext
 public:
-  - {memory_at_arg: 3, name: unauthorized_server_plaintext}
-
+- memory_at_arg: 3
+  name: unauthorized_server_plaintext
 allowed:
-  - revealed plaintext may be written only to authorized_client_plaintext
-
-expect: violation
-
-because:
-  - revealed plaintext is copied to a server not authorized for plaintext
-
-sps: not-run
+- revealed plaintext may be written only to authorized_client_plaintext
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: unauthorized-server-output-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      first_bad: true
+    because: revealed plaintext is copied to a server not authorized for plaintext
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wrong_host_fhe_reveal_bad
+        operation.names:
+          ordered:
+          - llvm.store
+        operation.occurrences.llvm.store:
+          count:
+            min: 2

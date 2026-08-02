@@ -1,0 +1,51 @@
+source: leftoverlocals_scratch_fixed.c
+relation: provenance-only
+entry:
+  id: leftoverlocals_scratch_fixed
+  symbol: leftoverlocals_scratch_fixed
+  host: compute
+  function-type: i32 (i32, i32, ptr, ptr)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  prior-tenant-secret:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  next-tenant-public-value:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+roots:
+  shared-scratch:
+    argument: 2
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: read-write
+    initialization: uninitialized
+    ownership: caller
+    output: shared-scratch
+  next-tenant-output:
+    argument: 3
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: next-tenant-output
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - next-tenant-output
+    - shared-scratch
+terminal-output-order:
+  normal-value:
+  - shared-scratch
+  - next-tenant-output
+  - return

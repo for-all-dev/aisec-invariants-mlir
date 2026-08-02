@@ -1,18 +1,56 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: kyberslash1_poly_tomsg_fixed
-
 c_evidence:
-  - ../sources/kyberslash1_poly_tomsg_fixed.c
-
+- fixtures/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg_fixed.c
 secret:
-  - {arg: 0, name: coefficient}
-
+- arg: 0
+  name: coefficient
 public:
-  - {observable: timing}
-
-expect: no-violation
-
-because:
-  - reciprocal multiplication and shifting replace division
-
-sps: not-run
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Latency
+      field: configuredClass
+    because: reciprocal multiplication and shifting replace division
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - kyberslash1_poly_tomsg_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.shl
+          - llvm.add
+          - llvm.mul
+          - llvm.lshr
+          - llvm.return
+          excludes:
+          - llvm.udiv
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 4

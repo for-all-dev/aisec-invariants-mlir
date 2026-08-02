@@ -13,11 +13,11 @@
 #
 # These checks make no ModelStatus claim.
 
-# RUN: %clang -E -P %fixtures/release-carrier/sources/release_carrier.c -o %t.preprocessed.c
+# RUN: %clang -E -P -I%harness/include %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.preprocessed.c
 # RUN: not grep -F 'llvm.sps.release' %t.preprocessed.c
 
 # --- pinned wrapper survives O2, but default tail calls are out of profile ---
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/sources/release_carrier.c -o %t.rc.bc
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.rc.bc
 # RUN: %llvm-dis %t.rc.bc -o %t.rc.ll
 # RUN: %FileCheck %s --check-prefix=CARRIER --input-file=%t.rc.ll
 
@@ -32,7 +32,7 @@
 # --- a non-tail call-shape arm has cardinality exactly two ------------------
 # This isolates call kind and occurrence count. It is not a fully admissible
 # carrier because C still cannot express all of the required optimizer pins.
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -fno-optimize-sibling-calls --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/sources/release_carrier.c -o %t.rc.nontail.bc
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include -fno-optimize-sibling-calls --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.rc.nontail.bc
 # RUN: %llvm-dis %t.rc.nontail.bc -o %t.rc.nontail.ll
 # RUN: %FileCheck %s --check-prefix=NONTAIL --implicit-check-not='tail call i32 @sps_release_invalid_callable' --input-file=%t.rc.nontail.ll
 # NONTAIL: {{^  %[^ ]+ = call i32 @sps_release_invalid_callable}}
@@ -58,8 +58,8 @@
 # --- the negative arm: without the pin, the carrier is gone -----------------
 # Same source, same flags, with the attribute removed by preprocessor
 # substitution. This is the C-level counterpart of the MLIR differential.
-# RUN: sed 's/__attribute__((noinline))//' %fixtures/release-carrier/sources/release_carrier.c > %t.unpinned.c
-# RUN: %clang -std=c11 -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %t.unpinned.c -o %t.unpinned.bc
+# RUN: sed 's/__attribute__((noinline))//' %fixtures/release-carrier/pinned-control/release_carrier.c > %t.unpinned.c
+# RUN: %clang -std=c11 -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %t.unpinned.c -o %t.unpinned.bc
 # RUN: %llvm-dis %t.unpinned.bc -o %t.unpinned.ll
 # RUN: %FileCheck %s --check-prefix=UNPINNED --implicit-check-not='call i32 @sps_release_invalid_callable' --input-file=%t.unpinned.ll
 

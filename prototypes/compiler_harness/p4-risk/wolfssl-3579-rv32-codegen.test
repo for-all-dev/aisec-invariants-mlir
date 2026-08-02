@@ -1,14 +1,4 @@
 # REQUIRES: clang, riscv32-target
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/sources/wolfssl_3579_mul_vulnerable.c -o %t.bad.s
-# RUN: %FileCheck %s --check-prefix=BAD --input-file=%t.bad.s
-# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/sources/wolfssl_3579_mul_fixed.c -o %t.fixed.s
-# RUN: %FileCheck %s --check-prefix=FIXED --input-file=%t.fixed.s
-
-# BAD-LABEL: wolfssl_3579_mul_vulnerable:
-# BAD: call __muldi3@plt
-
-# FIXED-LABEL: wolfssl_3579_mul_fixed:
-# FIXED-NOT: __muldi3
-# FIXED: bnez
-# FIXED-NOT: __muldi3
-# FIXED: .size wolfssl_3579_mul_fixed
+# RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-bad/snapshot.yaml --pipeline rv32-backend-risk --endpoint %t.bad.s --records %t.checkpoints -- %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/target-bad/wolfssl_3579_mul_vulnerable.c -o %t.bad.s
+# RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-fixed/snapshot.yaml --pipeline rv32-backend-control --endpoint %t.fixed.s --records %t.checkpoints -- %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul_fixed.c -o %t.fixed.s
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

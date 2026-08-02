@@ -1,0 +1,82 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-HOST-RELEASE",
+  "caseId": "release-partial-footprint-replay-refusal",
+  "kind": "product-profile-refusal",
+  "requirementRefs": [
+    "Normative 11 ReplayCovered",
+    "Normative 12"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.partial-release",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 16,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return.value",
+          "width": 16,
+          "host": "caller",
+          "byteOrder": "BigEndian"
+        },
+        "roots": []
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.partial",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "const": {
+              "width": 16,
+              "value": 0
+            }
+          },
+          "audience": [
+            "observer"
+          ],
+          "host": "entry",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "secret"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    },
+    "witness": {
+      "L.input.secret": 0,
+      "R.input.secret": 1
+    }
+  },
+  "expected": {
+    "productReason": "ReferenceProductUnsupported",
+    "replayReason": "ReferenceReplayRejected"
+  }
+}

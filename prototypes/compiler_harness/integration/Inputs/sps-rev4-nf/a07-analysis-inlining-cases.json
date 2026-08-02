@@ -1,0 +1,43 @@
+{
+  "formatId": "SPS-Harness-NF-A07-Seeds-v1",
+  "fixtureTier": {"tag": "CandidateOnly"},
+  "llvmVersion": "17.0.6",
+  "cases": [
+    {
+      "caseId": "A07-01",
+      "entryFunction": "a07_closed_entry",
+      "engineCaps": {"K_call": 2, "K_paths": 2, "K_expanded_instructions": 12},
+      "expectedObservation": {"tag": "AnalysisExpansionCandidateShape", "artifactMutation": "Forbidden", "memoryAndEvents": "Preserved"}
+    },
+    {
+      "caseId": "A07-02",
+      "entryFunction": "a07_closed_entry",
+      "engineCaps": {"K_call": 0, "K_paths": 2, "K_expanded_instructions": 12},
+      "expectedObservation": {"tag": "ReasonClassSeed", "reasonClassId": "ResourceLimit"}
+    },
+    {
+      "caseId": "A07-03",
+      "entryFunction": "a07_closed_entry",
+      "engineCaps": {"K_call": 2, "K_paths": 0, "K_expanded_instructions": 12},
+      "expectedObservation": {"tag": "ReasonClassSeed", "reasonClassId": "ResourceLimit"}
+    },
+    {
+      "caseId": "A07-04",
+      "entryFunction": "a07_closed_entry",
+      "engineCaps": {"K_call": 2, "K_paths": 2, "K_expanded_instructions": 0},
+      "expectedObservation": {"tag": "ReasonClassSeed", "reasonClassId": "ResourceLimit"}
+    },
+    {
+      "caseId": "A07-05",
+      "entryFunction": "a07_recursive_entry",
+      "engineCaps": {"K_call": 8, "K_paths": 8, "K_expanded_instructions": 64},
+      "expectedObservation": {"tag": "ReasonClassSeed", "reasonClassId": "Recursion"}
+    },
+    {
+      "caseId": "A07-06",
+      "entryFunction": "a07_indirect_entry",
+      "engineCaps": {"K_call": 8, "K_paths": 8, "K_expanded_instructions": 64},
+      "expectedObservation": {"tag": "ReasonClassSeed", "reasonClassId": "IndirectCall"}
+    }
+  ]
+}

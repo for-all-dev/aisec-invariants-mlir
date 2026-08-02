@@ -1,32 +1,13 @@
-// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not='llvm.call @__muldi3' --implicit-check-not=llvm.cond_br
-// RUN: %mlir-opt %s | %FileCheck %s --check-prefix=COUNT --implicit-check-not='llvm.call @__muldi3' --implicit-check-not=llvm.cond_br
+// RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul.target_fixed.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic verifies the fixed loop; target-operation and backend-conformance facts remain deployment obligations
 // artifact status: hand-written fixed target model
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @wolfssl_3579_mul_fixed_model
-// CHECK-SAME: %[[SECRET_A:[a-zA-Z0-9_]+]]: i64 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[SECRET_B:[a-zA-Z0-9_]+]]: i64 {sps.fixture_refs = ["snapshot.secret[1]"], sps.label = "high"}
-// CHECK: %[[ZERO64:[0-9]+]] = llvm.mlir.constant(0 : i64) : i64
-// CHECK: %[[ONE64:[0-9]+]] = llvm.mlir.constant(1 : i64) : i64
-// CHECK: %[[ZERO32:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK: %[[ONE32:[0-9]+]] = llvm.mlir.constant(1 : i32) : i32
-// CHECK: %[[BOUND:[0-9]+]] = llvm.mlir.constant(64 : i32) : i32
-// CHECK-NOT: llvm.call @__muldi3
-// CHECK: llvm.br ^bb1(%[[ZERO32]], %[[ZERO64]], %[[SECRET_A]], %[[SECRET_B]] : i32, i64, i64, i64)
-// CHECK: ^bb1(%[[INDEX:[0-9]+]]: i32, %[[ACC:[0-9]+]]: i64, %[[ADDEND:[0-9]+]]: i64, %[[MULT:[0-9]+]]: i64)
-// CHECK: %[[DONE:[0-9]+]] = llvm.icmp "eq" %[[INDEX]], %[[BOUND]] : i32
-// CHECK-NOT: llvm.call @__muldi3
-// CHECK: llvm.cond_br %[[DONE]], {{.*}} {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]}
-// CHECK-NOT: llvm.call @__muldi3
-// CHECK: %[[LOW_BIT:[0-9]+]] = llvm.and %[[MULT]], %[[ONE64]] {sps.fixture_refs = ["snapshot.secret[1]"]}
-// CHECK: %[[NEXT_INDEX:[0-9]+]] = llvm.add %[[INDEX]], %[[ONE32]]
-// CHECK: llvm.br ^bb1(%[[NEXT_INDEX]],
-// CHECK-NOT: llvm.call @__muldi3
-// CHECK: llvm.return
 //
-// COUNT-COUNT-1: llvm.cond_br
 module {
   llvm.func @wolfssl_3579_mul_fixed_model(
       %secret_a: i64 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

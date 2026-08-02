@@ -8,6 +8,7 @@ LLC ?= $(LLVM_BIN)/llc
 RISCV_GCC ?=
 
 COMMON_CFLAGS := -std=c11 -Wall -Wextra -Wpedantic -fno-builtin
+override COMMON_CFLAGS += -I../include
 X86_FLAGS := --target=x86_64-unknown-linux-gnu
 RV32_FLAGS := --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32
 AARCH64_FLAGS := --target=aarch64-unknown-linux-gnu

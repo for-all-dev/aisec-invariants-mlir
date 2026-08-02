@@ -1,18 +1,67 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: secret_embedding_index_fixed
-
 c_evidence:
-  - ../sources/secret_embedding_index_fixed.c
-
+- fixtures/secret-embedding-index/fixed/secret_embedding_index_fixed.c
 secret:
-  - {arg: 1, name: secret_index}
-
+- arg: 1
+  name: secret_index
 public:
-  - {observable: address}
-
-expect: no-violation
-
-because:
-  - every run scans all 16 public addresses in the same order
-
-sps: not-run
+- observable: address
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Memory
+      field: offsetClass
+    because: every run scans all 16 public addresses in the same order
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - secret_embedding_index_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.br
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.getelementptr
+          - llvm.load
+          - llvm.or
+          - llvm.add
+          - llvm.return
+        operation.occurrences.llvm.cond_br:
+          count:
+            eq: 1
+        operation.occurrences.llvm.getelementptr:
+          count:
+            eq: 1
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 5
+        operation.occurrences.llvm.br:
+          count:
+            min: 2

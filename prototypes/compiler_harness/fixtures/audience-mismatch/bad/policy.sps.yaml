@@ -1,0 +1,66 @@
+entry: audience-mismatch
+observation-model: constant-time
+
+principals: [alice, bob]
+
+adversaries:
+  maximal:
+    - [alice, bob]
+
+hosts:
+  compute:
+    visibility: secret
+
+  alice-endpoint:
+    visibility:
+      world: false
+      members: [alice]
+      joint: []
+
+  bob-endpoint:
+    visibility:
+      world: false
+      members: [bob]
+      joint: []
+
+components:
+  logits:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+
+outputs:
+  alice-channel:
+    visibility:
+      world: false
+      members: [alice]
+      joint: []
+
+  bob-channel:
+    visibility:
+      world: false
+      members: [bob]
+      joint: []
+
+releases:
+  masked-class:
+    locator:
+      helper: masked-class
+      call-ordinal: 0
+    audience:
+      world: false
+      members: [alice]
+      joint: []
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      bit-and:
+        left:
+          component: logits
+        right:
+          constant: 255
+    guard: true
+    payload-footprint: [0]
+    multiplicity: 1

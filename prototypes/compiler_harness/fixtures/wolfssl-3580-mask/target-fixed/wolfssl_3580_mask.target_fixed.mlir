@@ -1,26 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.cond_br
+// RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3580-mask/target-fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/wolfssl-3580-mask/target-fixed/wolfssl_3580_mask.target_fixed.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic fixed-mask target model; compiler-conformance evidence separately compares backend output
 // artifact status: hand-written fixed target model
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @wolfssl_3580_select_fixed
-// CHECK-SAME: %[[SECRET:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}, %[[SCAN:[a-zA-Z0-9_]+]]: i32, %[[VALUE:[a-zA-Z0-9_]+]]: i32
-// CHECK-NOT: llvm.cond_br
-// CHECK: %[[ZERO:[0-9]+]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK: %[[ONE:[0-9]+]] = llvm.mlir.constant(1 : i32) : i32
-// CHECK: %[[SHIFT:[0-9]+]] = llvm.mlir.constant(31 : i32) : i32
-// CHECK: %[[DIFF:[0-9]+]] = llvm.xor %[[SCAN]], %[[SECRET]]
-// CHECK: %[[NEGATED:[0-9]+]] = llvm.sub %[[ZERO]], %[[DIFF]]
-// CHECK: %[[EITHER:[0-9]+]] = llvm.or %[[DIFF]], %[[NEGATED]]
-// CHECK: %[[TOP:[0-9]+]] = llvm.lshr %[[EITHER]], %[[SHIFT]]
-// CHECK-NOT: llvm.cond_br
-// CHECK: %[[IS_ZERO:[0-9]+]] = llvm.xor %[[TOP]], %[[ONE]]
-// CHECK: %[[MASK:[0-9]+]] = llvm.sub %[[ZERO]], %[[IS_ZERO]] {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]}
-// CHECK: %[[SELECTED:[0-9]+]] = llvm.and %[[VALUE]], %[[MASK]]
-// CHECK-NOT: llvm.cond_br
-// CHECK: llvm.return %[[SELECTED]]
 module {
   llvm.func @wolfssl_3580_select_fixed(
       %table_index: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

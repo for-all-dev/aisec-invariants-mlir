@@ -1,13 +1,12 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/clangover-poly-frommsg/lowered-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg.lowered_bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic target check; exact product bit witness; backend evidence
 // artifact status: hand-written target model derived from verified assembly
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @clangover_poly_frommsg_x86_bad_model
-// CHECK-SAME: %[[BIT:[a-zA-Z0-9_]+]]: i1 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}
-// CHECK: llvm.cond_br %[[BIT]], ^bb1, ^bb2 {sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"], sps.observable_candidate = ["control", "timing"]}
 module {
   // Verified x86 excerpt from the reduction:
   //   btl %ecx, %r8d

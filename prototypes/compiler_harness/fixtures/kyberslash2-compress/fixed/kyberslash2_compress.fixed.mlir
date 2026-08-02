@@ -1,23 +1,11 @@
-// RUN: %mlir-opt %s | %FileCheck %s --implicit-check-not=llvm.udiv
+// RUN: %checkpoint-runner run --snapshot fixtures/kyberslash2-compress/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/kyberslash2-compress/fixed/kyberslash2_compress.fixed.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic source-operation model confirms no division remains
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
 // sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
 //
-// CHECK-LABEL: llvm.func @kyberslash2_compress_fixed
-// CHECK-SAME: %[[COEFFICIENT:[a-zA-Z0-9_]+]]: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}
-// CHECK-NOT: llvm.udiv
-// CHECK: %[[INPUT_SHIFT:[0-9]+]] = llvm.mlir.constant(4 : i32) : i32
-// CHECK: %[[ROUND:[0-9]+]] = llvm.mlir.constant(1665 : i32) : i32
-// CHECK: %[[RECIPROCAL:[0-9]+]] = llvm.mlir.constant(80635 : i32) : i32
-// CHECK: %[[RECIPROCAL_SHIFT:[0-9]+]] = llvm.mlir.constant(28 : i32) : i32
-// CHECK: %[[SHIFTED:[0-9]+]] = llvm.shl %[[COEFFICIENT]], %[[INPUT_SHIFT]]
-// CHECK: %[[NUMERATOR:[0-9]+]] = llvm.add %[[SHIFTED]], %[[ROUND]]
-// CHECK: %[[SCALED:[0-9]+]] = llvm.mul %[[NUMERATOR]], %[[RECIPROCAL]] {sps.fixture_refs = ["snapshot.public[0]"], sps.observable_candidate = ["timing"]}
-// CHECK-NOT: llvm.udiv
-// CHECK: %[[QUOTIENT:[0-9]+]] = llvm.lshr %[[SCALED]], %[[RECIPROCAL_SHIFT]]
-// CHECK-NOT: llvm.udiv
-// CHECK: llvm.return
 module {
   llvm.func @kyberslash2_compress_fixed(
       %coefficient: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"}) -> i32 {

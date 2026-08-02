@@ -1,0 +1,46 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "familyId": "NF-FX-OUTPUT-UNINIT",
+  "caseId": "output-uninitialized-refusal",
+  "kind": "refusal",
+  "requirementRefs": [
+    "Normative 2.2",
+    "Normative 7.3"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v2",
+      "entryId": "entry.uninitialized",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [],
+      "abi": {
+        "return": null,
+        "roots": [
+          {
+            "id": "out",
+            "byteLength": 1,
+            "host": "caller",
+            "outputId": "root.out",
+            "initialBytes": [
+              0
+            ],
+            "initialized": [
+              false
+            ]
+          }
+        ]
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    }
+  },
+  "expected": {
+    "reason": "UninitializedOutputByte"
+  }
+}

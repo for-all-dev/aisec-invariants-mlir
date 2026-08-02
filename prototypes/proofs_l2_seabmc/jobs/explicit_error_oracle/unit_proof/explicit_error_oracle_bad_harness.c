@@ -2,7 +2,7 @@
  * Unit proof: sequential self-composition of explicit_error_oracle_bad.
  *
  * This is the job that exercises the DECLASSIFICATION premise R of the
- * release-relative property (compiler_harness/mlir/L0_L1_L2_PIPELINE.md):
+ * release-relative property (compiler_harness/fixtures/REV4_PREFLIGHT_WORKFLOW.md):
  *
  *   for all p, s0, s1:
  *     R(p, s0) == R(p, s1)  implies  Obs(Trace(P,p,s0)) == Obs(Trace(P,p,s1))
@@ -35,7 +35,7 @@
 #include <stdint.h>
 
 /* The fixture under test, used in place -- not copied. */
-#include "../../../../compiler_harness/c/explicit_error_oracle_bad.c"
+#include "../../../../compiler_harness/fixtures/explicit-error-oracle/bad/explicit_error_oracle_bad.c"
 
 extern uint32_t nd_u32(void);
 

@@ -31,7 +31,7 @@
 
 /* The fixture under test, used in place -- not copied -- so this proof tracks
  * prototypes/compiler_harness/ rather than drifting from it. */
-#include "../../../../compiler_harness/c/secret_embedding_index_bad.c"
+#include "../../../../compiler_harness/fixtures/secret-embedding-index/bad/secret_embedding_index_bad.c"
 
 /* Keeps the loaded values live so the loads are not dead-code eliminated
  * before they can stamp read metadata. */

@@ -1,19 +1,53 @@
-format_id: SPS-Harness-Fixture-Snapshot-v2
+format_id: SPS-Harness-Fixture-Snapshot-v3
 entry: wolfssl_3579_mul_rv32_unknown_model
-
 c_evidence:
-  - ../sources/wolfssl_3579_mul_vulnerable.c
-
+- fixtures/wolfssl-3579-mul/target-unknown/wolfssl_3579_mul_vulnerable.c
 secret:
-  - {arg: 0, name: secret_a}
-  - {arg: 1, name: secret_b}
-
+- arg: 0
+  name: secret_a
+- arg: 1
+  name: secret_b
 public:
-  - {observable: timing}
-
-expect: unknown
-
-because:
-  - the helper is called with secrets but has no timing contract
-
-sps: not-run
+- observable: timing
+expect:
+  final:
+    model:
+      status: Unknown
+      reason: OpenModelObligations
+    deployment: Open
+    policy: Complete
+    because: the helper is called with secrets but has no timing contract
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wolfssl_3579_mul_rv32_unknown_model
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.return
+        call.callees:
+          contains:
+          - __muldi3
+        function.attribute_keys:
+          excludes:
+          - __muldi3|sps.helper_latency

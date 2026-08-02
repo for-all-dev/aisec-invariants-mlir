@@ -1,5 +1,7 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/offset-disjoint/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/offset-disjoint/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/precision-control/offset-disjoint/precision_offset_disjoint.control.mlir --records %t.checkpoints
+
 //
 // scope note: the unary scanner may collect byte regions for review, but only
 // the eventual exact product can decide byte-exact disjointness.
@@ -24,29 +26,11 @@
 // getelementptr with a constant 0 index folds away to the base pointer, which
 // would erase the shape this fixture exists to pin.
 //
-// CHECK-LABEL: llvm.func @offset_disjoint_control
-// CHECK-SAME: {{.*}}sps.component_ref = "secret-byte"
-// CHECK-SAME: sps.fixture_refs = ["secret:secret_byte"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: {{.*}}sps.abi_root_ref = "buffer"
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["public-memory:public_sink"]
-// CHECK: %[[OFF_SECRET:[0-9]+]] = llvm.mlir.constant(4 : i32) : i32
-// CHECK: %[[OFF_PUBLIC:[0-9]+]] = llvm.mlir.constant(8 : i32) : i32
-// CHECK: %[[SECRET_SLOT:[0-9]+]] = llvm.getelementptr %{{.*}}[%[[OFF_SECRET]]]
-// CHECK: %[[PUBLIC_SLOT:[0-9]+]] = llvm.getelementptr %{{.*}}[%[[OFF_PUBLIC]]]
-// CHECK: llvm.store %{{.*}}, %[[SECRET_SLOT]] {sps.fixture_refs = ["store:secret-offset-4"], sps.label = "high", sps.site_alias = "secret-offset-4"}
-// CHECK: llvm.store %{{.*}}, %[[PUBLIC_SLOT]] {sps.fixture_refs = ["store:public-offset-8"], sps.label = "public", sps.site_alias = "public-offset-8"}
-// CHECK: %[[RELOADED:[0-9]+]] = llvm.load %[[PUBLIC_SLOT]]
-// CHECK: llvm.store %[[RELOADED]], %{{.*}} {sps.fixture_refs = ["store:public-reload-output"], sps.sink_class = "public", sps.site_alias = "public-reload-output"}
 //
 // Both nonzero offsets must survive canonicalization or the control is void.
 // Measured with mlir-opt 17.0.6: canonicalization folds the constant operands
 // into STATIC getelementptr indices, so the two byte offsets remain distinct and
 // become statically visible rather than disappearing. Assert that stronger form.
-// STABLE: llvm.getelementptr %{{.*}}[4] : (!llvm.ptr) -> !llvm.ptr, i8
-// STABLE: llvm.getelementptr %{{.*}}[8] : (!llvm.ptr) -> !llvm.ptr, i8
-// STABLE: llvm.store %{{.*}} {sps.fixture_refs = ["store:secret-offset-4"], sps.label = "high", sps.site_alias = "secret-offset-4"}
-// STABLE: llvm.store %{{.*}} {sps.fixture_refs = ["store:public-offset-8"], sps.label = "public", sps.site_alias = "public-offset-8"}
 module {
   llvm.func @offset_disjoint_control(
       %secret_byte: i32 {

@@ -1,5 +1,7 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/overwritten-slot/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/precision-control/overwritten-slot/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/precision-control/overwritten-slot/precision_overwritten_slot.control.mlir --records %t.checkpoints
+
 //
 // scope note: the unary scanner flags a relational review site at the reload;
 // the eventual exact product decides whether the reloaded words are equal.
@@ -21,21 +23,7 @@
 // Measured with mlir-opt 17.0.6: --canonicalize does NOT eliminate either store
 // to the slot, so the overwrite shape survives and the control stays meaningful.
 //
-// CHECK-LABEL: llvm.func @overwritten_slot_control
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK: %[[SLOT:[0-9]+]] = llvm.alloca
-// CHECK: llvm.store %{{.*}}, %[[SLOT]] {sps.label = "high"}
-// CHECK: llvm.store %{{.*}}, %[[SLOT]] {sps.label = "public"}
-// CHECK: %[[RELOADED:[0-9]+]] = llvm.load %[[SLOT]]
-// CHECK: llvm.store %[[RELOADED]], %{{.*}} {sps.fixture_refs = ["snapshot.public[0]"], sps.sink_class = "public"}
 //
-// STABLE: llvm.alloca
-// STABLE: llvm.store
-// STABLE: llvm.store
-// STABLE: llvm.load
 module {
   llvm.func @overwritten_slot_control(
       %secret: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

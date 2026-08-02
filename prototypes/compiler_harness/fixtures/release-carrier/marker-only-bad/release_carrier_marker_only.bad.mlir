@@ -1,4 +1,6 @@
-// RUN: %mlir-opt %s | %FileCheck %s
+// RUN: %checkpoint-runner run --snapshot fixtures/release-carrier/marker-only-bad/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/release-carrier/marker-only-bad/release_carrier_marker_only.bad.mlir --records %t.checkpoints
+
 //
 // scope note: preflight diagnostic only. No ModelStatus claim.
 // annotation boundary: sps.label/sps.sink_class are unary preflight hints;
@@ -44,17 +46,6 @@
 // A checker that reports only one of the two has an incomplete implementation
 // even though the verdict happens to be right.
 //
-// CHECK-LABEL: llvm.func @release_carrier_marker_only_bad
-// CHECK-SAME: sps.fixture_refs = ["snapshot.secret[0]"]
-// CHECK-SAME: sps.label = "high"
-// CHECK-SAME: sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: sps.sink_class = "public"
-// CHECK-NOT: llvm.call
-// CHECK-NOT: llvm.and
-// CHECK: llvm.store %arg0, %{{.*}}sps.fixture_refs = ["snapshot.public[0]", "snapshot.public[1]"]
-// CHECK-SAME: sps.observable_candidate = ["release-identity"]
-// CHECK-SAME: sps.release_policy = "p_invalid_callable"
-// CHECK-SAME: sps.sink_class = "public"
 module {
   llvm.func @release_carrier_marker_only_bad(
       %raw: i32 {sps.fixture_refs = ["snapshot.secret[0]"], sps.label = "high"},

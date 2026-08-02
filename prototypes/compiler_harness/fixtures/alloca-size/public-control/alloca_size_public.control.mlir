@@ -1,5 +1,8 @@
-// RUN: %mlir-opt %s | %FileCheck %s
-// RUN: %mlir-opt %s --canonicalize | %FileCheck %s --check-prefix=STABLE
+// RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/public-control/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/public-control/snapshot.yaml --pipeline canonicalized-shape --endpoint %t.canonicalized.mlir --records %t.checkpoints -- %mlir-opt %s --canonicalize -o %t.canonicalized.mlir
+// RUN: %checkpoint-runner check-existing --snapshot fixtures/alloca-size/public-control/snapshot.yaml --pipeline candidate-bitcode --endpoint fixtures/alloca-size/public-control/candidate/artifact.bc --records %t.checkpoints
+// RUN: %checkpoint-runner finalize --test fixtures/alloca-size/public-control/alloca_size_public.control.mlir --records %t.checkpoints
+
 //
 // scope note: configuration binding supplies the world-structural size binding; preflight diagnostic confirms
 // the allocation size derives only from it. No compiler-conformance evidence or deployment evidence claim.
@@ -23,16 +26,7 @@
 // intentionally named `candidate` so no checker can mistake IR self-annotation
 // for the independently authored, hash-bound ABI fact.
 //
-// CHECK-LABEL: llvm.func @alloca_size_public_control
-// CHECK-SAME: {{.*}}sps.fixture_refs = ["snapshot.public[0]"]
-// CHECK-SAME: {{.*}}sps.label = "public"
-// CHECK-SAME: {{.*}}sps.world_structural_candidate = "public_count_candidate"
-// CHECK: %[[SCRATCH:[0-9]+]] = llvm.alloca %{{.*}} x i8 {sps.fixture_refs = ["snapshot.public[1]"], sps.observable_candidate = ["allocation-size"]}
-// CHECK: llvm.store %{{.*}}, %[[SCRATCH]]
-// CHECK: llvm.store %{{.*}} {sps.sink_class = "public"}
 //
-// STABLE: sps.world_structural_candidate = "public_count_candidate"
-// STABLE: llvm.alloca
 module {
   llvm.func @alloca_size_public_control(
       %public_count: i32 {sps.fixture_refs = ["snapshot.public[0]"], sps.label = "public", sps.world_structural_candidate = "public_count_candidate"},
