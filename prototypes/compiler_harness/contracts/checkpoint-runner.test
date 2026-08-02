@@ -4,7 +4,7 @@
 # RUN: %checkpoint-runner inventory --root %harness | %FileCheck %s --check-prefix=INVENTORY
 # INVENTORY: abi-alias/disjoint-control: final=Proved/Open/Complete events=1 reference=candidate/expected-report.json
 # INVENTORY: candidate-bitcode: kind=bytes test=fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir requires=-
-# INVENTORY: checkpoint inventory passed: 62 snapshots, 171 pipelines, 171 RUN bindings, 75 finalizers, 8 candidate references, expected Proved/Counterexample/Unknown=26/25/11
+# INVENTORY: checkpoint inventory passed: 65 snapshots, 182 pipelines, 182 RUN bindings, 78 finalizers, 11 candidate references, expected Proved/Counterexample/Unknown=27/26/12
 
 # Exercise all minimal-schema and lit-derived binding refusals against a copy;
 # the helper restores each mutated file before the next case.

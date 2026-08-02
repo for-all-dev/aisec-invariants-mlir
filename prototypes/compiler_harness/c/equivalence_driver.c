@@ -124,6 +124,18 @@ unsigned offset_disjoint_control(unsigned char *buffer, unsigned secret_byte,
                                  unsigned public_value);
 unsigned offset_overlap_bad(unsigned char *buffer, unsigned secret_byte,
                             unsigned public_value);
+void pointer_rebinding_disjoint_select_bad(uint32_t secret_selector,
+                                           const uint8_t *left,
+                                           const uint8_t *right,
+                                           uint8_t *private_result);
+void pointer_rebinding_same_allocation_control(uint32_t secret_selector,
+                                               const uint8_t *left,
+                                               const uint8_t *right,
+                                               uint8_t *private_result);
+void pointer_rebinding_pointer_spill_unsupported(uint32_t secret_selector,
+                                                 const uint8_t *left,
+                                                 const uint8_t *right,
+                                                 uint8_t *private_result);
 uint32_t sps_release_invalid_callable(uint32_t raw, uint32_t public_mask);
 void release_carrier(uint32_t raw, uint32_t mask_a, uint32_t mask_b,
                      uint32_t *sink);
@@ -403,6 +415,56 @@ static void check_precision_controls(void) {
   expect_u64("offset-overlap second public byte", bad_buffer[8], 0x66u);
 }
 
+static void check_pointer_rebinding(void) {
+  uint8_t left = 0x21u;
+  uint8_t right = 0xa4u;
+  uint8_t selected_left = 0u;
+  uint8_t selected_right = 0u;
+  uint8_t shared = 0xc3u;
+
+  /* Distinct bytes show that both selector directions preserve behavior. */
+  pointer_rebinding_disjoint_select_bad(0u, &left, &right, &selected_left);
+  pointer_rebinding_disjoint_select_bad(1u, &left, &right, &selected_right);
+  expect_u64("pointer rebinding disjoint false", selected_left, left);
+  expect_u64("pointer rebinding disjoint true", selected_right, right);
+
+  /* Equal bytes isolate the allocation-class difference from output values. */
+  left = 0x5au;
+  right = 0x5au;
+  selected_left = 0u;
+  selected_right = 0u;
+  pointer_rebinding_disjoint_select_bad(0u, &left, &right, &selected_left);
+  pointer_rebinding_disjoint_select_bad(1u, &left, &right, &selected_right);
+  expect_u64("pointer rebinding isolated false", selected_left, 0x5au);
+  expect_u64("pointer rebinding isolated true", selected_right, 0x5au);
+  expect_u64("pointer rebinding isolated equal output", selected_left,
+             selected_right);
+
+  /* The precision control realizes both root views with one actual pointer. */
+  selected_left = 0u;
+  selected_right = 0u;
+  pointer_rebinding_same_allocation_control(0u, &shared, &shared,
+                                            &selected_left);
+  pointer_rebinding_same_allocation_control(1u, &shared, &shared,
+                                            &selected_right);
+  expect_u64("pointer rebinding same actual false", selected_left, shared);
+  expect_u64("pointer rebinding same actual true", selected_right, shared);
+  expect_u64("pointer rebinding same actual equal output", selected_left,
+             selected_right);
+
+  /* Runtime behavior remains concrete even though SPS refuses pointer spills. */
+  left = 0x36u;
+  right = 0x9du;
+  selected_left = 0u;
+  selected_right = 0u;
+  pointer_rebinding_pointer_spill_unsupported(0u, &left, &right,
+                                              &selected_left);
+  pointer_rebinding_pointer_spill_unsupported(1u, &left, &right,
+                                              &selected_right);
+  expect_u64("pointer spill false", selected_left, left);
+  expect_u64("pointer spill true", selected_right, right);
+}
+
 static void check_remaining_models(void) {
   unsigned p = 0u, q = 0u, out = 0u;
   uint32_t carrier[2] = {0};
@@ -495,6 +557,7 @@ int main(void) {
   check_wolfssl();
   check_semantic_harnesses();
   check_precision_controls();
+  check_pointer_rebinding();
   check_remaining_models();
 
   if (failures != 0)

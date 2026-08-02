@@ -1,6 +1,6 @@
 # CROSS-FILE IDENTIFIER BINDING FOR THE CANDIDATE BUNDLES (WFInputs section 3).
 #
-# The eight case-local candidate bundles carry {policy,abi,contracts,
+# The eleven case-local candidate bundles carry {policy,abi,contracts,
 # release-table,expected-report}.json bound by sha256 into artifact.json.
 # c/check_harness.py validates each sidecar in isolation. It does NOT check
 # that an identifier written in one sidecar resolves in another, so a policy
@@ -34,21 +34,21 @@
 
 # --- positive arm: the real tree binds ---------------------------------------
 # RUN: %python %harness/tools/check_wfinputs.py 2>&1 | %FileCheck %s --check-prefix=CLEAN
-# CLEAN: wfinputs binding checks passed: 8 candidate bundles
+# CLEAN: wfinputs binding checks passed: 11 candidate bundles
 # CLEAN: checked: cross-file identifier resolution
 # CLEAN: not checked: WFInputs items 4, 5, 9, 10, 12, 14
 
 # Non-vacuity for the timing migration: the explicit empty contract is present
-# in ALL EIGHT bundles, not merely somewhere. Pinned as a count, because
+# in ALL ELEVEN bundles, not merely somewhere. Pinned as a count, because
 # presence is the easy half.
 # RUN: grep -l '"latencyClassId": "lat.fixed.1"' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=TIMINGCOUNT
-# TIMINGCOUNT: {{^8$}}
+# TIMINGCOUNT: {{^11$}}
 # And every one of them is the EMPTY contract: an empty choice domain,
 # occurrence map, latency table and coupling map (spec section 2.5.1). Four
-# empty fields across eight bundles is exactly 32 lines; a bundle that dropped
+# empty fields across eleven bundles is exactly 44 lines; a bundle that dropped
 # or populated any one of them moves the count.
 # RUN: grep -hE '"(choiceDomain|latencyMeaning)": \[\]|"(occurrences|pairedChoiceCoupling)": \{\}' %fixtures/*/*/candidate/contracts.json | wc -l | tr -d ' ' | %FileCheck %s --check-prefix=EMPTYTE
-# EMPTYTE: {{^32$}}
+# EMPTYTE: {{^44$}}
 
 # The retired audience bundle was the only Candidate-v2 release-table instance.
 # Its replacement uses authoring contracts for cross-host transfers, which the

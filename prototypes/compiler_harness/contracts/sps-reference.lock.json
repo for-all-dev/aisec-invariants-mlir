@@ -1,7 +1,7 @@
 {
   "formatId": "SPS-Harness-Reference-Lock-v1",
   "claimBoundary": "ExecutableReferenceOnly",
-  "treeSha256": "3dd9141e58fd5a2da5b79e095d1083799f17a300129f4cefb5da99bde87dae0a",
+  "treeSha256": "75c60ef277a0d7bc49ca6f802dc4cd9217b899cac676cac32ec20523575b620e",
   "interfaceLockSha256": "0e9597c441cb1d1ee3025c0d74d32498e23b75cf00a9acdfe0a4dc474b181473",
   "counts": {
     "fixtureCases": 19,
@@ -22,8 +22,8 @@
     },
     {
       "path": "reference/README.md",
-      "sha256": "e5278b2493d3dec186fedbf54747ba875dc59bada22b1a2d124596a5cdd67aef",
-      "size": 15286
+      "sha256": "07759d7b62102863aab65067c3bc9192ca06703e0fc8a7a9bf3f857fab885b0c",
+      "size": 24591
     },
     {
       "path": "reference/assurance-status.json",

@@ -63,19 +63,41 @@ items may also identify a public argument or one of the closed observations
 and `transfer`. `allowed` adds a minimal release or audience rule only when needed.
 There is no scalar verdict, execution field, test path, capability list, input
 graph, endpoint-adapter wrapper, or report-materialization state. Every
-snapshot has one `expect.final`: 26 fixtures expect `Proved`, 25 expect
-`Counterexample`, and 11 expect `Unknown`; all explicitly expect deployment
+snapshot has one `expect.final`: 27 fixtures expect `Proved`, 26 expect
+`Counterexample`, and 12 expect `Unknown`; all explicitly expect deployment
 `Open` and policy `Complete`. A `Counterexample` names its bad-state class and
 one selected event field as `first_bad`. `Proved` and `Counterexample` cases
 select at least one closed SPS event field; selectors never contain event
-payloads or full traces. The eight existing candidates add only
+payloads or full traces. The eleven existing candidates add only
 `reference: candidate/expected-report.json`, which is authenticated through the
 sibling manifest and checked for agreement with the final axes.
+
+## Mutation coverage without a mutation schema
+
+Mutation is tested through focused semantic twins, not through a universal
+snapshot block. Scalar-slot mutation is covered by
+`precision-control/overwritten-slot` and
+`precision-control/missing-overwrite-bad`; fixed-offset array mutation is
+covered by `precision-control/offset-disjoint` and
+`precision-control/offset-overlap-bad`; pointer rebinding is covered by the
+three `pointer-rebinding` cases below.
+
+| Pointer case | Decisive property | Expected result |
+| --- | --- | --- |
+| `disjoint-select-bad` | A secret-selected scalar load changes `Memory.allocationClass` even when both bytes and the private output are equal. | `Counterexample(address-trace-mismatch)` |
+| `same-allocation-control` | The same pointer-select/load/store shape selects roots in one allocation class, so that allocation-class mismatch is absent. | `Proved` expectation; candidate `AuditAll` is `UNSAT` |
+| `pointer-spill-unsupported` | A pointer-valued ordinary store and load survive in the checked artifact. | `Unknown(UnsupportedType)` before relational construction |
+
+Policy owns coalition visibility and secrecy, ABI owns the complete root
+partition and metadata, the snapshot owns only the expected axes and decisive
+event, and the bad case's synthetic pair owns equal-byte isolation inputs. The
+focused consistency contract derives their agreement across those files; it
+does not duplicate the facts into Snapshot V3.
 
 ## Synthetic counterexample pairs
 
 The snapshot owns the human security oracle; it does not own concrete input
-values. Every one of the 25 expected-`Counterexample` fixtures therefore keeps
+values. Every one of the 26 expected-`Counterexample` fixtures therefore keeps
 one public synthetic pair beside it:
 
 ```yaml
@@ -171,7 +193,7 @@ batched lit producer for source, policy, and ABI validation. Capability gates
 are ordinary lit `REQUIRES` features.
 
 Matchers capture only the sparse typed facts needed for the decisive property,
-not SSA numbers or whole-module text. Sixteen canonicalization-sensitive
+not SSA numbers or whole-module text. Eighteen canonicalization-sensitive
 fixtures declare separate raw and canonicalized endpoints. FileCheck remains
 only for a documented property outside the typed fact registry.
 
@@ -186,7 +208,7 @@ not a Rev4 diagnostic disposition or run-report result.
 ## Authority boundary
 
 MLIR is convenient for authoring and reviewing a seed, but Rev4 analyzes frozen
-canonical LLVM bitcode. Eight selected cases also contain a local `candidate/`
+canonical LLVM bitcode. Eleven selected cases also contain a local `candidate/`
 directory, where:
 
 1. LLVM 17.0.6 currently produces candidate `artifact.bc`;
@@ -214,7 +236,7 @@ under `../p4-risk/`; they never turn a shape file into an SPS proof or
 counterexample.
 
 Those candidates remain quarantined by the `candidate/` boundary. Their exact
-bytes pipelines protect the current eight captures, and a compact `reference`
+bytes pipelines protect the current eleven captures, and a compact `reference`
 authenticates each existing expected-run sidecar without copying its query,
 replay, receipt, or audit machinery into Snapshot V3. The other 54 fixtures
 state the same final axes directly without manufacturing candidate artifacts.

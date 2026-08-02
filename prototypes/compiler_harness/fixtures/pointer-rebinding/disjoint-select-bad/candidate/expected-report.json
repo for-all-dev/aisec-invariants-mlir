@@ -1,0 +1,67 @@
+{
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+  "fixture_tier": {
+    "tag": "CandidateOnly"
+  },
+  "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
+  "current_harness_status": {
+    "tag": "PendingV2",
+    "reasons": [
+      "sps-verifier-not-implemented",
+      "llvm-22.1.8-nf-recapture-required"
+    ]
+  },
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "UNSAT",
+          "query_disposition": {
+            "tag": "Discharged"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotApplicableV2"
+        }
+      },
+      {
+        "coalition": [
+          "observer"
+        ],
+        "query_outcome": {
+          "tag": "ConstructedResultMatcherV2",
+          "raw_solver_result": "SAT",
+          "query_disposition": {
+            "tag": "CandidateOnly"
+          }
+        },
+        "replay_expectation": {
+          "tag": "AcceptedBadStateRequiredV2",
+          "bad_state_class": "address-trace-mismatch"
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
+      ]
+    },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
+    "entry": "pointer_rebinding_disjoint_select_bad",
+    "expected_model_status": {
+      "tag": "Counterexample",
+      "receipt_matcher": {
+        "tag": "FreshProtectedReceiptMatcherV2"
+      }
+    }
+  },
+  "candidate_bitcode_sha256": "3a745a07929bd7a669a3bf3ccadf8e6481366723605231bc69407eea470ec304"
+}

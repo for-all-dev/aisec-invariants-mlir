@@ -114,16 +114,16 @@ lineage, report materialization, or `NFConforms`; lit owns those concerns.
 Passing endpoint observations are build-local harness evidence, never SPS
 reports.
 
-All 62 fixtures state their expected final judgment directly. The model split
-is 26 `Proved`, 25 `Counterexample`, and 11 `Unknown`; every fixture expects
+All 65 fixtures state their expected final judgment directly. The model split
+is 27 `Proved`, 26 `Counterexample`, and 12 `Unknown`; every fixture expects
 deployment `Open` and policy review `Complete`. Relevant `Proved` and
 `Counterexample` fixtures also select the security-relevant SPS event fields
 covered by that judgment, without embedding traces, payloads, witnesses, or
-receipts. Eight fixtures authenticate their existing candidate expected-run
+receipts. Eleven fixtures authenticate their existing candidate expected-run
 sidecar through a compact `reference`; the other 54 require no candidate
-artifact. Sixteen fixtures separately inspect raw and canonicalized MLIR.
+artifact. Eighteen fixtures separately inspect raw and canonicalized MLIR.
 
-Each of the 25 `Counterexample` fixtures also has a fixed sibling
+Each of the 26 `Counterexample` fixtures also has a fixed sibling
 `counterexample-pair.yaml`. The snapshot says what should differ; the pair
 supplies one full-width public synthetic Low-equal, High-varying input pair.
 This makes the example reproducible without putting values or traces into
@@ -191,7 +191,7 @@ make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled dri
 make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
 make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
 make list-tests        # discovery audit
-make list-fixture-status # pipeline/state/endpoint inventory for all 62 cases
+make list-fixture-status # pipeline/state/endpoint inventory for all 65 cases
 make list-fixture-results # expected/actual/comparison terminal result table
 ```
 
@@ -285,7 +285,7 @@ and materialized inputs, invoke the lit `%sps-verifier` directly with the
 declared bundle, and match the producer executable's SHA-256 to
 `proofConfiguration.exactVerifierBuildDigest`. It must also carry exactly one
 typed expected contract; an authenticated report with an unexpected result
-cannot pass a regression test. Eight candidate cases delegate to digest-bound
+cannot pass a regression test. Eleven candidate cases delegate to digest-bound
 expected-run sidecars, while 54 compare against inline typed report, status,
 AuditAll, and replay matchers. Once report and verifier authentication succeed,
 an unexpected report is retained below the build root for result inspection
@@ -320,7 +320,7 @@ one of those forms does not establish an NFv2 carrier.
 
 ## The `.bc` / `.ll` ownership contract
 
-Eight fixture cases contain a local `candidate/` bundle with both forms requested
+Eleven fixture cases contain a local `candidate/` bundle with both forms requested
 for compiler-pipeline review. Each bundle is colocated with the MLIR/snapshot
 case it describes:
 
@@ -440,5 +440,5 @@ The error-event fixture is deliberately split in two. The checked-in
 nonclaimable `CandidateOnly` contract whose validator pins `DeclaredFailure`, the
 mandatory verifier-UB error field, payload projection, and both exact event
 orders. It is not an SPS report input. Rev4.1 requires a separately
-materialized V2 bundle. The eight case-local candidate ABIs under
+materialized V2 bundle. The eleven case-local candidate ABIs under
 `fixtures/*/*/candidate/` are not V2 materialization inputs.

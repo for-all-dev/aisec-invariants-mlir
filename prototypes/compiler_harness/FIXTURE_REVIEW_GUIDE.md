@@ -35,7 +35,7 @@ boundaries explicit:
   `ModelStatus`.
 - Snapshot V3 records the expected final SPS axes plus sparse typed checkpoint
   evidence. The checked-in `expected-report.json` files are authenticated,
-  nonclaimable references for the eight candidate fixtures.
+  nonclaimable references for the eleven candidate fixtures.
 
 Filename suffixes mean:
 
@@ -342,16 +342,27 @@ case preserves the private computation while normalizing only public metadata.
 cryptography, and model inference. Equal loaded values do not make unequal
 addresses safe under the fixed `Theta_ct` observation semantics.
 
-### Review the pair
+### Review the address cases
 
 | Case | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
 | Direct secret table lookup | [secret_embedding_index_bad.c](fixtures/secret-embedding-index/bad/secret_embedding_index_bad.c) | [secret_embedding_index.bad.mlir](fixtures/secret-embedding-index/bad/secret_embedding_index.bad.mlir) | The secret chooses the GEP/load address. |
 | Full public-index scan | [secret_embedding_index_fixed.c](fixtures/secret-embedding-index/fixed/secret_embedding_index_fixed.c) | [secret_embedding_index.fixed.mlir](fixtures/secret-embedding-index/fixed/secret_embedding_index.fixed.mlir) | All 16 public addresses are visited; mask selection changes values, not addresses. |
+| Disjoint pointer selection | [pointer_rebinding_disjoint_select_bad.c](fixtures/pointer-rebinding/disjoint-select-bad/pointer_rebinding_disjoint_select_bad.c) | [pointer_rebinding_disjoint_select.bad.mlir](fixtures/pointer-rebinding/disjoint-select-bad/pointer_rebinding_disjoint_select.bad.mlir) | Equal bytes and output isolate the secret-dependent allocation class of the load. |
+| Same-allocation pointer control | [pointer_rebinding_same_allocation_control.c](fixtures/pointer-rebinding/same-allocation-control/pointer_rebinding_same_allocation_control.c) | [pointer_rebinding_same_allocation.control.mlir](fixtures/pointer-rebinding/same-allocation-control/pointer_rebinding_same_allocation.control.mlir) | The same instruction shape selects two root names in one ABI allocation class. |
+| Pointer spill refusal | [pointer_rebinding_pointer_spill_unsupported.c](fixtures/pointer-rebinding/pointer-spill-unsupported/pointer_rebinding_pointer_spill_unsupported.c) | [pointer_rebinding_pointer_spill.unknown.mlir](fixtures/pointer-rebinding/pointer-spill-unsupported/pointer_rebinding_pointer_spill.unknown.mlir) | Pointer-valued ordinary memory operations require `Unknown(UnsupportedType)` before PONF construction. |
 
 ### Manual checks
 
 - [ ] Compare address traces, not only returned values.
+- [ ] For the disjoint pointer case, hold `left` and `right` bytes equal and
+  confirm the first difference is `Memory.allocationClass`, with no earlier
+  conditional branch.
+- [ ] For the control, confirm `left` and `right` are one complete ABI
+  equivalence class and the runtime passes the same actual pointer.
+- [ ] For the refusal, confirm both the pointer-valued store and load survive
+  in the MLIR and candidate LLVM artifact; otherwise `UnsupportedType` is not
+  justified by this fixture.
 - [ ] Verify the bad GEP index contains the secret after the explicit `& 15`
   domain reduction.
 - [ ] Verify the fixed loop visits exactly the same 16 addresses for every
@@ -367,9 +378,12 @@ addresses safe under the fixed `Theta_ct` observation semantics.
 - [diagnostic/address.test](diagnostic/address.test), when `SPS_SCAN` is available
 - [integration/equivalence.test](integration/equivalence.test)
 - [integration/generated-import-pipeline.test](integration/generated-import-pipeline.test)
+- [contracts/pointer-rebinding-consistency.test](contracts/pointer-rebinding-consistency.test)
 
-**Accept when:** the fixed address sequence is public and invariant, while only
-the selected value remains secret-dependent.
+**Accept when:** the fixed scan has a public invariant address sequence, the
+disjoint pointer selection exposes only the intended allocation-class
+difference, the same-allocation twin removes that difference without changing
+the instructions, and pointer memory is refused before relational construction.
 
 ---
 
@@ -664,7 +678,7 @@ target-profile-bound, and missing summaries remain unknown.
 
 ## Cross-cutting artifact review
 
-Perform this review for each of the eight semantic bundles referenced above.
+Perform this review for each of the eleven semantic bundles referenced above.
 Review bundle members in this order:
 
 1. `artifact.json`
@@ -778,7 +792,7 @@ to passed.
 
 ## Completeness ledger
 
-The 12-rank semantic queue accounts for all 62 checked-in MLIR fixture files:
+The 12-rank semantic queue accounts for all 65 checked-in MLIR fixture files:
 
 | Rank | Family | MLIR files |
 | ---: | --- | ---: |
@@ -787,26 +801,26 @@ The 12-rank semantic queue accounts for all 62 checked-in MLIR fixture files:
 | 3 | Cross-tenant residual state | 4 |
 | 4 | ABI alias topology | 4 |
 | 5 | Direct public outputs | 6 |
-| 6 | Secret-dependent addresses | 2 |
+| 6 | Secret-dependent addresses | 5 |
 | 7 | Bounds and allocation sizes | 4 |
 | 8 | Release carriers | 3 |
 | 9 | Relational precision | 9 |
 | 10 | Backend-created observations | 6 |
 | 11 | Variable-latency arithmetic | 6 |
 | 12 | Target-profile helpers | 8 |
-|  | **Total** | **62** |
+|  | **Total** | **65** |
 
 The cross-cutting review additionally covers:
 
-- 65 C evidence/helper files plus the equivalence driver (66 compiled C inputs);
-- 8 candidate semantic bundles and their 8 `.bc`/derived `.ll` pairs;
-- 62 direct `expect.final` judgments, with no report-materialization or
-  execution state in the snapshots; 8 candidate fixtures additionally carry
+- 68 C evidence/helper files plus the equivalence driver (69 compiled C inputs);
+- 11 candidate semantic bundles and their 11 `.bc`/derived `.ll` pairs;
+- 65 direct `expect.final` judgments, with no report-materialization or
+  execution state in the snapshots; 11 candidate fixtures additionally carry
   authenticated compact references and the other 54 state their final axes
   entirely inline;
-- expected model totals of 26 `Proved`, 25 `Counterexample`, and 11 `Unknown`,
+- expected model totals of 27 `Proved`, 26 `Counterexample`, and 12 `Unknown`,
   all with expected deployment `Open` and policy `Complete`;
-- 16 fixtures with separate raw and canonicalized structural endpoints;
+- 18 fixtures with separate raw and canonicalized structural endpoints;
 - 2 additional checked-in LLVM inputs and 1 release-marker LLVM input;
 - 2 NFv2 textual/feature-gated release-intrinsic inputs;
 - 7 MIR snapshots;
@@ -814,9 +828,9 @@ The cross-cutting review additionally covers:
 - the candidate-bundle integration, general integration, diagnostic, and P4
   test strata.
 
-The verified post-migration lit inventory is 154 tests. In the current
-capability environment, `make check` completes with 143 passed and 11
-`UNSUPPORTED`. The unsupported tests require capabilities such as the unary
+The post-migration lit inventory is 158 tests. In the current capability
+environment, 147 are supported and 11 are `UNSUPPORTED`. The unsupported tests
+require capabilities such as the unary
 scanner, exact Rev4.1 verifier and materialized bundles, RV32 GCC, NFv2
 intrinsic/code-generation support, or external source-annotation data.
 Capability absence is never counted as a passing checkpoint or final SPS
@@ -855,7 +869,7 @@ Do not sign off the fixture set until all of the following are true:
 - [ ] Every fixed/control case blocks a trivial always-report or always-refuse
   implementation.
 - [ ] C intent, MLIR shape, and sidecar bindings agree.
-- [ ] The eight candidate bundles pass integrity and interface checks.
+- [ ] The eleven candidate bundles pass integrity and interface checks.
 - [ ] Target-specific claims are tied to exact targets and stages.
 - [ ] Unsupported optional tests are recorded explicitly.
 - [ ] No diagnostic, preflight shape, expected oracle, or P4 snapshot is

@@ -1,0 +1,92 @@
+{
+  "format_id": "SPS-Harness-Candidate-Policy-v2",
+  "fixed_observation_model": "Theta_ct",
+  "principals": [
+    "observer"
+  ],
+  "maximal_adversary_coalitions": [
+    [
+      "observer"
+    ]
+  ],
+  "components": [
+    "left-input",
+    "right-input",
+    "secret-selector"
+  ],
+  "component_visibility": {
+    "world_visible": [
+      "left-input",
+      "right-input"
+    ],
+    "member_visible": {
+      "observer": []
+    },
+    "minimally_joint_visible": []
+  },
+  "output_visibility": {
+    "world_visible": [],
+    "member_visible": {
+      "observer": []
+    },
+    "minimally_joint_visible": []
+  },
+  "error_visibility": {
+    "world_visible": [],
+    "member_visible": {
+      "observer": []
+    },
+    "minimally_joint_visible": []
+  },
+  "argument_roles": [
+    {
+      "entry": "pointer_rebinding_disjoint_select_bad",
+      "argument_index": 0,
+      "role": {
+        "tag": "ComponentArgumentV2",
+        "args": [
+          "secret-selector"
+        ]
+      }
+    },
+    {
+      "entry": "pointer_rebinding_disjoint_select_bad",
+      "argument_index": 1,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "left"
+        ]
+      }
+    },
+    {
+      "entry": "pointer_rebinding_disjoint_select_bad",
+      "argument_index": 2,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "right"
+        ]
+      }
+    },
+    {
+      "entry": "pointer_rebinding_disjoint_select_bad",
+      "argument_index": 3,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "private-result"
+        ]
+      }
+    }
+  ],
+  "release_bindings": [],
+  "invocation_scope": "SingleInvocation",
+  "placement": [
+    {
+      "entry": "pointer_rebinding_disjoint_select_bad",
+      "host": "host0"
+    }
+  ],
+  "candidate_bitcode_sha256": "3a745a07929bd7a669a3bf3ccadf8e6481366723605231bc69407eea470ec304"
+}

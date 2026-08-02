@@ -195,6 +195,212 @@ of that fixed sibling. A selected pair cannot be supplied by digest alone:
 generation and contextual endpoint validation both load, hash, materialize,
 and independently replay it.
 
+## `UnimplementedDraft`: pointer-rebinding interface successors
+
+The interfaces in this section are design reservations, not executable
+formats. They have status **`UnimplementedDraft`** and no normative claim
+effect. Current closed validators accept only the versions documented above
+and MUST reject every identifier below. No file may claim one of these
+versions until its parser, canonicalizer, independent auditor, backends,
+negative tests, and replay path are implemented together.
+
+| Reserved interface | Status | Intended addition |
+|---|---|---|
+| `SPS-Executable-Reference-Fixture-v4` | `UnimplementedDraft` | pointer-rebinding relation expectations |
+| `SPS-Reference-Program-v4` | `UnimplementedDraft` | exact alias partition, pointer-select address, and `Memory` events |
+| `SPS-Harness-Reference-Reduction-Binding-v3` | `UnimplementedDraft` | exact full-ABI topology and artifact-shape binding |
+| `SPS-Reference-Relation-v2` | `UnimplementedDraft` | `Memory/allocationClass` observation and agreement requirements |
+| `SPS-Reference-PONF-v4` | `UnimplementedDraft` | finite pointer tuple and memory-event comparison terms |
+| `SPS-Reference-Replay-v3` | `UnimplementedDraft` | independent selected-class replay |
+| `SPS-Reference-Evidence-Result-v2` | `UnimplementedDraft` | witness-free memory first-difference result |
+
+Version 3 fixtures, programs, PONF, version 2 bindings/replay, and version 1
+profiles/results remain byte-for-byte legacy formats. There is no implicit
+upgrade, mixed-version pairing, fallback parser, or alias for a reserved ID.
+
+### Draft program and fixture shape
+
+`SPS-Reference-Program-v4` retains the finite scalar expression and structured
+statement vocabulary, but replaces root-only load expressions with one
+event-producing scalar load statement:
+
+```text
+RootAddressV4 =
+    StaticRootAddressV4 {
+      tag: "StaticRoot", root: RootId, offset: natural
+    }
+  | SelectRootAddressV4 {
+      tag: "SelectRoot",
+      condition: BooleanExpressionV4,
+      trueAddress:  {root: RootId, offset: natural},
+      falseAddress: {root: RootId, offset: natural}
+    }
+
+LoadStatementV4 {
+  op: "load",
+  site: SiteId,
+  target: fresh ScalarLocalId,
+  address: RootAddressV4,
+  width: positive byte-aligned bit width,
+  byteOrder: "LittleEndian" | "BigEndian"
+}
+```
+
+The statement produces a scalar local and exactly one `Memory(...,Read)`
+event. A V4 scalar `store` likewise emits `Memory(...,Write)`. The draft adds
+no pointer-valued local, pointer return, pointer load, or pointer store. Such
+an operation remains outside the program grammar and maps to the harness
+expectation `Unknown(UnsupportedType)` without a relation fixture or PONF.
+
+The V4 ABI root fields are exactly the V3 root fields plus `permission` and
+`addressSpace`. Its additional required topology member is:
+
+```json
+{
+  "equivalenceClasses": [
+    ["left"],
+    ["private_result"],
+    ["right"]
+  ],
+  "overlaps": []
+}
+```
+
+Each class is a nonempty sorted unique root-ID list; classes are sorted by
+their first ID. Their union is exactly the program root set. A root occurs
+once, and `overlaps` is the literal empty list. Members of one class must have
+identical byte length, host, permission, address space, initial bytes, and
+initialized-bit vector. They denote one memory object initialized once, not
+separate arrays constrained equal. Distinct classes denote disjoint objects.
+Terminal-output identifiers remain subject to the existing exact output-order
+rules and do not create another alias relation.
+
+The supported pointer fixture body is represented without a control-flow
+`if`:
+
+```json
+[
+  {
+    "op": "load",
+    "site": "load.selected",
+    "target": "loaded",
+    "address": {
+      "tag": "SelectRoot",
+      "condition": {"var": "secret_selector"},
+      "trueAddress": {"root": "right", "offset": 0},
+      "falseAddress": {"root": "left", "offset": 0}
+    },
+    "width": 8,
+    "byteOrder": "LittleEndian"
+  },
+  {
+    "op": "store",
+    "site": "store.result",
+    "root": "private_result",
+    "offset": 0,
+    "value": {"var": "loaded"},
+    "byteOrder": "LittleEndian"
+  },
+  {"op": "return", "site": "return", "value": null}
+]
+```
+
+Both selected addresses must type-check to the load width and be in range.
+The condition must be Boolean, both roots must exist, and the target must be
+fresh. The selected pointer lowers fieldwise to one allocation-key `ite` and
+one offset-key `ite`; no branch event is emitted. V4 event shape includes the
+load and store `Memory` rows before the unchanged terminal schedule.
+
+`SPS-Executable-Reference-Fixture-v4.expected.auditAll.firstDifference` admits
+the new exact locator
+
+```json
+{
+  "eventOrdinal": 0,
+  "kind": "Memory",
+  "field": "allocationClass",
+  "site": "load.selected"
+}
+```
+
+only when `auditAll.status` is `sat`. `unsat` requires `firstDifference:null`.
+The full V4 observation vocabulary adds `Memory/allocationClass`,
+`Memory/byteOffset`, `Memory/width`, and `Memory/addressSpace`; access kind,
+site, occurrence, and event presence remain structural. Projection-gated
+fields are present only under the coalition's derived location visibility.
+
+### Draft binding and topology audit
+
+`SPS-Harness-Reference-Reduction-Binding-v3` retains every V2 byte-digest and
+component/root mapping and adds:
+
+- the complete reference equivalence-class partition and the corresponding
+  complete full-ABI partition, both derived from their bound files;
+- one selector mapping from the reduced Boolean input to its policy component,
+  ABI argument index/name, and frozen-artifact scalar argument;
+- one pointer-selection mapping naming the reduced load site, true/false
+  roots, frozen pointer `select`, consuming scalar load, and result store; and
+- the instruction-owner and possible allocation hosts needed to rederive
+  `LocVisible` for the selected coalition.
+
+Validation compares equivalence relations, not class spelling: it must reject
+any split, merge, omitted root, duplicate root, partial overlap, or topology
+alternative. It also reparses the bound MLIR/LLVM artifact and requires the
+mapped scalar condition to feed a pointer `select`, that exact result to feed
+the scalar load, the loaded scalar to feed the result store, and no conditional
+branch to precede and encode the same selection. Visibility is recomputed from
+policy, placement, instruction owner, and both possible allocation hosts; a
+binding cannot assert `hostVisible` as an independent Boolean.
+
+The bad fixture binds distinct `left` and `right` classes and a synthetic pair
+whose two selector values differ while all Low inputs, including the two
+selected bytes, are equal. The control binds `left` and `right` to one class
+and has no pair. A V4 fixture with a V2 binding, a V3 fixture with a V3
+binding, or a pair whose replayed first difference disagrees with the fixture
+is rejected.
+
+### Draft PONF, backend, replay, and result contracts
+
+`SPS-Reference-PONF-v4` binds the exact V4 program, coalition, alias table,
+expanded statements, query descriptor, and deterministic SMT digest. It uses
+the finite QF_BV pointer profile in section 10.1 of the candidate-directed SMT
+framework: allocation key zero is null, class keys follow sorted topology
+order, roots have offset zero, and conditional addresses use fieldwise `Ite`.
+Memory event rows carry structural access kind plus projection-gated allocation
+class, exact byte offset, width, and address space. A field auditor reconstructs
+the topology, key widths, selected-byte mux, visibility term, aligned event
+rows, every earlier-false bad row, and the claimed first-difference coordinate
+without calling the PONF serializer.
+
+`SPS-Reference-Relation-v2` requires symbolic exhaustive, concrete exhaustive,
+canonical SMT-LIB, Z3, and replay agreement. Its finite concrete backend must
+enumerate both selector values even when one is formula-irrelevant. A future
+Z3 adapter is informative only: canonical SMT-LIB bytes and the PONF digest
+remain solver-independent identities.
+
+`SPS-Reference-Replay-v3` receives a complete primitive assignment or the
+bound synthetic pair. It independently reconstructs class ordinals, evaluates
+the select and load, applies the store, emits and projects events, and confirms
+the least differing ordinal and field. A solver-supplied selected class,
+projected event, or first-difference label is a claim to check, never replay
+input.
+
+`SPS-Reference-Evidence-Result-v2` remains witness-free. It may report the
+query result, canonical PONF/SMT digests, backend agreement, replay acceptance,
+and `Memory/allocationClass` first-difference locator, but no selector value,
+root byte, allocation key assignment, model, or trace. Lowercase `sat` is still
+`ExecutableReferenceOnly`; lowercase `unsat` still cannot issue
+`ModelStatus: Proved`.
+
+Required negative coverage includes incomplete/duplicate topology,
+nonempty `overlaps`, same-class metadata or byte disagreement, an unknown or
+out-of-range selected arm, a non-Boolean selector, partition split/merge in
+the binding, missing load-site visibility evidence, an illegal
+`Memory/valueBytes` or `Output/allocationClass` locator, a pair/replay
+first-difference mismatch, mixed interface generations, backend disagreement,
+and either pointer-valued spill operation being absent from an artifact that
+expects `UnsupportedType`.
+
 ## Synthetic counterexample pair
 
 `counterexample-pair.yaml` is public, human-authored test data with no

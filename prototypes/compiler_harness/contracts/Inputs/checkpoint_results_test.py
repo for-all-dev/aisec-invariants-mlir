@@ -30,6 +30,7 @@ PROVED_CASES = frozenset(
         "precision-control/offset-disjoint",
         "precision-control/overwritten-slot",
         "precision-control/xor-cancellation",
+        "pointer-rebinding/same-allocation-control",
         "redis-pool-reuse/fixed",
         "secret-embedding-index/fixed",
         "secret-logging-checkpoint/fixed",
@@ -61,6 +62,7 @@ COUNTEREXAMPLE_CASES = {
     "precision-control/missing-overwrite-bad": "public-return-payload-mismatch",
     "precision-control/offset-overlap-bad": "public-return-payload-mismatch",
     "precision-control/xor-secret-output-bad": "public-return-payload-mismatch",
+    "pointer-rebinding/disjoint-select-bad": "address-trace-mismatch",
     "redis-pool-reuse/bad": "actor-b-return-payload-mismatch",
     "secret-embedding-index/bad": "address-trace-mismatch",
     "secret-logging-checkpoint/bad": "public-log-checkpoint-payload-mismatch",
@@ -75,6 +77,7 @@ UNKNOWN_CASES = {
     "alloca-size/high-count-unknown": "AllocaSizeNotWorldStructural",
     "launder-scan/barrier-fixed": "UnsupportedOpcode",
     "loop-bounds/public-bound-exhausted-unknown": "LoopRemainder",
+    "pointer-rebinding/pointer-spill-unsupported": "UnsupportedType",
     "kyberslash1-poly-tomsg/bad": "OpenModelObligations",
     "kyberslash2-compress/bad": "OpenModelObligations",
     "release-carrier/lost-bad": "ReleaseCarrierMismatch",
@@ -94,6 +97,9 @@ CANDIDATE_CASES = frozenset(
         "launder-scan/model-clean-p4-open",
         "loop-bounds/public-bound-exhausted-unknown",
         "loop-bounds/secret-trip-count-bad",
+        "pointer-rebinding/disjoint-select-bad",
+        "pointer-rebinding/pointer-spill-unsupported",
+        "pointer-rebinding/same-allocation-control",
     }
 )
 
@@ -113,22 +119,22 @@ def main() -> int:
     assert set(view) == {"format_id", "results", "summary"}
     assert view["format_id"] == FORMAT_ID
     assert view["summary"] == {
-        "fixtures": 62,
-        "expected_proved": 26,
-        "expected_counterexample": 25,
-        "expected_unknown": 11,
+        "fixtures": 65,
+        "expected_proved": 27,
+        "expected_counterexample": 26,
+        "expected_unknown": 12,
         "compared": 0,
     }
 
     rows = view["results"]
-    assert isinstance(rows, list) and len(rows) == 62
+    assert isinstance(rows, list) and len(rows) == 65
     assert [row["case"] for row in rows] == sorted(row["case"] for row in rows)
     by_case = {row["case"]: row for row in rows}
 
     expected_cases = set(PROVED_CASES) | set(COUNTEREXAMPLE_CASES) | set(UNKNOWN_CASES)
-    assert len(PROVED_CASES) == 26
-    assert len(COUNTEREXAMPLE_CASES) == 25
-    assert len(UNKNOWN_CASES) == 11
+    assert len(PROVED_CASES) == 27
+    assert len(COUNTEREXAMPLE_CASES) == 26
+    assert len(UNKNOWN_CASES) == 12
     assert expected_cases == set(by_case)
 
     for case, row in by_case.items():

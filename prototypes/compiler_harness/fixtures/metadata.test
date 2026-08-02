@@ -3,4 +3,4 @@
 # RUN: %checkpoint-runner inventory --root %harness
 
 # CHECK: snapshots checks passed
-# LIST: 62 fixtures
+# LIST: 65 fixtures
