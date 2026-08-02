@@ -26,7 +26,9 @@
         "return": null,
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "loop",
@@ -47,14 +49,87 @@
     }
   },
   "expected": {
+    "formatId": "SPS-Reference-ExpandedCFG-v2",
+    "entryId": "entry.loop",
     "horizon": 6,
-    "nodeKinds": [
-      "LoopEntry",
-      "LoopCopyGuard",
-      "LoopCopyGuard",
-      "BoundRemainder",
-      "LoopExit",
-      "Transition"
-    ]
+    "nodes": [
+      {
+        "nodeOrdinal": 0,
+        "kind": "LoopEntry",
+        "site": "loop.site",
+        "expansionPath": [],
+        "detail": {
+          "boundId": "loop.bound",
+          "boundMaximum": 2
+        }
+      },
+      {
+        "nodeOrdinal": 1,
+        "kind": "LoopCopyGuard",
+        "site": "loop.site",
+        "expansionPath": [
+          {
+            "tag": "LoopFrameV2",
+            "site": "loop.site",
+            "copyIndex": 0
+          }
+        ],
+        "detail": {
+          "boundId": "loop.bound",
+          "copyIndex": 0
+        }
+      },
+      {
+        "nodeOrdinal": 2,
+        "kind": "LoopCopyGuard",
+        "site": "loop.site",
+        "expansionPath": [
+          {
+            "tag": "LoopFrameV2",
+            "site": "loop.site",
+            "copyIndex": 1
+          }
+        ],
+        "detail": {
+          "boundId": "loop.bound",
+          "copyIndex": 1
+        }
+      },
+      {
+        "nodeOrdinal": 3,
+        "kind": "BoundRemainder",
+        "site": "loop.site",
+        "expansionPath": [
+          {
+            "tag": "BoundRemainderV2",
+            "site": "loop.site"
+          }
+        ],
+        "detail": {
+          "boundId": "loop.bound",
+          "afterCopies": 2
+        }
+      },
+      {
+        "nodeOrdinal": 4,
+        "kind": "LoopExit",
+        "site": "loop.site",
+        "expansionPath": [],
+        "detail": {
+          "boundId": "loop.bound",
+          "afterCopies": 2
+        }
+      },
+      {
+        "nodeOrdinal": 5,
+        "kind": "Transition",
+        "site": "return.site",
+        "expansionPath": [],
+        "detail": {
+          "op": "return"
+        }
+      }
+    ],
+    "expandedCFGTableDigest": "848988fbb6c99ac297c227d873a013e8fcb150007edc2b85d16b69ef409bcfaf"
   }
 }

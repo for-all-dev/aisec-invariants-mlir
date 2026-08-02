@@ -35,7 +35,7 @@ boundaries explicit:
   `ModelStatus`.
 - Snapshot V3 records the expected final SPS axes plus sparse typed checkpoint
   evidence. The checked-in `expected-report.json` files are authenticated,
-  nonclaimable references for the eleven candidate fixtures.
+  nonclaimable references for the thirteen candidate fixtures.
 
 Filename suffixes mean:
 
@@ -142,6 +142,10 @@ distinction between payload equality and coalition authorization.
 | Situation | C evidence | MLIR evidence | Bundle | Intended distinction |
 | --- | --- | --- | --- | --- |
 | Release visible outside its declared audience | [audience_mismatch_bad.c](fixtures/audience-mismatch/bad/audience_mismatch_bad.c) | [audience_mismatch.bad.mlir](fixtures/audience-mismatch/bad/audience_mismatch.bad.mlir) | — | Alice is authorized; Bob sees the same payload without being in the release audience. The future `{bob}` product row is the counterexample row. |
+| Same transfers, both members authorized | [audience_mismatch_authorized.c](fixtures/audience-mismatch/authorized-audience/audience_mismatch_authorized.c) | [audience_mismatch_authorized.mlir](fixtures/audience-mismatch/authorized-audience/audience_mismatch_authorized.mlir) | — | This policy counterfactual changes only the release audience to member-visible Alice or Bob. It is not a program repair. |
+| Joint audience and joint-only endpoint | [authorized](fixtures/audience-joint/authorized/audience_joint_authorized.c), [singleton-visible bad](fixtures/audience-joint/singleton-visible-bad/audience_joint_singleton_visible_bad.c) | [authorized](fixtures/audience-joint/authorized/audience_joint_authorized.mlir), [singleton-visible bad](fixtures/audience-joint/singleton-visible-bad/audience_joint_singleton_visible_bad.mlir) | — | Joint `[alice,bob]` means AND: neither singleton is authorized. The control hides payload from both singletons; the bad case exposes it to Alice alone. |
+| Unauthorized release concealed versus location-visible | [concealed](fixtures/audience-visibility/unauthorized-concealed/audience_unauthorized_concealed.c), [location-visible bad](fixtures/audience-visibility/location-visible-bad/audience_location_visible_bad.c) | [concealed](fixtures/audience-visibility/unauthorized-concealed/audience_unauthorized_concealed.mlir), [location-visible bad](fixtures/audience-visibility/location-visible-bad/audience_location_visible_bad.mlir) | — | Concealment leaves the obligation active without a bad observation. Bob-visible host placement reveals the release value but still does not authorize or retire it. |
+| World-authorized release and transfer | [audience_world_authorized.c](fixtures/audience-world/authorized/audience_world_authorized.c) | [audience_world_authorized.mlir](fixtures/audience-world/authorized/audience_world_authorized.mlir) | — | World audience includes the empty coalition. An unequal authorized release retires the relevant obligation before the public transfer. |
 | Plaintext sent to the wrong party | [bad](fixtures/wrong-party-plaintext/bad/wrong_party_plaintext_bad.c), [fixed](fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext_fixed.c) | [bad](fixtures/wrong-party-plaintext/bad/wrong_party_plaintext.bad.mlir), [fixed](fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext.fixed.mlir) | — | The bad case writes both mailboxes; the fixed case preserves the authorized mailbox and redacts only the unauthorized one. |
 | FHE plaintext revealed on the wrong host | [bad](fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal_bad.c), [fixed](fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal_fixed.c) | [bad](fixtures/wrong-host-fhe-reveal/bad/wrong_host_fhe_reveal.bad.mlir), [fixed](fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal.fixed.mlir) | — | The ciphertext handle remains public; only the authorized client may receive revealed plaintext. |
 
@@ -160,6 +164,10 @@ distinction between payload equality and coalition authorization.
   authoring sidecar; do not infer them from callee names or locator attributes.
 - [ ] Verify the `{bob}` product row remains bad even though `{alice}` and
   `{alice,bob}` are safe.
+- [ ] Verify member lists use OR semantics while joint lists use AND/subset
+  semantics, including the empty coalition in the derived closure.
+- [ ] Keep release authorization separate from release payload visibility:
+  `LocVisible` can reveal a value but cannot retire an obligation.
 - [ ] Do not infer authorization from callee names, call order, or identical
   payload bytes.
 - [ ] Keep FHE cryptographic correctness outside the reduced host-placement
@@ -168,6 +176,8 @@ distinction between payload equality and coalition authorization.
 ### Supporting tests
 
 - [integration/equivalence.test](integration/equivalence.test)
+- [contracts/audience-basis.test](contracts/audience-basis.test)
+- [integration/source-boundary-fixtures.test](integration/source-boundary-fixtures.test)
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
 - [integration/candidate-bundles/interfaces-negative.test](integration/candidate-bundles/interfaces-negative.test)
 - [integration/candidate-bundles/metadata.test](integration/candidate-bundles/metadata.test)
@@ -189,6 +199,7 @@ released” analysis misses.
 | Situation | C evidence | MLIR evidence | Intended distinction |
 | --- | --- | --- | --- |
 | Observation occurs before an authorized release | [prefix_causal_release_bad.c](fixtures/prefix-causal-release/bad/prefix_causal_release_bad.c) | [prefix_causal_release.bad.mlir](fixtures/prefix-causal-release/bad/prefix_causal_release.bad.mlir) | A later legitimate release cannot retroactively authorize an earlier public store. |
+| Equal authorized release followed by a leak | [audience_equal_release_then_leak_bad.c](fixtures/audience-release/equal-then-leak-bad/audience_equal_release_then_leak_bad.c) | [audience_equal_release_then_leak_bad.mlir](fixtures/audience-release/equal-then-leak-bad/audience_equal_release_then_leak_bad.mlir) | An authorized release that is equal in both lanes records `EqualAuthorized` but does not retire the secret obligation. |
 | Padding validity is sanctioned but error detail is not | [bad](fixtures/explicit-error-oracle/bad/explicit_error_oracle_bad.c), [fixed](fixtures/explicit-error-oracle/fixed/explicit_error_oracle_fixed.c) | [bad](fixtures/explicit-error-oracle/bad/explicit_error_oracle.bad.mlir), [fixed](fixtures/explicit-error-oracle/fixed/explicit_error_oracle.fixed.mlir) | Hold the authorized validity/status release equal; the bad case still reveals secret error detail. |
 | CKKS plaintext is released before validation/sanitization | [bad](fixtures/ckks-release/bad/ckks_unsafe_release_bad.c), [fixed](fixtures/ckks-release/fixed/ckks_unsafe_release_fixed.c) | [bad](fixtures/ckks-release/bad/ckks_unsafe_release.bad.mlir), [fixed](fixtures/ckks-release/fixed/ckks_unsafe_release.fixed.mlir) | The fixed reduction applies the public mask and certificate guard before the public sink. |
 
@@ -197,6 +208,8 @@ released” analysis misses.
 - [ ] Draw the observation and release events in execution order.
 - [ ] Confirm the ledger is prefix-causal; do not install whole-run release
   equality as an initial relation.
+- [ ] Distinguish an unequal authorized release, which can retire its declared
+  footprint, from an equal authorized release, which cannot.
 - [ ] Separate sanctioned release fields from unsanctioned detail fields.
 - [ ] Verify the CKKS fixed case handles both `certificate_ok == 0` and
   `certificate_ok == 1`.
@@ -399,8 +412,10 @@ actual secret-selected sizes or reachable remainder states are equal.
 | --- | --- | --- | --- | --- |
 | Secret loop trip count | [bound_secret_trip_count_bad.c](fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count_bad.c) | [bound_secret_trip_count.bad.mlir](fixtures/loop-bounds/secret-trip-count-bad/bound_secret_trip_count.bad.mlir) | [candidate](fixtures/loop-bounds/secret-trip-count-bad/candidate/) | Replay counts 0 and 1 as a control counterexample. |
 | Public loop exceeds proof bound | same source | [bound_exhausted_loop.unknown.mlir](fixtures/loop-bounds/public-bound-exhausted-unknown/bound_exhausted_loop.unknown.mlir) | [candidate](fixtures/loop-bounds/public-bound-exhausted-unknown/candidate/) | Retain aligned reachable exhaustion as `Unknown(LoopRemainder)`; never delete it into a proof. |
+| Public loop fits proof bound | [bound_adequate_public_loop.c](fixtures/loop-bounds/public-bound-adequate-proved/bound_adequate_public_loop.c) | [bound_adequate_loop.proved.mlir](fixtures/loop-bounds/public-bound-adequate-proved/bound_adequate_loop.proved.mlir) | [candidate](fixtures/loop-bounds/public-bound-adequate-proved/candidate/) | Discharge bound adequacy when all admitted public executions fit the declared bound. |
 | Secret-selected VLA size | [alloca_size_high_count.c](fixtures/alloca-size/high-count-unknown/alloca_size_high_count.c) | [alloca_size_high_count.unknown.mlir](fixtures/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir) | [candidate](fixtures/alloca-size/high-count-unknown/candidate/) | `Unknown(AllocaSizeNotWorldStructural)` |
 | Public, validated VLA size control | same source | [alloca_size_public.control.mlir](fixtures/alloca-size/public-control/alloca_size_public.control.mlir) | [candidate](fixtures/alloca-size/public-control/candidate/) | Positive control, with range, overflow, and stack-feasibility obligations. |
+| Fixed-size array copy to a public root | [alloca_size_fixed_region_copy_bad.c](fixtures/alloca-size/fixed-region-copy-bad/alloca_size_fixed_region_copy_bad.c) | [alloca_size_fixed_region_copy.bad.mlir](fixtures/alloca-size/fixed-region-copy-bad/alloca_size_fixed_region_copy.bad.mlir) | [candidate](fixtures/alloca-size/fixed-region-copy-bad/candidate/) | Keep the equal eight-byte allocation structural while replaying the unequal terminal output bytes. |
 
 ### Manual checks
 
@@ -413,6 +428,8 @@ actual secret-selected sizes or reachable remainder states are equal.
   bound.
 - [ ] Verify the public VLA control binds range, overflow freedom, and stack
   feasibility rather than merely labeling the count public.
+- [ ] For the fixed-region copy, verify that allocation size agrees in both
+  lanes and that the first mismatch is `Output.valueBytes(public-out)`.
 - [ ] Check stack-protector or compiler-added behavior does not silently enter
   the claimed frozen normal form.
 
@@ -424,8 +441,8 @@ actual secret-selected sizes or reachable remainder states are equal.
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
 - [integration/candidate-bundles/metadata.test](integration/candidate-bundles/metadata.test)
 
-**Accept when:** secret divergence, aligned exhaustion, and proved-public bounds
-produce three distinguishable review conclusions.
+**Accept when:** secret divergence, aligned exhaustion, proved-public bounds,
+and a fixed-allocation payload leak produce distinguishable review conclusions.
 
 ---
 
@@ -678,7 +695,7 @@ target-profile-bound, and missing summaries remain unknown.
 
 ## Cross-cutting artifact review
 
-Perform this review for each of the eleven semantic bundles referenced above.
+Perform this review for each of the thirteen semantic bundles referenced above.
 Review bundle members in this order:
 
 1. `artifact.json`
@@ -792,35 +809,35 @@ to passed.
 
 ## Completeness ledger
 
-The 12-rank semantic queue accounts for all 65 checked-in MLIR fixture files:
+The 12-rank semantic queue accounts for all 74 checked-in MLIR fixture files:
 
 | Rank | Family | MLIR files |
 | ---: | --- | ---: |
-| 1 | Recipient/host/audience authorization | 5 |
-| 2 | Release causality/sanitization/oracles | 5 |
+| 1 | Recipient/host/audience authorization | 11 |
+| 2 | Release causality/sanitization/oracles | 6 |
 | 3 | Cross-tenant residual state | 4 |
 | 4 | ABI alias topology | 4 |
 | 5 | Direct public outputs | 6 |
 | 6 | Secret-dependent addresses | 5 |
-| 7 | Bounds and allocation sizes | 4 |
+| 7 | Bounds and allocation sizes | 6 |
 | 8 | Release carriers | 3 |
 | 9 | Relational precision | 9 |
 | 10 | Backend-created observations | 6 |
 | 11 | Variable-latency arithmetic | 6 |
 | 12 | Target-profile helpers | 8 |
-|  | **Total** | **65** |
+|  | **Total** | **74** |
 
 The cross-cutting review additionally covers:
 
-- 68 C evidence/helper files plus the equivalence driver (69 compiled C inputs);
-- 11 candidate semantic bundles and their 11 `.bc`/derived `.ll` pairs;
-- 65 direct `expect.final` judgments, with no report-materialization or
-  execution state in the snapshots; 11 candidate fixtures additionally carry
-  authenticated compact references and the other 54 state their final axes
+- 77 C evidence/helper files plus the equivalence driver (78 compiled C inputs);
+- 13 candidate semantic bundles and their 13 `.bc`/derived `.ll` pairs;
+- 74 direct `expect.final` judgments, with no report-materialization or
+  execution state in the snapshots; 13 candidate fixtures additionally carry
+  authenticated compact references and the other 61 state their final axes
   entirely inline;
-- expected model totals of 27 `Proved`, 26 `Counterexample`, and 12 `Unknown`,
+- expected model totals of 32 `Proved`, 30 `Counterexample`, and 12 `Unknown`,
   all with expected deployment `Open` and policy `Complete`;
-- 18 fixtures with separate raw and canonicalized structural endpoints;
+- 19 fixtures with separate raw and canonicalized structural endpoints;
 - 2 additional checked-in LLVM inputs and 1 release-marker LLVM input;
 - 2 NFv2 textual/feature-gated release-intrinsic inputs;
 - 7 MIR snapshots;
@@ -828,8 +845,8 @@ The cross-cutting review additionally covers:
 - the candidate-bundle integration, general integration, diagnostic, and P4
   test strata.
 
-The post-migration lit inventory is 158 tests. In the current capability
-environment, 147 are supported and 11 are `UNSUPPORTED`. The unsupported tests
+The post-migration lit inventory is 168 tests. In the current capability
+environment, 157 are supported and 11 are `UNSUPPORTED`. The unsupported tests
 require capabilities such as the unary
 scanner, exact Rev4.1 verifier and materialized bundles, RV32 GCC, NFv2
 intrinsic/code-generation support, or external source-annotation data.
@@ -869,7 +886,7 @@ Do not sign off the fixture set until all of the following are true:
 - [ ] Every fixed/control case blocks a trivial always-report or always-refuse
   implementation.
 - [ ] C intent, MLIR shape, and sidecar bindings agree.
-- [ ] The eleven candidate bundles pass integrity and interface checks.
+- [ ] The thirteen candidate bundles pass integrity and interface checks.
 - [ ] Target-specific claims are tied to exact targets and stages.
 - [ ] Unsupported optional tests are recorded explicitly.
 - [ ] No diagnostic, preflight shape, expected oracle, or P4 snapshot is

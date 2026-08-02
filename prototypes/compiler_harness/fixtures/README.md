@@ -63,12 +63,12 @@ items may also identify a public argument or one of the closed observations
 and `transfer`. `allowed` adds a minimal release or audience rule only when needed.
 There is no scalar verdict, execution field, test path, capability list, input
 graph, endpoint-adapter wrapper, or report-materialization state. Every
-snapshot has one `expect.final`: 27 fixtures expect `Proved`, 26 expect
+snapshot has one `expect.final`: 32 fixtures expect `Proved`, 30 expect
 `Counterexample`, and 12 expect `Unknown`; all explicitly expect deployment
 `Open` and policy `Complete`. A `Counterexample` names its bad-state class and
 one selected event field as `first_bad`. `Proved` and `Counterexample` cases
 select at least one closed SPS event field; selectors never contain event
-payloads or full traces. The eleven existing candidates add only
+payloads or full traces. The thirteen existing candidates add only
 `reference: candidate/expected-report.json`, which is authenticated through the
 sibling manifest and checked for agreement with the final axes.
 
@@ -97,7 +97,7 @@ does not duplicate the facts into Snapshot V3.
 ## Synthetic counterexample pairs
 
 The snapshot owns the human security oracle; it does not own concrete input
-values. Every one of the 26 expected-`Counterexample` fixtures therefore keeps
+values. Every one of the 30 expected-`Counterexample` fixtures therefore keeps
 one public synthetic pair beside it:
 
 ```yaml
@@ -193,7 +193,7 @@ batched lit producer for source, policy, and ABI validation. Capability gates
 are ordinary lit `REQUIRES` features.
 
 Matchers capture only the sparse typed facts needed for the decisive property,
-not SSA numbers or whole-module text. Eighteen canonicalization-sensitive
+not SSA numbers or whole-module text. Nineteen canonicalization-sensitive
 fixtures declare separate raw and canonicalized endpoints. FileCheck remains
 only for a documented property outside the typed fact registry.
 
@@ -208,7 +208,7 @@ not a Rev4 diagnostic disposition or run-report result.
 ## Authority boundary
 
 MLIR is convenient for authoring and reviewing a seed, but Rev4 analyzes frozen
-canonical LLVM bitcode. Eleven selected cases also contain a local `candidate/`
+canonical LLVM bitcode. Thirteen selected cases also contain a local `candidate/`
 directory, where:
 
 1. LLVM 17.0.6 currently produces candidate `artifact.bc`;
@@ -236,9 +236,9 @@ under `../p4-risk/`; they never turn a shape file into an SPS proof or
 counterexample.
 
 Those candidates remain quarantined by the `candidate/` boundary. Their exact
-bytes pipelines protect the current eleven captures, and a compact `reference`
+bytes pipelines protect the current thirteen captures, and a compact `reference`
 authenticates each existing expected-run sidecar without copying its query,
-replay, receipt, or audit machinery into Snapshot V3. The other 54 fixtures
+replay, receipt, or audit machinery into Snapshot V3. The other 61 fixtures
 state the same final axes directly without manufacturing candidate artifacts.
 A future conformance `artifact.bc` must be deliberately frozen and accompanied
 by canonical SPS inputs and an actual run report. The expected final block is

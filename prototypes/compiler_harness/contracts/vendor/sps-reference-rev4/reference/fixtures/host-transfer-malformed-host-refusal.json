@@ -19,7 +19,9 @@
         "return": null,
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "transfer",
@@ -44,6 +46,10 @@
     }
   },
   "expected": {
-    "reason": "ReferenceSchemaMismatch"
+    "reason": "ReferenceSchemaMismatch",
+    "refusalLocus": {
+      "space": "programJson",
+      "path": "$.input.program.statements[0].sourceHost"
+    }
   }
 }

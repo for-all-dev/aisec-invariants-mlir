@@ -21,7 +21,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["return.value"],
+        "terminalOutputOrder": [
+          "return.value"
+        ],
         "return": {
           "outputId": "return.value",
           "width": 1,
@@ -30,7 +32,9 @@
         },
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "return",
@@ -51,6 +55,7 @@
     "mutation": "replace-first-bad-expression-with-false"
   },
   "expected": {
-    "reason": "ReferenceSchemaMismatch"
+    "reason": "ReferenceSchemaMismatch",
+    "caughtBy": "structural-seal"
   }
 }

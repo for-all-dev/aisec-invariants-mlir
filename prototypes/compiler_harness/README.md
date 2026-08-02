@@ -124,16 +124,16 @@ remain on the checkpoint runner until their independent producers emit complete
 trace fragments. There is intentionally no adapter that copies V3 expectations
 into an “actual” trace, because that would defeat expectation blindness.
 
-All 65 fixtures state their expected final judgment directly. The model split
-is 27 `Proved`, 26 `Counterexample`, and 12 `Unknown`; every fixture expects
+All 74 fixtures state their expected final judgment directly. The model split
+is 32 `Proved`, 30 `Counterexample`, and 12 `Unknown`; every fixture expects
 deployment `Open` and policy review `Complete`. Relevant `Proved` and
 `Counterexample` fixtures also select the security-relevant SPS event fields
 covered by that judgment, without embedding traces, payloads, witnesses, or
-receipts. Eleven fixtures authenticate their existing candidate expected-run
-sidecar through a compact `reference`; the other 54 require no candidate
-artifact. Eighteen fixtures separately inspect raw and canonicalized MLIR.
+receipts. Thirteen fixtures authenticate their existing candidate expected-run
+sidecar through a compact `reference`; the other 61 require no candidate
+artifact. Nineteen fixtures separately inspect raw and canonicalized MLIR.
 
-Each of the 26 `Counterexample` fixtures also has a fixed sibling
+Each of the 30 `Counterexample` fixtures also has a fixed sibling
 `counterexample-pair.yaml`. The snapshot says what should differ; the pair
 supplies one full-width public synthetic Low-equal, High-varying input pair.
 This makes the example reproducible without putting values or traces into
@@ -195,7 +195,7 @@ make check-artifacts   # target alias for check-candidates
 make check-integration # C provenance, witnesses, import, and LLVM shape
 make check-p4-risk     # target-bound risk evidence only
 make check-sps         # runs the feature-gated semantic suite (unsupported today)
-make check-sps-reference # verifies and executes the locked 19-case reference snapshot
+make check-sps-reference # verifies and executes the locked 21-case reference snapshot
 make check-contracts   # WFInputs binding completeness and the aggregation collapse
 make check-fixture-verifier # strict C and C++ verifier API/unit checks
 make check-fixture-verifier-sanitize # build an isolated ASan/UBSan verifier
@@ -203,7 +203,7 @@ make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled dri
 make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
 make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
 make list-tests        # discovery audit
-make list-fixture-status # pipeline/state/endpoint inventory for all 65 cases
+make list-fixture-status # pipeline/state/endpoint inventory for all 74 cases
 make list-fixture-results # expected/actual/comparison terminal result table
 ```
 
@@ -245,7 +245,7 @@ targets or tools produce `UNSUPPORTED`, not a fabricated success.
 
 The executable reference bridge is deliberately narrower than the exact
 verifier path. `make check-sps-reference` verifies the vendored closure before
-and after execution, runs all 19 reference cases and 20 unit tests, and records
+and after execution, runs all 21 reference cases and 20 unit tests, and records
 coverage of 10 of the profile's 61 fixture families. Its claim boundary is
 `ExecutableReferenceOnly`: it cannot emit `NFConforms`, `Proved`, or another
 computed `ModelStatus`, and it is not a third fixture tier. Z3 is required;
@@ -297,8 +297,8 @@ and materialized inputs, invoke the lit `%sps-verifier` directly with the
 declared bundle, and match the producer executable's SHA-256 to
 `proofConfiguration.exactVerifierBuildDigest`. It must also carry exactly one
 typed expected contract; an authenticated report with an unexpected result
-cannot pass a regression test. Eleven candidate cases delegate to digest-bound
-expected-run sidecars, while 54 compare against inline typed report, status,
+cannot pass a regression test. Thirteen candidate cases delegate to digest-bound
+expected-run sidecars, while 61 compare against inline typed report, status,
 AuditAll, and replay matchers. Once report and verifier authentication succeed,
 an unexpected report is retained below the build root for result inspection
 while the checkpoint records `FailedV1`. Counterexample contracts that require
@@ -332,7 +332,7 @@ one of those forms does not establish an NFv2 carrier.
 
 ## The `.bc` / `.ll` ownership contract
 
-Eleven fixture cases contain a local `candidate/` bundle with both forms requested
+Thirteen fixture cases contain a local `candidate/` bundle with both forms requested
 for compiler-pipeline review. Each bundle is colocated with the MLIR/snapshot
 case it describes:
 
@@ -452,5 +452,5 @@ The error-event fixture is deliberately split in two. The checked-in
 nonclaimable `CandidateOnly` contract whose validator pins `DeclaredFailure`, the
 mandatory verifier-UB error field, payload projection, and both exact event
 orders. It is not an SPS report input. Rev4.1 requires a separately
-materialized V2 bundle. The eleven case-local candidate ABIs under
+materialized V2 bundle. The thirteen case-local candidate ABIs under
 `fixtures/*/*/candidate/` are not V2 materialization inputs.

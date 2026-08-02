@@ -8,6 +8,12 @@
       "kind": "artifact-mutation"
     },
     {
+      "file": "bad-circuit-mutation-resealed.json",
+      "caseId": "bad-circuit-mutation-resealed",
+      "familyId": "NF-FX-BAD-CIRCUIT",
+      "kind": "artifact-mutation"
+    },
+    {
       "file": "bad-circuit-secret-branch.json",
       "caseId": "bad-circuit-secret-branch",
       "familyId": "NF-FX-BAD-CIRCUIT",
@@ -102,6 +108,12 @@
       "caseId": "release-partial-footprint-replay-refusal",
       "familyId": "NF-FX-HOST-RELEASE",
       "kind": "product-profile-refusal"
+    },
+    {
+      "file": "release-presence-secret-branch.json",
+      "caseId": "release-presence-secret-branch",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "noninterference"
     },
     {
       "file": "replay-wire-reordered-rejected.json",

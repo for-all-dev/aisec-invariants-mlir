@@ -21,7 +21,7 @@ export SPS_SOURCE_ANNOTATIONS_ROOT
 .PHONY: check check-shape check-mlir check-integration check-diagnostic \
 	check-sps check-candidates check-artifacts check-p4-risk check-contracts \
 	check-interfaces check-source-annotations check-checkpoints list-tests \
-	check-sps-reference \
+	check-sps-reference check-mutants \
 	build-fixture-verifier check-fixture-verifier check-fixture-verifier-sanitize \
 	list-fixture-status list-fixture-results \
 	bootstrap-lit require-lit
@@ -112,6 +112,21 @@ check-sps-reference: require-lit
 	  $(LIT) $(LIT_FLAGS) \
 	    "$(HARNESS_DIR)/contracts/sps-reference-lock.test" \
 	    "$(HARNESS_DIR)/integration/sps-reference-suite.test"
+
+# Mutation check for the SPS executable reference slice. Perturbs sps_ref one
+# edit at a time and fails if a mutant the fixtures should catch survives.
+# Known-unkillable mutants are allowlisted with a reason in mutation_check.py.
+# Does not use lit: it rewrites reference sources in place and restores them.
+check-mutants:
+	@if [ -z "$(SPS_REFERENCE_ROOT)" ]; then \
+	  echo "error: set SPS_REFERENCE_ROOT to the SPS/reference directory" >&2; \
+	  exit 1; \
+	fi
+	@if [ ! -f "$(SPS_REFERENCE_ROOT)/mutation_check.py" ]; then \
+	  echo "error: no mutation_check.py under $(SPS_REFERENCE_ROOT)" >&2; \
+	  exit 1; \
+	fi
+	$(PYTHON) "$(SPS_REFERENCE_ROOT)/mutation_check.py"
 
 check-interfaces: require-lit
 	@mkdir -p "$(LIT_BUILD_ROOT)"

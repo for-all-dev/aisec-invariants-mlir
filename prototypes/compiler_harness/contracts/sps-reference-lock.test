@@ -4,7 +4,7 @@
 
 # RUN: env -u SPS_REFERENCE_ROOT %python %harness/tools/sync_sps_reference.py --check | %FileCheck %s --check-prefix=VENDOR
 # VENDOR: SPS executable reference source comparison: SKIPPED (SPS_REFERENCE_ROOT unset)
-# VENDOR: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly tree={{[0-9a-f]+}} cases=19 tests=20 families=10/61
+# VENDOR: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly tree={{[0-9a-f]+}} cases=21 tests=20 families=10/61
 
 # The upstream interface builder is authoritative vendored source, not a
 # harness consumer with a copied normative table.
@@ -13,7 +13,7 @@
 
 # The lock records the intended coverage counts and the reference JSON never
 # serializes a harness-computed ModelStatus.
-# RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%harness'); lock=json.loads((root/'contracts/sps-reference.lock.json').read_text()); assert lock['formatId']=='SPS-Harness-Reference-Lock-v1'; assert lock['claimBoundary']=='ExecutableReferenceOnly'; assert lock['counts']=={'fixtureCases':19,'unitTests':20,'executableFamilies':10,'profileFamilies':61}; values=[json.loads(p.read_text()) for p in (root/'contracts/vendor/sps-reference-rev4/reference').rglob('*.json')]; walk=lambda v: any(k=='modelStatus' or walk(x) for k,x in v.items()) if isinstance(v,dict) else any(walk(x) for x in v) if isinstance(v,list) else False; assert not any(walk(v) for v in values); print('reference lock boundary and nonclaimable JSON verified')" | %FileCheck %s --check-prefix=BOUNDARY
+# RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%harness'); lock=json.loads((root/'contracts/sps-reference.lock.json').read_text()); assert lock['formatId']=='SPS-Harness-Reference-Lock-v1'; assert lock['claimBoundary']=='ExecutableReferenceOnly'; assert lock['counts']=={'fixtureCases':21,'unitTests':20,'executableFamilies':10,'profileFamilies':61}; values=[json.loads(p.read_text()) for p in (root/'contracts/vendor/sps-reference-rev4/reference').rglob('*.json')]; walk=lambda v: any(k=='modelStatus' or walk(x) for k,x in v.items()) if isinstance(v,dict) else any(walk(x) for x in v) if isinstance(v,list) else False; assert not any(walk(v) for v in values); print('reference lock boundary and nonclaimable JSON verified')" | %FileCheck %s --check-prefix=BOUNDARY
 # BOUNDARY: reference lock boundary and nonclaimable JSON verified
 
 # Reconstruct an SPS-shaped source root from the lean vendor and exercise the
@@ -51,7 +51,7 @@
 # UNSAFE: SPS reference sync failed: unsafe closed reference assurance claim:
 
 # Recursive fixture discovery prevents an uncatalogued nested JSON from being
-# locked while remaining absent from the executable 19-case catalog.
+# locked while remaining absent from the executable 21-case catalog.
 # RUN: rm -rf %t.nested
 # RUN: cp -R %t.source %t.nested
 # RUN: mkdir -p %t.nested/reference/fixtures/nested

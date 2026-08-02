@@ -104,10 +104,19 @@ void abi_alias_explicit_same_actual(unsigned secret, unsigned *shared,
                                     unsigned *public_output);
 void alloca_size_high_count(int secret_bit, unsigned *public_sink);
 void alloca_size_public_control(unsigned public_count, unsigned *public_sink);
+void alloca_size_fixed_region_copy_bad(uint32_t secret, uint8_t *public_out);
 uint32_t argmax_release_body(const int32_t logits[10]);
+void audience_equal_release_then_leak_bad(unsigned secret);
+void audience_joint_authorized(unsigned logits);
+void audience_joint_singleton_visible_bad(unsigned logits);
+void audience_location_visible_bad(unsigned secret);
 void audience_mismatch_bad(unsigned logits);
+void audience_mismatch_authorized(unsigned logits);
+void audience_unauthorized_concealed(unsigned secret);
+void audience_world_authorized(unsigned secret);
 void bound_secret_trip_count_bad(int secret_count, unsigned *public_sink);
 void bound_exhausted_public_loop(int public_count, unsigned *public_sink);
+void bound_adequate_public_loop(int public_count, unsigned *public_sink);
 uint64_t launder_scan_bad(int secret, uint64_t x, const uint64_t *p);
 uint64_t launder_scan_folded_bad(int secret, uint64_t x, const uint64_t *p);
 uint64_t launder_scan_fixed(int secret, uint64_t x, const uint64_t *p);
@@ -145,6 +154,13 @@ uint32_t sha256_round_release_body(uint32_t e, uint32_t f, uint32_t g,
 static int failures;
 static uint32_t transfer_audience_alice;
 static uint32_t transfer_audience_bob;
+static uint32_t transfer_authorized_alice;
+static uint32_t transfer_authorized_bob;
+static uint32_t transfer_concealed_endpoint;
+static uint32_t transfer_equal_release_observer;
+static uint32_t transfer_joint_endpoint;
+static uint32_t transfer_joint_to_alice;
+static uint32_t transfer_world_endpoint;
 static uint32_t transfer_fhe_authorized_client;
 static uint32_t transfer_fhe_server;
 static uint32_t transfer_party_authorized;
@@ -158,6 +174,34 @@ void sps_transfer_audience_alice(uint32_t value) {
 
 void sps_transfer_audience_bob(uint32_t value) {
   transfer_audience_bob = value;
+}
+
+void sps_transfer_authorized_alice(uint32_t value) {
+  transfer_authorized_alice = value;
+}
+
+void sps_transfer_authorized_bob(uint32_t value) {
+  transfer_authorized_bob = value;
+}
+
+void sps_transfer_concealed_endpoint(uint32_t value) {
+  transfer_concealed_endpoint = value;
+}
+
+void sps_transfer_equal_release_observer(uint32_t value) {
+  transfer_equal_release_observer = value;
+}
+
+void sps_transfer_joint_endpoint(uint32_t value) {
+  transfer_joint_endpoint = value;
+}
+
+void sps_transfer_joint_to_alice(uint32_t value) {
+  transfer_joint_to_alice = value;
+}
+
+void sps_transfer_world_endpoint(uint32_t value) {
+  transfer_world_endpoint = value;
 }
 
 void sps_transfer_fhe_authorized_client(uint32_t value) {
@@ -452,7 +496,7 @@ static void check_pointer_rebinding(void) {
   expect_u64("pointer rebinding same actual equal output", selected_left,
              selected_right);
 
-  /* Runtime behavior remains concrete even though SPS refuses pointer spills. */
+  /* Exercise both selector values even though the checked shape is refused. */
   left = 0x36u;
   right = 0x9du;
   selected_left = 0u;
@@ -467,6 +511,7 @@ static void check_pointer_rebinding(void) {
 
 static void check_remaining_models(void) {
   unsigned p = 0u, q = 0u, out = 0u;
+  uint8_t public_byte = 0xffu;
   uint32_t carrier[2] = {0};
   uint64_t pointed = 0xfedcba9876543210ull;
   const uint64_t fallback = 0x0123456789abcdefull;
@@ -491,6 +536,10 @@ static void check_remaining_models(void) {
   out = 1u;
   alloca_size_public_control(64u, &out);
   expect_u64("public VLA public sink", out, 0u);
+  alloca_size_fixed_region_copy_bad(0u, &public_byte);
+  expect_u64("fixed array left witness", public_byte, 0u);
+  alloca_size_fixed_region_copy_bad(1u, &public_byte);
+  expect_u64("fixed array right witness", public_byte, 1u);
 
   for (unsigned i = 0; i < 10; ++i)
     logits[i] = -100;
@@ -509,6 +558,26 @@ static void check_remaining_models(void) {
   expect_u64("audience authorized payload", transfer_audience_alice, 0x34u);
   expect_u64("audience unauthorized payload", transfer_audience_bob, 0x34u);
 
+  audience_mismatch_authorized(0x1234u);
+  expect_u64("two-member audience Alice payload", transfer_authorized_alice,
+             0x34u);
+  expect_u64("two-member audience Bob payload", transfer_authorized_bob,
+             0x34u);
+  audience_joint_authorized(0x1234u);
+  expect_u64("joint audience payload", transfer_joint_endpoint, 0x34u);
+  audience_joint_singleton_visible_bad(0x1234u);
+  expect_u64("joint audience singleton witness", transfer_joint_to_alice,
+             0x34u);
+  audience_unauthorized_concealed(0x1234u);
+  expect_u64("concealed audience payload", transfer_concealed_endpoint,
+             0x34u);
+  audience_location_visible_bad(0x1234u);
+  audience_world_authorized(0x1234u);
+  expect_u64("world audience payload", transfer_world_endpoint, 0x34u);
+  audience_equal_release_then_leak_bad(0x1234u);
+  expect_u64("equal release later leak witness", transfer_equal_release_observer,
+             0x1234u);
+
   out = 1u;
   bound_secret_trip_count_bad(0, &out);
   expect_u64("secret trip count zero", out, 0u);
@@ -518,6 +587,9 @@ static void check_remaining_models(void) {
   out = 1u;
   bound_exhausted_public_loop(3, &out);
   expect_u64("public bound backedge", out, 0u);
+  out = 1u;
+  bound_adequate_public_loop(8, &out);
+  expect_u64("adequate public bound", out, 0u);
 
   expect_u64("launder ternary false", launder_scan_bad(0, fallback, &pointed),
              fallback);

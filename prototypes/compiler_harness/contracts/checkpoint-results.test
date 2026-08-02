@@ -25,4 +25,4 @@
 # TABLE: wolfssl-3580-mask/source
 # TABLE-SAME: Proved
 # TABLE: Actual axes appear only when check-final validates a supplied SPSRunReportV2.
-# TABLE: summary: fixtures=65 expected-proved=27 expected-counterexample=26 expected-unknown=12
+# TABLE: summary: fixtures=74 expected-proved=32 expected-counterexample=30 expected-unknown=12

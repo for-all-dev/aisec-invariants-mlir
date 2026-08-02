@@ -15,7 +15,9 @@
       "observerProfile": "EventInterfaceOnly",
       "inputs": [],
       "abi": {
-        "terminalOutputOrder": ["root.out"],
+        "terminalOutputOrder": [
+          "root.out"
+        ],
         "return": null,
         "roots": [
           {
@@ -33,7 +35,9 @@
           }
         ]
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "return",
@@ -44,6 +48,10 @@
     }
   },
   "expected": {
-    "reason": "UninitializedOutputByte"
+    "reason": "UninitializedOutputByte",
+    "refusalLocus": {
+      "space": "compiledLane",
+      "path": "L"
+    }
   }
 }

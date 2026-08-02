@@ -26,7 +26,9 @@
         "return": null,
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "transfer",
@@ -57,6 +59,16 @@
   "expected": {
     "status": "sat",
     "firstBadCause": "ProjectedPayloadMismatch",
-    "replayAccepted": true
+    "replayAccepted": true,
+    "eventShape": [
+      "Transfer@transfer.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "132b17b3b197e46a1dd39a0020be3a456c24e2c0313cd79b57dc9e688a8e66a7",
+    "firstBadEventOrdinal": 0,
+    "firstTrueBadRow": 2
   }
 }

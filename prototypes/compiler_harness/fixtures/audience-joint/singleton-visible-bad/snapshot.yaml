@@ -1,0 +1,64 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_joint_singleton_visible_bad
+c_evidence:
+- fixtures/audience-joint/singleton-visible-bad/audience_joint_singleton_visible_bad.c
+secret:
+- arg: 0
+  name: logits
+public:
+- observable: transfer
+allowed:
+- the released class may be observed only by Alice and Bob jointly
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: alice-visible-output-without-joint-authorization
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: joint-class
+    - kind: Transfer
+      field: valueBytes
+      first_bad: true
+    because: Alice alone sees the payload but the release requires Alice and Bob jointly
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_joint_singleton_visible_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release
+          - sps_transfer_joint_to_alice

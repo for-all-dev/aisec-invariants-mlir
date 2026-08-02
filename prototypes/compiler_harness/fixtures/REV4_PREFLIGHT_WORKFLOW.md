@@ -10,14 +10,14 @@ produce a `ModelStatus`.
 Snapshot V3 gives every fixture one direct expected final judgment and sparse
 typed properties for the intermediate endpoints that matter. It contains no
 execution, capability, lineage, adapter, or materialization fields; lit owns
-those operational details. The 65 nonclaimable expectations contain 27
-`Proved`, 26 `Counterexample`, and 12 `Unknown` model results, all with
+those operational details. The 74 nonclaimable expectations contain 32
+`Proved`, 30 `Counterexample`, and 12 `Unknown` model results, all with
 deployment `Open` and policy `Complete`. Relevant cases select closed SPS event
-fields, never raw traces or protected evidence. Eleven authenticate their
+fields, never raw traces or protected evidence. Thirteen authenticate their
 existing candidate expected-run sidecars through a compact `reference`; the
-other 54 need no candidate artifact.
+other 61 need no candidate artifact.
 
-All 26 expected-`Counterexample` fixtures do, however, own a public synthetic
+All 30 expected-`Counterexample` fixtures do, however, own a public synthetic
 `counterexample-pair.yaml`. It makes the local oracle concrete at full ABI
 width while remaining outside the authoritative result path. The snapshot
 owns the bad-state/first-difference expectation; policy and ABI own labels and

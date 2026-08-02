@@ -6,9 +6,9 @@
 
 # RUN: %python %harness/tools/check_compiler_inputs.py --llvm-bin %llvm_bin | %FileCheck %s
 
-# CHECK: verified C -> bitcode: 69
-# CHECK: verified C -> LLVM -> MLIR: 68; expected inline-asm refusals: 1
-# CHECK: verified MLIR -> LLVM -> bitcode: 65
-# CHECK: verified textual LLVM: 23
-# CHECK: verified checked-in bitcode fresh-reparse fixpoints: 11
+# CHECK: verified C -> bitcode: 78
+# CHECK: verified C -> LLVM -> MLIR: 77; expected inline-asm refusals: 1
+# CHECK: verified MLIR -> LLVM -> bitcode: 74
+# CHECK: verified textual LLVM: 25
+# CHECK: verified checked-in bitcode fresh-reparse fixpoints: 13
 # CHECK: verified machine basic-block snapshots: 7

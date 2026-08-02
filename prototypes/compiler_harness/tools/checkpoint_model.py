@@ -599,6 +599,68 @@ def _parse_event(value: Any, where: str) -> EventExpectation:
     return EventExpectation(kind, field, logical_id, first_bad)
 
 
+# A `Counterexample` snapshot names a `bad_state`, but nothing compares that
+# class unless the case also carries an authenticated candidate sidecar: the
+# public report's Counterexample argument is a receipt digest, not a bad-state
+# class. New Counterexample cases must therefore carry `reference`.
+#
+# These cases predate the rule. The list is explicit rather than inferred so the
+# debt is countable and shrinks visibly; entries are removed as each case gains
+# a real candidate capture. Adding to it needs the same justification.
+COUNTEREXAMPLE_REFERENCE_EXEMPT = frozenset(
+    {
+        "abi-alias/explicit-same-actual-bad",
+        # CandidatePolicyV2 currently has no release-audience or host-visibility
+        # representation and explicitly refuses nonempty joint visibility. An
+        # authenticated candidate for these cases would therefore erase the
+        # policy fact each fixture exists to test. Keep them nonclaimable until
+        # the candidate schema can represent AudienceBasis faithfully.
+        "audience-joint/singleton-visible-bad",
+        "audience-release/equal-then-leak-bad",
+        "audience-visibility/location-visible-bad",
+        "audience-mismatch/bad",
+        "breach-compressed-length/bad",
+        "ckks-release/bad",
+        "clangover-poly-frommsg/lowered-bad",
+        "dynamic-kv-length/bad",
+        "explicit-error-oracle/bad",
+        "kyberslash1-poly-tomsg/target-bad",
+        "kyberslash2-compress/target-bad",
+        "leftoverlocals-scratch/bad",
+        "precision-control/different-successor-bad",
+        "precision-control/missing-overwrite-bad",
+        "precision-control/offset-overlap-bad",
+        "precision-control/xor-secret-output-bad",
+        "predecessor-choice/blockarg-bad",
+        "prefix-causal-release/bad",
+        "redis-pool-reuse/bad",
+        "secret-embedding-index/bad",
+        "secret-logging-checkpoint/bad",
+        "wolfssl-3579-mul/target-bad",
+        "wolfssl-3580-mask/target-bad",
+        "wrong-host-fhe-reveal/bad",
+        "wrong-party-plaintext/bad",
+    }
+)
+
+
+def _validate_counterexample_reference(
+    case: str, final: FinalExpectation, where: str
+) -> None:
+    exempt = case in COUNTEREXAMPLE_REFERENCE_EXEMPT
+    if final.status == "Counterexample" and final.reference is None and not exempt:
+        raise CheckpointError(
+            f"{where}: a Counterexample snapshot must carry "
+            "reference: candidate/expected-report.json so its bad_state is "
+            "compared against an authenticated candidate report"
+        )
+    if exempt and (final.status != "Counterexample" or final.reference is not None):
+        raise CheckpointError(
+            f"{where}: {case} now satisfies the Counterexample reference rule; "
+            "remove it from COUNTEREXAMPLE_REFERENCE_EXEMPT"
+        )
+
+
 def _parse_final(value: Any, where: str) -> FinalExpectation:
     final = _mapping(value, where)
     _exact_fields(
@@ -887,6 +949,9 @@ def load_snapshot(path: Path, root: Path | None = None) -> SnapshotV3:
     _exact_fields(expect, {"final", "pipelines"}, set(), f"{path}.expect")
     final = _parse_final(expect["final"], f"{path}.expect.final")
     _validate_candidate_reference(path, root, entry, final, f"{path}.expect.final")
+    _validate_counterexample_reference(
+        _snapshot_case(path, root), final, f"{path}.expect.final"
+    )
     pipelines_value = _mapping(expect["pipelines"], f"{path}.expect.pipelines")
     if not pipelines_value:
         raise CheckpointError(f"{path}.expect.pipelines: must be nonempty")

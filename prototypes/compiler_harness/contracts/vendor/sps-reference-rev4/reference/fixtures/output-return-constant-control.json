@@ -22,7 +22,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["return.value"],
+        "terminalOutputOrder": [
+          "return.value"
+        ],
         "return": {
           "outputId": "return.value",
           "width": 1,
@@ -31,7 +33,9 @@
         },
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "return",
@@ -58,6 +62,14 @@
   "expected": {
     "status": "unsat",
     "firstBadCause": null,
-    "replayAccepted": false
+    "replayAccepted": false,
+    "eventShape": [
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [],
+    "canonicalReferencePONFDigest": "6c2c62065e0581c4fe9ffca677e120c19327e724e5faa7a486b86936057e3468",
+    "firstBadEventOrdinal": null,
+    "firstTrueBadRow": null
   }
 }

@@ -269,23 +269,23 @@ def main() -> int:
 
     snapshots = model.load_snapshots(root)
     inventory = model.build_inventory(root)
-    assert len(snapshots) == 65
-    assert sum(len(item.pipelines) for item in snapshots) == 182
+    assert len(snapshots) == 74
+    assert sum(len(item.pipelines) for item in snapshots) == 203
     assert model.outcome_totals(snapshots) == {
-        "Counterexample": 26,
-        "Proved": 27,
+        "Counterexample": 30,
+        "Proved": 32,
         "Unknown": 12,
     }
-    assert sum(item.final.reference is not None for item in snapshots) == 11
+    assert sum(item.final.reference is not None for item in snapshots) == 13
     assert sum(
         event.first_bad
         for snapshot in snapshots
         for event in snapshot.final.events
-    ) == 26
+    ) == 30
     assert all(item.final.deployment == "Open" for item in snapshots)
     assert all(item.final.policy == "Complete" for item in snapshots)
-    assert len(inventory.run_bindings) == 182
-    assert len(inventory.finalizers) == 78
+    assert len(inventory.run_bindings) == 203
+    assert len(inventory.finalizers) == 87
 
     source = next(item for item in inventory.snapshots if item.case == "kyberslash1-poly-tomsg/bad")
     assert source.pipelines["scanner-diagnostic"].requires == ("sps-scan-unary",)

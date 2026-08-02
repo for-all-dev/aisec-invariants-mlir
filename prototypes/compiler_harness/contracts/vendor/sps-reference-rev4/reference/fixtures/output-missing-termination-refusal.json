@@ -26,11 +26,17 @@
         "return": null,
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": []
     }
   },
   "expected": {
-    "reason": "ReferenceProfileUnsupported"
+    "reason": "ReferenceProfileUnsupported",
+    "refusalLocus": {
+      "space": "compiledLane",
+      "path": "L"
+    }
   }
 }

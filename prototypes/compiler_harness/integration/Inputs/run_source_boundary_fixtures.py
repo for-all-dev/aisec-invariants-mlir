@@ -78,6 +78,7 @@ def main() -> None:
         snapshot_path = snapshot.path
         primary, policy, abi, support = _case_inputs(snapshot, checkpoint_model)
         endpoint = arguments.outputs / f"{snapshot.case.replace('/', '--')}.json"
+        resolved = arguments.outputs / f"{snapshot.case.replace('/', '--')}.resolved.json"
         command = [
             sys.executable,
             str(runner),
@@ -111,6 +112,8 @@ def main() -> None:
             str(abi),
             "--report",
             str(endpoint),
+            "--resolved",
+            str(resolved),
         ])
         subprocess.run(command, check=True)
         owned += 1

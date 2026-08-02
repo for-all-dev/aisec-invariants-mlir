@@ -22,7 +22,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["return.value"],
+        "terminalOutputOrder": [
+          "return.value"
+        ],
         "return": {
           "outputId": "return.value",
           "width": 8,
@@ -31,7 +33,9 @@
         },
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "releaseAttempt",
@@ -76,6 +80,17 @@
   "expected": {
     "status": "sat",
     "firstBadCause": "ProjectedPayloadMismatch",
-    "replayAccepted": true
+    "replayAccepted": true,
+    "eventShape": [
+      "Release@release.site",
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "a88c32e709b87b6a3ebecd00830d4edd439760e7adff84c464087aa0eb456dfe",
+    "firstBadEventOrdinal": 1,
+    "firstTrueBadRow": 5
   }
 }

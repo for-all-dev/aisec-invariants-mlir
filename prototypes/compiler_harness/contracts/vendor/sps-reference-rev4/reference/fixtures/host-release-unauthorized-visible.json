@@ -26,7 +26,9 @@
         "return": null,
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "releaseAttempt",
@@ -66,6 +68,16 @@
   "expected": {
     "status": "sat",
     "firstBadCause": "ProjectedPayloadMismatch",
-    "replayAccepted": true
+    "replayAccepted": true,
+    "eventShape": [
+      "Release@release.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "6d95ace56f8c77f19efd4e7746dc1bfac986c527f2f76def4a1cd8228a96b4e0",
+    "firstBadEventOrdinal": 0,
+    "firstTrueBadRow": 3
   }
 }

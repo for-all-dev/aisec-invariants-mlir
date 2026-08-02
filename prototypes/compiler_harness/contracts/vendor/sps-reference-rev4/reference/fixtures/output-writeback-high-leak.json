@@ -22,7 +22,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["root.out"],
+        "terminalOutputOrder": [
+          "root.out"
+        ],
         "return": null,
         "roots": [
           {
@@ -40,7 +42,9 @@
           }
         ]
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "store",
@@ -72,6 +76,16 @@
   "expected": {
     "status": "sat",
     "firstBadCause": "ProjectedPayloadMismatch",
-    "replayAccepted": true
+    "replayAccepted": true,
+    "eventShape": [
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "9e6e3d9bd19870172073ba4a1de416a0ca4dff7666940c3bedc432e0a968bdba",
+    "firstBadEventOrdinal": 0,
+    "firstTrueBadRow": 2
   }
 }

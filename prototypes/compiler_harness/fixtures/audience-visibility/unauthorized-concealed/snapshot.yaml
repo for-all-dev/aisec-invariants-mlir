@@ -1,0 +1,62 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_unauthorized_concealed
+c_evidence:
+- fixtures/audience-visibility/unauthorized-concealed/audience_unauthorized_concealed.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: transfer
+allowed:
+- only Alice may observe the released class
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: alice-class
+    - kind: Transfer
+      field: valueBytes
+    because: unauthorized coalitions project neither the release value nor the concealed transfer
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_unauthorized_concealed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release
+          - sps_transfer_concealed_endpoint

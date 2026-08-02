@@ -6,4 +6,7 @@
 # case was silently skipped.
 
 # RUN: %python %harness/integration/Inputs/run_source_boundary_fixtures.py --checkpoint-pipeline source-boundary --root %harness --records %t.checkpoints --outputs %t.outputs --clang %clang --llvm-config %llvm_bin/llvm-config
+# RUN: %python %harness/integration/Inputs/check_audience_fixture_boundaries.py %t.outputs | %FileCheck %s --check-prefix=AUDIENCE
 # RUN: %checkpoint-runner finalize --test integration/source-boundary-fixtures.test --records %t.checkpoints
+
+# AUDIENCE: resolved exact coalition tables for 7 audience fixtures

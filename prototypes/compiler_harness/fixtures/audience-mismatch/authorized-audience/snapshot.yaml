@@ -1,0 +1,64 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_mismatch_authorized
+c_evidence:
+- fixtures/audience-mismatch/authorized-audience/audience_mismatch_authorized.c
+secret:
+- arg: 0
+  name: logits
+public:
+- observable: transfer
+allowed:
+- Alice or Bob may observe the released class
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: masked-class
+    - kind: Transfer
+      field: valueBytes
+    because: both destination principals belong to the release audience
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_mismatch_authorized
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.call
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release
+          - sps_transfer_authorized_alice
+          - sps_transfer_authorized_bob

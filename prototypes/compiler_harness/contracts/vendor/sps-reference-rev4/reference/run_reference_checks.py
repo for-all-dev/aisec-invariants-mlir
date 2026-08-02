@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import os
 import shutil
 import subprocess
@@ -14,11 +15,11 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from sps_ref.canonical import canonical_bytes, load_json_bytes
+from sps_ref.canonical import canonical_bytes, canonical_digest, load_json_bytes
 from sps_ref.encoding import decode_bits, encode_bits
 from sps_ref.engine import CompiledProgram, compile_program
 from sps_ref.errors import ReferenceError, SolverUnavailableError
-from sps_ref.expand import expand_program
+from sps_ref.expand import expand_program, width_for
 from sps_ref.evidence import canonical_relation_result_bytes, run_relation_fixture
 from sps_ref.model import load_fixture, parse_coalition, parse_program
 from sps_ref.ponf import audit_reference_ponf, build_reference_ponf
@@ -55,6 +56,115 @@ def _exact_keys(value: Any, keys: set[str], context: str) -> None:
         )
 
 
+_EXHAUSTIVE_CAP = 1_000_000
+
+
+def _event_shape(compiled: CompiledProgram) -> list[str]:
+    """The static event inventory, as `Kind@site` in construction order.
+
+    Static event fields are equal across lanes by construction (both lanes
+    compile one program), so this is a per-program inventory rather than a
+    lane comparison.  It moves when an event is dropped, added, or reordered.
+    """
+
+    return [f"{event.kind}@{event.site}" for event in compiled.events]
+
+
+def _admitted_environments(query: Any) -> Any:
+    total = 1
+    for _, width in query.input_variables:
+        total *= 1 << width
+    if total > _EXHAUSTIVE_CAP:
+        raise FixtureFailure(
+            f"bad-cause enumeration domain {total} exceeds cap {_EXHAUSTIVE_CAP}"
+        )
+    domains = [range(1 << width) for _, width in query.input_variables]
+    for values in itertools.product(*domains):
+        environment = {
+            name: value
+            for (name, _), value in zip(query.input_variables, values, strict=True)
+        }
+        if all(
+            bool(constraint.evaluate(environment))
+            for constraint in query.initial_constraints
+        ):
+            yield environment
+
+
+def _satisfiable_causes(query: Any) -> list[str]:
+    """Bad-cause families reachable under the query's own initial constraints.
+
+    `firstBadCause` reports only the family that wins at the earliest event
+    ordinal, so a cause row that is genuinely reachable but always masked by an
+    earlier one is invisible to it.  Deleting such a row leaves every other
+    expectation byte-identical.  This is the field that notices.
+    """
+
+    found: set[str] = set()
+    remaining = {row.cause for row in query.bad_causes}
+    for environment in _admitted_environments(query):
+        for row in query.bad_causes:
+            if row.cause in found:
+                continue
+            if bool(row.expression.evaluate(environment)):
+                found.add(row.cause)
+        if found == remaining:
+            break
+    return sorted(found)
+
+
+def _true_bad_rows(query: Any, witness: Any) -> list[int]:
+    return [
+        index
+        for index, row in enumerate(query.bad_causes)
+        if bool(row.expression.evaluate(witness))
+    ]
+
+
+def _assert_first_bad_is_first(
+    case_id: str, backend: str, query: Any, witness: Any, first_bad_ordinal: Any
+) -> None:
+    """Normative first-bad claim: every earlier bad row must be false.
+
+    Without this the fixture states an *a*-bad claim rather than a *first*-bad
+    claim, and the absorbing rule is not enforced.
+    """
+
+    if first_bad_ordinal is None:
+        return
+    earlier = [
+        index
+        for index, row in enumerate(query.bad_causes)
+        if row.event_ordinal < first_bad_ordinal
+        and bool(row.expression.evaluate(witness))
+    ]
+    if earlier:
+        raise FixtureFailure(
+            f"{case_id}: {backend} reports first bad at event ordinal "
+            f"{first_bad_ordinal}, but bad rows {earlier} at earlier event "
+            f"ordinals are also true; this is not a first-bad claim"
+        )
+
+
+def _refusal_locus(exc: ReferenceError) -> dict[str, str]:
+    """Where a fail-closed refusal was raised, with no witness material.
+
+    Reference messages are `<locus>: <detail>`.  The detail half can interpolate
+    a witness binding, which is restricted evidence and must never reach a
+    fixture, so only the locus half is retained.
+    """
+
+    message = str(exc)
+    head, separator, _ = message.partition(": ")
+    if not separator:
+        raise FixtureFailure(
+            f"refusal message {message!r} has no `<locus>: <detail>` form; "
+            "classify it before using it as an expectation"
+        )
+    space = "programJson" if head.startswith("$.") else "compiledLane"
+    return {"space": space, "path": head}
+
+
 def _compile_pair(
     fixture: dict[str, Any],
 ) -> tuple[CompiledProgram, CompiledProgram, Any]:
@@ -71,7 +181,16 @@ def _run_noninterference(
 ) -> None:
     _exact_keys(
         fixture["expected"],
-        {"status", "firstBadCause", "replayAccepted"},
+        {
+            "status",
+            "firstBadCause",
+            "replayAccepted",
+            "firstBadEventOrdinal",
+            "firstTrueBadRow",
+            "satisfiableCauses",
+            "eventShape",
+            "canonicalReferencePONFDigest",
+        },
         f"{fixture['caseId']}.expected",
     )
     left, right, coalition = _compile_pair(fixture)
@@ -93,6 +212,30 @@ def _run_noninterference(
         )
     if smt != lower_reference_ponf(ponf):
         raise FixtureFailure(f"{fixture['caseId']}: nondeterministic SMT lowering")
+
+    shape = _event_shape(left)
+    if shape != _event_shape(right):
+        raise FixtureFailure(
+            f"{fixture['caseId']}: lane event inventories disagree; both lanes "
+            "compile one program, so this is a construction fault"
+        )
+    if shape != fixture["expected"]["eventShape"]:
+        raise FixtureFailure(
+            f"{fixture['caseId']}: event shape {shape}, "
+            f"expected {fixture['expected']['eventShape']}"
+        )
+    digest = ponf["canonicalReferencePONFDigest"]
+    if digest != fixture["expected"]["canonicalReferencePONFDigest"]:
+        raise FixtureFailure(
+            f"{fixture['caseId']}: canonical PONF digest {digest}, "
+            f"expected {fixture['expected']['canonicalReferencePONFDigest']}"
+        )
+    causes = _satisfiable_causes(query)
+    if causes != fixture["expected"]["satisfiableCauses"]:
+        raise FixtureFailure(
+            f"{fixture['caseId']}: satisfiable bad-cause families {causes}, "
+            f"expected {fixture['expected']['satisfiableCauses']}"
+        )
 
     exhaustive = run_query_exhaustive(query)
     concrete = run_concrete_exhaustive(left, right, coalition)
@@ -149,7 +292,40 @@ def _run_noninterference(
                     f"{fixture['caseId']}: {backend} replay cause "
                     f"{replay.bad_cause}, expected {expected_cause}"
                 )
-    elif expected_replay or expected_cause is not None:
+            if (
+                replay.first_bad_event_ordinal
+                != fixture["expected"]["firstBadEventOrdinal"]
+            ):
+                raise FixtureFailure(
+                    f"{fixture['caseId']}: {backend} first bad event ordinal "
+                    f"{replay.first_bad_event_ordinal}, expected "
+                    f"{fixture['expected']['firstBadEventOrdinal']}"
+                )
+            true_rows = _true_bad_rows(query, witness)
+            if not true_rows:
+                raise FixtureFailure(
+                    f"{fixture['caseId']}: {backend} witness satisfies the goal "
+                    "but no bad-cause row is true"
+                )
+            if true_rows[0] != fixture["expected"]["firstTrueBadRow"]:
+                raise FixtureFailure(
+                    f"{fixture['caseId']}: {backend} first true bad row "
+                    f"{true_rows[0]}, expected "
+                    f"{fixture['expected']['firstTrueBadRow']}"
+                )
+            _assert_first_bad_is_first(
+                fixture["caseId"],
+                backend,
+                query,
+                witness,
+                replay.first_bad_event_ordinal,
+            )
+    elif (
+        expected_replay
+        or expected_cause is not None
+        or fixture["expected"]["firstBadEventOrdinal"] is not None
+        or fixture["expected"]["firstTrueBadRow"] is not None
+    ):
         raise FixtureFailure(
             f"{fixture['caseId']}: UNSAT fixture cannot expect replay"
         )
@@ -182,28 +358,60 @@ def _run_bit_encoding(fixture: dict[str, Any]) -> None:
         )
 
 
+def _assert_width_for_matches_spec() -> None:
+    """`widthFor(N) = max(1, ceil(log2(N+1)))`, asserted against the formula.
+
+    Every other expand expectation is a value this module produced, so it can
+    only detect drift.  The width rule is fixed by the specification
+    independently of the implementation, so it is checked in code rather than
+    pinned as a fixture literal.
+    """
+
+    for maximum in range(0, 130):
+        expected = max(1, (maximum).bit_length())
+        if width_for(maximum) != expected:
+            raise FixtureFailure(
+                f"width_for({maximum}) = {width_for(maximum)}, "
+                f"specification requires {expected}"
+            )
+
+
 def _run_expand(fixture: dict[str, Any]) -> None:
     _exact_keys(fixture["input"], {"program"}, fixture["caseId"])
     _exact_keys(
-        fixture["expected"], {"horizon", "nodeKinds"}, fixture["caseId"]
+        fixture["expected"],
+        {"formatId", "entryId", "horizon", "nodes", "expandedCFGTableDigest"},
+        fixture["caseId"],
     )
+    _assert_width_for_matches_spec()
     table = expand_program(fixture["input"]["program"])
-    kinds = [row["kind"] for row in table["nodes"]]
-    if table["horizon"] != fixture["expected"]["horizon"]:
+    # The expand fixture is the only authority for the expansion object, so it
+    # keeps a full structural literal; the digest alone gives no localisation.
+    for field in ("formatId", "entryId", "horizon", "nodes"):
+        if table[field] != fixture["expected"][field]:
+            raise FixtureFailure(
+                f"{fixture['caseId']}: expansion {field} {table[field]!r}, "
+                f"expected {fixture['expected'][field]!r}"
+            )
+    digest = table["expandedCFGTableDigest"]
+    if digest != fixture["expected"]["expandedCFGTableDigest"]:
         raise FixtureFailure(
-            f"{fixture['caseId']}: horizon {table['horizon']}, "
-            f"expected {fixture['expected']['horizon']}"
+            f"{fixture['caseId']}: expandedCFGTableDigest {digest}, "
+            f"expected {fixture['expected']['expandedCFGTableDigest']}"
         )
-    if kinds != fixture["expected"]["nodeKinds"]:
+    resealed = {key: value for key, value in table.items() if key != "expandedCFGTableDigest"}
+    if canonical_digest(resealed) != digest:
         raise FixtureFailure(
-            f"{fixture['caseId']}: node kinds {kinds}, "
-            f"expected {fixture['expected']['nodeKinds']}"
+            f"{fixture['caseId']}: expandedCFGTableDigest does not bind its own "
+            "table contents"
         )
 
 
 def _run_refusal(fixture: dict[str, Any]) -> None:
     _exact_keys(fixture["input"], {"program"}, fixture["caseId"])
-    _exact_keys(fixture["expected"], {"reason"}, fixture["caseId"])
+    _exact_keys(
+        fixture["expected"], {"reason", "refusalLocus"}, fixture["caseId"]
+    )
     try:
         compile_program(fixture["input"]["program"], "L")
     except ReferenceError as exc:
@@ -212,37 +420,75 @@ def _run_refusal(fixture: dict[str, Any]) -> None:
                 f"{fixture['caseId']}: refusal {exc.reason}, "
                 f"expected {fixture['expected']['reason']}"
             ) from exc
+        locus = _refusal_locus(exc)
+        if locus != fixture["expected"]["refusalLocus"]:
+            raise FixtureFailure(
+                f"{fixture['caseId']}: refusal locus {locus}, "
+                f"expected {fixture['expected']['refusalLocus']}"
+            ) from exc
         return
     raise FixtureFailure(f"{fixture['caseId']}: expected fail-closed refusal")
+
+
+# mutation id -> whether the canonical seal is recomputed after the edit
+_MUTATIONS = {
+    "replace-first-bad-expression-with-false": False,
+    "replace-first-bad-expression-with-false-then-reseal": True,
+}
 
 
 def _run_artifact_mutation(fixture: dict[str, Any]) -> None:
     _exact_keys(
         fixture["input"], {"program", "coalition", "mutation"}, fixture["caseId"]
     )
-    _exact_keys(fixture["expected"], {"reason"}, fixture["caseId"])
+    _exact_keys(fixture["expected"], {"reason", "caughtBy"}, fixture["caseId"])
     left = compile_program(fixture["input"]["program"], "L")
     right = compile_program(fixture["input"]["program"], "R")
     coalition = parse_coalition(fixture["input"]["coalition"])
     artifact = deepcopy(build_reference_ponf(left, right, coalition))
     mutation = fixture["input"]["mutation"]
-    if mutation != "replace-first-bad-expression-with-false":
+    reseal = _MUTATIONS.get(mutation)
+    if reseal is None:
         raise FixtureFailure(f"{fixture['caseId']}: unknown mutation {mutation}")
     artifact["auditBadCauseRows"][0]["expression"] = {
         "op": "bool",
         "sort": "Bool",
         "value": False,
     }
+    if reseal:
+        artifact.pop("canonicalReferencePONFDigest", None)
+        artifact["canonicalReferencePONFDigest"] = canonical_digest(artifact)
+
+    # Classify by whether the canonical seal still binds the mutated bytes,
+    # rather than by which internal check happens to fire first.  An unresealed
+    # edit is stopped by the single digest comparison and never reaches the
+    # reconstruction logic at all; only a resealed edit exercises it.  This is
+    # the security-relevant distinction and it does not pin any check ordering.
+    body = {
+        key: value
+        for key, value in artifact.items()
+        if key != "canonicalReferencePONFDigest"
+    }
+    seal_intact = artifact.get("canonicalReferencePONFDigest") == canonical_digest(
+        body
+    )
+    stage = "semantic-reconstruction" if seal_intact else "structural-seal"
     try:
         audit_reference_ponf(artifact, left, right, coalition)
     except ReferenceError as exc:
-        if exc.reason != fixture["expected"]["reason"]:
-            raise FixtureFailure(
-                f"{fixture['caseId']}: mutation refusal {exc.reason}, "
-                f"expected {fixture['expected']['reason']}"
-            ) from exc
-        return
-    raise FixtureFailure(f"{fixture['caseId']}: mutated artifact was accepted")
+        caught = exc
+    else:
+        raise FixtureFailure(f"{fixture['caseId']}: mutated artifact was accepted")
+    if caught.reason != fixture["expected"]["reason"]:
+        raise FixtureFailure(
+            f"{fixture['caseId']}: mutation refusal {caught.reason}, "
+            f"expected {fixture['expected']['reason']}"
+        ) from caught
+    if stage != fixture["expected"]["caughtBy"]:
+        raise FixtureFailure(
+            f"{fixture['caseId']}: mutation caught by {stage}, "
+            f"expected {fixture['expected']['caughtBy']}"
+        ) from caught
 
 
 def _run_product_profile_refusal(fixture: dict[str, Any]) -> None:
@@ -253,7 +499,7 @@ def _run_product_profile_refusal(fixture: dict[str, Any]) -> None:
     )
     _exact_keys(
         fixture["expected"],
-        {"productReason", "replayReason"},
+        {"productReason", "replayReason", "replayUnderlyingReason"},
         fixture["caseId"],
     )
     program = parse_program(fixture["input"]["program"])
@@ -277,6 +523,15 @@ def _run_product_profile_refusal(fixture: dict[str, Any]) -> None:
             raise FixtureFailure(
                 f"{fixture['caseId']}: replay refusal {exc.reason}, "
                 f"expected {fixture['expected']['replayReason']}"
+            ) from exc
+        # The replay layer normalises many distinct upstream faults onto one
+        # reason.  Keeping the chained cause visible stops that normalisation
+        # from erasing which check actually fired.
+        underlying = getattr(exc.__cause__, "reason", None)
+        if underlying != fixture["expected"]["replayUnderlyingReason"]:
+            raise FixtureFailure(
+                f"{fixture['caseId']}: replay underlying reason {underlying}, "
+                f"expected {fixture['expected']['replayUnderlyingReason']}"
             ) from exc
         return
     raise FixtureFailure(f"{fixture['caseId']}: unsupported replay was accepted")

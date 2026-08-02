@@ -542,6 +542,13 @@ def _visibility(value: Any, principals: set[str], where: str) -> dict[str, Any]:
     normalized_joint = {tuple(sorted(group)) for group in joint}
     if len(normalized_joint) != len(joint):
         raise BoundaryError(f"{where}: duplicate semantic joint coalition")
+    joint_sets = [frozenset(group) for group in normalized_joint]
+    for left, right in itertools.permutations(joint_sets, 2):
+        if left < right:
+            raise BoundaryError(
+                f"{where}: joint coalitions are not inclusion-minimal; "
+                f"{sorted(left)!r} is a strict subset of {sorted(right)!r}"
+            )
     return {
         "world": value["world"],
         "members": sorted(members),

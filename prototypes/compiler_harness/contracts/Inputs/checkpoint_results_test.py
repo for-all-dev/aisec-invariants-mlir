@@ -15,6 +15,10 @@ PROVED_CASES = frozenset(
     {
         "abi-alias/disjoint-control",
         "alloca-size/public-control",
+        "audience-joint/authorized",
+        "audience-mismatch/authorized-audience",
+        "audience-visibility/unauthorized-concealed",
+        "audience-world/authorized",
         "breach-compressed-length/fixed",
         "ckks-release/fixed",
         "clangover-poly-frommsg/lowered-fixed",
@@ -26,6 +30,7 @@ PROVED_CASES = frozenset(
         "launder-scan/folded-mask-p4-open",
         "launder-scan/model-clean-p4-open",
         "leftoverlocals-scratch/fixed",
+        "loop-bounds/public-bound-adequate-proved",
         "precision-control/identical-successor",
         "precision-control/offset-disjoint",
         "precision-control/overwritten-slot",
@@ -46,7 +51,11 @@ PROVED_CASES = frozenset(
 COUNTEREXAMPLE_CASES = {
     "abi-alias/explicit-same-actual-bad": "public-output-payload-mismatch",
     "abi-alias/mayalias-overlap-bad": "public-output-payload-mismatch",
+    "alloca-size/fixed-region-copy-bad": "public-output-payload-mismatch",
+    "audience-joint/singleton-visible-bad": "alice-visible-output-without-joint-authorization",
     "audience-mismatch/bad": "bob-visible-output-while-release-obligation-active",
+    "audience-release/equal-then-leak-bad": "equal-authorized-release-did-not-retire",
+    "audience-visibility/location-visible-bad": "unauthorized-location-visible-release-value",
     "breach-compressed-length/bad": "public-wire-length-mismatch",
     "ckks-release/bad": "raw-unauthorized-public-release-mismatch",
     "clangover-poly-frommsg/lowered-bad": "world-control-successor-mismatch",
@@ -92,9 +101,11 @@ CANDIDATE_CASES = frozenset(
         "abi-alias/disjoint-control",
         "abi-alias/mayalias-overlap-bad",
         "abi-alias/missing-binding-unknown",
+        "alloca-size/fixed-region-copy-bad",
         "alloca-size/high-count-unknown",
         "alloca-size/public-control",
         "launder-scan/model-clean-p4-open",
+        "loop-bounds/public-bound-adequate-proved",
         "loop-bounds/public-bound-exhausted-unknown",
         "loop-bounds/secret-trip-count-bad",
         "pointer-rebinding/disjoint-select-bad",
@@ -119,21 +130,21 @@ def main() -> int:
     assert set(view) == {"format_id", "results", "summary"}
     assert view["format_id"] == FORMAT_ID
     assert view["summary"] == {
-        "fixtures": 65,
-        "expected_proved": 27,
-        "expected_counterexample": 26,
+        "fixtures": 74,
+        "expected_proved": 32,
+        "expected_counterexample": 30,
         "expected_unknown": 12,
         "compared": 0,
     }
 
     rows = view["results"]
-    assert isinstance(rows, list) and len(rows) == 65
+    assert isinstance(rows, list) and len(rows) == 74
     assert [row["case"] for row in rows] == sorted(row["case"] for row in rows)
     by_case = {row["case"]: row for row in rows}
 
     expected_cases = set(PROVED_CASES) | set(COUNTEREXAMPLE_CASES) | set(UNKNOWN_CASES)
-    assert len(PROVED_CASES) == 27
-    assert len(COUNTEREXAMPLE_CASES) == 26
+    assert len(PROVED_CASES) == 32
+    assert len(COUNTEREXAMPLE_CASES) == 30
     assert len(UNKNOWN_CASES) == 12
     assert expected_cases == set(by_case)
 

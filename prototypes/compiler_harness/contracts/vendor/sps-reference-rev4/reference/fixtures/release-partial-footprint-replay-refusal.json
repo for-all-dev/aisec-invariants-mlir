@@ -22,7 +22,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["return.value"],
+        "terminalOutputOrder": [
+          "return.value"
+        ],
         "return": {
           "outputId": "return.value",
           "width": 16,
@@ -31,7 +33,9 @@
         },
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "releaseAttempt",
@@ -79,6 +83,7 @@
   },
   "expected": {
     "productReason": "ReferenceProductUnsupported",
-    "replayReason": "ReferenceReplayRejected"
+    "replayReason": "ReferenceReplayRejected",
+    "replayUnderlyingReason": "ReferenceProductUnsupported"
   }
 }

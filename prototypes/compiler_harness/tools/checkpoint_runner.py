@@ -1102,7 +1102,14 @@ def _event_projection(event: Any) -> dict[str, Any]:
             "id": getattr(event, "id", None),
             "first_bad": getattr(event, "first_bad", False),
         }
-    return {key: item for key, item in value.items() if item not in (None, False)}
+    # Identity comparison, not equality: `0 == False` in Python, so a membership
+    # test would silently drop any integer-valued field whose value is 0 -- an
+    # event ordinal of 0 being the obvious future case.
+    return {
+        key: item
+        for key, item in value.items()
+        if item is not None and item is not False
+    }
 
 
 def _expected_final(snapshot: checkpoint_model.SnapshotV3) -> dict[str, Any]:

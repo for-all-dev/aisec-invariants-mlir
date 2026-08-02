@@ -35,6 +35,49 @@ These layers cite SPS theory but do not schedule normative SPS queries:
 `PublicQueryScheduleV2` rows. Lowercase `sat`/`unsat` and runner `PASS`/`FAIL`
 never imply `Discharged`, `ProductSafe`, `Counterexample`, or a `ModelStatus`.
 
+### What the `expected` block asserts, and why
+
+The fixture schema is a closed key set, so per-case commentary lives here.
+
+`firstBadCause` reports only the family that wins at the earliest event
+ordinal. A cause row that is genuinely reachable but always masked by an
+earlier one is invisible to it, and deleting such a row leaves every other
+expectation byte-identical. `satisfiableCauses` — the set of families
+satisfiable under the query's own initial constraints — is what notices.
+
+`firstTrueBadRow` is accompanied by a runner assertion that every bad row at a
+*lower event ordinal* is false. That negative half is what makes it a
+first-bad claim rather than an a-bad claim, and it is what enforces the
+absorbing rule.
+
+`eventShape` is a per-program inventory, not a lane comparison. Both lanes
+compile one program, so every static event field is equal by construction;
+recording those fields per lane would assert an input back to itself.
+
+Two cases exist only to reach otherwise-dark code:
+
+- **`release-presence-secret-branch`** releases a *constant* inside a
+  secret-guarded branch, so the release contributes no payload channel and the
+  only lane difference it creates is whether it occurs at all. It is the sole
+  fixture in which `EventAlignment` is satisfiable. Under `Theta_ct` the
+  enclosing branch is itself an observable `BranchSuccessor` whose payload is
+  the branch decision, so `ProjectedPayloadMismatch` is reached at an earlier
+  ordinal and stays the first bad cause; `EventAlignment` is therefore asserted
+  through `satisfiableCauses`.
+- **`bad-circuit-mutation-resealed`** applies the same edit as
+  `bad-circuit-mutation-rejected` but recomputes the canonical digest
+  afterwards. Every unresealed edit is stopped by the single digest comparison
+  and never reaches the reconstruction logic; only a resealed edit exercises
+  it. The pair must report different `caughtBy` stages.
+
+`SiteOrderAlignment` is not satisfiable anywhere in this slice. `visit` only
+advances on a repeated site: duplicate sites are schema-rejected, secret trip
+counts hit the declared `secret-dependent-loop-bound` refusal, and a High
+branch inside a Low-bounded loop guards every copy with the same condition, so
+presence at copy N implies presence at copy 1. Reaching it needs a loop
+induction variable in the expression language. `mutation_check.py` records this
+as an expected-survivor rather than leaving it implicit.
+
 The profile separates three kinds of evidence:
 
 - query analogues establish non-vacuity, High variation, the reduced terminal

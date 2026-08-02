@@ -16,9 +16,9 @@
 # CHECK: OK
 # CHECK: PASS bad-circuit-mutation-rejected
 # CHECK: PASS replay-wire-valid
-# CHECK: SPS executable reference checks: PASSED (19 cases, 10/61 profile families executable)
+# CHECK: SPS executable reference checks: PASSED (21 cases, 10/61 profile families executable)
 # CHECK: Optional cross-solver status: cvc5={{(available-and-checked|unavailable-open)}}
-# CASE-COUNT: 19
+# CASE-COUNT: 21
 # LOCK: SPS executable reference source comparison: {{SKIPPED.*|PERFORMED.*}}
 # LOCK: verified SPS executable reference vendor: boundary=ExecutableReferenceOnly
 

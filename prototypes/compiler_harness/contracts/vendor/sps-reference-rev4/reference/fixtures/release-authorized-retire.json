@@ -22,7 +22,9 @@
         }
       ],
       "abi": {
-        "terminalOutputOrder": ["return.value"],
+        "terminalOutputOrder": [
+          "return.value"
+        ],
         "return": {
           "outputId": "return.value",
           "width": 8,
@@ -31,7 +33,9 @@
         },
         "roots": []
       },
-      "admission": {"bool": true},
+      "admission": {
+        "bool": true
+      },
       "statements": [
         {
           "op": "releaseAttempt",
@@ -73,6 +77,15 @@
   "expected": {
     "status": "unsat",
     "firstBadCause": null,
-    "replayAccepted": false
+    "replayAccepted": false,
+    "eventShape": [
+      "Release@release.site",
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [],
+    "canonicalReferencePONFDigest": "384f88d8e766dde6a927f853d4081d96313008d956118bbadbc62e5f50d613b2",
+    "firstBadEventOrdinal": null,
+    "firstTrueBadRow": null
   }
 }
