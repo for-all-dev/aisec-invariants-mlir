@@ -6,8 +6,7 @@ secret:
 - arg: 0
   name: secret
 public:
-- memory_at_arg: 1
-  name: public_sink
+- observable: return
 expect:
   final:
     model:
@@ -17,7 +16,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
-    because: secret xor secret is zero in every run
+    because: secret xor secret is zero in every admitted run
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -42,16 +41,52 @@ expect:
         function.names:
           contains:
           - xor_cancellation_control
+        function.signatures:
+          contains:
+          - xor_cancellation_control|(i32)->i32
         operation.names:
           ordered:
           - llvm.xor
-          - llvm.store
+          - llvm.return
+        return.roots:
+          contains:
+          - xor_cancellation_control|op:llvm.xor:0
+        def_use.edges:
+          contains:
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=0|root=arg:0
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=1|root=arg:0
     canonicalized-shape:
       kind: mlir
       properties:
         function.names:
           contains:
           - xor_cancellation_control
+        function.signatures:
+          contains:
+          - xor_cancellation_control|(i32)->i32
         operation.names:
           ordered:
           - llvm.xor
+          - llvm.return
+        return.roots:
+          contains:
+          - xor_cancellation_control|op:llvm.xor:0
+        def_use.edges:
+          contains:
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=0|root=arg:0
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=1|root=arg:0
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: unsat
+        backend.agreement:
+          equals: true

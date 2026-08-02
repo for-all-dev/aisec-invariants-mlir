@@ -122,10 +122,15 @@ unsigned predecessor_choice_blockarg_bad(int secret_bit);
 void prefix_causal_release_bad(unsigned secret, unsigned *public_channel);
 unsigned identical_successor_control(int high_condition,
                                      unsigned public_value);
+unsigned different_successor_bad(int high_condition, unsigned public_value);
 unsigned xor_cancellation_control(unsigned secret);
+unsigned xor_secret_output_bad(unsigned secret);
 unsigned overwritten_slot_control(unsigned secret, unsigned public_value);
+unsigned missing_overwrite_bad(unsigned secret, unsigned public_value);
 unsigned offset_disjoint_control(unsigned char *buffer, unsigned secret_byte,
                                  unsigned public_value);
+unsigned offset_overlap_bad(unsigned char *buffer, unsigned secret_byte,
+                            unsigned public_value);
 uint32_t sps_release_invalid_callable(uint32_t raw, uint32_t public_mask);
 void release_carrier(uint32_t raw, uint32_t mask_a, uint32_t mask_b,
                      uint32_t *sink);
@@ -303,9 +308,66 @@ static void check_semantic_harnesses(void) {
   expect_u64("redis fixed response", redis_pool_reuse_fixed(11u, 22u, 1u), 22u);
 }
 
+static void check_precision_controls(void) {
+  unsigned char control_buffer[16] = {0};
+  unsigned char bad_buffer[16] = {0};
+
+  /*
+   * These two sources are value-equivalent but intentionally differ in their
+   * hand-authored MLIR control traces. Exercise both source branch edges here;
+   * the fixture shape tests, not these value assertions, own that distinction.
+   */
+  expect_u64("identical successor false",
+             identical_successor_control(0, 0x1111u), 0x1111u);
+  expect_u64("identical successor true",
+             identical_successor_control(1, 0x1111u), 0x1111u);
+  expect_u64("different successor false",
+             different_successor_bad(0, 0x1111u), 0x1111u);
+  expect_u64("different successor true",
+             different_successor_bad(1, 0x1111u), 0x1111u);
+
+  /* Cancellation makes the control output independent of the secret. */
+  expect_u64("xor cancellation first secret",
+             xor_cancellation_control(0x2222u), 0u);
+  expect_u64("xor cancellation second secret",
+             xor_cancellation_control(0x3333u), 0u);
+  expect_u64("xor secret-output first witness",
+             xor_secret_output_bad(0x2222u), 0x2222u);
+  expect_u64("xor secret-output second witness",
+             xor_secret_output_bad(0x3333u), 0x3333u);
+
+  /* A complete public overwrite removes the prior secret; omitting it leaks. */
+  expect_u64("overwritten slot first secret",
+             overwritten_slot_control(0x3333u, 0x4444u), 0x4444u);
+  expect_u64("overwritten slot second secret",
+             overwritten_slot_control(0x5555u, 0x4444u), 0x4444u);
+  expect_u64("missing overwrite first witness",
+             missing_overwrite_bad(0x3333u, 0x4444u), 0x3333u);
+  expect_u64("missing overwrite second witness",
+             missing_overwrite_bad(0x5555u, 0x4444u), 0x5555u);
+
+  /* The control reloads public byte 8; the anti-control reloads secret byte 4. */
+  expect_u64("offset-disjoint first secret",
+             offset_disjoint_control(control_buffer, 0x55u, 0x66u), 0x66u);
+  expect_u64("offset-disjoint first stored secret", control_buffer[4], 0x55u);
+  expect_u64("offset-disjoint first public byte", control_buffer[8], 0x66u);
+  expect_u64("offset-disjoint second secret",
+             offset_disjoint_control(control_buffer, 0x77u, 0x66u), 0x66u);
+  expect_u64("offset-disjoint second stored secret", control_buffer[4], 0x77u);
+  expect_u64("offset-disjoint second public byte", control_buffer[8], 0x66u);
+
+  expect_u64("offset-overlap first witness",
+             offset_overlap_bad(bad_buffer, 0x55u, 0x66u), 0x55u);
+  expect_u64("offset-overlap first stored secret", bad_buffer[4], 0x55u);
+  expect_u64("offset-overlap first public byte", bad_buffer[8], 0x66u);
+  expect_u64("offset-overlap second witness",
+             offset_overlap_bad(bad_buffer, 0x77u, 0x66u), 0x77u);
+  expect_u64("offset-overlap second stored secret", bad_buffer[4], 0x77u);
+  expect_u64("offset-overlap second public byte", bad_buffer[8], 0x66u);
+}
+
 static void check_remaining_models(void) {
   unsigned p = 0u, q = 0u, out = 0u;
-  unsigned char buffer[16] = {0};
   uint32_t carrier[2] = {0};
   uint64_t pointed = 0xfedcba9876543210ull;
   const uint64_t fallback = 0x0123456789abcdefull;
@@ -378,18 +440,6 @@ static void check_remaining_models(void) {
   prefix_causal_release_bad(0x4567u, &out);
   expect_u64("prefix-causal early observation", out, 0x4567u);
 
-  expect_u64("identical successor false",
-             identical_successor_control(0, 0x1111u), 0x1111u);
-  expect_u64("identical successor true",
-             identical_successor_control(1, 0x1111u), 0x1111u);
-  expect_u64("xor cancellation", xor_cancellation_control(0x2222u), 0u);
-  expect_u64("overwritten slot",
-             overwritten_slot_control(0x3333u, 0x4444u), 0x4444u);
-  expect_u64("offset-disjoint reload",
-             offset_disjoint_control(buffer, 0x55u, 0x66u), 0x66u);
-  expect_u64("offset-disjoint secret byte", buffer[4], 0x55u);
-  expect_u64("offset-disjoint public byte", buffer[8], 0x66u);
-
   expect_u64("release wrapper", sps_release_invalid_callable(0xf3u, 0x3cu), 0x30u);
   release_carrier(0xf3u, 0x0fu, 0xf0u, carrier);
   expect_u64("release carrier first occurrence", carrier[0], 0x03u);
@@ -407,6 +457,7 @@ int main(void) {
   check_kyberslash();
   check_wolfssl();
   check_semantic_harnesses();
+  check_precision_controls();
   check_remaining_models();
 
   if (failures != 0)

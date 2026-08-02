@@ -1,0 +1,26 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "harnessCase": "precision-control/offset-overlap-bad",
+  "referenceCaseId": "offset-overlap-bad",
+  "entry": "offset_overlap_bad",
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "75907513305a6e574185140866ad81b806d538a207c355b705024ba62aaa8aab"},
+    {"role": "c", "path": "offset_overlap_bad.c", "sha256": "28c990b373e9de1df432dff9f774aa8b927b186ee26b70e9da91b1e54ab8873e"},
+    {"role": "mlir", "path": "precision_offset_overlap.bad.mlir", "sha256": "a90a41b547174154b29985757bbfd7f3e5a533d0723e572dffec556363943481"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "2d2f368c686c90c0e0252be071f538ed4ce14329ec793c8d73c9685cdf768493"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "e27171a746e26043e3a5d62f475e4865882d4c6451b4456afcd81cce5e8cd5cc"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "9f83c0ead5b3f762cb115fc7b9ba9b71ef4ce80c28e313b2d7ad2026687473c8"}
+  ],
+  "arguments": [
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 2, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"},
+    {"referenceInput": "secret-byte", "component": "secret-byte", "argumentIndex": 1, "argumentName": "secret_byte", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [
+    {"referenceRoot": "buffer", "storageKind": "ABIArgument", "abiRoot": "buffer", "argumentIndex": 0, "argumentName": "buffer", "allocationSite": null, "byteLength": 9, "initialClassification": "Low", "terminalVisibility": "High", "offsets": [4, 8]}
+  ],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

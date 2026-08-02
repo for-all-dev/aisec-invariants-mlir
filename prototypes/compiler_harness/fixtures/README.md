@@ -58,7 +58,7 @@ items may also identify a public argument or one of the closed observations
 `timing`. `allowed` adds a minimal release or audience rule only when needed.
 There is no scalar verdict, execution field, test path, capability list, input
 graph, endpoint-adapter wrapper, or report-materialization state. Every
-snapshot has one `expect.final`: 26 fixtures expect `Proved`, 21 expect
+snapshot has one `expect.final`: 26 fixtures expect `Proved`, 25 expect
 `Counterexample`, and 9 expect `Unknown`; all explicitly expect deployment
 `Open` and policy `Complete`. A `Counterexample` names its bad-state class and
 one selected event field as `first_bad`. `Proved` and `Counterexample` cases
@@ -104,7 +104,7 @@ batched lit producer for source, policy, and ABI validation. Capability gates
 are ordinary lit `REQUIRES` features.
 
 Matchers capture only the sparse typed facts needed for the decisive property,
-not SSA numbers or whole-module text. Twelve canonicalization-sensitive
+not SSA numbers or whole-module text. Sixteen canonicalization-sensitive
 fixtures declare separate raw and canonicalized endpoints. FileCheck remains
 only for a documented property outside the typed fact registry.
 
@@ -149,7 +149,7 @@ counterexample.
 Those candidates remain quarantined by the `candidate/` boundary. Their exact
 bytes pipelines protect the current nine captures, and a compact `reference`
 authenticates each existing expected-run sidecar without copying its query,
-replay, receipt, or audit machinery into Snapshot V3. The other 47 fixtures
+replay, receipt, or audit machinery into Snapshot V3. The other 51 fixtures
 state the same final axes directly without manufacturing candidate artifacts.
 A future conformance `artifact.bc` must be deliberately frozen and accompanied
 by canonical SPS inputs and an actual run report. The expected final block is
@@ -164,5 +164,37 @@ classified `EndToEndClosed` without a future upstream SPS interface revision.
 The runner writes observations only below
 `LIT_BUILD_ROOT/checkpoints/<case>/<pipeline>.actual.yaml`. It never edits a
 snapshot or tracked candidate file.
+
+## Relation-reference precision pairs
+
+Exactly eight cases under `precision-control/` add a
+`relation-reference` pipeline. Each case owns two authored files beside its C,
+MLIR, policy, ABI, and snapshot:
+
+```text
+relation-reference/
+  fixture.json   # finite SPS executable-reference program and expected queries
+  binding.json   # hashes plus full-program-to-reduction correspondence
+```
+
+The snapshot names only stable semantic projections: admission is nonempty,
+each High component can vary, the reduced terminal-output surface has no
+counterexample, AuditAll is `sat` or `unsat`, and the required backends agree.
+Repeated PONF, lowering, digest, solver, and replay requirements live in the
+shared `SPS-Reference-Relation-v1` profile rather than being copied into every
+snapshot.
+
+The binding records the full 32-bit arguments and roots next to their 1–2-bit
+finite counterparts and explicitly says `ExecutableReferenceOnly`,
+`HandAuthoredReduction`, `NotFrozenLLVM`, and `ReducedBitWidth`. The generated
+result is witness-free and digest-bound. It cannot contain or imply
+`ModelStatus`, `ProductSafe`, `NFConforms`, a normative disposition, or a proof
+about the readable MLIR. The three evidence layers remain:
+
+```text
+snapshot + MLIR intent
+  -> executable finite relation-reference evidence
+  -> future exact SPS over frozen canonical bitcode
+```
 
 See [the Rev4 workflow](REV4_PREFLIGHT_WORKFLOW.md) for that transition.

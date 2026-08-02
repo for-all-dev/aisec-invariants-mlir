@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Reference-Fixture-Catalog-v2",
+  "formatId": "SPS-Reference-Fixture-Catalog-v3",
   "cases": [
     {
       "file": "bad-circuit-mutation-rejected.json",

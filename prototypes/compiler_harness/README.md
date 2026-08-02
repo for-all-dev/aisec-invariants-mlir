@@ -111,14 +111,24 @@ lineage, report materialization, or `NFConforms`; lit owns those concerns.
 Passing endpoint observations are build-local harness evidence, never SPS
 reports.
 
-All 56 fixtures state their expected final judgment directly. The model split
-is 26 `Proved`, 21 `Counterexample`, and 9 `Unknown`; every fixture expects
+All 60 fixtures state their expected final judgment directly. The model split
+is 26 `Proved`, 25 `Counterexample`, and 9 `Unknown`; every fixture expects
 deployment `Open` and policy review `Complete`. Relevant `Proved` and
 `Counterexample` fixtures also select the security-relevant SPS event fields
 covered by that judgment, without embedding traces, payloads, witnesses, or
 receipts. Nine fixtures authenticate their existing candidate expected-run
-sidecar through a compact `reference`; the other 47 require no candidate
-artifact. Twelve fixtures separately inspect raw and canonicalized MLIR.
+sidecar through a compact `reference`; the other 51 require no candidate
+artifact. Sixteen fixtures separately inspect raw and canonicalized MLIR.
+
+Eight precision-control fixtures additionally run a digest-bound
+`relation-reference` pipeline. Its hand-authored finite reduction checks
+admission, per-High variation, a reduced terminal-output surface, and the
+two-run bad-state relation through independent reference backends. This is
+`ExecutableReferenceOnly` evidence: lowercase `sat`/`unsat`, PASS, and backend
+agreement are not `ModelStatus`, do not establish `NFConforms`, and do not turn
+the fixture oracle into an actual SPS result. See
+[the paired review](FIXTURE_REVIEW_GUIDE.md#9-relational-precision-and-false-positive-controls)
+and [the executable-reference authority boundary](contracts/vendor/sps-reference-rev4/reference/README.md).
 
 A passing intermediate checkpoint means only that the observed endpoint
 matched its expected evidence. `finalize` checks that those checkpoint commands
@@ -166,7 +176,7 @@ make check-interfaces  # vendored Rev4.1 schemas, vectors, lock, and coupled dri
 make check-source-annotations SPS_SOURCE_ANNOTATIONS_ROOT=/path/to/SPS/source-annotations
 make check-checkpoints # Snapshot V3, RUN/finalizer inventory, and runner contracts
 make list-tests        # discovery audit
-make list-fixture-status # pipeline/state/endpoint inventory for all 56 cases
+make list-fixture-status # pipeline/state/endpoint inventory for all 60 cases
 make list-fixture-results # expected/actual/comparison terminal result table
 ```
 
@@ -208,7 +218,7 @@ targets or tools produce `UNSUPPORTED`, not a fabricated success.
 
 The executable reference bridge is deliberately narrower than the exact
 verifier path. `make check-sps-reference` verifies the vendored closure before
-and after execution, runs all 19 reference cases and 12 unit tests, and records
+and after execution, runs all 19 reference cases and 18 unit tests, and records
 coverage of 10 of the profile's 61 fixture families. Its claim boundary is
 `ExecutableReferenceOnly`: it cannot emit `NFConforms`, `Proved`, or another
 computed `ModelStatus`, and it is not a third fixture tier. Z3 is required;
@@ -261,7 +271,7 @@ declared bundle, and match the producer executable's SHA-256 to
 `proofConfiguration.exactVerifierBuildDigest`. It must also carry exactly one
 typed expected contract; an authenticated report with an unexpected result
 cannot pass a regression test. Nine candidate cases delegate to digest-bound
-expected-run sidecars, while 47 compare against inline typed report, status,
+expected-run sidecars, while 51 compare against inline typed report, status,
 AuditAll, and replay matchers. Once report and verifier authentication succeed,
 an unexpected report is retained below the build root for result inspection
 while the checkpoint records `FailedV1`. Counterexample contracts that require

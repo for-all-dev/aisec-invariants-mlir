@@ -16,15 +16,22 @@ judgment, sparse SPS event selectors, and typed properties for each declared
 pipeline. Lit owns commands, ownership, capabilities, ordering, and artifact
 paths. Build-local checkpoint observations remain nonclaimable.
 
-All 56 Snapshot V3 fixtures declare a complete expected final judgment. The
-model split is 26 `Proved`, 21 `Counterexample`, and 9 `Unknown`; all declare
+All 60 Snapshot V3 fixtures declare a complete expected final judgment. The
+model split is 26 `Proved`, 25 `Counterexample`, and 9 `Unknown`; all declare
 deployment `Open` and policy `Complete`. Nine use a manifest-authenticated
-`reference` to the existing candidate expected-run sidecar; 47 require no
+`reference` to the existing candidate expected-run sidecar; 51 require no
 candidate artifact. An intermediate `PassedV1` or successful `finalize` is not
 a security conclusion, and the expected final block is not an actual report.
 A fixture's actual end-to-end result becomes available only when a separate
 `check-final` path validates an `SPSRunReportV2` and compares its independent
 model, deployment, and policy-review axes with the snapshot expectation.
+
+The eight precision-control fixtures may also carry a harness-owned reduction
+binding and a canonical `SPS-Reference-Evidence-Result-v1`. Those files are
+fixed to `claimBoundary: ExecutableReferenceOnly`; they contain no normative
+disposition, model, trace, or witness. Passing admission, High-variation,
+terminal-surface, product, digest, and backend-agreement checks does not move a
+fixture out of `CandidateOnly` and cannot populate its actual-result column.
 
 Nine cases contain a quarantined `candidate/` directory while their LLVM-17
 compiler-pipeline tests remain useful. Each directory contains a local

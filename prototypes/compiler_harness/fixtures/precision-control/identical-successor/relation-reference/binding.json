@@ -1,0 +1,25 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "harnessCase": "precision-control/identical-successor",
+  "referenceCaseId": "identical-successor",
+  "entry": "identical_successor_control",
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "cc1d47481eff624b07687ab96abe313d115fbf277f32d2c565a980516d0150b2"},
+    {"role": "c", "path": "identical_successor_control.c", "sha256": "f8379aa3e4193edda380a535a5dcd4f158390875106a9d563d642aa24c35e738"},
+    {"role": "mlir", "path": "precision_identical_successor.control.mlir", "sha256": "f6dca3d063e2e83321e64a6981da877880b89dfa2ee037a7fc8f5afbdec37e19"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "64ad634ee9f5006f1301839a954dc560bf186393fca26a1cd595327ccdf5f2d5"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "90423ca0d179af900e1398ecafc35022b6dc93012a5e72914805f463c7a867c8"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "e576831406623fba5dc9128fd02e99a5990d1ece84c26dc556996a7725c3dcbc"}
+  ],
+  "arguments": [
+    {"referenceInput": "high-condition", "component": "high-condition", "argumentIndex": 0, "argumentName": "high_condition", "fullWidth": 32, "reducedWidth": 1, "classification": "High"},
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 1, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"}
+  ],
+  "roots": [],
+  "observations": [
+    {"kind": "BranchSuccessor", "field": "successor"},
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

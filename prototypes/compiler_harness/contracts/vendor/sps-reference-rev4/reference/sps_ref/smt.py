@@ -1,4 +1,4 @@
-"""Deterministic SMT-LIB lowering for SPS-Reference-PONF-v2 terms."""
+"""Deterministic SMT-LIB lowering for reference queries and PONF v3."""
 
 from __future__ import annotations
 
@@ -34,12 +34,20 @@ def lower_reference_product(product: ReferenceProduct) -> SMTArtifact:
     )
 
 
+def lower_reference_query(query: Any) -> SMTArtifact:
+    variables = tuple(sorted(query.input_variables))
+    if len(dict(variables)) != len(variables):
+        raise SchemaError("duplicate reference query input symbol")
+    return _lower_terms(variables, query.initial_constraints, query.goal)
+
+
 def lower_reference_ponf(artifact: dict[str, Any]) -> SMTArtifact:
     """Lower the serialized reference PONF rather than a parallel product."""
 
     expected_fields = {
         "formatId",
         "claimBoundary",
+        "query",
         "entryId",
         "coalitionId",
         "canonicalProgramDigest",
@@ -50,17 +58,38 @@ def lower_reference_ponf(artifact: dict[str, Any]) -> SMTArtifact:
         "exactSMTDigest",
         "variables",
         "initialConstraints",
-        "badCauseRows",
+        "auditBadCauseRows",
         "goal",
         "canonicalReferencePONFDigest",
     }
     if not isinstance(artifact, dict) or set(artifact) != expected_fields:
         raise SchemaError("reference PONF field mismatch")
     if (
-        artifact["formatId"] != "SPS-Reference-PONF-v2"
+        artifact["formatId"] != "SPS-Reference-PONF-v3"
         or artifact["claimBoundary"] != "ExecutableReferenceOnly"
     ):
         raise SchemaError("wrong reference PONF format")
+    query = artifact["query"]
+    if (
+        not isinstance(query, dict)
+        or set(query) != {"kind", "componentId"}
+        or query["kind"]
+        not in {
+            "ReferenceAdmissionNonempty",
+            "ReferenceHighVariation",
+            "ReferenceTerminalOutputSurface",
+            "ReferenceAuditAll",
+        }
+        or (
+            query["kind"] == "ReferenceHighVariation"
+            and not isinstance(query["componentId"], str)
+        )
+        or (
+            query["kind"] != "ReferenceHighVariation"
+            and query["componentId"] is not None
+        )
+    ):
+        raise SchemaError("malformed reference PONF query descriptor")
     for field in (
         "canonicalProgramDigest",
         "coalitionDescriptorDigest",
@@ -136,9 +165,9 @@ def lower_reference_ponf(artifact: dict[str, Any]) -> SMTArtifact:
     goal = term_from_obj(artifact.get("goal"))
     if goal.sort != "Bool":
         raise SchemaError("reference PONF goal is not Boolean")
-    raw_bad_rows = artifact["badCauseRows"]
+    raw_bad_rows = artifact["auditBadCauseRows"]
     if not isinstance(raw_bad_rows, list):
-        raise SchemaError("reference PONF badCauseRows must be a list")
+        raise SchemaError("reference PONF auditBadCauseRows must be a list")
     bad_terms: list[Term] = []
     for index, row in enumerate(raw_bad_rows):
         if (
@@ -162,8 +191,11 @@ def lower_reference_ponf(artifact: dict[str, Any]) -> SMTArtifact:
         if bad_term.sort != "Bool":
             raise SchemaError(f"reference PONF bad row {index} is not Boolean")
         bad_terms.append(bad_term)
-    if bool_or(*bad_terms) != goal:
-        raise SchemaError("reference PONF bad rows do not reconstruct the goal")
+    if query["kind"] == "ReferenceAuditAll":
+        if bool_or(*bad_terms) != goal:
+            raise SchemaError("reference PONF bad rows do not reconstruct the goal")
+    elif bad_terms:
+        raise SchemaError("non-AuditAll reference PONF contains audit bad rows")
     result = _lower_terms(ordered_variables, tuple(constraints), goal)
     if artifact.get("exactSMTDigest") != result.sha256:
         raise SchemaError("reference PONF exact SMT digest mismatch")

@@ -2319,8 +2319,9 @@ is presented to the normative observation rules rather than suppressed.
 
 ## 12.4 Required domain and activation queries
 
-The reference implementation runs every row as a separately scheduled query;
-coverage is not inferred as a side effect of the `AuditAll` row. It uses the normative
+A conforming SPS-LLVM-NF-v2 implementation runs every row as a separately
+scheduled query; coverage is not inferred as a side effect of the `AuditAll`
+row. It uses the normative
 `PublicQueryScheduleV2`, `QueryDescriptorV2`, `PublicQueryResultRowV2`, and
 closed `PONFResultArtifactV2` directly; there is no second
 `ProofDomainCoverageRecord` or `ResultValidationV2` wire type. A constructed
@@ -2638,7 +2639,7 @@ prohibited field.
 
 ## 14.1 Compiler components
 
-The reference implementation consists of:
+A conforming SPS-LLVM-NF-v2 implementation consists of:
 
 1. **Pinned compiler driver** — rejects wrong LLVM/build/target configuration.
 2. **Pass-trace recorder** — records stable pass IDs, ordinals, and options.
@@ -3033,6 +3034,21 @@ Every noninterference case compares deterministic Z3 lowering and symbolic
 finite-domain evaluation with a separately interpreted exhaustive product;
 SAT witnesses from each backend undergo exact replay. CVC5 is checked when
 installed and otherwise remains explicitly open.
+
+[`reference/README.md`](reference/README.md) is the tests-to-theory bridge for
+this subset. Relation fixtures bind the shared
+[`SPS-Reference-Relation-v1`](reference/profiles/reference-relation-v1.json)
+profile, which keeps three kinds of evidence distinct: reduced analogues of
+SPS queries, formula-construction integrity checks, and independent evaluation
+backends. A relation-reference result is neither a `PublicQueryScheduleV2` nor
+a `PONFResultArtifactV2`. Its `analogueOf` and `requirementRefs` fields are
+citations only; they neither schedule nor discharge normative query rows.
+
+The reduced admission and per-High variation checks establish non-vacuity only
+inside the finite reference model. `ReferenceTerminalOutputSurface` is a
+strict subset of normative `OutputClosure`. Lowercase `sat`/`unsat` and
+`PASS`/`FAIL` therefore remain `ExecutableReferenceOnly`, even when every
+required reference backend agrees.
 
 All artifacts use `SPS-Reference-*` identifiers. This subset is regression
 evidence only: it neither implements `SPS-LLVM-NF-v2` nor emits normative

@@ -37,7 +37,16 @@ def expand_program(program: dict[str, Any]) -> dict[str, Any]:
             op = statement["op"]
             site = statement["site"]
             if op == "if":
-                add("Branch", site, path, {"armOrder": ["then", "else"]})
+                add(
+                    "Branch",
+                    site,
+                    path,
+                    {
+                        "armOrder": ["then", "else"],
+                        "thenSuccessor": statement["thenSuccessor"],
+                        "elseSuccessor": statement["elseSuccessor"],
+                    },
+                )
                 visit(statement["then"], path + [{"tag": "BranchArm", "site": site, "arm": "then"}])
                 visit(statement["else"], path + [{"tag": "BranchArm", "site": site, "arm": "else"}])
             elif op == "loop":

@@ -45,7 +45,7 @@ def load_fixture(path: Path) -> dict[str, Any]:
         },
         f"{path}",
     )
-    require_literal(value, "formatId", "SPS-Executable-Reference-Fixture-v2", str(path))
+    require_literal(value, "formatId", "SPS-Executable-Reference-Fixture-v3", str(path))
     for key in ("familyId", "caseId", "kind"):
         require_identifier(value.get(key), f"{path}.{key}")
     refs = value["requirementRefs"]
@@ -68,11 +68,12 @@ def parse_program(value: Any, path: str = "$.input.program") -> dict[str, Any]:
             "observerProfile",
             "inputs",
             "abi",
+            "admission",
             "statements",
         },
         path,
     )
-    require_literal(value, "formatId", "SPS-Reference-Program-v2", path)
+    require_literal(value, "formatId", "SPS-Reference-Program-v3", path)
     require_identifier(value["entryId"], f"{path}.entryId")
     require_identifier(value["entryHost"], f"{path}.entryHost")
     if value["observerProfile"] not in {
@@ -98,6 +99,7 @@ def parse_program(value: Any, path: str = "$.input.program") -> dict[str, Any]:
             raise SchemaError(f"{item_path}.classification: expected Low or High")
         require_identifier(item["host"], f"{item_path}.host")
     parse_abi(value["abi"], f"{path}.abi")
+    validate_expression(value["admission"], f"{path}.admission")
     if not isinstance(value["statements"], list):
         raise SchemaError(f"{path}.statements: expected list")
     validate_statements(value["statements"], f"{path}.statements")
@@ -107,7 +109,7 @@ def parse_program(value: Any, path: str = "$.input.program") -> dict[str, Any]:
 def parse_abi(value: Any, path: str) -> None:
     if not isinstance(value, dict):
         raise SchemaError(f"{path}: expected object")
-    require_exact_keys(value, {"return", "roots"}, path)
+    require_exact_keys(value, {"return", "roots", "terminalOutputOrder"}, path)
     result = value["return"]
     if result is not None:
         if not isinstance(result, dict):
@@ -122,11 +124,22 @@ def parse_abi(value: Any, path: str) -> None:
     if not isinstance(roots, list):
         raise SchemaError(f"{path}.roots: expected list")
     seen: set[str] = set()
+    terminal_output_ids: list[str] = []
+    if result is not None:
+        terminal_output_ids.append(result["outputId"])
     for index, root in enumerate(roots):
         root_path = f"{path}.roots[{index}]"
         require_exact_keys(
             root,
-            {"id", "byteLength", "host", "outputId", "initialBytes", "initialized"},
+            {
+                "id",
+                "byteLength",
+                "host",
+                "terminalOutput",
+                "outputId",
+                "initialBytes",
+                "initialized",
+            },
             root_path,
         )
         require_identifier(root["id"], f"{root_path}.id")
@@ -135,7 +148,15 @@ def parse_abi(value: Any, path: str) -> None:
         seen.add(root["id"])
         require_positive_int(root["byteLength"], f"{root_path}.byteLength")
         require_identifier(root["host"], f"{root_path}.host")
-        require_identifier(root["outputId"], f"{root_path}.outputId")
+        if not isinstance(root["terminalOutput"], bool):
+            raise SchemaError(f"{root_path}.terminalOutput: expected Boolean")
+        if root["terminalOutput"]:
+            require_identifier(root["outputId"], f"{root_path}.outputId")
+            terminal_output_ids.append(root["outputId"])
+        elif root["outputId"] is not None:
+            raise SchemaError(
+                f"{root_path}.outputId: internal roots require null outputId"
+            )
         raw = root["initialBytes"]
         init = root["initialized"]
         if (
@@ -155,6 +176,22 @@ def parse_abi(value: Any, path: str) -> None:
             or not all(isinstance(x, bool) for x in init)
         ):
             raise SchemaError(f"{root_path}.initialized: wrong Boolean vector")
+
+    if len(terminal_output_ids) != len(set(terminal_output_ids)):
+        raise SchemaError(f"{path}: terminal output IDs must be unique")
+    order = value["terminalOutputOrder"]
+    if not isinstance(order, list):
+        raise SchemaError(f"{path}.terminalOutputOrder: expected list")
+    for index, output_id in enumerate(order):
+        require_identifier(output_id, f"{path}.terminalOutputOrder[{index}]")
+    if len(order) != len(set(order)):
+        raise SchemaError(f"{path}.terminalOutputOrder: duplicate output ID")
+    if len(order) != len(terminal_output_ids) or set(order) != set(
+        terminal_output_ids
+    ):
+        raise SchemaError(
+            f"{path}.terminalOutputOrder: must exactly cover return and terminal roots"
+        )
 
 
 def parse_coalition(value: Any, path: str = "$.input.coalition") -> Coalition:
@@ -194,7 +231,15 @@ def validate_statements(statements: list[Any], path: str) -> None:
             allowed: dict[str, set[str]] = {
                 "set": {"op", "site", "target", "value"},
                 "store": {"op", "site", "root", "offset", "value", "byteOrder"},
-                "if": {"op", "site", "condition", "then", "else"},
+                "if": {
+                    "op",
+                    "site",
+                    "condition",
+                    "thenSuccessor",
+                    "elseSuccessor",
+                    "then",
+                    "else",
+                },
                 "loop": {"op", "site", "boundId", "boundMaximum", "iterations", "body"},
                 "releaseAttempt": {
                     "op",
@@ -229,6 +274,12 @@ def validate_statements(statements: list[Any], path: str) -> None:
                 validate_expression(statement["value"], f"{current}.value")
             elif op == "if":
                 validate_expression(statement["condition"], f"{current}.condition")
+                require_identifier(
+                    statement["thenSuccessor"], f"{current}.thenSuccessor"
+                )
+                require_identifier(
+                    statement["elseSuccessor"], f"{current}.elseSuccessor"
+                )
                 if not isinstance(statement["then"], list) or not isinstance(
                     statement["else"], list
                 ):
@@ -365,5 +416,17 @@ def validate_expression(value: Any, path: str) -> None:
         require_natural_int(payload["low"], f"{path}.extract.low")
         require_positive_int(payload["width"], f"{path}.extract.width")
         validate_expression(payload["value"], f"{path}.extract.value")
+        return
+    if op == "load":
+        require_exact_keys(
+            payload, {"root", "offset", "width", "byteOrder"}, f"{path}.load"
+        )
+        require_identifier(payload["root"], f"{path}.load.root")
+        require_natural_int(payload["offset"], f"{path}.load.offset")
+        require_positive_int(payload["width"], f"{path}.load.width")
+        if payload["width"] % 8 != 0:
+            raise SchemaError(f"{path}.load.width: reference loads must be byte-aligned")
+        if payload["byteOrder"] not in {"LittleEndian", "BigEndian"}:
+            raise SchemaError(f"{path}.load.byteOrder: invalid byte order")
         return
     raise SchemaError(f"{path}: unsupported expression constructor {op!r}")

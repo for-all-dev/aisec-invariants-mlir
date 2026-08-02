@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -18,11 +19,13 @@ from sps_ref.encoding import decode_bits, encode_bits
 from sps_ref.engine import CompiledProgram, compile_program
 from sps_ref.errors import ReferenceError, SolverUnavailableError
 from sps_ref.expand import expand_program
+from sps_ref.evidence import canonical_relation_result_bytes, run_relation_fixture
 from sps_ref.model import load_fixture, parse_coalition, parse_program
 from sps_ref.ponf import audit_reference_ponf, build_reference_ponf
 from sps_ref.product import build_product
+from sps_ref.query import build_reference_query, run_query_exhaustive
 from sps_ref.replay import replay_witness, run_concrete_exhaustive
-from sps_ref.smt import lower_reference_ponf, lower_reference_product
+from sps_ref.smt import lower_reference_ponf, lower_reference_query
 from sps_ref.solve import (
     parse_model_response,
     run_cvc5,
@@ -73,13 +76,16 @@ def _run_noninterference(
     )
     left, right, coalition = _compile_pair(fixture)
     product = build_product(left, right, coalition)
+    query = build_reference_query(
+        left, right, coalition, "ReferenceAuditAll"
+    )
     ponf = build_reference_ponf(left, right, coalition)
     audit_reference_ponf(ponf, left, right, coalition)
     if canonical_bytes(ponf) != canonical_bytes(
         build_reference_ponf(left, right, coalition)
     ):
         raise FixtureFailure(f"{fixture['caseId']}: nondeterministic PONF")
-    product_smt = lower_reference_product(product)
+    product_smt = lower_reference_query(query)
     smt = lower_reference_ponf(ponf)
     if smt != product_smt:
         raise FixtureFailure(
@@ -88,7 +94,7 @@ def _run_noninterference(
     if smt != lower_reference_ponf(ponf):
         raise FixtureFailure(f"{fixture['caseId']}: nondeterministic SMT lowering")
 
-    exhaustive = run_exhaustive(product)
+    exhaustive = run_query_exhaustive(query)
     concrete = run_concrete_exhaustive(left, right, coalition)
     try:
         z3 = run_z3(smt)
@@ -107,7 +113,8 @@ def _run_noninterference(
             f"z3={z3.status} ({z3.detail})"
         )
 
-    if shutil.which("cvc5") is not None:
+    cvc5 = None
+    if os.environ.get("CVC5", "") or shutil.which("cvc5") is not None:
         cvc5 = run_cvc5(smt)
         optional_solver_status["cvc5"] = "available-and-checked"
         if cvc5.status != expected_status:
@@ -125,6 +132,7 @@ def _run_noninterference(
             ("symbolic-exhaustive", exhaustive.witness),
             ("concrete-exhaustive", concrete.witness),
             ("z3", z3.witness),
+            *(([("cvc5", cvc5.witness)]) if cvc5 is not None else []),
         ]:
             if witness is None:
                 raise FixtureFailure(
@@ -220,7 +228,7 @@ def _run_artifact_mutation(fixture: dict[str, Any]) -> None:
     mutation = fixture["input"]["mutation"]
     if mutation != "replace-first-bad-expression-with-false":
         raise FixtureFailure(f"{fixture['caseId']}: unknown mutation {mutation}")
-    artifact["badCauseRows"][0]["expression"] = {
+    artifact["auditBadCauseRows"][0]["expression"] = {
         "op": "bool",
         "sort": "Bool",
         "value": False,
@@ -427,7 +435,7 @@ def _fixture_catalog() -> list[dict[str, str]]:
     except (OSError, ReferenceError) as exc:
         raise FixtureFailure(f"cannot read fixture catalog: {exc}") from exc
     _exact_keys(catalog, {"formatId", "cases"}, "fixture-catalog.json")
-    if catalog["formatId"] != "SPS-Reference-Fixture-Catalog-v2":
+    if catalog["formatId"] != "SPS-Reference-Fixture-Catalog-v3":
         raise FixtureFailure("fixture catalog has the wrong formatId")
     rows = catalog["cases"]
     if not isinstance(rows, list) or not rows:
@@ -540,6 +548,22 @@ def run_all(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--relation-fixture",
+        type=Path,
+        help="run one external SPS executable-reference relation fixture",
+    )
+    parser.add_argument(
+        "--binding",
+        type=Path,
+        help="validate and bind the external harness reduction mapping",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="-",
+        help="canonical evidence result path, or - for stdout",
+    )
+    parser.add_argument(
         "--skip-unit-tests", action="store_true", help="run fixtures only"
     )
     parser.add_argument(
@@ -554,6 +578,25 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
+        if args.relation_fixture is not None or args.binding is not None:
+            if args.relation_fixture is None or args.binding is None:
+                raise FixtureFailure(
+                    "--relation-fixture and --binding must be supplied together"
+                )
+            fixture = load_json_bytes(args.relation_fixture.read_bytes())
+            binding = load_json_bytes(args.binding.read_bytes())
+            result = run_relation_fixture(
+                fixture,
+                binding,
+                fixture_path=args.relation_fixture,
+                binding_path=args.binding,
+            )
+            raw = canonical_relation_result_bytes(result)
+            if args.output == "-":
+                sys.stdout.buffer.write(raw)
+            else:
+                Path(args.output).write_bytes(raw)
+            return 0
         return run_all(
             run_tests=not args.skip_unit_tests,
             interface_dist=args.interface_dist,

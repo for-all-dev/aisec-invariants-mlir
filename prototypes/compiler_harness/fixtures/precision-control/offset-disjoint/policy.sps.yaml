@@ -9,6 +9,10 @@ hosts:
   compute:
     visibility: secret
 components:
+  buffer-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
   secret-byte:
     lifecycle: entry-input
     type: bv32

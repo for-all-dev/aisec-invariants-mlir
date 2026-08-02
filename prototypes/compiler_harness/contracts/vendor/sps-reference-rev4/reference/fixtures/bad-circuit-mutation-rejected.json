@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-BAD-CIRCUIT",
   "caseId": "bad-circuit-mutation-rejected",
   "kind": "artifact-mutation",
@@ -8,7 +8,7 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.mutation",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
@@ -21,6 +21,7 @@
         }
       ],
       "abi": {
+        "terminalOutputOrder": ["return.value"],
         "return": {
           "outputId": "return.value",
           "width": 1,
@@ -29,6 +30,7 @@
         },
         "roots": []
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "return",

@@ -61,6 +61,82 @@ class ConcreteSearchResult:
     detail: str
 
 
+def concrete_admitted(
+    compiled: CompiledProgram, environment: Mapping[str, int]
+) -> bool:
+    """Evaluate admission with the independent concrete expression evaluator."""
+
+    interpreter = _ConcreteInterpreter(compiled, environment)
+    return interpreter._require_bool(
+        interpreter._expr(interpreter.program["admission"]), "admission"
+    )
+
+
+def concrete_terminal_surface_violation(
+    compiled: CompiledProgram, environment: Mapping[str, int]
+) -> bool:
+    """Check the reduced terminal schedule independently from symbolic events."""
+
+    if not concrete_admitted(compiled, environment):
+        return False
+    for event in compiled.events:
+        if (
+            event.kind == "Output"
+            and event.output_initialized
+            and bool(event.present.evaluate(environment))
+            and not all(
+                bool(initialized.evaluate(environment))
+                for initialized in event.output_initialized
+            )
+        ):
+            return True
+    try:
+        trace = interpret_trace(compiled, environment)
+        symbolic = materialize_trace(compiled, environment)
+    except ReplayError as exc:
+        if "uninitialized" in str(exc):
+            return True
+        raise
+    if symbolic != trace:
+        return True
+    if not trace:
+        return True
+    if trace[-1].kind == "BoundExhausted":
+        return False
+    if trace[-1].kind != "Termination":
+        return True
+    return_binding = compiled.program["abi"]["return"]
+    roots = {
+        root["outputId"]: root
+        for root in compiled.program["abi"]["roots"]
+        if root["terminalOutput"]
+    }
+    terminal_order = compiled.program["abi"]["terminalOutputOrder"]
+    output_count = len(terminal_order)
+    if len(trace) < output_count + 1:
+        return True
+    terminal_slice = trace[-(output_count + 1) :]
+    expected: list[tuple[str, str | None, int]] = []
+    for output_id in terminal_order:
+        if return_binding is not None and output_id == return_binding["outputId"]:
+            byte_length = (return_binding["width"] + 7) // 8
+        else:
+            byte_length = roots[output_id]["byteLength"]
+        expected.append(("Output", output_id, byte_length))
+    expected.append(("Termination", None, 0))
+    actual = [
+        (event.kind, event.output_id, len(event.value_bytes))
+        for event in terminal_slice
+    ]
+    if actual != expected:
+        return True
+    site = terminal_slice[-1].site
+    return any(
+        event.site != site or event.within_ordinal != ordinal
+        for ordinal, event in enumerate(terminal_slice)
+    )
+
+
 def replay_witness(
     left: CompiledProgram,
     right: CompiledProgram,
@@ -130,6 +206,18 @@ def run_concrete_exhaustive(
                 cursor += 1
             left_values.append(left_value)
             right_values.append(right_value)
+        left_environment = {
+            f"L.input.{item.input_id}": value
+            for item, value in zip(left.inputs, left_values, strict=True)
+        }
+        right_environment = {
+            f"R.input.{item.input_id}": value
+            for item, value in zip(right.inputs, right_values, strict=True)
+        }
+        if not bool(left.admission.evaluate(left_environment)) or not bool(
+            right.admission.evaluate(right_environment)
+        ):
+            continue
         replay = _compare_traces(
             left_traces[tuple(left_values)],
             right_traces[tuple(right_values)],
@@ -284,6 +372,10 @@ def _validate_replay_context(
             != witness[f"R.input.{item.input_id}"]
         ):
             raise ReplayError(f"witness violates LowEq for {item.input_id}")
+    if not bool(left.admission.evaluate(witness)) or not bool(
+        right.admission.evaluate(witness)
+    ):
+        raise ReplayError("witness violates the reference admission predicate")
 
 
 def _validate_product_profile(
@@ -380,6 +472,7 @@ class _ConcreteInterpreter:
                 "bytes": list(root["initialBytes"]),
                 "initialized": list(root["initialized"]),
                 "host": root["host"],
+                "terminalOutput": root["terminalOutput"],
                 "outputId": root["outputId"],
             }
             for root in self.program["abi"]["roots"]
@@ -389,8 +482,24 @@ class _ConcreteInterpreter:
         self.release_attempts: dict[str, int] = {}
         self.active = True
         self.terminal = False
+        self.successor_codes = {
+            successor_id: index + 1
+            for index, successor_id in enumerate(
+                sorted(
+                    {
+                        statement[key]
+                        for statement in _walk_statements(self.program["statements"])
+                        if statement["op"] == "if"
+                        for key in ("thenSuccessor", "elseSuccessor")
+                    }
+                )
+            )
+        }
 
     def run(self) -> tuple[ConcreteEvent, ...]:
+        admission = self._require_bool(self._expr(self.program["admission"]), "admission")
+        if not admission:
+            return ()
         self._statements(self.program["statements"])
         return tuple(self.events)
 
@@ -432,12 +541,16 @@ class _ConcreteInterpreter:
                 root["initialized"][offset + index] = True
         elif op == "if":
             condition = self._require_bool(self._expr(statement["condition"]), site)
+            successor_id = (
+                statement["thenSuccessor"] if condition else statement["elseSuccessor"]
+            )
+            successor = self.successor_codes[successor_id]
             self._append(
                 kind="BranchSuccessor",
                 site=site,
                 visit=visit,
                 within_ordinal=0,
-                value_bytes=(1 if condition else 0,),
+                value_bytes=tuple(encode_bits(successor, 16, "BigEndian")),
                 observation_hosts=frozenset({self.program["entryHost"]}),
             )
             self._statements(statement["then"] if condition else statement["else"])
@@ -521,8 +634,8 @@ class _ConcreteInterpreter:
 
     def _return(self, statement: dict[str, Any], visit: int) -> None:
         site = statement["site"]
-        ordinal = 0
         binding = self.program["abi"]["return"]
+        output_sources: dict[str, tuple[str, tuple[int, ...]]] = {}
         if binding is None:
             if statement["value"] is not None:
                 raise ReplayError(f"{site}: concrete void return has a value")
@@ -533,39 +646,40 @@ class _ConcreteInterpreter:
             raw = encode_bits(
                 int(value.value), int(value.width), binding["byteOrder"]
             )
-            self._append(
-                kind="Output",
-                site=site,
-                visit=visit,
-                within_ordinal=ordinal,
-                value_bytes=tuple(raw),
-                output_id=binding["outputId"],
-                observation_hosts=frozenset(
-                    {self.program["entryHost"], binding["host"]}
-                ),
+            output_sources[binding["outputId"]] = (
+                binding["host"],
+                tuple(raw),
             )
-            ordinal += 1
         for root in self.program["abi"]["roots"]:
+            if not root["terminalOutput"]:
+                continue
             state = self.roots[root["id"]]
             if not all(state["initialized"]):
                 raise ReplayError(f"{site}: concrete output contains uninitialized byte")
+            output_sources[root["outputId"]] = (
+                root["host"],
+                tuple(state["bytes"]),
+            )
+
+        terminal_order = self.program["abi"]["terminalOutputOrder"]
+        for ordinal, output_id in enumerate(terminal_order):
+            host, value_bytes = output_sources[output_id]
             self._append(
                 kind="Output",
                 site=site,
                 visit=visit,
                 within_ordinal=ordinal,
-                value_bytes=tuple(state["bytes"]),
-                output_id=root["outputId"],
+                value_bytes=value_bytes,
+                output_id=output_id,
                 observation_hosts=frozenset(
-                    {self.program["entryHost"], root["host"]}
+                    {self.program["entryHost"], host}
                 ),
             )
-            ordinal += 1
         self._append(
             kind="Termination",
             site=site,
             visit=visit,
-            within_ordinal=ordinal,
+            within_ordinal=len(terminal_order),
             observation_hosts=frozenset({self.program["entryHost"]}),
         )
         self.active = False
@@ -652,6 +766,21 @@ class _ConcreteInterpreter:
                 raise ReplayError("invalid concrete extraction")
             value = (int(source.value) >> low) & ((1 << width) - 1)
             return _ConcreteValue("BV", width, value)
+        if op == "load":
+            try:
+                root = self.roots[payload["root"]]
+            except (KeyError, TypeError) as exc:
+                raise ReplayError(f"unknown concrete load root {payload['root']!r}") from exc
+            byte_width = payload["width"] // 8
+            offset = payload["offset"]
+            raw = root["bytes"][offset : offset + byte_width]
+            if len(raw) != byte_width:
+                raise ReplayError("concrete load exceeds root")
+            initialized = root["initialized"][offset : offset + byte_width]
+            if len(initialized) != byte_width or not all(initialized):
+                raise ReplayError("concrete load consumes an uninitialized byte")
+            value = int.from_bytes(bytes(raw), "little" if payload["byteOrder"] == "LittleEndian" else "big")
+            return _ConcreteValue("BV", payload["width"], value)
         raise ReplayError(f"unsupported concrete expression {op!r}")
 
     @staticmethod
@@ -760,3 +889,13 @@ def _event_obj(event: ConcreteEvent) -> dict[str, Any]:
         "boundId": event.bound_id,
         "snapshotNames": list(event.snapshot_names),
     }
+
+
+def _walk_statements(statements: list[dict[str, Any]]):
+    for statement in statements:
+        yield statement
+        if statement["op"] == "if":
+            yield from _walk_statements(statement["then"])
+            yield from _walk_statements(statement["else"])
+        elif statement["op"] == "loop":
+            yield from _walk_statements(statement["body"])

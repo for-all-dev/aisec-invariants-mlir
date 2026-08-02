@@ -33,7 +33,17 @@ FIELD_PATH = re.compile(r"[A-Za-z0-9_.-]+\Z")
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 PIPELINE_KINDS = frozenset(
-    {"mlir", "llvm-ir", "mir", "assembly", "object", "bytes", "diagnostic", "json"}
+    {
+        "mlir",
+        "llvm-ir",
+        "mir",
+        "assembly",
+        "object",
+        "bytes",
+        "diagnostic",
+        "json",
+        "relation-reference",
+    }
 )
 STRUCTURAL_KINDS = frozenset({"mlir", "llvm-ir", "mir", "assembly", "object"})
 COMPACT_MATCHER_OPERATORS = frozenset(
@@ -48,6 +58,20 @@ STRUCTURAL_EXTRACTORS = {
     "mir": ("mir", "mir-structure-v1"),
     "assembly": ("assembly", "assembly-structure-v1"),
     "object": ("object-inventory", "object-inventory-v1"),
+}
+RELATION_REFERENCE_PROFILE = "SPS-Reference-Relation-v1"
+RELATION_REFERENCE_FACTS = frozenset(
+    {
+        "query.admission-nonempty",
+        "query.high-variation",
+        "query.terminal-output-surface",
+        "query.audit-all",
+        "query.audit-all-first-difference",
+        "backend.agreement",
+    }
+)
+REQUIRED_RELATION_REFERENCE_FACTS = RELATION_REFERENCE_FACTS - {
+    "query.audit-all-first-difference"
 }
 
 # These are exactly the fields in the fixed Theta_ct event constructors in SPS
@@ -308,6 +332,7 @@ class PipelineV3:
     digest: DigestBinding | None = None
     root_type: str | None = None
     stage_id: str | None = None
+    profile: str | None = None
     # These fields are derived from lit by build_inventory; they are never
     # accepted in snapshot YAML.
     test: str | None = None
@@ -707,6 +732,31 @@ def _parse_pipeline(
             raise CheckpointError(f"{where}.properties: unknown diagnostic facts {sorted(unknown)}")
         return PipelineV3(
             identifier, "diagnostic", properties=properties, stage_id=stage_id
+        )
+
+    if kind == "relation-reference":
+        _exact_fields(mapping, {"kind", "profile", "properties"}, set(), where)
+        profile = _nonempty_string(mapping["profile"], f"{where}.profile")
+        if profile != RELATION_REFERENCE_PROFILE:
+            raise CheckpointError(
+                f"{where}.profile: unknown relation-reference profile {profile!r}"
+            )
+        properties = _normalize_properties(mapping["properties"], f"{where}.properties")
+        unknown = set(properties) - RELATION_REFERENCE_FACTS
+        if unknown:
+            raise CheckpointError(
+                f"{where}.properties: unknown relation-reference facts {sorted(unknown)}"
+            )
+        missing = REQUIRED_RELATION_REFERENCE_FACTS - set(properties)
+        if missing:
+            raise CheckpointError(
+                f"{where}.properties: missing relation-reference facts {sorted(missing)}"
+            )
+        return PipelineV3(
+            identifier,
+            "relation-reference",
+            properties=properties,
+            profile=profile,
         )
 
     _exact_fields(mapping, {"kind", "root_type"}, set(), where)

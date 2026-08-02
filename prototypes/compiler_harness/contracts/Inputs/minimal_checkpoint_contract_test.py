@@ -77,6 +77,7 @@ def main() -> int:
     unknown = "fixtures/release-carrier/lost-bad/snapshot.yaml"
     candidate = "fixtures/abi-alias/disjoint-control/snapshot.yaml"
     timing_proved = "fixtures/kyberslash1-poly-tomsg/fixed/snapshot.yaml"
+    relation = "fixtures/precision-control/identical-successor/snapshot.yaml"
 
     mutate_rejected(
         model,
@@ -176,6 +177,29 @@ def main() -> int:
         "expected one of",
     )
 
+    mutate_rejected(
+        model,
+        root,
+        relation,
+        lambda value: value["expect"]["pipelines"]["relation-reference"].update(
+            profile="SPS-Reference-Relation-unknown"
+        ),
+        "unknown relation-reference profile",
+    )
+
+    def unknown_relation_fact(value: dict[str, Any]) -> None:
+        value["expect"]["pipelines"]["relation-reference"]["properties"][
+            "query.normative-model-status"
+        ] = {"equals": "Proved"}
+
+    mutate_rejected(
+        model,
+        root,
+        relation,
+        unknown_relation_fact,
+        "unknown relation-reference facts",
+    )
+
     def bad_event_id(value: dict[str, Any]) -> None:
         value["expect"]["final"]["events"][0]["id"] = "timing-site"
 
@@ -217,10 +241,10 @@ def main() -> int:
 
     snapshots = model.load_snapshots(root)
     inventory = model.build_inventory(root)
-    assert len(snapshots) == 56
-    assert sum(len(item.pipelines) for item in snapshots) == 148
+    assert len(snapshots) == 60
+    assert sum(len(item.pipelines) for item in snapshots) == 168
     assert model.outcome_totals(snapshots) == {
-        "Counterexample": 21,
+        "Counterexample": 25,
         "Proved": 26,
         "Unknown": 9,
     }
@@ -229,11 +253,11 @@ def main() -> int:
         event.first_bad
         for snapshot in snapshots
         for event in snapshot.final.events
-    ) == 21
+    ) == 25
     assert all(item.final.deployment == "Open" for item in snapshots)
     assert all(item.final.policy == "Complete" for item in snapshots)
-    assert len(inventory.run_bindings) == 148
-    assert len(inventory.finalizers) == 68
+    assert len(inventory.run_bindings) == 168
+    assert len(inventory.finalizers) == 73
 
     source = next(item for item in inventory.snapshots if item.case == "kyberslash1-poly-tomsg/bad")
     assert source.pipelines["scanner-diagnostic"].requires == ("sps-scan-unary",)

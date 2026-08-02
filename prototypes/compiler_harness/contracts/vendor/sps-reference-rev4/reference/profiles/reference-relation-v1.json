@@ -1,0 +1,50 @@
+{
+  "formatId": "SPS-Reference-Evidence-Profile-v1",
+  "profileId": "SPS-Reference-Relation-v1",
+  "claimBoundary": "ExecutableReferenceOnly",
+  "normativeClaimEffect": "None",
+  "queryAnalogues": [
+    {
+      "referenceQuery": "ReferenceAdmissionNonempty",
+      "analogueOf": "AdmissionNonempty",
+      "relationship": "ReducedFiniteAnalogue",
+      "requirementRefs": ["Conformance Profile 12.4", "Normative 21.5"]
+    },
+    {
+      "referenceQuery": "ReferenceHighVariation",
+      "analogueOf": "HighVariation",
+      "relationship": "ReducedFiniteAnaloguePerHighInput",
+      "requirementRefs": ["Conformance Profile 12.4", "Normative 21.5"]
+    },
+    {
+      "referenceQuery": "ReferenceTerminalOutputSurface",
+      "analogueOf": "OutputClosure",
+      "relationship": "StrictSubsetReturnRootTerminationOnly",
+      "requirementRefs": ["Conformance Profile 12.4", "Normative 21.5"]
+    },
+    {
+      "referenceQuery": "ReferenceAuditAll",
+      "analogueOf": "AuditAll",
+      "relationship": "ReducedFiniteTwoLaneAnalogue",
+      "requirementRefs": ["Conformance Profile 12.4", "Normative 21.5"]
+    }
+  ],
+  "artifactIntegrityChecks": [
+    "ReferencePONFFieldAudit",
+    "ProductAndSerializedPONFLoweringByteMatch",
+    "SMTInputDigestMatch",
+    "SMTLoweringRepeatability"
+  ],
+  "evaluation": {
+    "requiredBackends": [
+      "concrete-exhaustive",
+      "symbolic-exhaustive",
+      "z3"
+    ],
+    "optionalBackends": ["cvc5"],
+    "requireAgreement": true,
+    "requireAuditAllSATReplay": true,
+    "requireSATAssignmentValidation": true
+  },
+  "resultFormat": "SPS-Reference-Evidence-Result-v1"
+}

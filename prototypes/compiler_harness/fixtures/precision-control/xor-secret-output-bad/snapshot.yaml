@@ -1,0 +1,103 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: xor_secret_output_bad
+c_evidence:
+- fixtures/precision-control/xor-secret-output-bad/xor_secret_output_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: return
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-return-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      first_bad: true
+    because: secret xor zero returns the secret on a public output
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - xor_secret_output_bad
+        function.signatures:
+          contains:
+          - xor_secret_output_bad|(i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.xor
+          - llvm.return
+        operation.argument_dependencies:
+          contains:
+          - xor_secret_output_bad|llvm.xor|operand=0|args=0
+        def_use.edges:
+          contains:
+          - xor_secret_output_bad|user=1|op=llvm.xor|operand=0|root=arg:0
+          - "xor_secret_output_bad|user=1|op=llvm.xor|operand=1|root=constant:i32:0 : i32"
+        return.roots:
+          contains:
+          - xor_secret_output_bad|op:llvm.xor:1
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - xor_secret_output_bad
+        function.signatures:
+          contains:
+          - xor_secret_output_bad|(i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.xor
+          - llvm.return
+        return.roots:
+          contains:
+          - xor_secret_output_bad|op:llvm.xor:1
+        def_use.edges:
+          contains:
+          - xor_secret_output_bad|user=1|op=llvm.xor|operand=0|root=arg:0
+          - "xor_secret_output_bad|user=1|op=llvm.xor|operand=1|root=constant:i32:0 : i32"
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: sat
+        query.audit-all-first-difference:
+          equals:
+            kind: Output
+            field: valueBytes
+        backend.agreement:
+          equals: true

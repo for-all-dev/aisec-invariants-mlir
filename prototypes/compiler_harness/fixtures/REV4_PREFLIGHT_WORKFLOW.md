@@ -10,12 +10,19 @@ produce a `ModelStatus`.
 Snapshot V3 gives every fixture one direct expected final judgment and sparse
 typed properties for the intermediate endpoints that matter. It contains no
 execution, capability, lineage, adapter, or materialization fields; lit owns
-those operational details. The 56 nonclaimable expectations contain 26
-`Proved`, 21 `Counterexample`, and 9 `Unknown` model results, all with
+those operational details. The 60 nonclaimable expectations contain 26
+`Proved`, 25 `Counterexample`, and 9 `Unknown` model results, all with
 deployment `Open` and policy `Complete`. Relevant cases select closed SPS event
 fields, never raw traces or protected evidence. Nine authenticate their
 existing candidate expected-run sidecars through a compact `reference`; the
-other 47 need no candidate artifact.
+other 51 need no candidate artifact.
+
+The eight precision-control snapshots add an `ExecutableReferenceOnly`
+checkpoint over a hand-authored finite reduction. It is a regression bridge
+between the fixture story and SPS relational machinery, not a third fixture
+tier or a substitute for exact frozen-bitcode verification. Its reduced query
+analogues and backend results therefore remain lowercase, nonclaimable
+evidence.
 
 ## What the current checks establish
 

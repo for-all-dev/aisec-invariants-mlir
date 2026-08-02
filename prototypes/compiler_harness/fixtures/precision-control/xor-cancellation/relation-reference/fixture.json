@@ -1,0 +1,80 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "HARNESS-PRECISION-CONTROL",
+  "caseId": "xor-cancellation",
+  "kind": "relation",
+  "requirementRefs": [
+    "Normative 11",
+    "Conformance Profile 18"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "xor_cancellation_control",
+      "entryHost": "compute",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 2,
+          "classification": "High",
+          "host": "compute"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return",
+          "width": 2,
+          "host": "observer",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": [],
+        "terminalOutputOrder": [
+          "return"
+        ]
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.cancelled",
+          "value": {
+            "xor": [
+              {
+                "var": "secret"
+              },
+              {
+                "var": "secret"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "observer"
+      ]
+    }
+  },
+  "expected": {
+    "auditAll": {
+      "status": "unsat",
+      "firstDifference": null
+    },
+    "admissionNonempty": "sat",
+    "highVariation": [
+      {
+        "componentId": "secret",
+        "status": "sat"
+      }
+    ],
+    "terminalOutputSurface": "unsat"
+  }
+}

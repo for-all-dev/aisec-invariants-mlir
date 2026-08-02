@@ -4,7 +4,7 @@
 # RUN: %checkpoint-runner inventory --root %harness | %FileCheck %s --check-prefix=INVENTORY
 # INVENTORY: abi-alias/disjoint-control: final=Proved/Open/Complete events=1 reference=candidate/expected-report.json
 # INVENTORY: candidate-bitcode: kind=bytes test=fixtures/abi-alias/disjoint-control/abi_alias_disjoint.control.mlir requires=-
-# INVENTORY: checkpoint inventory passed: 56 snapshots, 148 pipelines, 148 RUN bindings, 68 finalizers, 9 candidate references, expected Proved/Counterexample/Unknown=26/21/9
+# INVENTORY: checkpoint inventory passed: 60 snapshots, 168 pipelines, 168 RUN bindings, 73 finalizers, 9 candidate references, expected Proved/Counterexample/Unknown=26/25/9
 
 # Exercise all minimal-schema and lit-derived binding refusals against a copy;
 # the helper restores each mutated file before the next case.
@@ -19,6 +19,12 @@
 # RUN: %python %S/Inputs/minimal_checkpoint_contract_test.py %t.root %harness/tools | %FileCheck %s --check-prefix=MODEL
 # MODEL: minimal Snapshot V3 model and inventory contracts passed
 
+# This test deliberately reuses real fixture case/pipeline IDs under temporary
+# harness roots. Keep its observations below a test-private build root so a
+# parallel real-fixture test cannot overwrite either side's freshness target.
+# RUN: mkdir -p %t.checkpoint-build
+# RUN: export LIT_BUILD_ROOT=%t.checkpoint-build
+
 # A normal structural checkpoint records typed facts and finalizes, without
 # changing its snapshot or implying that the expected final report was run.
 # RUN: rm -rf %t.functional-root %t.records
@@ -26,7 +32,7 @@
 # RUN: cp -R %fixtures/dynamic-kv-length/fixed %t.functional-root/fixtures/dynamic-kv-length/fixed
 # RUN: %python -c "import pathlib,yaml; root=pathlib.Path(r'%t.functional-root'); p=root/'fixtures/dynamic-kv-length/fixed/snapshot.yaml'; v=yaml.safe_load(p.read_text()); v['expect']['pipelines']={'modeled-shape':v['expect']['pipelines']['modeled-shape']}; p.write_text(yaml.safe_dump(v,sort_keys=False))"
 # RUN: cp %t.functional-root/fixtures/dynamic-kv-length/fixed/snapshot.yaml %t.snapshot.before
-# RUN: %checkpoint-runner run --root %t.functional-root --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.records -- %mlir-opt %t.functional-root/fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir -o %t.modeled.mlir
+# RUN: %checkpoint-runner run --root %t.functional-root --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.checkpoint-build/modeled.mlir --records %t.records -- %mlir-opt %t.functional-root/fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir -o %t.checkpoint-build/modeled.mlir
 # RUN: %checkpoint-runner finalize --root %t.functional-root --test fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir --records %t.records | %FileCheck %s --check-prefix=FINALIZED
 # RUN: cmp %t.snapshot.before %t.functional-root/fixtures/dynamic-kv-length/fixed/snapshot.yaml
 # RUN: %python -c "import os,pathlib,yaml; p=pathlib.Path(os.environ['LIT_BUILD_ROOT'])/'checkpoints/dynamic-kv-length/fixed/modeled-shape.actual.yaml'; v=yaml.safe_load(p.read_text()); assert v['state']=='PassedV1'; assert 'operation.names' in v['facts']; assert v['inputs']==[]"
@@ -44,7 +50,7 @@
 # RUN: mkdir -p %t.structural/fixtures/dynamic-kv-length
 # RUN: cp -R %fixtures/dynamic-kv-length/fixed %t.structural/fixtures/dynamic-kv-length/fixed
 # RUN: %python -c "import pathlib,yaml; p=pathlib.Path(r'%t.structural/fixtures/dynamic-kv-length/fixed/snapshot.yaml'); v=yaml.safe_load(p.read_text()); v['expect']['pipelines']['modeled-shape']['properties']={'operation.names':{'contains':['contract.operation.that.does.not.exist']}}; p.write_text(yaml.safe_dump(v,sort_keys=False))"
-# RUN: %checkpoint-runner run --root %t.structural --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.structural.mlir --records %t.structural-records -- %mlir-opt %t.structural/fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir -o %t.structural.mlir
+# RUN: %checkpoint-runner run --root %t.structural --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.checkpoint-build/structural.mlir --records %t.structural-records -- %mlir-opt %t.structural/fixtures/dynamic-kv-length/fixed/dynamic_kv_length.fixed.mlir -o %t.checkpoint-build/structural.mlir
 # RUN: %python -c "import os,pathlib,yaml; p=pathlib.Path(os.environ['LIT_BUILD_ROOT'])/'checkpoints/dynamic-kv-length/fixed/modeled-shape.actual.yaml'; v=yaml.safe_load(p.read_text()); assert v['state']=='FailedV1'; assert v['failure']['kind']=='EndpointMismatchV1'; assert 'operation.names' in v['facts']"
 
 # Exact bytes never fall back to structure. The checked path is supplied only
@@ -62,5 +68,6 @@
 # RUN: rm -rf %t.failure-root %t.failure-records
 # RUN: mkdir -p %t.failure-root/fixtures/dynamic-kv-length
 # RUN: cp -R %fixtures/dynamic-kv-length/fixed %t.failure-root/fixtures/dynamic-kv-length/fixed
-# RUN: %checkpoint-runner run --root %t.failure-root --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.failure.mlir --records %t.failure-records -- /usr/bin/false
+# RUN: %checkpoint-runner run --root %t.failure-root --snapshot fixtures/dynamic-kv-length/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.checkpoint-build/failure.mlir --records %t.failure-records -- /usr/bin/false
 # RUN: %python -c "import os,pathlib,yaml; p=pathlib.Path(os.environ['LIT_BUILD_ROOT'])/'checkpoints/dynamic-kv-length/fixed/modeled-shape.actual.yaml'; v=yaml.safe_load(p.read_text()); assert v['state']=='FailedV1'; assert v['failure']['kind']=='ProducerFailedV1'"
+# RUN: test -f %t.checkpoint-build/checkpoints/dynamic-kv-length/fixed/modeled-shape.actual.yaml

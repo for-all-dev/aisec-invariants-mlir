@@ -1,0 +1,23 @@
+source: xor_secret_output_bad.c
+relation: provenance-only
+entry:
+  id: xor_secret_output_bad
+  symbol: xor_secret_output_bad
+  host: compute
+  function-type: i32 (i32)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  secret:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

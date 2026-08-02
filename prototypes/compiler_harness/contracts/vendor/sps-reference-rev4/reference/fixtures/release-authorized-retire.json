@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-HOST-RELEASE",
   "caseId": "release-authorized-retire",
   "kind": "noninterference",
@@ -9,7 +9,7 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.release.retire",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
@@ -22,6 +22,7 @@
         }
       ],
       "abi": {
+        "terminalOutputOrder": ["return.value"],
         "return": {
           "outputId": "return.value",
           "width": 8,
@@ -30,6 +31,7 @@
         },
         "roots": []
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "releaseAttempt",

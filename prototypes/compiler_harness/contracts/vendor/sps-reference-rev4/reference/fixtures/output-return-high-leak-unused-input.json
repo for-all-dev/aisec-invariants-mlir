@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-OUTPUT-RETURN",
   "caseId": "output-return-high-leak-unused-input",
   "kind": "noninterference",
@@ -9,7 +9,7 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.return.unused",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
@@ -28,6 +28,7 @@
         }
       ],
       "abi": {
+        "terminalOutputOrder": ["return.value"],
         "return": {
           "outputId": "return.value",
           "width": 2,
@@ -36,6 +37,7 @@
         },
         "roots": []
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "return",

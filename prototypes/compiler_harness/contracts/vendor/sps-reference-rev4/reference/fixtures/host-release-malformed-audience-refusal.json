@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-HOST-RELEASE",
   "caseId": "host-release-malformed-audience-refusal",
   "kind": "refusal",
@@ -9,15 +9,17 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.bad-audience",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
       "inputs": [],
       "abi": {
+        "terminalOutputOrder": [],
         "return": null,
         "roots": []
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "releaseAttempt",

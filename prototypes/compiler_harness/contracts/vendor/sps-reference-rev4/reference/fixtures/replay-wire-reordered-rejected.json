@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-REPLAY-WIRE",
   "caseId": "replay-wire-reordered-rejected",
   "kind": "model-wire",

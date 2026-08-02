@@ -1,0 +1,26 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v1",
+  "harnessCase": "precision-control/missing-overwrite-bad",
+  "referenceCaseId": "missing-overwrite-bad",
+  "entry": "missing_overwrite_bad",
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "927629d7d94bd57ca47431bbb6d4f3b9a5503ee6ed4ec76b630731ddbc8cb3e2"},
+    {"role": "c", "path": "missing_overwrite_bad.c", "sha256": "744086a81b4450f6efcf0147c06a24d4c634f25aabab9cafa05f77c9b491dc5f"},
+    {"role": "mlir", "path": "precision_missing_overwrite.bad.mlir", "sha256": "c2a85c63bd17a0a740fe3328f400b74e5cd60d9905e78deea4714585dc1d87ae"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "94c0c93a776950ca56d59d379d7195849c79ea64191c3844fe61f2e2e485e853"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "393b492e5c3c244d708809222390c2c26316e5e5542f9b395d255db780f58cdb"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "30606ea769323dcfea8853112b754260ee060fa2c37e4747653040f1692caaca"}
+  ],
+  "arguments": [
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 1, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"},
+    {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [
+    {"referenceRoot": "slot", "storageKind": "InternalAlloca", "abiRoot": null, "argumentIndex": null, "argumentName": null, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
+  ],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

@@ -40,6 +40,7 @@ ENDPOINT_TAGS = {
     "ExactBytesEndpointV1",
     "HarnessStageReportEndpointV1",
     "CanonicalSPSJsonEndpointV1",
+    "ReferenceRelationEndpointV1",
 }
 
 STRUCTURAL_KINDS = {
@@ -71,6 +72,19 @@ FORBIDDEN_OBSERVATION_KEYS = {
     "nfconforms",
     "hostname",
     "timestamp",
+}
+FORBIDDEN_RELATION_RESULT_KEYS = {
+    "status",
+    "disposition",
+    "normativedisposition",
+    "model",
+    "models",
+    "productsafe",
+    "inputvalues",
+    "trace",
+    "traces",
+    "witness",
+    "witnesses",
 }
 
 
@@ -114,6 +128,20 @@ def _reject_observation_authority(value: Any, source: str) -> None:
             _reject_observation_authority(item, source)
     elif isinstance(value, str) and value.startswith("/"):
         raise RunnerError(f"{source}: absolute paths are forbidden")
+
+
+def _reject_relation_result_authority(value: Any, source: str) -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            normalized = "".join(
+                character for character in str(key).lower() if character.isalnum()
+            )
+            if normalized in FORBIDDEN_RELATION_RESULT_KEYS:
+                raise RunnerError(f"{source}: forbidden relation-result field {key!r}")
+            _reject_relation_result_authority(item, source)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_relation_result_authority(item, source)
 
 
 def _yaml_bytes(value: Mapping[str, Any]) -> bytes:
@@ -234,6 +262,12 @@ def _endpoint_descriptor(
         return {
             "tag": "CanonicalSPSJsonEndpointV1",
             "extractor": pipeline.root_type or "strict-json-v1",
+        }
+    if pipeline.kind == "relation-reference":
+        return {
+            "tag": "ReferenceRelationEndpointV1",
+            "extractor": "reference-relation-result-v1",
+            "profile": pipeline.profile or "missing",
         }
     if pipeline.kind == "bytes":
         return {"tag": "ExactBytesEndpointV1", "extractor": "sha256"}
@@ -375,11 +409,21 @@ def _read_observation(raw: bytes, source: str) -> Mapping[str, Any]:
     valid_endpoint_fields = (
         {"tag", "extractor"},
         {"tag", "representation", "extractor"},
+        {"tag", "extractor", "profile"},
     )
     if not isinstance(endpoint, Mapping) or set(endpoint) not in valid_endpoint_fields:
         raise RunnerError(f"{source}: malformed endpoint descriptor")
     if endpoint.get("tag") not in ENDPOINT_TAGS:
         raise RunnerError(f"{source}: unknown endpoint descriptor tag")
+    if endpoint.get("tag") == "ReferenceRelationEndpointV1":
+        if endpoint != {
+            "tag": "ReferenceRelationEndpointV1",
+            "extractor": "reference-relation-result-v1",
+            "profile": checkpoint_model.RELATION_REFERENCE_PROFILE,
+        }:
+            raise RunnerError(f"{source}: malformed relation-reference endpoint")
+    elif "profile" in endpoint:
+        raise RunnerError(f"{source}: profile is legal only on a relation endpoint")
     producer = value["producer"]
     if not isinstance(producer, Mapping) or set(producer) != {
         "name",
@@ -529,6 +573,158 @@ def _normalize_stage_report(
     )
 
 
+def _relation_reference_api() -> tuple[Path, Any, Any]:
+    reference_root = (
+        Path(__file__).resolve().parent.parent
+        / "contracts"
+        / "vendor"
+        / "sps-reference-rev4"
+        / "reference"
+    )
+    if not reference_root.is_dir():
+        raise RunnerError(f"vendored SPS reference is unavailable: {reference_root}")
+    reference_text = str(reference_root)
+    if reference_text not in sys.path:
+        sys.path.insert(0, reference_text)
+    try:
+        from sps_ref import canonical as reference_canonical
+        from sps_ref import evidence as reference_evidence
+    except ImportError as error:
+        raise RunnerError(f"vendored relation-reference validator is unavailable: {error}") from error
+    for module in (reference_canonical, reference_evidence):
+        module_path = Path(module.__file__).resolve()
+        try:
+            module_path.relative_to(reference_root.resolve())
+        except ValueError as error:
+            raise RunnerError(
+                f"relation-reference module escaped the vendored closure: {module_path}"
+            ) from error
+    return reference_root, reference_canonical, reference_evidence
+
+
+def _validate_relation_reference(
+    snapshot: checkpoint_model.SnapshotV3,
+    pipeline: checkpoint_model.PipelineV3,
+    raw: bytes,
+) -> tuple[Mapping[str, Any], Mapping[str, Any], list[str]]:
+    reference_root, canonical, evidence = _relation_reference_api()
+    try:
+        value = canonical.load_json_bytes(raw)
+        canonical_raw = canonical.canonical_bytes(value)
+    except Exception as error:
+        raise RunnerError(f"invalid relation-reference JSON: {error}") from error
+    if canonical_raw != raw:
+        raise RunnerError("relation-reference endpoint is not canonical JSON")
+    if not isinstance(value, Mapping):
+        raise RunnerError("relation-reference endpoint must be a JSON object")
+    _reject_observation_authority(value, "relation-reference endpoint")
+    _reject_relation_result_authority(value, "relation-reference endpoint")
+
+    fixture_path = snapshot.path.parent / "relation-reference" / "fixture.json"
+    binding_path = snapshot.path.parent / "relation-reference" / "binding.json"
+    try:
+        fixture = evidence.validate_relation_fixture(
+            canonical.load_json_bytes(fixture_path.read_bytes())
+        )
+        binding = evidence.validate_reduction_binding(
+            canonical.load_json_bytes(binding_path.read_bytes()),
+            fixture,
+            binding_path=binding_path,
+            fixture_path=fixture_path,
+        )
+    except Exception as error:
+        raise RunnerError(
+            f"relation-reference case binding validation failed: {error}"
+        ) from error
+    if binding.get("harnessCase") != snapshot.case:
+        raise RunnerError("relation-reference binding names the wrong harness case")
+
+    profile_path = reference_root / "profiles" / "reference-relation-v1.json"
+    try:
+        profile = canonical.load_json_bytes(profile_path.read_bytes())
+        profile_digest = canonical.canonical_digest(profile)
+        validated = evidence.validate_relation_result(
+            value,
+            profile_path,
+            fixture=fixture,
+            binding=binding,
+        )
+        projected = evidence.project_relation_result(validated)
+    except Exception as error:
+        raise RunnerError(f"relation-reference validation failed: {error}") from error
+    if not isinstance(profile, Mapping) or not isinstance(validated, Mapping):
+        raise RunnerError("relation-reference validator returned a non-object")
+    if not isinstance(projected, Mapping):
+        raise RunnerError("relation-reference projection returned a non-object")
+
+    expected_profile = pipeline.profile or ""
+    if profile.get("profileId") != expected_profile:
+        raise RunnerError(
+            f"relation-reference profile file has id {profile.get('profileId')!r}, "
+            f"expected {expected_profile!r}"
+        )
+    profile_binding = validated.get("profileBinding")
+    if not isinstance(profile_binding, Mapping):
+        raise RunnerError("relation-reference result lacks profileBinding")
+    if profile_binding.get("profileId") != expected_profile:
+        raise RunnerError("relation-reference result binds the wrong profile id")
+    if profile_binding.get("canonicalProfileDigest") != profile_digest:
+        raise RunnerError("relation-reference result binds the wrong profile digest")
+
+    fixture_binding = validated.get("fixtureBinding")
+    reduction_binding = validated.get("reductionBinding")
+    if not isinstance(fixture_binding, Mapping) or not isinstance(
+        reduction_binding, Mapping
+    ):
+        raise RunnerError("relation-reference result lacks fixture bindings")
+    if fixture_binding != {
+        "caseId": fixture["caseId"],
+        "canonicalFixtureDigest": canonical.canonical_digest(fixture),
+    }:
+        raise RunnerError("relation-reference result binds the wrong fixture")
+    if reduction_binding != {
+        "harnessCase": snapshot.case,
+        "canonicalBindingDigest": canonical.canonical_digest(binding),
+    }:
+        raise RunnerError("relation-reference result binds the wrong reduction")
+    if validated.get("programDigest") != canonical.canonical_digest(
+        fixture["input"]["program"]
+    ):
+        raise RunnerError("relation-reference result binds the wrong program")
+    coalition = fixture["input"]["coalition"]
+    coalition_descriptor = {
+        "coalitionId": coalition["id"],
+        "principals": sorted(coalition["principals"]),
+        "controlledHosts": sorted(coalition["controlledHosts"]),
+    }
+    if validated.get("coalitionDescriptorDigest") != canonical.canonical_digest(
+        coalition_descriptor
+    ):
+        raise RunnerError("relation-reference result binds the wrong coalition")
+
+    unknown = set(projected) - checkpoint_model.RELATION_REFERENCE_FACTS
+    if unknown:
+        raise RunnerError(
+            f"relation-reference projection emitted unknown facts {sorted(unknown)}"
+        )
+    missing = checkpoint_model.REQUIRED_RELATION_REFERENCE_FACTS - set(projected)
+    if missing:
+        raise RunnerError(
+            f"relation-reference projection omitted required facts {sorted(missing)}"
+        )
+    projection = dict(projected)
+    _reject_observation_authority(projection, "relation-reference projection")
+
+    payload_path = checkpoint_model.observation_path(
+        _canonical_observation_root(), snapshot, pipeline
+    ).with_suffix(".reference-result.json")
+    _atomic_write(payload_path, canonical_raw)
+    mismatches = checkpoint_extractors.match_properties(
+        pipeline.properties, projection
+    )
+    return projection, _payload_reference(payload_path, canonical_raw), mismatches
+
+
 def _validate_endpoint(
     snapshot: checkpoint_model.SnapshotV3,
     pipeline: checkpoint_model.PipelineV3,
@@ -555,6 +751,8 @@ def _validate_endpoint(
         payload_raw = checkpoint_model.canonical_bytes(report)
         _atomic_write(payload_path, payload_raw)
         return None, _payload_reference(payload_path, payload_raw), mismatches
+    if pipeline.kind == "relation-reference":
+        return _validate_relation_reference(snapshot, pipeline, raw)
     if pipeline.kind == "json":
         value = _strict_json(raw, "JSON endpoint")
         if pipeline.root_type:

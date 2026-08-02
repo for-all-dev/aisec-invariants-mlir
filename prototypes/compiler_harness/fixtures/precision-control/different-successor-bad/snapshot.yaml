@@ -1,0 +1,109 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: different_successor_bad
+c_evidence:
+- fixtures/precision-control/different-successor-bad/different_successor_bad.c
+secret:
+- arg: 0
+  name: high_condition
+public:
+- arg: 1
+  name: public_value
+- observable: control
+- observable: return
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-control-successor-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+      first_bad: true
+    - kind: Output
+      field: valueBytes
+    because: the secret condition selects distinct immediate successor identities
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - different_successor_bad
+        function.signatures:
+          contains:
+          - different_successor_bad|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.br
+          - llvm.br
+          - llvm.return
+        branch.successor_shapes:
+          contains:
+          - different_successor_bad|targets=bb1,bb2|same-target=false|args=;
+        return.roots:
+          contains:
+          - different_successor_bad|arg:1
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - different_successor_bad
+        function.signatures:
+          contains:
+          - different_successor_bad|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.br
+          - llvm.br
+          - llvm.return
+        branch.successor_shapes:
+          contains:
+          - different_successor_bad|targets=bb1,bb2|same-target=false|args=;
+        return.roots:
+          contains:
+          - different_successor_bad|arg:1
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - high-condition
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: sat
+        query.audit-all-first-difference:
+          equals:
+            kind: BranchSuccessor
+            field: successor
+        backend.agreement:
+          equals: true

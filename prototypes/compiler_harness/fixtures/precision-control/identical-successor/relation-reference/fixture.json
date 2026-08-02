@@ -1,0 +1,100 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "HARNESS-PRECISION-CONTROL",
+  "caseId": "identical-successor",
+  "kind": "relation",
+  "requirementRefs": [
+    "Normative 11",
+    "Conformance Profile 18"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "identical_successor_control",
+      "entryHost": "compute",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "high-condition",
+          "width": 1,
+          "classification": "High",
+          "host": "compute"
+        },
+        {
+          "id": "public-value",
+          "width": 2,
+          "classification": "Low",
+          "host": "compute"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return",
+          "width": 2,
+          "host": "observer",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": [],
+        "terminalOutputOrder": [
+          "return"
+        ]
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "if",
+          "site": "branch.high-condition",
+          "condition": {
+            "eq": [
+              {
+                "var": "high-condition"
+              },
+              {
+                "const": {
+                  "width": 1,
+                  "value": 1
+                }
+              }
+            ]
+          },
+          "thenSuccessor": "merge.return",
+          "elseSuccessor": "merge.return",
+          "then": [],
+          "else": []
+        },
+        {
+          "op": "return",
+          "site": "return.public-value",
+          "value": {
+            "var": "public-value"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "observer"
+      ]
+    }
+  },
+  "expected": {
+    "auditAll": {
+      "status": "unsat",
+      "firstDifference": null
+    },
+    "admissionNonempty": "sat",
+    "highVariation": [
+      {
+        "componentId": "high-condition",
+        "status": "sat"
+      }
+    ],
+    "terminalOutputSurface": "unsat"
+  }
+}

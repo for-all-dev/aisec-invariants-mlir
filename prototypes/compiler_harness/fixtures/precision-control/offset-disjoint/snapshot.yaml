@@ -3,11 +3,14 @@ entry: offset_disjoint_control
 c_evidence:
 - fixtures/precision-control/offset-disjoint/offset_disjoint_control.c
 secret:
-- arg: 0
+- arg: 1
   name: secret_byte
 public:
-- memory_at_arg: 3
-  name: public_sink
+- memory_at_arg: 0
+  name: buffer
+- arg: 2
+  name: public_value
+- observable: return
 expect:
   final:
     model:
@@ -17,8 +20,7 @@ expect:
     events:
     - kind: Output
       field: valueBytes
-    because: a secret store at byte offset 4 cannot affect the reload at byte offset
-      8
+    because: a secret byte stored at offset 4 cannot affect the public return loaded from offset 8
   pipelines:
     source-boundary:
       kind: diagnostic
@@ -43,34 +45,101 @@ expect:
         function.names:
           contains:
           - offset_disjoint_control
+        function.signatures:
+          contains:
+          - offset_disjoint_control|(!llvm.ptr,i32,i32)->i32
         operation.names:
           ordered:
           - llvm.mlir.constant
           - llvm.getelementptr
+          - llvm.trunc
           - llvm.store
           - llvm.load
-        operation.occurrences.llvm.mlir.constant:
-          count:
-            min: 2
+          - llvm.zext
+          - llvm.return
         operation.occurrences.llvm.getelementptr:
           count:
-            min: 2
+            eq: 2
+        operation.occurrences.llvm.trunc:
+          count:
+            eq: 2
         operation.occurrences.llvm.store:
           count:
-            min: 3
+            eq: 2
+        memory.store_accesses:
+          ordered:
+          - offset_disjoint_control|value=arg:1|address=gep(base=arg:0;offsets=4)
+          - offset_disjoint_control|value=arg:2|address=gep(base=arg:0;offsets=8)
+        memory.load_accesses:
+          contains:
+          - offset_disjoint_control|address=gep(base=arg:0;offsets=8)
+        conversion.shapes:
+          contains:
+          - offset_disjoint_control|op=llvm.trunc|from=i32|to=i8
+          - offset_disjoint_control|op=llvm.zext|from=i8|to=i32
+        gep.accesses:
+          contains:
+          - offset_disjoint_control|base=arg:0|offsets=4
+          - offset_disjoint_control|base=arg:0|offsets=8
+        return.access_roots:
+          contains:
+          - offset_disjoint_control|op:llvm.load:8
     canonicalized-shape:
       kind: mlir
       properties:
         function.names:
           contains:
           - offset_disjoint_control
+        function.signatures:
+          contains:
+          - offset_disjoint_control|(!llvm.ptr,i32,i32)->i32
         operation.names:
           ordered:
           - llvm.getelementptr
+          - llvm.trunc
           - llvm.store
+          - llvm.load
+          - llvm.zext
+          - llvm.return
         operation.occurrences.llvm.getelementptr:
           count:
-            min: 2
+            eq: 2
+        operation.occurrences.llvm.trunc:
+          count:
+            eq: 2
         operation.occurrences.llvm.store:
           count:
-            min: 2
+            eq: 2
+        memory.store_accesses:
+          ordered:
+          - offset_disjoint_control|value=arg:1|address=gep(base=arg:0;offsets=4)
+          - offset_disjoint_control|value=arg:2|address=gep(base=arg:0;offsets=8)
+        memory.load_accesses:
+          contains:
+          - offset_disjoint_control|address=gep(base=arg:0;offsets=8)
+        conversion.shapes:
+          contains:
+          - offset_disjoint_control|op=llvm.trunc|from=i32|to=i8
+          - offset_disjoint_control|op=llvm.zext|from=i8|to=i32
+        gep.accesses:
+          contains:
+          - offset_disjoint_control|base=arg:0|offsets=4
+          - offset_disjoint_control|base=arg:0|offsets=8
+        return.access_roots:
+          contains:
+          - offset_disjoint_control|op:llvm.load:6
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret-byte
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: unsat
+        backend.agreement:
+          equals: true

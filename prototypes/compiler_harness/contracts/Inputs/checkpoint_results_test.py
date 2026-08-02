@@ -57,6 +57,10 @@ COUNTEREXAMPLE_CASES = {
     "loop-bounds/secret-trip-count-bad": "world-control-location-mismatch",
     "predecessor-choice/blockarg-bad": "public-output-block-argument-mismatch",
     "prefix-causal-release/bad": "pre-release-public-observation",
+    "precision-control/different-successor-bad": "public-control-successor-mismatch",
+    "precision-control/missing-overwrite-bad": "public-return-payload-mismatch",
+    "precision-control/offset-overlap-bad": "public-return-payload-mismatch",
+    "precision-control/xor-secret-output-bad": "public-return-payload-mismatch",
     "redis-pool-reuse/bad": "actor-b-return-payload-mismatch",
     "secret-embedding-index/bad": "address-trace-mismatch",
     "secret-logging-checkpoint/bad": "public-log-checkpoint-payload-mismatch",
@@ -108,21 +112,21 @@ def main() -> int:
     assert set(view) == {"format_id", "results", "summary"}
     assert view["format_id"] == FORMAT_ID
     assert view["summary"] == {
-        "fixtures": 56,
+        "fixtures": 60,
         "expected_proved": 26,
-        "expected_counterexample": 21,
+        "expected_counterexample": 25,
         "expected_unknown": 9,
         "compared": 0,
     }
 
     rows = view["results"]
-    assert isinstance(rows, list) and len(rows) == 56
+    assert isinstance(rows, list) and len(rows) == 60
     assert [row["case"] for row in rows] == sorted(row["case"] for row in rows)
     by_case = {row["case"]: row for row in rows}
 
     expected_cases = set(PROVED_CASES) | set(COUNTEREXAMPLE_CASES) | set(UNKNOWN_CASES)
     assert len(PROVED_CASES) == 26
-    assert len(COUNTEREXAMPLE_CASES) == 21
+    assert len(COUNTEREXAMPLE_CASES) == 25
     assert len(UNKNOWN_CASES) == 9
     assert expected_cases == set(by_case)
 

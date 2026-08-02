@@ -525,7 +525,12 @@ config.substitutions.extend(
             else "sps-reference-root-unavailable",
         ),
         ("%z3", _optional_command(_z3, "z3-unavailable")),
-        ("%python", _quote(sys.executable)),
+        # -B is load-bearing, not hygiene. Several suites execute the vendored
+        # SPS reference closure in place, and sync_sps_reference.py refuses any
+        # __pycache__ inside that closure. Without -B the first in-place run
+        # writes caches that make every later --check fail, and __pycache__/ is
+        # gitignored so the poisoned tree still looks clean. Do not remove.
+        ("%python", _quote(sys.executable) + " -B"),
         ("%make", _optional_command(_make, "make-unavailable")),
         ("%host-cc", _host_cc_command),
         (

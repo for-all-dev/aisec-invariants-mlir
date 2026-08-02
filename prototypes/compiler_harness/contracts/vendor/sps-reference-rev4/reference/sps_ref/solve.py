@@ -36,8 +36,13 @@ def run_z3(artifact: SMTArtifact) -> SolverResult:
 
 
 def run_cvc5(artifact: SMTArtifact) -> SolverResult:
-    binary = shutil.which("cvc5")
+    configured = os.environ.get("CVC5", "")
+    binary = shutil.which(configured or "cvc5")
     if binary is None:
+        if configured:
+            raise SolverUnavailableError(
+                f"configured CVC5 executable is unavailable: {configured}"
+            )
         raise SolverUnavailableError("cvc5 is not installed")
     return _run_solver(artifact, "cvc5", [binary, "--lang=smt2"])
 

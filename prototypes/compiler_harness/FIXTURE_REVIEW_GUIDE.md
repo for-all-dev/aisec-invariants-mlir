@@ -473,22 +473,49 @@ shortcut.
 
 ### Review these cases together
 
-| Case | C evidence | MLIR evidence | Intended distinction |
+Each row is one relational lesson expressed as a control and a one-change
+anti-control. Read `snapshot.yaml` first, then MLIR, C/sidecars, and finally
+`relation-reference/fixture.json` plus its digest binding.
+
+| Pair | Control | Anti-control | Decisive relation |
 | --- | --- | --- | --- |
-| Secret predecessor chooses public constants | [predecessor_choice_blockarg_bad.c](fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg_bad.c) | [predecessor_choice_blockarg.bad.mlir](fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir) | The leak is carried by predecessor choice/block arguments even though the arm constants are public. |
-| Identical successor control | [identical_successor_control.c](fixtures/precision-control/identical-successor/identical_successor_control.c) | [precision_identical_successor.control.mlir](fixtures/precision-control/identical-successor/precision_identical_successor.control.mlir) | Both edges reach the same continuation without differing block arguments. |
-| XOR cancellation | same source | [precision_xor_cancellation.control.mlir](fixtures/precision-control/xor-cancellation/precision_xor_cancellation.control.mlir) | `secret ^ secret` is equal across lanes despite unary High dependence. |
-| Public overwrite before reload | same source | [precision_overwritten_slot.control.mlir](fixtures/precision-control/overwritten-slot/precision_overwritten_slot.control.mlir) | The secret store is fully overwritten before observation. |
-| Offset-disjoint public reload | same source | [precision_offset_disjoint.control.mlir](fixtures/precision-control/offset-disjoint/precision_offset_disjoint.control.mlir) | Secret byte 4 does not affect public byte 8. |
+| Immediate successor | [identical successor](fixtures/precision-control/identical-successor/) | [different successor](fixtures/precision-control/different-successor-bad/) | Equal return values are insufficient when a High condition chooses distinct immediate successor IDs. |
+| XOR value | [cancellation](fixtures/precision-control/xor-cancellation/) | [secret output](fixtures/precision-control/xor-secret-output-bad/) | `secret xor secret` is extensionally zero; `secret xor 0` varies across lanes. |
+| Strong overwrite | [complete public overwrite](fixtures/precision-control/overwritten-slot/) | [missing overwrite](fixtures/precision-control/missing-overwrite-bad/) | The Low store kills the High slot value only when it completely precedes the load. |
+| Exact byte offset | [load public byte 8](fixtures/precision-control/offset-disjoint/) | [load secret byte 4](fixtures/precision-control/offset-overlap-bad/) | Exact root-plus-offset identity, not allocation-level coarsening, determines the return. |
+
+Keep the separate [predecessor-choice anti-control](fixtures/predecessor-choice/blockarg-bad/)
+beside the first pair. It demonstrates that one merge successor can still leak
+through differing predecessor/block-argument payloads.
+
+These files expose three deliberately separate evidence layers:
+
+1. Snapshot and MLIR state the human security story and pin the compiler shape.
+2. The shared relation-reference profile evaluates a small, digest-bound finite
+   reduction through query analogues, integrity checks, and independent
+   backends.
+3. Exact SPS alone may analyze frozen bitcode and emit a normative
+   `ModelStatus`.
+
+The second layer reports lowercase `sat`/`unsat` under
+`ExecutableReferenceOnly`. It is useful regression evidence, never a proof of
+the full 32-bit MLIR and never an actual value for `expect.final.model`.
 
 ### Manual checks
 
 - [ ] Review the predecessor edge and block-argument operands, not only SSA
   operand ancestry.
 - [ ] Verify the identical-successor control has no differing edge payload.
+- [ ] Verify its bad sibling retains distinct immediate successors before and
+  after canonicalization.
 - [ ] Evaluate XOR extensionally in both lanes.
 - [ ] Require an exact strong overwrite before accepting the slot control.
 - [ ] Check byte offsets and widths, not source field names.
+- [ ] Verify each reduction admits an input, permits every High component to
+  vary, closes its reduced terminal surface, and agrees across required
+  backends.
+- [ ] Check the reduction binding hashes and its explicit reduced-width,
+  non-frozen-LLVM limitations.
 - [ ] Ensure these controls request relational analysis rather than granting a
   diagnostic shortcut as proof.
 - [ ] Confirm the predecessor anti-control remains bad after any proposed
@@ -499,9 +526,12 @@ shortcut.
 - [diagnostic/known-imprecision.test](diagnostic/known-imprecision.test)
 - [integration/metatheory-c-shapes.test](integration/metatheory-c-shapes.test)
 - [integration/equivalence.test](integration/equivalence.test)
+- [integration/relation-reference-fixtures.test](integration/relation-reference-fixtures.test)
 
-**Accept when:** all four controls avoid false positives without making the
-predecessor-choice leak disappear.
+**Accept when:** all four controls produce reduced AuditAll `unsat`, all four
+anti-controls produce `sat` at the intended first difference, and none of that
+evidence is presented as a normative SPS result or makes the predecessor-choice
+leak disappear.
 
 ---
 
@@ -742,7 +772,7 @@ to passed.
 
 ## Completeness ledger
 
-The 12-rank semantic queue accounts for all 56 checked-in MLIR fixture files:
+The 12-rank semantic queue accounts for all 60 checked-in MLIR fixture files:
 
 | Rank | Family | MLIR files |
 | ---: | --- | ---: |
@@ -754,23 +784,23 @@ The 12-rank semantic queue accounts for all 56 checked-in MLIR fixture files:
 | 6 | Secret-dependent addresses | 2 |
 | 7 | Bounds and allocation sizes | 4 |
 | 8 | Release carriers | 3 |
-| 9 | Relational precision | 5 |
+| 9 | Relational precision | 9 |
 | 10 | Backend-created observations | 6 |
 | 11 | Variable-latency arithmetic | 4 |
 | 12 | Target-profile helpers | 8 |
-|  | **Total** | **56** |
+|  | **Total** | **60** |
 
 The cross-cutting review additionally covers:
 
-- 59 C evidence/helper files plus the equivalence driver (60 compiled C inputs);
+- 63 C evidence/helper files plus the equivalence driver (64 compiled C inputs);
 - 9 candidate semantic bundles and their 9 `.bc`/derived `.ll` pairs;
-- 56 direct `expect.final` judgments, with no report-materialization or
+- 60 direct `expect.final` judgments, with no report-materialization or
   execution state in the snapshots; 9 candidate fixtures additionally carry
-  authenticated compact references and the other 47 state their final axes
+  authenticated compact references and the other 51 state their final axes
   entirely inline;
-- expected model totals of 26 `Proved`, 21 `Counterexample`, and 9 `Unknown`,
+- expected model totals of 26 `Proved`, 25 `Counterexample`, and 9 `Unknown`,
   all with expected deployment `Open` and policy `Complete`;
-- 12 fixtures with separate raw and canonicalized structural endpoints;
+- 16 fixtures with separate raw and canonicalized structural endpoints;
 - 2 additional checked-in LLVM inputs and 1 release-marker LLVM input;
 - 2 NFv2 textual/feature-gated release-intrinsic inputs;
 - 7 MIR snapshots;

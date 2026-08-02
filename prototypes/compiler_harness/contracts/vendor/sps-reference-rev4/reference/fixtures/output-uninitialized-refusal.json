@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-OUTPUT-UNINIT",
   "caseId": "output-uninitialized-refusal",
   "kind": "refusal",
@@ -9,18 +9,20 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.uninitialized",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
       "inputs": [],
       "abi": {
+        "terminalOutputOrder": ["root.out"],
         "return": null,
         "roots": [
           {
             "id": "out",
             "byteLength": 1,
             "host": "caller",
+            "terminalOutput": true,
             "outputId": "root.out",
             "initialBytes": [
               0
@@ -31,6 +33,7 @@
           }
         ]
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "return",

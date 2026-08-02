@@ -28,6 +28,8 @@ EXTRACTORS = {
 COMMON_FUNCTION_FACTS = frozenset({"function.names"})
 MLIR_FACTS = COMMON_FUNCTION_FACTS | frozenset(
     {
+        "function.signatures",
+        "function.argument_names",
         "function.attribute_keys",
         "function.attributes",
         "argument.attribute_keys",
@@ -36,14 +38,20 @@ MLIR_FACTS = COMMON_FUNCTION_FACTS | frozenset(
         "operation.argument_dependencies",
         "operation.annotations",
         "constant.values",
+        "conversion.shapes",
         "call.callees",
         "branch.conditional",
         "branch.condition_roots",
         "branch.successor_shapes",
         "memory.store_edges",
+        "memory.store_accesses",
         "memory.load_roots",
+        "memory.load_accesses",
+        "memory.alloca_counts",
         "return.roots",
+        "return.access_roots",
         "gep.offsets",
+        "gep.accesses",
         "def_use.edges",
     }
 )
@@ -322,6 +330,62 @@ def _mlir_signature(
     return text[start:header_end], text[paren + 1 : close_paren], body_region
 
 
+def _mlir_type(value: str) -> str:
+    """Canonicalize only insignificant layout in an MLIR type spelling."""
+
+    compact = _compact(value)
+    return re.sub(r"\s*([,()<>])\s*", r"\1", compact)
+
+
+def _mlir_argument_type(argument: str) -> str:
+    value = argument.split(":", 1)[1].strip() if ":" in argument else argument.strip()
+    stack: list[str] = []
+    quoted = False
+    escaped = False
+    pairs = {")": "(", "]": "[", ">": "<"}
+    for index, character in enumerate(value):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+            continue
+        if character == '"':
+            quoted = True
+        elif character in "([<":
+            stack.append(character)
+        elif character in pairs:
+            if stack and stack[-1] == pairs[character]:
+                stack.pop()
+        elif character == "{" and not stack:
+            value = value[:index]
+            break
+    return _mlir_type(value)
+
+
+def _mlir_function_signature(header: str, arguments: str, symbol: str) -> str:
+    argument_types = [_mlir_argument_type(item) for item in _split_top_level(arguments)]
+    opening = header.find("(")
+    if opening < 0:
+        raise ExtractorError(f"MLIR function {symbol!r} has no argument list")
+    closing = _matching(header, opening, "(", ")")
+    suffix = header[closing + 1 :]
+    attributes = re.search(r"\battributes\s*\{", suffix)
+    if attributes:
+        suffix = suffix[: attributes.start()]
+    suffix = suffix.strip()
+    if suffix:
+        result = re.match(r"->\s*(.+)\Z", suffix, re.S)
+        if not result:
+            raise ExtractorError(f"malformed MLIR result type for {symbol!r}")
+        result_type = _mlir_type(result.group(1))
+    else:
+        result_type = "()"
+    return f"{symbol}|({','.join(argument_types)})->{result_type}"
+
+
 def _mlir_function(text: str, symbol: str) -> tuple[str, str, str]:
     header, arguments, body_region = _mlir_signature(text, symbol)
     if body_region is None:
@@ -383,6 +447,68 @@ def _constant_fact(statement: str, symbol: str) -> tuple[str, str] | None:
     literal = _compact(match.group(1))
     result_type = _compact(match.group(2))
     return f"{symbol}|{result_type}|{literal}", f"constant:{result_type}:{literal}"
+
+
+def _mlir_gep_access(
+    statement: str, roots: Mapping[str, str]
+) -> tuple[str, list[str]] | None:
+    match = re.search(
+        r"\bllvm\.getelementptr\s+%([A-Za-z0-9_.$-]+)\s*\[(.*?)\]",
+        statement,
+        re.S,
+    )
+    if not match:
+        return None
+    base = _root(roots, match.group(1))
+    offsets: list[str] = []
+    for item in _split_top_level(match.group(2)):
+        ssa = re.fullmatch(r"%([A-Za-z0-9_.$-]+)", item.strip())
+        if ssa:
+            offset = _root(roots, ssa.group(1))
+            constant = re.fullmatch(r"constant:[^:]+:(-?[0-9]+)(?:\s*:\s*[^:]+)?", offset)
+            offsets.append(constant.group(1) if constant else offset)
+            continue
+        literal = re.match(r"\s*(-?[0-9]+)(?:\s*:\s*[^,]+)?\s*\Z", item)
+        offsets.append(literal.group(1) if literal else _compact(item))
+    return base, offsets
+
+
+def _mlir_alloca_shape(
+    statement: str, roots: Mapping[str, str]
+) -> tuple[str, str] | None:
+    match = re.search(
+        r"\bllvm\.alloca\s+(%[A-Za-z0-9_.$-]+|-?[0-9]+)\s+x\s+(.+?)\s*:",
+        statement,
+        re.S,
+    )
+    if not match:
+        return None
+    raw_count = match.group(1)
+    if raw_count.startswith("%"):
+        count = _root(roots, raw_count[1:])
+        constant = re.fullmatch(
+            r"constant:[^:]+:(-?[0-9]+)(?:\s*:\s*[^:]+)?", count
+        )
+        if constant:
+            count = constant.group(1)
+    else:
+        count = raw_count
+    element_type = match.group(2).split("{", 1)[0]
+    return count, _mlir_type(element_type)
+
+
+def _mlir_conversion_shape(statement: str, function: str) -> str | None:
+    match = re.search(
+        r"\b(llvm\.(?:trunc|zext|sext))\s+%[A-Za-z0-9_.$-]+"
+        r"\s*:\s*([^\s]+)\s+to\s+([^\s,}\)]+)",
+        statement,
+    )
+    if not match:
+        return None
+    return (
+        f"{function}|op={match.group(1)}|from={_mlir_type(match.group(2))}"
+        f"|to={_mlir_type(match.group(3))}"
+    )
 
 
 def _mlir_argument_origins(
@@ -457,6 +583,8 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
     )
     facts: dict[str, Any] = {
         "function.names": function_names,
+        "function.signatures": [],
+        "function.argument_names": [],
         "function.attribute_keys": [],
         "function.attributes": [],
         "argument.attribute_keys": [],
@@ -465,18 +593,25 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
         "operation.argument_dependencies": [],
         "operation.annotations": [],
         "constant.values": [],
+        "conversion.shapes": [],
         "call.callees": [],
         "branch.conditional": [],
         "branch.condition_roots": [],
         "branch.successor_shapes": [],
         "memory.store_edges": [],
+        "memory.store_accesses": [],
         "memory.load_roots": [],
+        "memory.load_accesses": [],
+        "memory.alloca_counts": [],
         "return.roots": [],
+        "return.access_roots": [],
         "gep.offsets": [],
+        "gep.accesses": [],
         "def_use.edges": [],
     }
 
     roots: dict[str, str] = {}
+    access_roots: dict[str, str] = {}
     # Function and argument attributes are module inventory facts.  This lets a
     # scoped entry endpoint retain contract facts on a helper without making the
     # helper's operation stream part of the entry's structural scope.
@@ -487,6 +622,11 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
             )
         except ExtractorError:
             continue
+        facts["function.signatures"].append(
+            _mlir_function_signature(
+                inventory_header, inventory_arguments, inventory_function
+            )
+        )
         attributes_match = re.search(
             r"\battributes\s*\{(.*?)\}\s*\Z", inventory_header, re.S
         )
@@ -514,6 +654,8 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
             continue
         name = match.group(1)
         roots[name] = f"arg:{index}"
+        access_roots[name] = f"arg:{index}"
+        facts["function.argument_names"].append(f"{function}|{index}|{name}")
 
     statements = _mlir_statements(body)
     argument_origins = _mlir_argument_origins(arguments_text, body, statements)
@@ -525,6 +667,15 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
         "llvm.inttoptr",
         "llvm.ptrtoint",
         "llvm.getelementptr",
+    }
+    access_transparent = {
+        "llvm.bitcast",
+        "llvm.addrspacecast",
+        "llvm.inttoptr",
+        "llvm.ptrtoint",
+        "llvm.trunc",
+        "llvm.zext",
+        "llvm.sext",
     }
     for ordinal, statement in enumerate(statements):
         operation = _operation_name(statement)
@@ -551,11 +702,15 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
                 )
 
         constant = _constant_fact(statement, function)
+        conversion = _mlir_conversion_shape(statement, function)
         result = _ssa_result(statement)
         if constant is not None:
             facts["constant.values"].append(constant[0])
             if result:
                 roots[result] = constant[1]
+                access_roots[result] = constant[1]
+        if conversion is not None:
+            facts["conversion.shapes"].append(conversion)
 
         callee_match = re.search(
             r"\bllvm\.call\b[^@\n]*@([A-Za-z_.$][A-Za-z0-9_.$-]*)", statement
@@ -586,23 +741,55 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
                 f"{function}|targets={','.join(targets)}|same-target="
                 f"{str(len(set(targets)) == 1).lower()}|args={encoded_args}"
             )
+        elif operation == "llvm.alloca":
+            shape = _mlir_alloca_shape(statement, access_roots)
+            if shape is not None:
+                count, element_type = shape
+                facts["memory.alloca_counts"].append(
+                    f"{function}|count={count}|element={element_type}"
+                )
+                if result:
+                    access_roots[result] = (
+                        f"alloca(count={count};element={element_type})"
+                    )
         elif operation == "llvm.store" and len(operands) >= 2:
             facts["memory.store_edges"].append(
-                f"{function}|value={_root(roots, operands[0])}|address={_root(roots, operands[1])}"
+                f"{function}|value={_root(roots, operands[0])}"
+                f"|address={_root(roots, operands[1])}"
+            )
+            facts["memory.store_accesses"].append(
+                f"{function}|value={_root(access_roots, operands[0])}"
+                f"|address={_root(access_roots, operands[1])}"
             )
         elif operation == "llvm.load" and operands:
             facts["memory.load_roots"].append(
                 f"{function}|{_root(roots, operands[0])}"
             )
+            facts["memory.load_accesses"].append(
+                f"{function}|address={_root(access_roots, operands[0])}"
+            )
         elif operation == "llvm.return":
             facts["return.roots"].extend(
                 f"{function}|{_root(roots, operand)}" for operand in operands
+            )
+            facts["return.access_roots"].extend(
+                f"{function}|{_root(access_roots, operand)}" for operand in operands
             )
         elif operation == "llvm.getelementptr" and operands:
             facts["gep.offsets"].append(
                 f"{function}|base={_root(roots, operands[0])}|offsets="
                 + ",".join(_root(roots, item) for item in operands[1:])
             )
+            access = _mlir_gep_access(statement, access_roots)
+            if access is not None:
+                base, offsets = access
+                facts["gep.accesses"].append(
+                    f"{function}|base={base}|offsets={','.join(offsets)}"
+                )
+                if result:
+                    access_roots[result] = (
+                        f"gep(base={base};offsets={','.join(offsets)})"
+                    )
 
         if result and result not in roots:
             if operation in transparent and operands:
@@ -611,6 +798,13 @@ def _extract_mlir(text: str, function: str) -> dict[str, Any]:
                 roots[result] = f"call:{callee_match.group(1)}"
             else:
                 roots[result] = f"op:{operation}:{ordinal}"
+        if result and result not in access_roots:
+            if operation in access_transparent and operands:
+                access_roots[result] = _root(access_roots, operands[0])
+            elif callee_match:
+                access_roots[result] = f"call:{callee_match.group(1)}"
+            else:
+                access_roots[result] = f"op:{operation}:{ordinal}"
 
     for operation, rows in occurrences.items():
         facts[f"operation.occurrences.{operation}"] = rows

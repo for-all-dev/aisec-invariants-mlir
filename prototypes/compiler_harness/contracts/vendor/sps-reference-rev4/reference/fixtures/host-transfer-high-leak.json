@@ -1,5 +1,5 @@
 {
-  "formatId": "SPS-Executable-Reference-Fixture-v2",
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
   "familyId": "NF-FX-HOST-TRANSFER",
   "caseId": "host-transfer-high-leak",
   "kind": "noninterference",
@@ -9,7 +9,7 @@
   ],
   "input": {
     "program": {
-      "formatId": "SPS-Reference-Program-v2",
+      "formatId": "SPS-Reference-Program-v3",
       "entryId": "entry.transfer",
       "entryHost": "entry",
       "observerProfile": "EventInterfaceOnly",
@@ -22,9 +22,11 @@
         }
       ],
       "abi": {
+        "terminalOutputOrder": [],
         "return": null,
         "roots": []
       },
+      "admission": {"bool": true},
       "statements": [
         {
           "op": "transfer",

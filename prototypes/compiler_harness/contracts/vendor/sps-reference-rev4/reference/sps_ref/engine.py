@@ -45,13 +45,15 @@ class ReferenceEvent:
     transfer_destinations: tuple[str, ...] = ()
     bound_id: str | None = None
     snapshot_names: tuple[str, ...] = ()
+    output_initialized: tuple[Term, ...] = ()
 
 
 @dataclass
 class RootState:
     root_id: str
     host: str
-    output_id: str
+    terminal_output: bool
+    output_id: str | None
     bytes: list[Term]
     initialized: list[Term]
 
@@ -66,6 +68,7 @@ class CompiledProgram:
     variables: dict[str, Term]
     events: tuple[ReferenceEvent, ...]
     expansion: dict[str, Any]
+    admission: Term
     terminal: Term
 
     @property
@@ -90,21 +93,37 @@ class _Compiler:
             for item in self.inputs
         }
         self.variables = dict(self.input_symbols)
+        self.variable_initialized = {
+            item.input_id: bool_lit(True) for item in self.inputs
+        }
         self.variable_hosts = {item.input_id: item.host for item in self.inputs}
+        successor_ids = sorted(
+            {
+                statement[key]
+                for statement in _walk_statements(self.program["statements"])
+                if statement["op"] == "if"
+                for key in ("thenSuccessor", "elseSuccessor")
+            }
+        )
+        self.successor_codes = {
+            successor_id: index + 1
+            for index, successor_id in enumerate(successor_ids)
+        }
+        if len(self.successor_codes) >= 1 << 16:
+            raise UnsupportedError("reference successor inventory exceeds 16-bit cap")
         self.roots: dict[str, RootState] = {}
         for root in self.program["abi"]["roots"]:
-            if not all(root["initialized"]):
-                raise UninitializedOutputError(
-                    f"{root['id']}: the reference slice requires every ABI "
-                    "root byte initialized at entry"
-                )
             self.roots[root["id"]] = RootState(
                 root_id=root["id"],
                 host=root["host"],
+                terminal_output=root["terminalOutput"],
                 output_id=root["outputId"],
                 bytes=[bv_lit(8, byte) for byte in root["initialBytes"]],
                 initialized=[bool_lit(flag) for flag in root["initialized"]],
             )
+        self.admission = self._expr(self.program["admission"])
+        if self.admission.sort != "Bool":
+            raise SchemaError("program admission predicate must be Boolean")
         self.events: list[ReferenceEvent] = []
         self.active = bool_lit(True)
         self.terminal = bool_lit(False)
@@ -112,7 +131,7 @@ class _Compiler:
         self.release_attempts: dict[str, Term] = {}
 
     def compile(self) -> CompiledProgram:
-        self._statements(self.program["statements"], bool_lit(True))
+        self._statements(self.program["statements"], self.admission)
         return CompiledProgram(
             lane=self.lane,
             program=self.program,
@@ -122,6 +141,7 @@ class _Compiler:
             variables=dict(self.variables),
             events=tuple(self.events),
             expansion=self.expansion,
+            admission=self.admission,
             terminal=self.terminal,
         )
 
@@ -145,12 +165,22 @@ class _Compiler:
             if value.sort != "BV" or value.width != self.variables[target].width:
                 raise SchemaError(f"{site}: set value sort mismatch")
             self.variables[target] = ite(path, value, self.variables[target])
+            self.variable_initialized[target] = ite(
+                path,
+                self._expr_initialized(statement["value"]),
+                self.variable_initialized[target],
+            )
         elif op == "store":
             self._store(statement, path)
         elif op == "if":
             condition = self._expr(statement["condition"])
             if condition.sort != "Bool":
                 raise SchemaError(f"{site}: if condition must be Bool")
+            successor = ite(
+                condition,
+                bv_lit(16, self.successor_codes[statement["thenSuccessor"]]),
+                bv_lit(16, self.successor_codes[statement["elseSuccessor"]]),
+            )
             self.events.append(
                 ReferenceEvent(
                     kind="BranchSuccessor",
@@ -160,7 +190,7 @@ class _Compiler:
                     present=path,
                     visit=visit,
                     within_ordinal=0,
-                    value_bytes=(ite(condition, bv_lit(8, 1), bv_lit(8, 0)),),
+                    value_bytes=tuple(encode_term_bytes(successor, "BigEndian")),
                 )
             )
             self._statements(statement["then"], bool_and(path, condition))
@@ -197,13 +227,16 @@ class _Compiler:
         if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
             raise SchemaError(f"{site}: store offset must be a natural")
         value = self._expr(statement["value"])
+        value_initialized = self._expr_initialized(statement["value"])
         encoded = encode_term_bytes(value, statement["byteOrder"])
         if offset + len(encoded) > len(root.bytes):
             raise SchemaError(f"{site}: store exceeds root")
         for index, byte in enumerate(encoded):
             target = offset + index
             root.bytes[target] = ite(path, byte, root.bytes[target])
-            root.initialized[target] = ite(path, bool_lit(True), root.initialized[target])
+            root.initialized[target] = ite(
+                path, value_initialized, root.initialized[target]
+            )
 
     def _loop(self, statement: dict[str, Any], path: Term, visit: Term) -> None:
         iterations = self._expr(statement["iterations"])
@@ -335,8 +368,10 @@ class _Compiler:
         )
 
     def _return(self, statement: dict[str, Any], path: Term, visit: Term) -> None:
-        ordinal = 0
         return_binding = self.program["abi"]["return"]
+        output_sources: dict[
+            str, tuple[str, tuple[Term, ...], tuple[Term, ...]]
+        ] = {}
         if return_binding is None:
             if statement["value"] is not None:
                 raise SchemaError(f"{statement['site']}: void return has a value")
@@ -344,46 +379,46 @@ class _Compiler:
             value = self._expr(statement["value"])
             if value.sort != "BV" or value.width != return_binding["width"]:
                 raise SchemaError(f"{statement['site']}: return value sort mismatch")
-            self.events.append(
-                ReferenceEvent(
-                    kind="Output",
-                    site=statement["site"],
-                    owner_host=self.program["entryHost"],
-                    observation_hosts=frozenset(
-                        {self.program["entryHost"], return_binding["host"]}
-                    ),
-                    present=path,
-                    visit=visit,
-                    within_ordinal=ordinal,
-                    value_bytes=tuple(
-                        encode_term_bytes(value, return_binding["byteOrder"])
-                    ),
-                    output_id=return_binding["outputId"],
-                )
+            encoded = tuple(
+                encode_term_bytes(value, return_binding["byteOrder"])
             )
-            ordinal += 1
+            output_sources[return_binding["outputId"]] = (
+                return_binding["host"],
+                encoded,
+                tuple(
+                    self._expr_initialized(statement["value"])
+                    for _ in encoded
+                ),
+            )
         for root in self.roots.values():
-            for index, initialized in enumerate(root.initialized):
-                if initialized.op == "bool" and initialized.value is False:
-                    raise UninitializedOutputError(
-                        f"{statement['site']}: root {root.root_id}[{index}] is uninitialized"
-                    )
+            if not root.terminal_output:
+                continue
+            assert root.output_id is not None
+            output_sources[root.output_id] = (
+                root.host,
+                tuple(root.bytes),
+                tuple(root.initialized),
+            )
+
+        terminal_order = self.program["abi"]["terminalOutputOrder"]
+        for ordinal, output_id in enumerate(terminal_order):
+            host, value_bytes, initialized = output_sources[output_id]
             self.events.append(
                 ReferenceEvent(
                     kind="Output",
                     site=statement["site"],
                     owner_host=self.program["entryHost"],
                     observation_hosts=frozenset(
-                        {self.program["entryHost"], root.host}
+                        {self.program["entryHost"], host}
                     ),
                     present=path,
                     visit=visit,
                     within_ordinal=ordinal,
-                    value_bytes=tuple(root.bytes),
-                    output_id=root.output_id,
+                    value_bytes=value_bytes,
+                    output_id=output_id,
+                    output_initialized=initialized,
                 )
             )
-            ordinal += 1
         self.events.append(
             ReferenceEvent(
                 kind="Termination",
@@ -392,7 +427,7 @@ class _Compiler:
                 observation_hosts=frozenset({self.program["entryHost"]}),
                 present=path,
                 visit=visit,
-                within_ordinal=ordinal,
+                within_ordinal=len(terminal_order),
             )
         )
         self.terminal = ite(path, bool_lit(True), self.terminal)
@@ -476,6 +511,47 @@ class _Compiler:
             if not isinstance(payload, dict) or set(payload) != {"value", "low", "width"}:
                 raise SchemaError("invalid extract expression")
             return extract(self._expr(payload["value"]), payload["low"], payload["width"])
+        if key == "load":
+            root = self.roots.get(payload["root"])
+            if root is None:
+                raise SchemaError(f"unknown load root {payload['root']!r}")
+            byte_width = payload["width"] // 8
+            offset = payload["offset"]
+            if offset + byte_width > len(root.bytes):
+                raise SchemaError("load exceeds root")
+            raw = root.bytes[offset : offset + byte_width]
+            significance = raw if payload["byteOrder"] == "BigEndian" else list(reversed(raw))
+            if len(significance) == 1:
+                return significance[0]
+            return Term("BV", payload["width"], "concat", tuple(significance))
+        raise SchemaError(f"unsupported expression constructor {key!r}")
+
+    def _expr_initialized(self, value: Any) -> Term:
+        """Track whether all bytes consumed by a reduced expression are defined."""
+
+        if not isinstance(value, dict) or len(value) != 1:
+            raise SchemaError("expression must be a one-constructor object")
+        key, payload = next(iter(value.items()))
+        if key == "var":
+            if payload not in self.variable_initialized:
+                raise SchemaError(f"unknown expression variable {payload!r}")
+            return self.variable_initialized[payload]
+        if key in {"const", "bool"}:
+            return bool_lit(True)
+        if key == "load":
+            root = self.roots.get(payload["root"])
+            if root is None:
+                raise SchemaError(f"unknown load root {payload['root']!r}")
+            byte_width = payload["width"] // 8
+            offset = payload["offset"]
+            if offset + byte_width > len(root.initialized):
+                raise SchemaError("load exceeds root")
+            return bool_and(*root.initialized[offset : offset + byte_width])
+        if key in {"not", "extract"}:
+            child = payload if key == "not" else payload["value"]
+            return self._expr_initialized(child)
+        if key in {"eq", "ult", "add", "xor", "and", "or"}:
+            return bool_and(*(self._expr_initialized(item) for item in payload))
         raise SchemaError(f"unsupported expression constructor {key!r}")
 
 
@@ -484,6 +560,7 @@ def compile_program(program: dict[str, Any], lane: str) -> CompiledProgram:
         raise SchemaError("lane must be L or R")
     compiled = _Compiler(program, lane).compile()
     require_total_termination(compiled)
+    require_total_output_initialization(compiled)
     return compiled
 
 
@@ -507,11 +584,50 @@ def require_total_termination(
             f"{compiled.lane}.input.{name}": value
             for (name, _), value in zip(declarations, values, strict=True)
         }
+        if not bool(compiled.admission.evaluate(environment)):
+            continue
         if not bool(compiled.terminal.evaluate(environment)):
             raise UnsupportedError(
                 f"{compiled.lane}: reference program is not terminal for "
                 f"{environment}"
             )
+
+
+def require_total_output_initialization(
+    compiled: CompiledProgram, max_assignments: int = 1_000_000
+) -> None:
+    """Require every root byte emitted on an admitted return to be initialized."""
+
+    declarations = [(item.input_id, item.width) for item in compiled.inputs]
+    total = 1
+    for _, width in declarations:
+        total *= 1 << width
+    if total > max_assignments:
+        raise UnsupportedError(
+            f"{compiled.lane}: output-initialization domain {total} exceeds "
+            f"reference cap {max_assignments}"
+        )
+    domains = [range(1 << width) for _, width in declarations]
+    for values in itertools.product(*domains):
+        environment = {
+            f"{compiled.lane}.input.{name}": value
+            for (name, _), value in zip(declarations, values, strict=True)
+        }
+        if not bool(compiled.admission.evaluate(environment)):
+            continue
+        for event in compiled.events:
+            if event.kind != "Output" or not event.output_initialized:
+                continue
+            if not bool(event.present.evaluate(environment)):
+                continue
+            if not all(
+                bool(initialized.evaluate(environment))
+                for initialized in event.output_initialized
+            ):
+                raise UninitializedOutputError(
+                    f"{compiled.lane}: admitted output {event.output_id} contains "
+                    "an uninitialized byte"
+                )
 
 
 def assert_compiled_integrity(compiled: CompiledProgram) -> None:
@@ -524,6 +640,7 @@ def assert_compiled_integrity(compiled: CompiledProgram) -> None:
     if compiled != expected:
         raise SchemaError("compiled artifact disagrees with canonical recompilation")
     require_total_termination(expected)
+    require_total_output_initialization(expected)
 
 
 def collect_expr_variables(value: Any) -> set[str]:
@@ -540,6 +657,16 @@ def collect_expr_variables(value: Any) -> set[str]:
             result.update(collect_expr_variables(child))
         return result
     return set()
+
+
+def _walk_statements(statements: list[dict[str, Any]]):
+    for statement in statements:
+        yield statement
+        if statement["op"] == "if":
+            yield from _walk_statements(statement["then"])
+            yield from _walk_statements(statement["else"])
+        elif statement["op"] == "loop":
+            yield from _walk_statements(statement["body"])
 
 
 def event_value_visible(event: ReferenceEvent, coalition: Coalition) -> bool:
