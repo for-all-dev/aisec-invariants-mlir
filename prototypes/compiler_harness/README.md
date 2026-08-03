@@ -30,6 +30,11 @@ authoritative SPS inputs, and final-machine evidence. Then read
 expectation-blind trace, snapshot, and C-verifier interfaces used to check a
 test result without promoting it to an SPS theorem.
 
+The staged work needed to produce exact bitcode identities, recompute
+`NFConforms`, construct and solve canonical PONF queries, validate replays, and
+emit an actual `SPSRunReportV2` is tracked in
+[the normative implementation task list](SPS_NORMATIVE_IMPLEMENTATION_TASKS.md).
+
 ### 2. Learn the core confidentiality concepts through preflight fixtures
 
 Use [the common family-review workflow](FIXTURE_REVIEW_GUIDE.md#review-workflow-for-every-family),
