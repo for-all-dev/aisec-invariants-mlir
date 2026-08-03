@@ -1,0 +1,106 @@
+{
+  "name": "onnx-mlir",
+  "repo": "https://github.com/onnx/onnx-mlir",
+  "commit": "de23de7",
+  "checkout": "~/third_party/onnx-mlir",
+  "note": "The default `onnx-mlir -EmitLib` pipeline, read from src/Compiler/CompilerPasses.cpp.",
+  "dialects": [
+    "onnx",
+    "krnl",
+    "affine",
+    "scf",
+    "cf",
+    "memref",
+    "arith",
+    "func",
+    "llvm",
+    "vector"
+  ],
+  "test_globs": [
+    "test/mlir/conversion/**/*.mlir",
+    "test/mlir/krnl/**/*.mlir",
+    "test/mlir/onnx/**/*.mlir"
+  ],
+  "pipeline": [
+    {
+      "pass": "--convert-onnx-to-krnl",
+      "from": [
+        "onnx"
+      ],
+      "to": [
+        "krnl",
+        "affine",
+        "memref",
+        "arith"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:298"
+    },
+    {
+      "pass": "--convert-krnl-to-affine",
+      "from": [
+        "krnl"
+      ],
+      "to": [
+        "affine",
+        "scf",
+        "memref"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:310"
+    },
+    {
+      "pass": "--lower-affine",
+      "from": [
+        "affine"
+      ],
+      "to": [
+        "scf"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:405"
+    },
+    {
+      "pass": "--convert-scf-to-cf",
+      "from": [
+        "scf"
+      ],
+      "to": [
+        "cf"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:406"
+    },
+    {
+      "pass": "--convert-vector-to-llvm",
+      "from": [
+        "vector"
+      ],
+      "to": [
+        "llvm"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:530"
+    },
+    {
+      "pass": "--convert-krnl-to-llvm",
+      "from": [
+        "krnl",
+        "memref",
+        "cf",
+        "arith",
+        "func"
+      ],
+      "to": [
+        "llvm"
+      ],
+      "cited": "src/Compiler/CompilerPasses.cpp:539"
+    }
+  ],
+  "templates": [
+    {
+      "file": "onnx_mlir/gather_to_krnl.mlir",
+      "verifies": "--convert-onnx-to-krnl",
+      "expect": "ct-breaking",
+      "covers": [],
+      "breaks_ops": [
+        "onnx.Gather"
+      ]
+    }
+  ]
+}

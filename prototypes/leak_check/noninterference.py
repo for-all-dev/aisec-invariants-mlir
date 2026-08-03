@@ -61,9 +61,9 @@ for comparison against the existing record, not for verdicts.
 import contextlib
 import os
 import shutil
-import statistics
 import tempfile
 
+import differential as D
 import instruments as I
 
 # Repeats per class per build. Each repeat is a distinct CONTEXT (see below).
@@ -79,7 +79,7 @@ _CTX_DIR = os.path.join(HERE, "secrets", "_ctx")
 
 
 @contextlib.contextmanager
-def context_dir():
+def context_dir(root=None):
     """
     A private directory for one build's contexts.
 
@@ -91,9 +91,16 @@ def context_dir():
     mkdtemp's suffix is a fixed width, so the directory name's LENGTH is the
     same every session even though its content is not. That matters: path
     length is the nuisance variable below, so it must not drift on its own.
+
+    `root` overrides where those directories live. It defaults to this
+    package's own secrets/_ctx, which is what leak_check wants but means an
+    out-of-tree caller (prototypes/mlir_leak) would otherwise scatter its
+    temporaries through a sibling prototype's tree. Callers should pass
+    their own; keep the name a FIXED WIDTH under it, for the reason above.
     """
-    os.makedirs(_CTX_DIR, exist_ok=True)
-    d = tempfile.mkdtemp(prefix="ctx", dir=_CTX_DIR)
+    ctx_root = root or _CTX_DIR
+    os.makedirs(ctx_root, exist_ok=True)
+    d = tempfile.mkdtemp(prefix="ctx", dir=ctx_root)
     try:
         yield d
     finally:
@@ -147,100 +154,42 @@ def counts(model, secret, compile=False, repeats=REPEATS, ctx_dir=None):
         return rows
 
 
-def _spread(values):
-    return max(values) - min(values)
-
-
-def _summarize(rows):
-    """
-    Per-key median count, plus the within-class spread of each key.
-
-    Summarizes the counters actually present rather than assuming all of
-    _KEYS: callgrind emits Dr/Dw only under --cache-sim, so demanding them
-    would make the summary depend on how the instrument was invoked.
-    """
-    keys = [k for k in _KEYS if k in rows[0]]
-    med = {k: int(statistics.median(r[k] for r in rows)) for k in keys}
-    spread = {k: _spread([r[k] for r in rows]) for k in keys}
-    return med, spread
-
-
-def _paired(rows_zero, rows_rand, key):
-    """Per-context difference: repeat i measured both classes at one context."""
-    # strict=: pairing is only meaningful if the two classes saw the same
-    # contexts. Silently truncating to the shorter list would compare i against
-    # a context the other class never ran.
-    return [b[key] - a[key] for a, b in zip(rows_zero, rows_rand, strict=True)]
-
-
 def _measure_build(model, zero, rand, compile, repeats=REPEATS):
     # One dir for both classes: repeat i must be the SAME context for each, or
     # the "paired" diff below is just two unrelated measurements subtracted.
     with context_dir() as d:
         rows_zero = counts(model, zero, compile=compile, repeats=repeats, ctx_dir=d)
         rows_rand = counts(model, rand, compile=compile, repeats=repeats, ctx_dir=d)
-    cg_zero, sp_zero = _summarize(rows_zero)
-    cg_rand, sp_rand = _summarize(rows_rand)
-
-    # Paired: context cancels inside each pair. A secret-dependent path gives
-    # the SAME diff in every context; an artifact of the layout does not.
-    ir_pairs = _paired(rows_zero, rows_rand, "Ir")
-    bc_pairs = _paired(rows_zero, rows_rand, "Bc")
-    ir_diff = int(statistics.median(ir_pairs))
-    bc_diff = int(statistics.median(bc_pairs))
-
-    # The floor is how much a count moves when only the CONTEXT changes and the
-    # secret does not: a channel cannot certify a difference it manufactures on
-    # its own. Taken across both classes, since either bounds it.
-    ir_floor = max(sp_zero["Ir"], sp_rand["Ir"])
-    bc_floor = max(sp_zero["Bc"], sp_rand["Bc"])
-
-    # A real path is not only large, it is REPEATABLE: the paired diff must
-    # agree across contexts. Disagreement means the number is layout, not
-    # secret -- which no magnitude test can catch on its own.
-    #
-    # "Agree" means to within the floor, not exactly: a genuine +35M leak that
-    # wobbles by a few instructions with layout is still a leak, and demanding
-    # exact equality would reject it. Only false NEGATIVES are unrecoverable
-    # here -- a rejected artifact just goes to the taint channel.
-    ir_stable = _spread(ir_pairs) <= ir_floor
-    bc_stable = _spread(bc_pairs) <= bc_floor
 
     # Taint only needs the random secret; a dependence there is a dependence.
     # No floor applies: it reports a dependence, not a magnitude.
     taint = I.memcheck_taint(model, rand, compile=compile)
-    counts_distinguish = (abs(ir_diff) > ir_floor and ir_stable) or (
-        abs(bc_diff) > bc_floor and bc_stable
-    )
-    distinguishable = counts_distinguish or taint["leak"]
+
+    # Floor+stability+paired-diff decision math is shared with any other
+    # build axis via differential.py -- see its docstring. Only "Ir"/"Bc" can
+    # make a build distinguishable here; the rest of _KEYS is summarized for
+    # display only (cg_zero/cg_rand), matching the original scope exactly.
+    v = D.compute_verdict_from_rows(rows_zero, rows_rand, _KEYS, ("Ir", "Bc"), taint)
     return {
-        "cg_zero": cg_zero,
-        "cg_rand": cg_rand,
-        "ir_diff": ir_diff,
-        "bc_diff": bc_diff,
-        "ir_floor": ir_floor,
-        "bc_floor": bc_floor,
-        "ir_pairs": ir_pairs,
-        "bc_pairs": bc_pairs,
-        "ir_stable": ir_stable,
-        "bc_stable": bc_stable,
+        "cg_zero": v["med_zero"],
+        "cg_rand": v["med_rand"],
+        "ir_diff": v["diffs"]["Ir"],
+        "bc_diff": v["diffs"]["Bc"],
+        "ir_floor": v["floors"]["Ir"],
+        "bc_floor": v["floors"]["Bc"],
+        "ir_pairs": v["pairs"]["Ir"],
+        "bc_pairs": v["pairs"]["Bc"],
+        "ir_stable": v["stables"]["Ir"],
+        "bc_stable": v["stables"]["Bc"],
         "repeats": repeats,
-        "counts_distinguish": counts_distinguish,
-        "taint": taint,
-        "distinguishable": distinguishable,
+        "counts_distinguish": v["counts_distinguish"],
+        "taint": v["taint"],
+        "distinguishable": v["distinguishable"],
     }
 
 
 def analyze(model, zero, rand, repeats=REPEATS):
     eager = _measure_build(model, zero, rand, compile=False, repeats=repeats)
     comp = _measure_build(model, zero, rand, compile=True, repeats=repeats)
-    de, dc = eager["distinguishable"], comp["distinguishable"]
-    if de and dc:
-        verdict = "authored"
-    elif dc and not de:
-        verdict = "compiler-introduced"
-    elif de and not dc:
-        verdict = "compiler-removed"
-    else:
-        verdict = "oblivious"
+    verdict = D.verdict_two_builds(eager["distinguishable"], comp["distinguishable"])
     return {"model": model, "eager": eager, "compiled": comp, "verdict": verdict}

@@ -2,6 +2,9 @@ add_mlir_library(StagingNITransforms
 
   VerifyStagingNonInterference.cpp
 
+  DEPENDS
+    MLIRPassIncGen
+
   LINK_LIBS PUBLIC
     MLIRIR
     MLIRPass
@@ -10,6 +13,8 @@ add_mlir_library(StagingNITransforms
     MLIRFuncDialect
     MLIRAffineDialect
     MLIRSCFDialect
+    MLIRMemRefDialect
+    MLIRControlFlowDialect
     MLIRTensorDialect
     MLIRArithDialect
 

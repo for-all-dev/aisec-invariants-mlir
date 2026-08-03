@@ -1,7 +1,7 @@
 module {
 
 func.func @foo(%A : memref<?xf32>,
-               %T : tensor<?xf32>) {
+               %T : tensor<?xf32> {stagingni.protected}) {
 
   %c0 = arith.constant 0 : index
 

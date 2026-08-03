@@ -1,0 +1,126 @@
+{
+  "name": "polygeist",
+  "repo": "https://github.com/llvm/Polygeist",
+  "commit": "77c04bb",
+  "checkout": "~/third_party/Polygeist",
+  "note": "C and C++ into MLIR and back down, as tools/cgeist/driver.cc assembles it. Pass names from include/polygeist/Passes/Passes.td.",
+  "dialects": [
+    "polygeist",
+    "affine",
+    "scf",
+    "cf",
+    "memref",
+    "arith",
+    "func",
+    "llvm",
+    "omp",
+    "math"
+  ],
+  "test_globs": [
+    "test/polygeist-opt/**/*.mlir",
+    "test/verification/**/*.mlir"
+  ],
+  "pipeline": [
+    {
+      "pass": "--polygeist-mem2reg",
+      "from": [
+        "memref"
+      ],
+      "to": [
+        "memref"
+      ],
+      "cited": "tools/cgeist/driver.cc:663"
+    },
+    {
+      "pass": "--loop-restructure",
+      "from": [
+        "cf",
+        "scf"
+      ],
+      "to": [
+        "scf"
+      ],
+      "cited": "tools/cgeist/driver.cc:674"
+    },
+    {
+      "pass": "--affine-cfg",
+      "from": [
+        "scf",
+        "affine"
+      ],
+      "to": [
+        "affine"
+      ],
+      "cited": "tools/cgeist/driver.cc:677"
+    },
+    {
+      "pass": "--canonicalize-for",
+      "from": [
+        "scf"
+      ],
+      "to": [
+        "scf"
+      ],
+      "cited": "tools/cgeist/driver.cc:685"
+    },
+    {
+      "pass": "--lower-affine",
+      "from": [
+        "affine"
+      ],
+      "to": [
+        "scf"
+      ],
+      "cited": "tools/cgeist/driver.cc:712"
+    },
+    {
+      "pass": "--parallel-lower",
+      "from": [
+        "polygeist",
+        "scf"
+      ],
+      "to": [
+        "scf"
+      ],
+      "cited": "tools/cgeist/driver.cc:744"
+    },
+    {
+      "pass": "--convert-scf-to-openmp",
+      "from": [
+        "scf"
+      ],
+      "to": [
+        "omp"
+      ],
+      "cited": "tools/cgeist/driver.cc:968"
+    },
+    {
+      "pass": "--convert-polygeist-to-llvm",
+      "from": [
+        "polygeist",
+        "memref",
+        "func",
+        "cf",
+        "arith"
+      ],
+      "to": [
+        "llvm"
+      ],
+      "cited": "tools/cgeist/driver.cc:1009"
+    }
+  ],
+  "templates": [
+    {
+      "file": "polygeist/canonicalize_for_propagate.mlir",
+      "verifies": "--canonicalize-for",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/canonicalize_for_propagate_moved.mlir",
+      "verifies": "--canonicalize-for",
+      "expect": "ct-preserving",
+      "covers": []
+    }
+  ]
+}

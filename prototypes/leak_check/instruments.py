@@ -127,7 +127,11 @@ def callgrind_count_cmd(cmd, cwd=HERE, env=None, cache_sim=False):
             pass
 
 
-def memcheck_taint_cmd(cmd, cwd=HERE, env=None):
+def memcheck_taint_cmd(cmd, cwd=HERE, env=None, classify=False):
+    """
+    `classify=True` also reports ADDRESS leaks and labels the channel
+    ("cf"/"addr") in the returned "kind" -- see _parse_memcheck.
+    """
     with tempfile.NamedTemporaryFile(suffix=".mc", delete=False) as f:
         log = f.name
     try:
@@ -147,7 +151,7 @@ def memcheck_taint_cmd(cmd, cwd=HERE, env=None):
             stderr=subprocess.DEVNULL,
             check=True,
         )
-        return _parse_memcheck(log)
+        return _parse_memcheck(log, classify=classify)
     finally:
         try:
             os.unlink(log)
@@ -155,7 +159,16 @@ def memcheck_taint_cmd(cmd, cwd=HERE, env=None):
             pass
 
 
+# Control-flow channel: the secret reached a branch or conditional move.
 _LEAK_PAT = re.compile(r"depends on uninitialised value", re.I)
+# Address channel: the secret reached a load/store ADDRESS. Memcheck words
+# this differently ("Use of uninitialised value of size N"), so _LEAK_PAT
+# alone is blind to it -- and an address leak can be invisible on the count
+# channel too (a gather has identical instruction counts, only the address
+# differs), i.e. blind on EVERY channel. Off by default: enabling it for
+# leak_check's own corpus would silently change what its recorded results
+# mean, so it is opt-in per caller (see classify=).
+_ADDR_PAT = re.compile(r"use of uninitialised value|invalid (read|write)", re.I)
 _BEGIN = "taint region begin"
 _END = "taint region end"
 
@@ -188,10 +201,30 @@ def memcheck_taint(model, secret, compile=False):
             pass
 
 
-def _parse_memcheck(path):
-    """Count leak reports that occur strictly inside the marked taint region."""
+def _parse_memcheck(path, classify=False):
+    """
+    Count leak reports that occur strictly inside the marked taint region.
+
+    `classify=False` (default) matches the control-flow channel only, which
+    is what leak_check's own corpus results were recorded under -- widening
+    it by default would change what those results mean.
+
+    `classify=True` additionally matches the ADDRESS channel and labels the
+    result: "kind" is "cf" (control flow), "addr" (address), or "" (clean).
+    Control flow wins when both fire: it is the more specific finding.
+
+    "kinds" is the full SET of channels seen, because "kind" alone cannot
+    answer a per-channel question. A build can fire on both, and then the
+    address finding is invisible behind cf -- which matters when the thing
+    under test is whether a pass introduced the ADDRESS channel
+    specifically. Note also that memcheck's cf message covers a conditional
+    "jump OR MOVE", so a branchless masked implementation that merely
+    COMPARES the secret still reports cf; cf is therefore a weak
+    discriminator between two builds that both touch the secret at all.
+    """
     in_region = False
     reports = []
+    kinds = set()
     with open(path, errors="replace") as fh:
         for line in fh:
             if _BEGIN in line:
@@ -200,6 +233,18 @@ def _parse_memcheck(path):
             if _END in line:
                 in_region = False
                 continue
-            if in_region and _LEAK_PAT.search(line):
+            if not in_region:
+                continue
+            if _LEAK_PAT.search(line):
+                kinds.add("cf")
                 reports.append(line.strip())
-    return {"leak": len(reports) > 0, "reports": reports}
+            elif classify and _ADDR_PAT.search(line):
+                kinds.add("addr")
+                reports.append(line.strip())
+    kind = "cf" if "cf" in kinds else ("addr" if "addr" in kinds else "")
+    return {
+        "leak": len(reports) > 0,
+        "reports": reports,
+        "kind": kind,
+        "kinds": sorted(kinds),
+    }
