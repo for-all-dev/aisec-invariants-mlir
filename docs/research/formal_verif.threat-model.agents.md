@@ -4,6 +4,10 @@
 weight-confidentiality corpus [`prototypes/formal_verif/nanogpt/`](../../prototypes/formal_verif/nanogpt/).
 **Status:** AI-drafted; owner (kapedalex) reviews. **Date:** 2026-07-11.
 
+Repo-wide consolidation of all the prototypes' profiles — and how this note's profiles relate to
+the observer grid on the project page — is in [`threat-models.agents.md`](threat-models.agents.md).
+This note stays scoped to the leak below.
+
 Scopes the adversary for the specific leak the `nanogpt` corpus demonstrates:
 [`cases.c::mm_codebook`](../../prototypes/formal_verif/nanogpt/cases.c) — an
 on-the-fly codebook dequant `codebook[q]` whose **load address depends on the

@@ -6,6 +6,12 @@ their product, and the block the MLIR pipeline closes is functional and timing.
 
 This content is a judgement rather than a measurement, so it is written out here
 rather than derived. `collect.py` imports it and builds the page.
+
+Scope: the grid is the threat model of *this page*, whose stated scope is functional
+equivalence plus timing. `docs/research/threat-models.agents.md` maps the rest of the
+repository's results onto these same rings and classes, and argues that two of them --
+the `freezing` codegen literal and the AOTInductor artifact exfiltration -- have no cell
+here, since their observer reads a build artifact rather than a running program.
 """
 
 from __future__ import annotations
