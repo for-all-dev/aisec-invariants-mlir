@@ -34,7 +34,32 @@
 #include "../../../../compiler_harness/c/secret_embedding_index_bad.c"
 
 /* Keeps the loaded values live so the loads are not dead-code eliminated
- * before they can stamp read metadata. */
+ * before they can stamp read metadata.
+ *
+ * TWO THINGS HERE ARE LOAD-BEARING AND BOTH LOOK LIKE CLUTTER.
+ *
+ * 1. `volatile` is required. A volatile store is an observable side effect and
+ *    so is not dead code, which is what makes liveness propagate back through
+ *    the loads. The pruning that matters happens in `seaopt -O3`, which runs
+ *    BEFORE ShadowMem -- delete the loads there and there is no address left to
+ *    stamp. Measured, counting `load i32` in the emitted IR:
+ *
+ *        volatile sink (as written)  ->  2 loads survive
+ *        plain (non-volatile) sink   ->  0
+ *        no sink at all              ->  0
+ *
+ *    Drop the `volatile` while tidying and this leaky fixture quietly returns
+ *    `unsat` -- a proof that has stopped proving anything, reported as a pass.
+ *
+ * 2. r0/r1 must be CONSUMED here, never asserted on. Both the bad and the fixed
+ *    fixture return table[secret & 15], which legitimately depends on the
+ *    secret; `sassert(r0 == r1)` would report a leak on the FIXED fixture. The
+ *    observation is the access pattern (f0/f1), not the value.
+ *
+ * (A later stage, `--horn-bmc-coi=true`, prunes on a different basis and is not
+ * a threat to these loads: under --horn-shadow-mem-load-is-def each load
+ * produces a memory version that sea_is_read consumes, so they reach the
+ * assertion through MEMORY rather than through data.) */
 volatile uint32_t g_keepalive;
 
 int main(void) {
