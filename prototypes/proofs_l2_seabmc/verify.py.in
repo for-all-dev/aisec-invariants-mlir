@@ -37,6 +37,13 @@ VACUOUS_MARKERS = (
     # an unimplemented intrinsic yields no register, the assertion is havoced,
     # and the run reports a `sat` that witnesses nothing
     "Failed to get register",
+    # clang folded the assertion away before SeaHorn ran, so main() is empty and
+    # nothing reaches the solver. Seen when a `fixed` fixture returns one of its
+    # arguments unchanged and both runs collapse to the same SSA value; the run
+    # emits no verdict at all, which would otherwise surface as the much less
+    # informative "sea produced no sat/unsat verdict".
+    "Possibly all assertions have been discharged by the front-end",
+    "The program has no main() function",
 )
 
 

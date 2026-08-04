@@ -139,5 +139,54 @@ function(add_l2_job)
   endif()
 endfunction()
 
+# --- registering an equivalence job -------------------------------------------
+# add_equiv_job(NAME <job> HARNESS <harness.c> EXPECT <sat|unsat> [FLAGS ...])
+#
+# Registers a functional-equivalence proof: two implementations of the same
+# function agree on every input (optionally, on every input satisfying a stated
+# precondition). This is still 2-safety -- two runs, related -- but it is NOT
+# non-interference, so it does not go through add_l2_job, whose bad/fixed
+# framing does not apply. Nothing separates "leaky" from "repaired" here; there
+# is one claim and one verdict.
+#
+# EXPECT unsat REGISTERS A REACHABILITY PROBE automatically: the same harness
+# recompiled with -DSEA_PROBE, expected `sat`. This is the equivalence analogue
+# of the pairing rule add_l2_job enforces, aimed at the failure modes an
+# equivalence proof actually has. An `unsat` is also what you get from
+#   - an unsatisfiable `assume`, which makes every claim vacuously true, and
+#     which verify.py's vacuity markers do NOT catch; and
+#   - calls folded to constants, leaving a trivially true equality.
+# The probe rules both out by asserting a reachable concrete value.
+#
+# EXPECT sat needs no probe: a `sat` verdict exhibits a reachable trace by
+# construction, so it cannot be vacuous in either of those ways.
+function(add_equiv_job)
+  cmake_parse_arguments(E "" "NAME;HARNESS;EXPECT" "FLAGS" ${ARGN})
+  if(NOT E_NAME OR NOT E_HARNESS OR NOT E_EXPECT)
+    message(FATAL_ERROR "add_equiv_job: NAME, HARNESS and EXPECT are required")
+  endif()
+  if(NOT E_EXPECT STREQUAL "sat" AND NOT E_EXPECT STREQUAL "unsat")
+    message(FATAL_ERROR
+      "add_equiv_job(${E_NAME}): EXPECT must be sat or unsat, got '${E_EXPECT}'")
+  endif()
+
+  _add_l2_proof("${E_NAME}" "${E_HARNESS}" "${E_EXPECT}" "${E_FLAGS}")
+
+  if(E_EXPECT STREQUAL "unsat")
+    set(_probe_flags ${E_FLAGS} -DSEA_PROBE)
+    _add_l2_proof("${E_NAME}_probe" "${E_HARNESS}" sat "${_probe_flags}")
+  endif()
+endfunction()
+
+# --- jobs ---------------------------------------------------------------------
+# Non-interference (L2 self-composition).
 add_subdirectory(jobs/secret_embedding_index)
 add_subdirectory(jobs/explicit_error_oracle)
+add_subdirectory(jobs/leftoverlocals_scratch)
+add_subdirectory(jobs/ckks_unsafe_release)
+add_subdirectory(jobs/wrong_party_plaintext)
+add_subdirectory(jobs/breach_compressed_length)
+add_subdirectory(jobs/redis_pool_reuse)
+
+# Functional equivalence.
+add_subdirectory(jobs/kyberslash_equiv)
