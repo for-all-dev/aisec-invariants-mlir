@@ -33,6 +33,8 @@ ROOT = Path(__file__).parent.parent
         ("affine_cfg_wrong_map", "ct-preserving"),
         ("polygeist_to_llvm_arith", "ct-preserving"),
         ("polygeist_to_llvm_swapped_sub", "ct-preserving"),
+        ("polygeist_to_llvm_memref", "ct-preserving"),
+        ("polygeist_to_llvm_memref_offset", "ct-preserving"),
     ],
 )
 def test_templates(template: str, verdict: str):
@@ -185,3 +187,45 @@ def test_polygeist_to_llvm_both_halves():
     gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
     assert gate.verdict == "rejected"
     assert gate.equivalence.verdict == "not-equivalent"
+
+
+def test_polygeist_to_llvm_memref_both_halves():
+    """--convert-polygeist-to-llvm, memory slice: memref.load/store -> gep+llvm.load/store
+    is VERIFIED (same cell, same byte); the off-by-one GEP is refused by the equivalence
+    half alone -- a deterministic wrong address the trace cannot see (measured 2026-08-09)."""
+    from fcvdct.structural import check_template
+
+    ctx = make_context()
+    path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_memref.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+    assert gate.constant_time.n_target_observations >= 1, (
+        "the llvm.getelementptr address must be observed, or the channel is invisible"
+    )
+
+    path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_memref_offset.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "rejected"
+    assert gate.equivalence.verdict == "not-equivalent"
+
+
+def test_llvm_gep_leaks_a_secret_index():
+    """The GEP leakage rule is load-bearing: a secret index through getelementptr+load
+    is INSECURE on the address obligation. Without the rule this would read secure and
+    the memref->llvm address channel would be invisible."""
+    from fcvdct.selfcomp import check_module
+
+    kernel = """
+builtin.module {
+  func.func @k(%p: !llvm.ptr, %s: i64 {fcvdct.secret}) -> i8 {
+    %a = "llvm.getelementptr"(%p, %s) <{rawConstantIndices = array<i32: -1>, elem_type = i8}> : (!llvm.ptr, i64) -> !llvm.ptr
+    %v = "llvm.load"(%a) <{ordering = 0 : i64}> : (!llvm.ptr) -> i8
+    func.return %v : i8
+  }
+}
+"""
+    ctx = make_context()
+    result = check_module(ctx, Parser(ctx, kernel).parse_module())
+    assert result.verdict == "insecure"
+    address = next(o for o in result.obligations if o.kind == "address")
+    assert address.verdict == "insecure"

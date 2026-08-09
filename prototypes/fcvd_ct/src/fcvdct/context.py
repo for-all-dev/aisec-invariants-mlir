@@ -31,6 +31,7 @@ from .affine_ops import install_affine_syntax
 from .dialect import FCVD
 from .hw_ops import HWConstant, load_hw_semantics
 from .index_ops import load_index_semantics
+from .llvm_mem import load_llvm_memory_semantics
 from .tensor_ops import load_tensor_semantics
 
 
@@ -92,6 +93,7 @@ def make_context() -> Context:
     install_affine_syntax()
     load_hw_semantics()
     load_tensor_semantics()
+    load_llvm_memory_semantics()
 
     # `memref.alloca` shares `memref.alloc`'s semantics: upstream's memory model has no
     # stack/heap distinction (an allocation is an allocation, a lifetime is a lifetime),

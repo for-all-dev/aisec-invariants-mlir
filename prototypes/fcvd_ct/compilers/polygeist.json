@@ -196,6 +196,17 @@
       "verifies": "--convert-polygeist-to-llvm",
       "expect": "ct-preserving",
       "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_memref.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_memref_offset.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving"
     }
   ]
 }

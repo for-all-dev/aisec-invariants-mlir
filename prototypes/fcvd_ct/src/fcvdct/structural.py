@@ -201,8 +201,17 @@ def _two_functions(template: ModuleOp) -> tuple[FuncOp, FuncOp]:
             f"found {sorted(functions)}"
         )
     source, target = functions["source"], functions["target"]
-    if source.function_type.inputs != target.function_type.inputs:
-        raise UnsupportedTemplate("@source and @target must take the same inputs")
+    # The two runs share one set of SMT inputs, so what has to match is the *lowered*
+    # type, not the MLIR type. A lowering step that changes a type -- memref to
+    # !llvm.ptr, say -- is exactly what type conversion does, and both lower to the same
+    # pointer+poison pair, so the shared input is legitimate. Comparing MLIR types would
+    # forbid checking any type-changing lowering, which is most of them.
+    source_inputs = [SMTLowerer.lower_type(t) for t in source.function_type.inputs]
+    target_inputs = [SMTLowerer.lower_type(t) for t in target.function_type.inputs]
+    if source_inputs != target_inputs:
+        raise UnsupportedTemplate(
+            "@source and @target must take inputs that lower to the same SMT types"
+        )
     return source, target
 
 
