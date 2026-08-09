@@ -103,3 +103,32 @@ Next angle: `--loop-restructure` (`driver.cc:674`,
 `lib/polygeist/Passes/LoopRestructure.cpp`) — it rebuilds `cf` back-edges into `scf`
 loops, so its side condition *is* about control flow, and a wrong trip count would show
 up in the trace. That is a pass where a control can actually break, unlike this one.
+
+## iter 2026-08-09T17:20Z — target: `scf.while` translation + `--loop-restructure`
+Source: `lib/polygeist/Passes/LoopRestructure.cpp` (pass at `tools/cgeist/driver.cc:674`);
+transcription from its lit test `test/polygeist-opt/restructure.mlir:4-43` (@kernel_gemm) —
+the cf back-edge loop becomes `scf.while` whose before-region recomputes the header,
+wraps the body in `scf.if %go`, and forwards exit values through `scf.condition`.
+`polygeist.undef` in the carried slot is dead (never read) and transcribed as
+`arith.constant false`, said so in the template header. [source]
+Expected: the while form CT-PRESERVING and EQUIVALENT (bounded); the do-while twin
+CT-BREAKING and NOT-EQUIVALENT.
+Measured: `loop_restructure_while.mlir` **VERIFIED** — CT-PRESERVING (obs 8 → 12) +
+EQUIVALENT (4 returned values + memory), bounded. [measured]
+Control: `loop_restructure_dowhile.mlir` (body hoisted ahead of the first check)
+**REJECTED** — CT-BREAKING (obs 8 → 8) as predicted; equivalence measured EQUIVALENT,
+*not* the predicted failure, and rightly: the returned flag is `slt(i,0)` over a
+non-negative counter, constant false on both sides. The bug is in the trace, not the
+value. [measured]
+Outcome: translation-written + specified. `scf.while` gained bounded unrolling in
+`predication.py` (`run_while`): the before-region runs on every check including the
+failing one (that is `scf.condition`'s semantics), so re-running it after exit only
+duplicates the exit check — carried values freeze once the condition is false. The old
+UNKNOWN coverage control moved from `scf.while` to `cf.switch`
+(`templates/switch_unsupported.mlir`), same role, still measured UNKNOWN.
+Coverage now: 2/8 steps with a checked template, form 0 = 63.0% of mentions (was
+61.9%); `scf.while`/`scf.condition` now translate, 57 unproved ops.
+Why: `--loop-restructure`'s entire output shape was behind the missing `scf.while`;
+one translation unblocked both the step and 15 corpus mentions.
+Next angle: `--polygeist-mem2reg` (`driver.cc:663`) — memref.alloca/load/store to SSA;
+the address obligation is the one at stake there.

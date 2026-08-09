@@ -121,6 +121,20 @@
       "verifies": "--canonicalize-for",
       "expect": "ct-preserving",
       "covers": []
+    },
+    {
+      "file": "polygeist/loop_restructure_while.mlir",
+      "verifies": "--loop-restructure",
+      "expect": "ct-preserving",
+      "covers": [
+        "scf.while",
+        "scf.condition"
+      ]
+    },
+    {
+      "file": "polygeist/loop_restructure_dowhile.mlir",
+      "verifies": "--loop-restructure",
+      "expect": "ct-breaking"
     }
   ]
 }

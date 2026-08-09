@@ -28,7 +28,7 @@ EXPECTED = {
     "scf_for_bounded": ("ct-preserving", 9, 9),
     "scf_for_to_cf": ("ct-preserving", 9, 8),
     "loop_early_exit": ("ct-breaking", 9, 12),
-    "while_unsupported": ("unknown", 0, 0),
+    "switch_unsupported": ("unknown", 0, 0),
 }
 
 
@@ -49,8 +49,8 @@ def test_verdict(name: str):
 
 
 def test_unmodelled_loops_are_refused_by_name():
-    ctx, module = load("while_unsupported")
-    assert "not modelled yet: scf.while" in check_lowering(ctx, module).reason
+    ctx, module = load("switch_unsupported")
+    assert "not modelled yet: cf.switch" in check_lowering(ctx, module).reason
 
 
 def test_unrolled_verdicts_say_they_are_bounded():

@@ -93,7 +93,10 @@ class Flattener:
         if isinstance(op, affine.ForOp):
             self.run_affine_for(op, guard, values)
             return
-        if isinstance(op, scf.WhileOp | scf.ParallelOp):
+        if isinstance(op, scf.WhileOp):
+            self.run_while(op, guard, values)
+            return
+        if isinstance(op, scf.ParallelOp):
             raise UnsupportedTemplate(f"not modelled yet: {op.name}")
 
         copy = op.clone(value_mapper=dict(values))
@@ -167,6 +170,55 @@ class Flattener:
         self.hit_bound = True
 
         for result, value in zip(op.results, carried, strict=True):
+            values[result] = value
+
+    def run_while(self, op: scf.WhileOp, guard: SSAValue, values: dict[SSAValue, SSAValue]) -> None:
+        """Unroll a `scf.while`, guarding iteration *k* by its own before-region's condition.
+
+        The before region runs on every check *including the failing one* (that is
+        `scf.while`'s semantics: `scf.condition` forwards its arguments both into the
+        after region and out of the loop). Unrolling therefore re-runs the before region
+        `max_visits` times unconditionally; once the condition has gone false the carried
+        values are frozen, so the extra runs are copies of the real exit check and add no
+        observation the exit check does not make.
+        """
+        carried = [values.get(a, a) for a in op.arguments]
+        before = op.before_region.block
+        after = op.after_region.block
+        condition_op = before.last_op
+        if not isinstance(condition_op, scf.ConditionOp):
+            raise UnsupportedTemplate("scf.while whose before region has no scf.condition")
+
+        forwarded: list[SSAValue] = []
+        for _ in range(self.max_visits):
+            before_values = dict(values)
+            for arg, value in zip(before.args, carried, strict=True):
+                before_values[arg] = value
+            for inner in before.ops:
+                if inner is condition_op:
+                    break
+                self.run_op(inner, guard, before_values)
+            condition = before_values.get(condition_op.condition, condition_op.condition)
+            forwarded = [before_values.get(a, a) for a in condition_op.args]
+            # How many times the loop ran is the loop-bound channel, as in `run_for`.
+            self.observe(guard, condition, CONTROL)
+            iteration_guard = self.conjoin(guard, condition)
+
+            after_values = dict(values)
+            for arg, value in zip(after.args, forwarded, strict=True):
+                after_values[arg] = value
+            yielded = self.run_block(after, iteration_guard, after_values)
+
+            carried = [
+                self.emit(arith.SelectOp(condition, new, old)).results[0]
+                for new, old in zip(yielded, carried, strict=True)
+            ]
+
+        # The results are what `scf.condition` forwarded at the failing check; with the
+        # carried values frozen after exit, the last unrolled check computes exactly
+        # that. A loop still live after `max_visits` checks was cut, and says so.
+        self.hit_bound = True
+        for result, value in zip(op.res, forwarded, strict=True):
             values[result] = value
 
     def run_affine_for(
