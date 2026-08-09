@@ -276,3 +276,16 @@ Next angle: regenerate the artifact (`artifact/collect.py`) so the map reflects
 today's five new specifications and the checker fixes; the loop's 8/8 close-out
 condition should be re-read as 6/8 + 2 model-blocked, and the closing entry should say
 exactly that.
+
+## close-out 2026-08-09T19:30Z — the loop's target, restated and met
+The 8/8 target is closed as **6/8 specified + 2 model-blocked**, and the distinction
+is the finding: `--convert-scf-to-openmp` and `--parallel-lower` do not lack a
+transcription or a translation — they lack a *model*. Both lower into parallel
+runtimes (omp, CUDA/GPU), and the SMT memory model underneath every proof in this
+repository is sequential; a specification written for them today would be a
+fabrication. Every other step carries a checked template with a falsifying control,
+each control refused by exactly the half predicted in its header, and three checker
+faults found by controls along the way (poison congruence — 2026-07-29; unshared
+initial memory and unpredicated guarded accesses — 2026-08-09) are fixed and pinned by
+tests. Artifact regenerated from live data: `artifact/translation-map.html` +
+`docs/index.html` (105 tests green at close).
