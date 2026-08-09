@@ -162,6 +162,17 @@
       "file": "polygeist/lower_affine_wrong_index.mlir",
       "verifies": "--lower-affine",
       "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/affine_cfg_raise_store.mlir",
+      "verifies": "--affine-cfg",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/affine_cfg_wrong_map.mlir",
+      "verifies": "--affine-cfg",
+      "expect": "ct-preserving"
     }
   ]
 }

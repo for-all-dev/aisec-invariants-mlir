@@ -29,6 +29,8 @@ ROOT = Path(__file__).parent.parent
         ("mem2reg_if_stale", "ct-preserving"),
         ("lower_affine_for_load_store", "ct-preserving"),
         ("lower_affine_wrong_index", "ct-preserving"),
+        ("affine_cfg_raise_store", "ct-preserving"),
+        ("affine_cfg_wrong_map", "ct-preserving"),
     ],
 )
 def test_templates(template: str, verdict: str):
@@ -144,3 +146,21 @@ builtin.module {
     ctx = make_context()
     gate = check_template(ctx, Parser(ctx, template).parse_module())
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+
+
+def test_affine_cfg_both_halves():
+    """--affine-cfg: the composed-map raise is VERIFIED; the wrong-stride twin is
+    refused by the equivalence half alone, through the memory clause -- nothing is
+    returned, so the memory left behind is the entire claim (measured 2026-08-09)."""
+    from fcvdct.structural import check_template
+
+    ctx = make_context()
+    path = ROOT / "templates" / "polygeist" / "affine_cfg_raise_store.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+
+    path = ROOT / "templates" / "polygeist" / "affine_cfg_wrong_map.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "rejected"
+    assert gate.constant_time.verdict == "ct-preserving"
+    assert gate.equivalence.verdict == "not-equivalent"

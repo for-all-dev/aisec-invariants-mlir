@@ -28,7 +28,14 @@ from dataclasses import dataclass, field
 from xdsl.dialects import affine, arith, cf, func, memref, scf
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
-from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr
+from xdsl.ir.affine import (
+    AffineBinaryOpExpr,
+    AffineBinaryOpKind,
+    AffineConstantExpr,
+    AffineDimExpr,
+    AffineExpr,
+    AffineSymExpr,
+)
 
 from .affine_ops import constant_bound
 from .dialect import CONTROL, OTHER, HoleOp, ObserveOp, ResultOp
@@ -132,25 +139,36 @@ class Flattener:
     ) -> list[SSAValue]:
         """The addresses an affine access touches, as plain index values.
 
-        This is `expandAffineMap` of AffineToStandard.cpp restricted to the two shapes
-        the hardened corpora emit: a dimension (`d0` -- the identity access) and a
-        constant. Anything else (sums, products, symbols) is refused rather than
-        half-translated.
+        This is `expandAffineMap` of AffineToStandard.cpp: dimensions and symbols pick
+        operands, add and mul become their arith ops. mod/floordiv/ceildiv are refused
+        rather than approximated.
         """
         affine_map = getattr(map_attr, "data", None)
         results = getattr(affine_map, "results", None)
         if results is None:
             raise UnsupportedTemplate("affine access without a map")
-        indices: list[SSAValue] = []
-        for expression in results:
-            if isinstance(expression, AffineDimExpr):
-                indices.append(operands[expression.position])
-            elif isinstance(expression, AffineConstantExpr):
-                constant = self.emit(arith.ConstantOp(IntegerAttr(expression.value, IndexType())))
-                indices.append(constant.results[0])
-            else:
-                raise UnsupportedTemplate(f"affine map expression not modelled: {expression}")
-        return indices
+        dims = getattr(affine_map, "num_dims", 0)
+        return [self.emit_affine_expr(expression, operands, dims) for expression in results]
+
+    def emit_affine_expr(
+        self, expression: AffineExpr, operands: Sequence[SSAValue], num_dims: int
+    ) -> SSAValue:
+        """Emit the arith computing one affine expression (`expandAffineExpr`)."""
+        if isinstance(expression, AffineDimExpr):
+            return operands[expression.position]
+        if isinstance(expression, AffineSymExpr):
+            return operands[num_dims + expression.position]
+        if isinstance(expression, AffineConstantExpr):
+            constant = arith.ConstantOp(IntegerAttr(expression.value, IndexType()))
+            return self.emit(constant).results[0]
+        if isinstance(expression, AffineBinaryOpExpr):
+            lhs = self.emit_affine_expr(expression.lhs, operands, num_dims)
+            rhs = self.emit_affine_expr(expression.rhs, operands, num_dims)
+            if expression.kind == AffineBinaryOpKind.Add:
+                return self.emit(arith.AddiOp(lhs, rhs)).results[0]
+            if expression.kind == AffineBinaryOpKind.Mul:
+                return self.emit(arith.MuliOp(lhs, rhs)).results[0]
+        raise UnsupportedTemplate(f"affine map expression not modelled: {expression}")
 
     def guarded_indices(self, guard: SSAValue, indices: Sequence[SSAValue]) -> list[SSAValue]:
         """Route an access that only happens under `guard` to index 0 otherwise.

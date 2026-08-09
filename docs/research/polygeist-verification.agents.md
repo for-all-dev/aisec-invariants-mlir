@@ -211,3 +211,33 @@ enough to break it twice.
 Next angle: `--affine-cfg` (driver.cc:677, lib/polygeist/Passes/AffineCFG.cpp) — now
 that affine.load/store translate, its scf→affine raising can be checked with the same
 machinery.
+
+## iter 2026-08-09T18:55Z — target: `--affine-cfg`
+Source: `lib/polygeist/Passes/AffineCFG.cpp` (pass at driver.cc:677) —
+`MoveStoreToAffine` :1275-1310 raises a memref store whose indices pass `isValidIndex`
+into `affine.store`, `fully2ComposeAffineMapAndOperands` folds the feeding arith into
+the composed map. Lit test `test/polygeist-opt/affinecfg.mlir:3-28`. [source]
+Expected: the composed-map raise CT-PRESERVING + EQUIVALENT; the wrong-stride twin
+CT-PRESERVING + NOT-EQUIVALENT (deterministic addresses either way — only the memory
+clause can refuse it, and the template returns nothing, so the memory IS the claim).
+Measured: `affine_cfg_raise_store.mlir` **VERIFIED** — CT-PRESERVING (obs 4 → 4) +
+EQUIVALENT. Control `affine_cfg_wrong_map.mlir` (row stride 2 instead of 3)
+**REJECTED** — CT-PRESERVING + NOT-EQUIVALENT, exactly the predicted half; this is the
+first template where the whole-memory equivalence clause is the load-bearing one.
+[measured]
+Outcome: specified, with one declared narrowing and one dead-end worth keeping:
+- **Semi-affine products are unrepresentable in xdsl**, full stop: the lit case's
+  composed map multiplies by a *symbol* (`%j + %i * (symbol(%arg0) + 1)`) and
+  `AffineExpr.__mul__` raises NotImplementedError on any non-constant multiplier — the
+  map cannot even be parsed, let alone translated. The template instantiates the
+  loop-invariant at the constant 3: same composition code path, symbol half stays
+  form 2. `expand_affine_indices` did grow the general affine arithmetic (add/mul over
+  dims, symbols, constants; mod/div refused), so constant-coefficient composed maps —
+  what `--lower-affine` meets — now translate.
+Coverage now: 5/8 steps with a checked template, form 0 = 73.9%, 54 unproved ops.
+Why: affine-cfg is the reverse direction of lower-affine (raising, not lowering), and
+the address obligation is symmetric — the raised access must touch the same cell on
+the same iteration.
+Next angle: `--parallel-lower` (driver.cc:744) — but it is polygeist.barrier/parallel
+machinery (18 form-2 ops); consider `--convert-scf-to-openmp` (driver.cc:968, 2 form-2
+ops) first for the same reason canonicalize-for went first.
