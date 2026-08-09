@@ -73,10 +73,15 @@ def _report_gate(name: str, gate: GateResult, show_counterexample: bool) -> None
         f"  constant-time  {_VERDICT_LINE[ct.verdict]:<14} "
         f"(observations: source {ct.n_source_observations}, target {ct.n_target_observations})"
     )
+    memory = (
+        "the memory left behind"
+        if equivalence.memory_compared
+        else "memory NOT compared (declared values-only)"
+    )
     compared = (
-        f"{equivalence.n_compared} returned value(s) + the memory left behind"
+        f"{equivalence.n_compared} returned value(s) + {memory}"
         if equivalence.n_compared
-        else "nothing returned, so the memory left behind is all that was compared"
+        else f"nothing returned, so {memory} is all that was compared"
     )
     print(f"  equivalence    {_EQUIVALENCE_LINE[equivalence.verdict]:<14} ({compared})")
     if ct.bounded or equivalence.bounded:

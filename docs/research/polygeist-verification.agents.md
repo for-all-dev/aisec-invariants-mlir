@@ -132,3 +132,43 @@ Why: `--loop-restructure`'s entire output shape was behind the missing `scf.whil
 one translation unblocked both the step and 15 corpus mentions.
 Next angle: `--polygeist-mem2reg` (`driver.cc:663`) — memref.alloca/load/store to SSA;
 the address obligation is the one at stake there.
+
+## iter 2026-08-09T17:55Z — target: `--polygeist-mem2reg` (+ two checker fixes it forced)
+Source: `lib/polygeist/Passes/PolygeistMem2Reg.cpp` (`forwardStoreToLoad` at :1075,
+pass at `tools/cgeist/driver.cc:663`); transcription from its lit test
+`test/polygeist-opt/mem2regIf2.mlir:4-39`, declared deviations in the template header
+(f32→i8 — floats untranslatable and upstream's memref model stores bytes;
+`llvm.mlir.undef`→named constant, the stronger check; rank-0 memref→memref<1xi8>, which
+is what gives the address channel something to observe). `memref.alloca` gained
+semantics by aliasing `memref.alloc`'s (the model has no stack/heap distinction);
+xdsl has no custom syntax for it, so templates write the generic form. [source]
+Expected: mem2reg_if CT-PRESERVING + EQUIVALENT; mem2reg_if_stale CT-PRESERVING +
+NOT-EQUIVALENT (a stale forwarding adds no observation; only the equivalence half can
+refuse it).
+Measured: `mem2reg_if.mlir` **VERIFIED** — CT-PRESERVING (obs 9 → 2; the step removes
+the address channel) + EQUIVALENT, values-only (declared, printed). [measured]
+Control: `mem2reg_if_stale.mlir` (the second if forwards the pre-if value of m0)
+**REJECTED** — CT-PRESERVING as it must be, NOT-EQUIVALENT as it must be. The half
+that breaks is exactly the one the 2026-07-29 iteration said was missing. [measured]
+Outcome: specified + two checker findings, the second one real:
+1. **The strict memory gate cannot pass an allocation-removing rewrite.** Final states
+   are compared whole, so a pass whose purpose is deleting allocas always differs.
+   Fix: a template may declare `fcvdct.values_only` as a module attribute — the
+   equivalence verdict then rests on returned values alone, and both the CLI line and
+   the result carry the weakening. (Adding end-of-scope deallocs instead trips an
+   upstream verifier error — `ub_effect.ToBoolOp` meets an already-lowered state pair —
+   recorded as a dead-end.)
+2. **Predicated stores: an encoding fault, found because the CORRECT template failed.**
+   The flattener emits both arms of every branch and used guards only on observations,
+   so a `memref.store` inside an arm fired on paths that never executed it — corrupting
+   the final memory and, through later loads, the values downstream observations see.
+   Fixed in `predication.py` (`run_store`): load the old element, store
+   `select(guard, new, old)`; the synthetic load is not observed (its address is the
+   store's own, which is). The whole corpus keeps its verdicts (79 tests green), so
+   this tightened the encoding rather than loosening any prior claim.
+Coverage now: 3/8 steps with a checked template, form 0 = 65.8% (memref.alloca's 77
+mentions arrived), 56 unproved ops.
+Why: mem2reg is the value-shaped pass par excellence; it needed the equivalence gate
+(P7) and forced the memory encoding to be honest about guarded stores.
+Next angle: `--lower-affine` (`driver.cc:712`) — needs affine.load/store translations,
+the 126+95-mention pair, which also unblocks `--affine-cfg`.

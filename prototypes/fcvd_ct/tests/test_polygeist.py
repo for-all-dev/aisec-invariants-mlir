@@ -25,6 +25,8 @@ ROOT = Path(__file__).parent.parent
         ("canonicalize_for_propagate_moved", "ct-preserving"),
         ("loop_restructure_while", "ct-preserving"),
         ("loop_restructure_dowhile", "ct-breaking"),
+        ("mem2reg_if", "ct-preserving"),
+        ("mem2reg_if_stale", "ct-preserving"),
     ],
 )
 def test_templates(template: str, verdict: str):
@@ -66,3 +68,22 @@ def test_loop_restructure_both_halves():
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-breaking"
     assert gate.equivalence.verdict == "equivalent"
+
+
+def test_mem2reg_both_halves():
+    """--polygeist-mem2reg: the faithful forwarding is VERIFIED (values-only equivalence,
+    declared in the template); the stale forwarding adds no observation, so only the
+    equivalence half can refuse it -- and does (measured 2026-08-09)."""
+    from fcvdct.structural import check_template
+
+    ctx = make_context()
+    path = ROOT / "templates" / "polygeist" / "mem2reg_if.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+    assert not gate.equivalence.memory_compared, "the declared values-only mode must be visible"
+
+    path = ROOT / "templates" / "polygeist" / "mem2reg_if_stale.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "rejected"
+    assert gate.constant_time.verdict == "ct-preserving"
+    assert gate.equivalence.verdict == "not-equivalent"

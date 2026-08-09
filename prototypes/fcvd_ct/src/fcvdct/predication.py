@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.dialects import affine, arith, cf, func, scf
+from xdsl.dialects import affine, arith, cf, func, memref, scf
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
 
@@ -98,6 +98,9 @@ class Flattener:
             return
         if isinstance(op, scf.ParallelOp):
             raise UnsupportedTemplate(f"not modelled yet: {op.name}")
+        if isinstance(op, memref.StoreOp):
+            self.run_store(op, guard, values)
+            return
 
         copy = op.clone(value_mapper=dict(values))
         for original, new in zip(op.results, copy.results, strict=True):
@@ -110,6 +113,29 @@ class Flattener:
                 self.observe(guard, leaked)
             return
         rule = self.model.get(type(copy))
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_store(
+        self, op: memref.StoreOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """Predicate a store: it must take effect only on the paths that reach it.
+
+        The flattened program contains both arms of every branch, so a store emitted
+        as-is would fire on paths that never executed it and corrupt the final memory
+        (and, through later loads, the values downstream observations see). The
+        standard if-conversion of a store is emitted instead: load the old element,
+        store `select(guard, new, old)`. The synthetic load is not observed -- its
+        address is the store's own, and that one is.
+        """
+        stored = values.get(op.value, op.value)
+        target = values.get(op.memref, op.memref)
+        indices = [values.get(index, index) for index in op.indices]
+        old = self.emit(memref.LoadOp.get(target, indices)).results[0]
+        merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
+        copy = self.emit(memref.StoreOp.get(merged, target, indices))
+        rule = self.model.get(memref.StoreOp)
         if rule is not None:
             for observed in rule(copy.operands):
                 self.observe(guard, observed, rule.kind)

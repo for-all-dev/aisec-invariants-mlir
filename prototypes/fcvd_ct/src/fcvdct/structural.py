@@ -96,6 +96,9 @@ class EquivalenceResult:
     counterexample: str = ""
     reason: str = ""
     bounded: bool = False
+    memory_compared: bool = True
+    """False when the template declared `fcvdct.values_only`: the verdict rests on the
+    returned values alone."""
 
 
 @dataclass
@@ -290,6 +293,7 @@ def build_equivalence_query(
     opt: bool = True,
     max_visits: int = DEFAULT_MAX_VISITS,
     assume_defined_inputs: bool = True,
+    compare_memory: bool = True,
 ) -> tuple[str, int, bool, bool]:
     """Build the SMTLib script asserting that the lowering *changes what is computed*.
 
@@ -365,11 +369,13 @@ def build_equivalence_query(
     # order blocks were allocated in -- so it can raise a false alarm on a lowering that
     # reallocates, and cannot pass one that writes different bytes. Strict is the safe
     # direction for a gate, and the asymmetry is reported rather than assumed away.
-    memory_agrees = builder.insert(smt.EqOp(source_state, target_state)).res
     ub_source = builder.insert(ub_effect.ToBoolOp(source_state)).res
     ub_target = builder.insert(ub_effect.ToBoolOp(target_state)).res
     not_ub_target = builder.insert(smt.NotOp(ub_target)).result
-    defined_case = _conjoin(builder, [not_ub_target, memory_agrees, *terms])
+    memory_clause: list[SSAValue] = []
+    if compare_memory:
+        memory_clause.append(builder.insert(smt.EqOp(source_state, target_state)).res)
+    defined_case = _conjoin(builder, [not_ub_target, *memory_clause, *terms])
     refines = builder.insert(smt.OrOp(ub_source, defined_case)).result
 
     builder.insert(smt.AssertOp(builder.insert(smt.NotOp(refines)).result))
@@ -432,6 +438,19 @@ def check_lowering(
     )
 
 
+VALUES_ONLY_ATTR = "fcvdct.values_only"
+"""A template carrying this module attribute asks the equivalence gate to compare the
+returned values but not the final memory. The whole-state comparison is strict enough to
+refuse any step that legitimately *removes* allocations (mem2reg being the canonical
+one) -- the docstring of `build_equivalence_query` warns of exactly this false alarm.
+The weakening is declared in the template file itself, so it is visible next to the
+transcription it excuses, and it is printed with the verdict."""
+
+
+def values_only(template: ModuleOp) -> bool:
+    return VALUES_ONLY_ATTR in (template.attributes or {})
+
+
 def check_equivalence(
     ctx: Context,
     template: ModuleOp,
@@ -442,9 +461,16 @@ def check_equivalence(
     assume_defined_inputs: bool = True,
 ) -> EquivalenceResult:
     """Decide whether the target of a lowering computes what the source computed."""
+    skip_memory = values_only(template)
     try:
         script, n_compared, bounded, reached = build_equivalence_query(
-            ctx, template, model, opt, max_visits, assume_defined_inputs
+            ctx,
+            template,
+            model,
+            opt,
+            max_visits,
+            assume_defined_inputs,
+            compare_memory=not skip_memory,
         )
     except Exception as e:
         return EquivalenceResult("unknown", 0, reason=f"{type(e).__name__}: {e}")
@@ -459,7 +485,12 @@ def check_equivalence(
             script,
             output,
             bounded=bounded,
-            reason="" if reached else "no path reached a return: values were not compared",
+            memory_compared=not skip_memory,
+            reason=(
+                "values only: the memory clause is OFF by the template's own declaration"
+                if skip_memory
+                else ("" if reached else "no path reached a return: values were not compared")
+            ),
         )
     if output.startswith("sat"):
         with_model = _run_z3(script + "\n(get-model)\n", timeout)
@@ -471,6 +502,7 @@ def check_equivalence(
             output,
             with_model.stdout.strip(),
             bounded=bounded,
+            memory_compared=not skip_memory,
         )
     return EquivalenceResult(
         "unknown",
@@ -480,6 +512,7 @@ def check_equivalence(
         output,
         reason=f"solver said {output or '<nothing>'}; stderr: {result.stderr.strip()}",
         bounded=bounded,
+        memory_compared=not skip_memory,
     )
 
 

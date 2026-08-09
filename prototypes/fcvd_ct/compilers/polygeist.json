@@ -135,6 +135,19 @@
       "file": "polygeist/loop_restructure_dowhile.mlir",
       "verifies": "--loop-restructure",
       "expect": "ct-breaking"
+    },
+    {
+      "file": "polygeist/mem2reg_if.mlir",
+      "verifies": "--polygeist-mem2reg",
+      "expect": "ct-preserving",
+      "covers": [
+        "memref.alloca"
+      ]
+    },
+    {
+      "file": "polygeist/mem2reg_if_stale.mlir",
+      "verifies": "--polygeist-mem2reg",
+      "expect": "ct-preserving"
     }
   ]
 }

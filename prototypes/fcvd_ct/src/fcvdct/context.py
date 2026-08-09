@@ -24,6 +24,7 @@ from xdsl_smt.dialects.smt_bitvector_dialect import SMTBitVectorDialect
 from xdsl_smt.dialects.smt_dialect import SMTDialect
 from xdsl_smt.dialects.smt_utils_dialect import SMTUtilsDialect
 from xdsl_smt.dialects.transfer import Transfer
+from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 from xdsl_smt.passes.lower_to_smt.smt_lowerer_loaders import load_vanilla_semantics
 
 from .affine_ops import install_affine_syntax
@@ -91,4 +92,16 @@ def make_context() -> Context:
     install_affine_syntax()
     load_hw_semantics()
     load_tensor_semantics()
+
+    # `memref.alloca` shares `memref.alloc`'s semantics: upstream's memory model has no
+    # stack/heap distinction (an allocation is an allocation, a lifetime is a lifetime),
+    # so the only honest difference — automatic deallocation on scope exit — is not
+    # expressible in it either way. Registered here rather than in a module of its own
+    # because it is one aliased entry, not a translation.
+    from xdsl.dialects import memref as _memref
+
+    SMTLowerer.op_semantics = {
+        **SMTLowerer.op_semantics,
+        _memref.AllocaOp: SMTLowerer.op_semantics[_memref.AllocOp],
+    }
     return ctx
