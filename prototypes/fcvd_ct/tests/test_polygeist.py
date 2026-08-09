@@ -27,6 +27,8 @@ ROOT = Path(__file__).parent.parent
         ("loop_restructure_dowhile", "ct-breaking"),
         ("mem2reg_if", "ct-preserving"),
         ("mem2reg_if_stale", "ct-preserving"),
+        ("lower_affine_for_load_store", "ct-preserving"),
+        ("lower_affine_wrong_index", "ct-preserving"),
     ],
 )
 def test_templates(template: str, verdict: str):
@@ -87,3 +89,58 @@ def test_mem2reg_both_halves():
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-preserving"
     assert gate.equivalence.verdict == "not-equivalent"
+
+
+def test_lower_affine_both_halves():
+    """--lower-affine: the faithful lowering is VERIFIED; the off-by-one final index is
+    refused by the equivalence half and only that half -- a shifted constant address is
+    still deterministic, so the trace cannot tell (measured 2026-08-09)."""
+    from fcvdct.structural import check_template
+
+    ctx = make_context()
+    path = ROOT / "templates" / "polygeist" / "lower_affine_for_load_store.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+
+    path = ROOT / "templates" / "polygeist" / "lower_affine_wrong_index.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "rejected"
+    assert gate.constant_time.verdict == "ct-preserving"
+    assert gate.equivalence.verdict == "not-equivalent"
+
+
+def test_memory_reading_identity_is_preserving():
+    """The 2026-08-09 encoding fix, pinned: a template whose two sides are the SAME
+    memory-reading loop must verify. Before the fix each of the four programs got a
+    fresh initial memory, so the identity itself came back ct-breaking."""
+    from fcvdct.structural import check_template
+
+    template = """
+builtin.module {
+  func.func @source(%m: memref<4xi8>) -> i8 {
+    %c0 = arith.constant 0 : index
+    %c3 = arith.constant 3 : index
+    %c1 = arith.constant 1 : index
+    scf.for %i = %c0 to %c3 step %c1 {
+      %old = memref.load %m[%i] : memref<4xi8>
+      %new = "fcvd.hole"(%old) {sym_name = "BODY", leaks = 1 : i64} : (i8) -> i8
+    }
+    %out = memref.load %m[%c1] : memref<4xi8>
+    func.return %out : i8
+  }
+  func.func @target(%m: memref<4xi8>) -> i8 {
+    %c0 = arith.constant 0 : index
+    %c3 = arith.constant 3 : index
+    %c1 = arith.constant 1 : index
+    scf.for %i = %c0 to %c3 step %c1 {
+      %old = memref.load %m[%i] : memref<4xi8>
+      %new = "fcvd.hole"(%old) {sym_name = "BODY", leaks = 1 : i64} : (i8) -> i8
+    }
+    %out = memref.load %m[%c1] : memref<4xi8>
+    func.return %out : i8
+  }
+}
+"""
+    ctx = make_context()
+    gate = check_template(ctx, Parser(ctx, template).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)

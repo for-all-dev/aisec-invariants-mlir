@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from xdsl.dialects import affine, arith, cf, func, memref, scf
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr
 
 from .affine_ops import constant_bound
 from .dialect import CONTROL, OTHER, HoleOp, ObserveOp, ResultOp
@@ -101,6 +102,15 @@ class Flattener:
         if isinstance(op, memref.StoreOp):
             self.run_store(op, guard, values)
             return
+        if isinstance(op, memref.LoadOp):
+            self.run_load(op, guard, values)
+            return
+        if isinstance(op, affine.LoadOp):
+            self.run_affine_load(op, guard, values)
+            return
+        if isinstance(op, affine.StoreOp):
+            self.run_affine_store(op, guard, values)
+            return
 
         copy = op.clone(value_mapper=dict(values))
         for original, new in zip(op.results, copy.results, strict=True):
@@ -113,6 +123,90 @@ class Flattener:
                 self.observe(guard, leaked)
             return
         rule = self.model.get(type(copy))
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def expand_affine_indices(
+        self, map_attr: object, operands: Sequence[SSAValue]
+    ) -> list[SSAValue]:
+        """The addresses an affine access touches, as plain index values.
+
+        This is `expandAffineMap` of AffineToStandard.cpp restricted to the two shapes
+        the hardened corpora emit: a dimension (`d0` -- the identity access) and a
+        constant. Anything else (sums, products, symbols) is refused rather than
+        half-translated.
+        """
+        affine_map = getattr(map_attr, "data", None)
+        results = getattr(affine_map, "results", None)
+        if results is None:
+            raise UnsupportedTemplate("affine access without a map")
+        indices: list[SSAValue] = []
+        for expression in results:
+            if isinstance(expression, AffineDimExpr):
+                indices.append(operands[expression.position])
+            elif isinstance(expression, AffineConstantExpr):
+                constant = self.emit(arith.ConstantOp(IntegerAttr(expression.value, IndexType())))
+                indices.append(constant.results[0])
+            else:
+                raise UnsupportedTemplate(f"affine map expression not modelled: {expression}")
+        return indices
+
+    def guarded_indices(self, guard: SSAValue, indices: Sequence[SSAValue]) -> list[SSAValue]:
+        """Route an access that only happens under `guard` to index 0 otherwise.
+
+        The flattened program executes every access unconditionally; one sitting on a
+        cut loop iteration or an untaken arm would then fault (UB) at an address the
+        real execution never touches, and that artificial UB is asymmetric between an
+        exactly-unrolled source and a bounded target. Index 0 stands for "did not
+        happen": in bounds for any non-empty memref, and every consumer of the access
+        is guarded anyway. The observation still records these routed indices -- under
+        a false guard the comparison ignores them, under a true guard they are the real
+        ones.
+        """
+        zero = self.emit(arith.ConstantOp(IntegerAttr(0, IndexType()))).results[0]
+        return [self.emit(arith.SelectOp(guard, index, zero)).results[0] for index in indices]
+
+    def run_load(
+        self, op: memref.LoadOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """A load with its indices predicated (see `guarded_indices`)."""
+        source = values.get(op.memref, op.memref)
+        indices = self.guarded_indices(guard, [values.get(index, index) for index in op.indices])
+        copy = self.emit(memref.LoadOp.get(source, indices))
+        values[op.res] = copy.results[0]
+        rule = self.model.get(memref.LoadOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_affine_load(
+        self, op: affine.LoadOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """`affine.load` is `memref.load` after map expansion (AffineToStandard.cpp:345)."""
+        source = values.get(op.memref, op.memref)
+        operands = [values.get(index, index) for index in op.indices]
+        indices = self.guarded_indices(guard, self.expand_affine_indices(op.map, operands))
+        copy = self.emit(memref.LoadOp.get(source, indices))
+        values[op.result] = copy.results[0]
+        rule = self.model.get(memref.LoadOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_affine_store(
+        self, op: affine.StoreOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """`affine.store` is a (predicated) `memref.store` after map expansion
+        (AffineToStandard.cpp:388)."""
+        stored = values.get(op.value, op.value)
+        target = values.get(op.memref, op.memref)
+        operands = [values.get(index, index) for index in op.indices]
+        indices = self.guarded_indices(guard, self.expand_affine_indices(op.map, operands))
+        old = self.emit(memref.LoadOp.get(target, indices)).results[0]
+        merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
+        copy = self.emit(memref.StoreOp.get(merged, target, indices))
+        rule = self.model.get(memref.StoreOp)
         if rule is not None:
             for observed in rule(copy.operands):
                 self.observe(guard, observed, rule.kind)
@@ -131,7 +225,7 @@ class Flattener:
         """
         stored = values.get(op.value, op.value)
         target = values.get(op.memref, op.memref)
-        indices = [values.get(index, index) for index in op.indices]
+        indices = self.guarded_indices(guard, [values.get(index, index) for index in op.indices])
         old = self.emit(memref.LoadOp.get(target, indices)).results[0]
         merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
         copy = self.emit(memref.StoreOp.get(merged, target, indices))

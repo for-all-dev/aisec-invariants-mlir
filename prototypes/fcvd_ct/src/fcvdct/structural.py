@@ -178,13 +178,17 @@ def _instantiate(
     block_builder: Builder,
     model: dict[type[Operation], LeakageRule] | None,
     max_visits: int,
+    state: SSAValue | None = None,
 ) -> tuple[StructuralTrace, bool]:
-    """Flatten one program and lower it to SMT from its own fresh effect state.
+    """Flatten one program and lower it to SMT from the given initial effect state.
 
-    Each of the four programs starts from its own state: UB raised by one of them must
-    not propagate into the others.
+    The initial memory is an *input*: the source and target of one run must read the
+    same one, or a program that loads from memory can never be proved preserving (the
+    identity template itself came back ct-breaking until 2026-08-09, which is how this
+    was found). Only the initial state is shared -- each program threads its own state
+    chain from there, so UB raised by one still cannot propagate into another.
     """
-    trace, bounded, _ = instantiate(function, inputs, block_builder, model, max_visits)
+    trace, bounded, _ = instantiate(function, inputs, block_builder, model, max_visits, state)
     return trace, bounded
 
 
@@ -225,9 +229,16 @@ def build_query(
             declared = builder.insert(smt.DeclareConstOp(SMTLowerer.lower_type(input_type)))
             declared.res.name_hint = f"in{index}_run{run}"
             inputs.append(declared.res)
-        # Source and target of one run see the same inputs; the two runs do not.
-        source_trace, source_bounded = _instantiate(source, inputs, builder, model, max_visits)
-        target_trace, target_bounded = _instantiate(target, inputs, builder, model, max_visits)
+        # Source and target of one run see the same inputs -- the initial memory
+        # included; the two runs do not.
+        state = builder.insert(smt.DeclareConstOp(StateType())).res
+        state.name_hint = f"memory_in_run{run}"
+        source_trace, source_bounded = _instantiate(
+            source, inputs, builder, model, max_visits, state
+        )
+        target_trace, target_bounded = _instantiate(
+            target, inputs, builder, model, max_visits, state
+        )
         bounded = bounded or source_bounded or target_bounded
         source_traces.append(source_trace)
         target_traces.append(target_trace)

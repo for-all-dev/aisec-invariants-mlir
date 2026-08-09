@@ -148,6 +148,20 @@
       "file": "polygeist/mem2reg_if_stale.mlir",
       "verifies": "--polygeist-mem2reg",
       "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/lower_affine_for_load_store.mlir",
+      "verifies": "--lower-affine",
+      "expect": "ct-preserving",
+      "covers": [
+        "affine.load",
+        "affine.store"
+      ]
+    },
+    {
+      "file": "polygeist/lower_affine_wrong_index.mlir",
+      "verifies": "--lower-affine",
+      "expect": "ct-preserving"
     }
   ]
 }

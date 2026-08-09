@@ -172,3 +172,42 @@ Why: mem2reg is the value-shaped pass par excellence; it needed the equivalence 
 (P7) and forced the memory encoding to be honest about guarded stores.
 Next angle: `--lower-affine` (`driver.cc:712`) — needs affine.load/store translations,
 the 126+95-mention pair, which also unblocks `--affine-cfg`.
+
+## iter 2026-08-09T18:35Z — target: `--lower-affine` (+ the shared-memory fix it forced)
+Source: driver.cc:712 invokes mlir's LowerAffine; the llvm-project submodule is NOT
+checked out here, so the pass source was fetched from github at the submodule's pinned
+SHA 26eb4285 (`git ls-tree HEAD llvm-project`):
+mlir/lib/Conversion/AffineToStandard/AffineToStandard.cpp — AffineForLowering
+:150-168, AffineLoadLowering :345-361, AffineStoreLowering :388-407. [source]
+Translations written: `affine.load`/`affine.store` flatten to `memref.load`/`memref.store`
+after map expansion (`expandAffineMap` restricted to dim/const results); xdsl gives both
+ops no custom syntax, so templates write the generic form.
+Expected: the faithful for+load+store pair CT-PRESERVING + EQUIVALENT; the off-by-one
+final index CT-PRESERVING + NOT-EQUIVALENT (a shifted constant address is still
+deterministic — the trace cannot tell, the returned element can).
+Measured: `lower_affine_for_load_store.mlir` **VERIFIED** — CT-PRESERVING (obs 10 → 18)
++ EQUIVALENT, bounded. Control `lower_affine_wrong_index.mlir` **REJECTED** —
+CT-PRESERVING + NOT-EQUIVALENT, exactly the predicted half. [measured]
+Outcome: translation-written + specified — after TWO encoding faults surfaced, both
+found because the identity template itself failed, and both fixed:
+1. **Each of the four CT-query programs got a fresh initial memory** (structural
+   `_instantiate`), so source and target of one run read different heaps and a
+   memory-reading identity came back ct-breaking. The initial memory is an input:
+   source and target of a run now share `memory_in_run{k}`; the two runs stay
+   independent. UB isolation survives — only the *initial* state is shared, each
+   program threads its own chain.
+2. **Unconditionally executed accesses on cut/untaken paths faulted asymmetrically**:
+   an exactly-unrolled affine source performs 3 loads where the bounded scf target
+   performs 4, and the 4th (guard-false) load could raise UB the source cannot,
+   failing equivalence spuriously. Loads and the predicated stores now route their
+   indices through `select(guard, index, 0)` — "did not happen" is index 0, in bounds
+   for any non-empty memref, and every consumer of the access is guarded anyway.
+   Pinned by `test_memory_reading_identity_is_preserving`.
+Coverage now: 4/8 steps with a checked template, form 0 = 73.9% of mentions (the
+126+95 affine.load/store mentions arrived), 54 unproved ops.
+Why: lower-affine is the address-preservation step par excellence — it rewrites every
+memory access on the way down, which is why it exercised the memory encoding hard
+enough to break it twice.
+Next angle: `--affine-cfg` (driver.cc:677, lib/polygeist/Passes/AffineCFG.cpp) — now
+that affine.load/store translate, its scf→affine raising can be checked with the same
+machinery.
