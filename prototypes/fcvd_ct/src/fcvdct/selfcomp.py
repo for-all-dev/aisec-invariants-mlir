@@ -57,8 +57,9 @@ from xdsl_smt.traits.smt_printer import print_to_smtlib
 
 from .dialect import ADDRESS, CONTROL, LATENCY, OTHER, RESOURCE, Observation
 from .leakage import LeakageRule
-from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate
+from .predication import DEFAULT_MAX_VISITS, UnsupportedTemplate, flatten
 from .smtutil import finish_module, instantiate, traces_agree
+from .taint import tainted_kinds
 
 Verdict = Literal["secure", "insecure", "unknown"]
 
@@ -223,10 +224,25 @@ def check_kernel(
     opt: bool = True,
     timeout: int = 60,
     max_visits: int = DEFAULT_MAX_VISITS,
+    prefilter: bool = True,
 ) -> SelfCompResult:
-    """Prove, or refute, non-interference of one labelled kernel, obligation by obligation."""
+    """Prove, or refute, non-interference of one labelled kernel, obligation by obligation.
+
+    With `prefilter` on (the default), the plan's step 4 runs first: obligations whose
+    sinks no secret can reach -- value or guard -- are `secure` without a solver call,
+    and say so. The prefilter is one-sided: it can only skip queries whose answer is
+    forced, never decide a tainted one, so `--no-prefilter` must give byte-identical
+    verdicts (pinned by tests).
+    """
     secret = secret_arguments(function)
     names = tuple(f"arg{index}" for index, is_secret in enumerate(secret) if is_secret)
+
+    hot: set[str] | None = None
+    if prefilter:
+        try:
+            hot = tainted_kinds(flatten(function, model, max_visits).block, secret)
+        except Exception:
+            hot = None  # the query builder will surface the real error below
 
     obligations: list[ObligationResult] = []
     bounded = False
@@ -244,6 +260,19 @@ def check_kernel(
             # Nothing of this kind happens in the kernel. Vacuously true, and reported
             # with its count so that "secure" cannot be mistaken for "checked something".
             obligations.append(ObligationResult(kind, "secure", 0))
+            continue
+        if hot is not None and kind not in hot:
+            # Step 4: the sinks exist, but no secret reaches their values or guards, so
+            # the two runs' observations are forced equal. Said explicitly, so a skipped
+            # solver is never mistaken for a consulted one.
+            obligations.append(
+                ObligationResult(
+                    kind,
+                    "secure",
+                    counts[kind],
+                    reason="taint-clean: no secret reaches this sink; solver skipped",
+                )
+            )
             continue
         result = _run_z3(script, timeout)
         output = result.stdout.strip()
@@ -279,9 +308,10 @@ def check_module(
     opt: bool = True,
     timeout: int = 60,
     max_visits: int = DEFAULT_MAX_VISITS,
+    prefilter: bool = True,
 ) -> SelfCompResult:
     try:
         function = find_kernel(module, name)
     except NotLabelled as e:
         return SelfCompResult("unknown", [], reason=f"NotLabelled: {e}")
-    return check_kernel(ctx, function, model, opt, timeout, max_visits)
+    return check_kernel(ctx, function, model, opt, timeout, max_visits, prefilter)

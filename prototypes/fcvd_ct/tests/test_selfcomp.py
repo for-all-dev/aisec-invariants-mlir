@@ -114,3 +114,77 @@ def test_secure_verdict_reports_what_it_checked():
     counts = {o.kind: o.n_observations for o in result.obligations}
     assert counts["address"] == 1
     assert counts["control"] == 0
+
+
+# ---- step 4: the taint prefilter ------------------------------------------------
+
+
+PREFILTER_CORPUS = [
+    "ct_mask",
+    "public_index",
+    "secret_index",
+    "secret_branch",
+    "secret_divisor",
+    "secret_free",
+]
+
+
+@pytest.mark.parametrize("kernel", PREFILTER_CORPUS)
+def test_prefilter_never_changes_a_verdict(kernel: str):
+    """The prefilter is one-sided: skipping a solver call must never move a verdict.
+
+    Byte-identical obligations with and without it, over the whole labelled corpus --
+    a prefilter that decided anything the solver would not have decided fails here.
+    """
+    ctx, module = load(kernel)
+    with_filter = check_module(ctx, module)
+    ctx2, module2 = load(kernel)
+    without = check_module(ctx2, module2, prefilter=False)
+    assert with_filter.verdict == without.verdict
+    for one, other in zip(with_filter.obligations, without.obligations, strict=True):
+        assert (one.kind, one.verdict, one.n_observations) == (
+            other.kind,
+            other.verdict,
+            other.n_observations,
+        )
+
+
+def test_prefilter_skips_the_clean_sink_and_says_so():
+    """public_index: the address sink exists (1 observation) but only the value is
+    secret, so the solver is skipped -- and the skip is printed, never silent."""
+    ctx, module = load("public_index")
+    result = check_module(ctx, module)
+    address = next(o for o in result.obligations if o.kind == "address")
+    assert address.verdict == "secure"
+    assert address.n_observations == 1
+    assert "solver skipped" in address.reason
+
+
+def test_prefilter_counts_the_guard_as_part_of_the_sink():
+    """An address that is a public constant, observed under a secret branch: the value
+    is clean but the guard is not, so the prefilter must NOT skip the address query --
+    `traces_agree` compares guards, and the two runs may disagree on reaching it."""
+    source = """
+builtin.module {
+  func.func @guarded(%t: memref<8xi8>, %s: i1 {fcvdct.secret}) -> i8 {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %r = scf.if %s -> (i8) {
+      %a = memref.load %t[%c0] : memref<8xi8>
+      scf.yield %a : i8
+    } else {
+      %b = memref.load %t[%c1] : memref<8xi8>
+      scf.yield %b : i8
+    }
+    func.return %r : i8
+  }
+}
+"""
+    ctx, module = load("guarded", source)
+    result = check_module(ctx, module)
+    address = next(o for o in result.obligations if o.kind == "address")
+    assert "solver skipped" not in address.reason, (
+        "a secret guard taints the sink; the solver must be consulted"
+    )
+    control = next(o for o in result.obligations if o.kind == "control")
+    assert control.verdict == "insecure", "the branch on the secret is the leak itself"

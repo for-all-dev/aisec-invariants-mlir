@@ -1,14 +1,4 @@
-# How the MLIR verifier works: semantic, timing, and cache leaks, stage by stage
-
-Audience: an agent (or a person) who has never seen this repository and is about to
-verify an MLIR compiler with it. This file explains the method; it contains no results.
-Everything described here is implemented in [`prototypes/fcvd_ct/`](../../prototypes/fcvd_ct/)
-on top of FCVD (*First-Class Verification Dialects for MLIR*, PLDI'25 — the
-`opencompl/xdsl-smt` project). The full engineering history is in
-[`fcvd-selfcomposition.agents.md`](fcvd-selfcomposition.agents.md); this file is the
-distilled "how it works".
-
-## What is being proved
+# How the MLIR verifier works
 
 A compiler is a chain of lowering steps (`scf → memref → llvm`, rewrites,
 canonicalizations). The claim we care about: **no step turns safe code into unsafe
@@ -105,7 +95,15 @@ Control flow (`scf.if`, bounded `scf.for`/`affine.for`) is handled by if-convers
 branches become guards, loops with constant bounds are unrolled. An observation is
 recorded *together with the guard under which it happens*.
 
-### Stage 4 — one obligation at a time
+### Stage 4 — the cheap check, then one obligation at a time
+
+Before any solver call, a taint prefilter (`src/fcvdct/taint.py`) walks the flattened
+program forward from the secret arguments. An obligation whose observations no secret
+can reach -- neither the observed value nor the guard it happens under -- is `secure`
+by construction and the solver is skipped, with the skip printed. Taint only ever
+skips forced answers; it never decides a tainted sink -- the solver does.
+
+### The solver query, one obligation at a time
 
 For each obligation kind (`control`, `address`, `latency`, `resource`), build one query:
 

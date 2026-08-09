@@ -176,6 +176,11 @@ def main_selfcomp() -> None:
     )
     arg_parser.add_argument("--timeout", type=int, default=60, help="solver timeout, s")
     arg_parser.add_argument("--no-opt", action="store_true", help="skip SMT-level simplification")
+    arg_parser.add_argument(
+        "--no-prefilter",
+        action="store_true",
+        help="always consult the solver, even for taint-clean obligations (same verdicts, slower)",
+    )
     args = arg_parser.parse_args()
 
     ctx = make_context()
@@ -189,6 +194,7 @@ def main_selfcomp() -> None:
         opt=not args.no_opt,
         timeout=args.timeout,
         max_visits=args.unroll,
+        prefilter=not args.no_prefilter,
     )
     print(f"{args.file}: {_SELFCOMP_LINE[result.verdict]}")
     if result.bounded:
