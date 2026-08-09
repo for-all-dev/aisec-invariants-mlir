@@ -241,3 +241,38 @@ the same iteration.
 Next angle: `--parallel-lower` (driver.cc:744) — but it is polygeist.barrier/parallel
 machinery (18 form-2 ops); consider `--convert-scf-to-openmp` (driver.cc:968, 2 form-2
 ops) first for the same reason canonicalize-for went first.
+
+## iter 2026-08-09T19:15Z — targets: `--convert-polygeist-to-llvm` (partial), and the two blocked steps
+Source: `lib/polygeist/Passes/ConvertPolygeistToLLVM.cpp:2846-2856` — the pass is a
+bundle of upstream pattern sets. Its integer-arithmetic slice is llvm-project @
+26eb4285 `mlir/lib/Conversion/ArithToLLVM/ArithToLLVM.cpp` (AddIOpLowering :37,
+MulIOpLowering :80, SubIOpLowering :104 — 1:1 op mapping); its scf→cf slice enters at
+:2848 (`populateSCFToControlFlowConversionPatterns`) and is specified by the general
+templates `scf_for_to_cf.mlir` / `scf_if_to_cf.mlir` (both re-verified green today and
+now registered for this step). [source, measured]
+Expected: the arith slice CT-PRESERVING (vacuously — pure arithmetic emits no
+observation, printed as 0) + EQUIVALENT; the swapped-subtraction twin refused by the
+equivalence half alone.
+Measured: `polygeist_to_llvm_arith.mlir` **VERIFIED** (obs 0 → 0 + EQUIVALENT);
+`polygeist_to_llvm_swapped_sub.mlir` **REJECTED** (CT-PRESERVING vacuously +
+NOT-EQUIVALENT). [measured]
+Outcome for `--convert-polygeist-to-llvm`: specified **partially**, stated plainly:
+the memref→llvm slice (getelementptr arithmetic) has NO llvm memory-op semantics
+upstream (only integer ops: add/sub/mul/div/shifts/logic) and stays open; `llvm.icmp`
+also has no semantics, so the cf→llvm branch slice is not checkable either.
+Outcome for `--convert-scf-to-openmp`: **blocked** — the step is
+`scf.parallel → omp.parallel/omp.wsloop` (llvm-project @ 26eb4285
+SCFToOpenMP.cpp:358-430); the omp dialect is not even loadable in xdsl (measured:
+parse error on `"omp.parallel"`), scf.parallel is this corpus's UNKNOWN control, and
+the SMT memory model is sequential — concurrency is not a missing translation but a
+missing model. Recording UNKNOWN, not a template.
+Outcome for `--parallel-lower`: **blocked**, same class — ParallelLower.cpp is
+CUDA/GPU machinery (gpu.launch inlining, cudaRT calls, polygeist.barrier), 18 form-2
+operations, all parallel-runtime shaped.
+Coverage now: **6/8 steps with a checked template**, form 0 = 73.9%, 54 unproved ops.
+The remaining two steps need a concurrency model, which no iteration of this loop can
+supply honestly; they stay blocked by design, not by neglect.
+Next angle: regenerate the artifact (`artifact/collect.py`) so the map reflects
+today's five new specifications and the checker fixes; the loop's 8/8 close-out
+condition should be re-read as 6/8 + 2 model-blocked, and the closing entry should say
+exactly that.

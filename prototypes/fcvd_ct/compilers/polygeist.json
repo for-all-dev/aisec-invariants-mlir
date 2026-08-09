@@ -173,6 +173,29 @@
       "file": "polygeist/affine_cfg_wrong_map.mlir",
       "verifies": "--affine-cfg",
       "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_arith.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_swapped_sub.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving"
+    },
+    {
+      "file": "scf_for_to_cf.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "scf_if_to_cf.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
     }
   ]
 }

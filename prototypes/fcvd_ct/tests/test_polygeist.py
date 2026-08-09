@@ -31,6 +31,8 @@ ROOT = Path(__file__).parent.parent
         ("lower_affine_wrong_index", "ct-preserving"),
         ("affine_cfg_raise_store", "ct-preserving"),
         ("affine_cfg_wrong_map", "ct-preserving"),
+        ("polygeist_to_llvm_arith", "ct-preserving"),
+        ("polygeist_to_llvm_swapped_sub", "ct-preserving"),
     ],
 )
 def test_templates(template: str, verdict: str):
@@ -163,4 +165,23 @@ def test_affine_cfg_both_halves():
     gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-preserving"
+    assert gate.equivalence.verdict == "not-equivalent"
+
+
+def test_polygeist_to_llvm_both_halves():
+    """--convert-polygeist-to-llvm, integer-arithmetic slice: 1:1 arith->llvm mapping
+    is VERIFIED; the swapped subtraction is refused by the equivalence half alone --
+    pure arithmetic emits no observation, so the leakage half is vacuous on both
+    (measured 2026-08-09)."""
+    from fcvdct.structural import check_template
+
+    ctx = make_context()
+    path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_arith.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
+    assert gate.constant_time.n_source_observations == 0, "the leakage half must be vacuous here"
+
+    path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_swapped_sub.mlir"
+    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    assert gate.verdict == "rejected"
     assert gate.equivalence.verdict == "not-equivalent"
