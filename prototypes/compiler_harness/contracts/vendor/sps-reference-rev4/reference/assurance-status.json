@@ -1,0 +1,47 @@
+{
+  "formatId": "SPS-Reference-Assurance-Status-v2",
+  "claimBoundary": "ExecutableReferenceOnly",
+  "claims": [
+    {
+      "claimId": "normativeLLVMV2",
+      "status": "Open(NotImplemented)"
+    },
+    {
+      "claimId": "normativeInterfacesV2",
+      "status": "Open(SchemaAndVectorsOnly)"
+    },
+    {
+      "claimId": "normativePONF",
+      "status": "Open(ReferenceSliceOnly)"
+    },
+    {
+      "claimId": "writtenProofMechanization",
+      "status": "Open(NotMechanized)"
+    },
+    {
+      "claimId": "adaptiveInvocation",
+      "status": "Unknown(PersistentInvariantEncodingUnsupported)"
+    },
+    {
+      "claimId": "strongHostObserver",
+      "status": "Open(ObserverProfileNotModeled)"
+    },
+    {
+      "claimId": "p4Deployment",
+      "status": "Open(P4EvidenceProfileUnavailable)"
+    },
+    {
+      "claimId": "crossSolver",
+      "status": "Open(RequiresSecondInstalledSolver)"
+    }
+  ],
+  "refusals": [
+    "arbitrary-llvm-bitcode",
+    "non-byte-width-memory",
+    "uninitialized-abi-root-output",
+    "secret-dependent-loop-bound",
+    "partial-release-footprint",
+    "adaptive-multi-invocation",
+    "physical-or-privileged-host-compromise"
+  ]
+}

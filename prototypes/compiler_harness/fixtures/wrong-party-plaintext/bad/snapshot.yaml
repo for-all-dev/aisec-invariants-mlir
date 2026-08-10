@@ -1,0 +1,58 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: wrong_party_plaintext_bad
+c_evidence:
+- fixtures/wrong-party-plaintext/bad/wrong_party_plaintext_bad.c
+secret:
+- arg: 0
+  name: plaintext
+public:
+- observable: transfer
+allowed:
+- plaintext may be written only to authorized_mailbox
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: unauthorized-mailbox-output-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Transfer
+      field: valueBytes
+      first_bad: true
+    because: plaintext is copied across the audience boundary
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wrong_party_plaintext_bad
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - sps_transfer_party_authorized
+          - sps_transfer_party_observer

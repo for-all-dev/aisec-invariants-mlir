@@ -1,0 +1,23 @@
+entry: kyberslash1_poly_tomsg_target_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility:
+      world: false
+      members:
+      - observer
+      joint: []
+components:
+  coefficient:
+    lifecycle: entry-input
+    type: bv16
+    visibility: secret
+outputs:
+  return:
+    visibility: secret
+releases: {}

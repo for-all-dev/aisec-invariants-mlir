@@ -1,0 +1,14 @@
+# The solver-independent binding bridge fails closed before dispatch. Work on a
+# private copy because the mutation helper rewrites and restores sidecars.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root/fixtures %t.root/integration/Inputs %t.root/contracts/vendor
+# RUN: cp -R %fixtures/precision-control %t.root/fixtures/precision-control
+# RUN: cp -R %harness/tools %t.root/tools
+# RUN: cp %harness/integration/Inputs/run_relation_reference_fixtures.py %t.root/integration/Inputs/run_relation_reference_fixtures.py
+# RUN: cp -R %harness/contracts/vendor/sps-reference-rev4 %t.root/contracts/vendor/sps-reference-rev4
+# RUN: cp -R %harness/contracts/vendor/sps-rev4.1 %t.root/contracts/vendor/sps-rev4.1
+# RUN: cp %harness/contracts/sps-interface.lock.json %t.root/contracts/sps-interface.lock.json
+# RUN: env PYTHONDONTWRITEBYTECODE=1 %python %S/Inputs/relation_reference_binding_test.py %t.root | %FileCheck %s
+
+# CHECK: relation-reference cross-layer binding mutations passed

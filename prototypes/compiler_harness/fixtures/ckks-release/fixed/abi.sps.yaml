@@ -1,0 +1,41 @@
+source: ckks_unsafe_release_fixed.c
+relation: provenance-only
+entry:
+  id: ckks_unsafe_release_fixed
+  symbol: ckks_unsafe_release_fixed
+  host: compute
+  function-type: i32 (i32, i32, i32, ptr)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  raw-approximate-plaintext:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  public-sanitizer-mask:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+  certificate-ok:
+    argument: 2
+    llvm-type: i32
+    bit-width: 32
+roots:
+  public-release:
+    argument: 3
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-release
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - public-release
+  - return

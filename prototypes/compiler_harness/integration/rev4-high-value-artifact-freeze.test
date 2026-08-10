@@ -1,0 +1,27 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/freeze-pointers.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.before.ll
+# RUN: %FileCheck %s --check-prefix=BEFORE --input-file=%t.before.ll
+# RUN: %opt -passes=instcombine %t.bc -o %t.mutated.bc
+# RUN: not cmp %t.bc %t.mutated.bc
+# RUN: %llvm-dis %t.mutated.bc -o %t.after.ll
+# RUN: %FileCheck %s --check-prefix=AFTER --input-file=%t.after.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family artifact-freeze | %FileCheck %s --check-prefix=CONTRACT
+
+# BEFORE-LABEL: define i32 @post_capture_mutation_seed(i32 %value)
+# BEFORE: %identity = add i32 %value, 0
+# BEFORE-NEXT: ret i32 %identity
+# BEFORE-LABEL: define i32 @freeze_defined(i32 noundef %value)
+# BEFORE: %stable = freeze i32 %value
+# BEFORE-LABEL: define i32 @freeze_undef()
+# BEFORE: %choice = freeze i32 undef
+# BEFORE: Function Attrs: sspstrong
+# BEFORE-LABEL: define void @stack_protector_fixture(ptr %output)
+
+# AFTER-LABEL: define i32 @post_capture_mutation_seed(i32 %value)
+# AFTER-NOT: add i32
+# AFTER: ret i32 %value
+
+# CONTRACT: verified artifact-freeze: 4 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

@@ -1,0 +1,6 @@
+# REQUIRES: sps-scan-unary
+# Fixture tier: CandidateOnly; output is scanner-specific triage, not Section 10.
+# The exact product reason is secret-selected block-argument. These two unary
+# findings deliberately pin the current scanner's imprecision, not an SPS result.
+# RUN: %checkpoint-runner run --snapshot fixtures/predecessor-choice/blockarg-bad/snapshot.yaml --pipeline scanner-diagnostic --endpoint - --records %t.checkpoints -- %sps-scan --refine-address %fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

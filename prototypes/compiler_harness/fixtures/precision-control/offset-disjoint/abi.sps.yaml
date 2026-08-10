@@ -1,0 +1,38 @@
+source: offset_disjoint_control.c
+relation: provenance-only
+entry:
+  id: offset_disjoint_control
+  symbol: offset_disjoint_control
+  host: compute
+  function-type: i32 (ptr, i32, i32)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  secret-byte:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+  public-value:
+    argument: 2
+    llvm-type: i32
+    bit-width: 32
+roots:
+  buffer:
+    argument: 0
+    host: compute
+    extent-bytes: 9
+    alignment: 1
+    permission: read-write
+    initialization: initialized
+    ownership: caller
+    input: buffer-input
+    output: buffer
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - buffer
+  - return

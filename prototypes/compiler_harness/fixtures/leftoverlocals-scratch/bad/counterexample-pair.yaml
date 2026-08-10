@@ -1,0 +1,28 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: leftoverlocals_scratch_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    next-tenant-public-value:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_left:
+    prior-tenant-secret:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    prior-tenant-secret:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: next-tenant-output-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: next-tenant-output

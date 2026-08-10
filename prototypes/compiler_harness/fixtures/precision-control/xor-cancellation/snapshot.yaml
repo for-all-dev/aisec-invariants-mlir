@@ -1,0 +1,92 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: xor_cancellation_control
+c_evidence:
+- fixtures/precision-control/xor-cancellation/xor_cancellation_control.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: return
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: secret xor secret is zero in every admitted run
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - xor_cancellation_control
+        function.signatures:
+          contains:
+          - xor_cancellation_control|(i32)->i32
+        operation.names:
+          ordered:
+          - llvm.xor
+          - llvm.return
+        return.roots:
+          contains:
+          - xor_cancellation_control|op:llvm.xor:0
+        def_use.edges:
+          contains:
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=0|root=arg:0
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=1|root=arg:0
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - xor_cancellation_control
+        function.signatures:
+          contains:
+          - xor_cancellation_control|(i32)->i32
+        operation.names:
+          ordered:
+          - llvm.xor
+          - llvm.return
+        return.roots:
+          contains:
+          - xor_cancellation_control|op:llvm.xor:0
+        def_use.edges:
+          contains:
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=0|root=arg:0
+          - xor_cancellation_control|user=0|op=llvm.xor|operand=1|root=arg:0
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: unsat
+        backend.agreement:
+          equals: true

@@ -1,0 +1,32 @@
+# Synthetic pairs are strict, non-claimable fixture oracles.  The unit helper
+# covers the closed YAML shape, visibility partition, ABI value mapping,
+# snapshot binding, canonical digest, and one-pair/none discovery rule.
+
+# RUN: rm -rf %t.root
+# RUN: %python %S/Inputs/counterexample_pair_test.py %t.root %harness/tools | %FileCheck %s
+
+# CHECK: synthetic counterexample-pair contract mutations passed
+
+# Pin discovery in the real snapshots check against an isolated harness copy:
+# Counterexamples require the fixed-name sibling, while Proved snapshots reject
+# one.  The helper above separately pins Unknown rejection.
+# RUN: rm -rf %t.harness
+# RUN: mkdir -p %t.harness
+# RUN: cp -R %harness/c %t.harness/c
+# RUN: cp -R %harness/contracts %t.harness/contracts
+# RUN: cp -R %harness/diagnostic %t.harness/diagnostic
+# RUN: cp -R %fixtures %t.harness/fixtures
+# RUN: cp -R %harness/integration %t.harness/integration
+# RUN: cp -R %harness/p4-risk %t.harness/p4-risk
+# RUN: cp -R %harness/tools %t.harness/tools
+# RUN: %python %t.harness/c/check_harness.py snapshots | %FileCheck %s --check-prefix=DISCOVERY
+# RUN: cp %t.harness/fixtures/dynamic-kv-length/bad/counterexample-pair.yaml %t.saved-pair
+# RUN: rm %t.harness/fixtures/dynamic-kv-length/bad/counterexample-pair.yaml
+# RUN: not %python %t.harness/c/check_harness.py snapshots 2>&1 | %FileCheck %s --check-prefix=MISSING
+# RUN: cp %t.saved-pair %t.harness/fixtures/dynamic-kv-length/bad/counterexample-pair.yaml
+# RUN: cp %t.saved-pair %t.harness/fixtures/dynamic-kv-length/fixed/counterexample-pair.yaml
+# RUN: not %python %t.harness/c/check_harness.py snapshots 2>&1 | %FileCheck %s --check-prefix=PROVED
+
+# DISCOVERY: snapshots checks passed
+# MISSING: Counterexample requires sibling counterexample-pair.yaml
+# PROVED: Proved snapshot must not have a synthetic counterexample pair

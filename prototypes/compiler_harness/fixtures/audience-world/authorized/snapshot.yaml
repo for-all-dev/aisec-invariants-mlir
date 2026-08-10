@@ -1,0 +1,62 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_world_authorized
+c_evidence:
+- fixtures/audience-world/authorized/audience_world_authorized.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: transfer
+allowed:
+- the masked class is intentionally world-visible
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: world-class
+    - kind: Transfer
+      field: valueBytes
+    because: world authorization includes the empty coalition before the public transfer
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_world_authorized
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release
+          - sps_transfer_world_endpoint

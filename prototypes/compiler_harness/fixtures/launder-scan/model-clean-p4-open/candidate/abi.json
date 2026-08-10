@@ -1,0 +1,50 @@
+{
+  "format_id": "SPS-Harness-Candidate-ABI-v2",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "fallback",
+      "kind": "scalar"
+    },
+    {
+      "index": 2,
+      "name": "buffer",
+      "kind": "root",
+      "root_id": "buffer",
+      "extent_bytes": 8
+    },
+    {
+      "index": 3,
+      "name": "owner_private_sink",
+      "kind": "root",
+      "root_id": "owner-private-sink",
+      "extent_bytes": 8,
+      "output": "owner-private-result"
+    }
+  ],
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "buffer",
+        "right": "owner-private-sink",
+        "relation": "Disjoint"
+      }
+    ]
+  },
+  "initialized_regions": [
+    {
+      "root": "buffer",
+      "offset": 0,
+      "width": 8
+    }
+  ],
+  "entry": "launder_scan_model_proved",
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880"
+}

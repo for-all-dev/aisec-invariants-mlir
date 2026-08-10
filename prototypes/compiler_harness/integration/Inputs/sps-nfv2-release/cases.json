@@ -1,0 +1,192 @@
+{
+  "formatId": "SPS-Harness-NFv2-Release-Carrier-Cases-v2",
+  "profileId": "SPS-LLVM-NF-v2",
+  "intrinsic": "llvm.sps.release",
+  "identityAuthority": "ReleaseImplementationBindingV2.emitMarkerInstructionId",
+  "module": "contract-shapes.ll.in",
+  "cases": [
+    {
+      "id": "valid-mixed-width",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "valid_mixed_width:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "AcceptedPreflight"}
+    },
+    {
+      "id": "missing-marker",
+      "function": "missing_marker",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "missing_marker:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "MissingReleaseCarrier"}
+    },
+    {
+      "id": "duplicate-marker",
+      "function": "duplicate_marker",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "duplicate_marker:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "DuplicateReleaseCarrier"}
+    },
+    {
+      "id": "nonvoid-result",
+      "function": "wrong_result",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "wrong_result:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "NonVoidIntrinsicResult"}
+    },
+    {
+      "id": "nonvariadic-call",
+      "function": "nonvariadic_call",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "nonvariadic_call:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "NonVariadicIntrinsicCall"}
+    },
+    {
+      "id": "noninteger-payload",
+      "function": "noninteger_payload",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "noninteger_payload:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "NonIntegerPayloadLeaf"}
+    },
+    {
+      "id": "wrong-arity",
+      "function": "wrong_arity",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "wrong_arity:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "PayloadArityMismatch"}
+    },
+    {
+      "id": "wrong-order",
+      "function": "wrong_order",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "wrong_order:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "PayloadOrderMismatch"}
+    },
+    {
+      "id": "wrong-width",
+      "function": "wrong_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "wrong_width:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "PayloadWidthMismatch"}
+    },
+    {
+      "id": "release-id-operand-forbidden",
+      "function": "release_id_operand",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "release_id_operand:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "ReleaseIdOperandForbidden"}
+    },
+    {
+      "id": "missing-binding",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "MissingInstructionBinding"}
+    },
+    {
+      "id": "ambiguous-binding",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [
+        {"releaseId": "release-seven", "emitMarkerInstructionId": "valid_mixed_width:entry:0"},
+        {"releaseId": "release-seven", "emitMarkerInstructionId": "valid_mixed_width:entry:0"}
+      ],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "AmbiguousInstructionBinding"}
+    },
+    {
+      "id": "stale-binding",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "valid_mixed_width:entry:9"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "StaleInstructionBinding"}
+    },
+    {
+      "id": "wrong-release-binding",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-eight", "emitMarkerInstructionId": "valid_mixed_width:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "WrongReleaseBinding"}
+    },
+    {
+      "id": "unresolved-equivalence",
+      "function": "valid_mixed_width",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8", "i32"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "valid_mixed_width:entry:0"}],
+      "semanticEquivalence": "unresolved",
+      "expected": {"tag": "ReleaseConformanceUnknown", "reason": "UnresolvedReleaseEquivalence"}
+    },
+    {
+      "id": "legacy-function-carrier",
+      "function": "legacy_function",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "legacy_function:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "LegacyFunctionCarrier"}
+    },
+    {
+      "id": "legacy-outlined-wrapper",
+      "function": "legacy_wrapper",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "legacy_wrapper:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "LegacyOutlinedWrapperCarrier"}
+    },
+    {
+      "id": "legacy-inline-asm",
+      "function": "legacy_inline_asm",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "legacy_inline_asm:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "LegacyInlineAsmCarrier"}
+    },
+    {
+      "id": "metadata-only",
+      "function": "metadata_only",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "metadata_only:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "MetadataOnlyCarrier"}
+    },
+    {
+      "id": "store-only",
+      "function": "store_only",
+      "releaseId": "release-seven",
+      "flattenedReleaseTypeLeaves": ["i8"],
+      "bindings": [{"releaseId": "release-seven", "emitMarkerInstructionId": "store_only:entry:0"}],
+      "semanticEquivalence": "established",
+      "expected": {"tag": "ReleaseCarrierMismatch", "reason": "StoreOnlyCarrier"}
+    }
+  ]
+}

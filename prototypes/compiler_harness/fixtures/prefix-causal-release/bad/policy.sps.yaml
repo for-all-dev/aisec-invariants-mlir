@@ -1,0 +1,37 @@
+entry: prefix_causal_release_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+  public-endpoint:
+    visibility: public
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs: {}
+releases:
+  policy-h:
+    locator:
+      helper: policy-h
+      call-ordinal: 0
+    audience: public
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      component: secret
+    guard: true
+    payload-footprint:
+    - 0
+    - 1
+    - 2
+    - 3
+    multiplicity: 1

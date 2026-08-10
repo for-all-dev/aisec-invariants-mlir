@@ -1,0 +1,23 @@
+source: kyberslash1_poly_tomsg_fixed.c
+relation: provenance-only
+entry:
+  id: kyberslash1_poly_tomsg_fixed
+  symbol: kyberslash1_poly_tomsg_fixed
+  host: compute
+  function-type: i8 (i16)
+  return:
+    llvm-type: i8
+    bit-width: 8
+    output: return
+carriers:
+  coefficient:
+    argument: 0
+    llvm-type: i16
+    bit-width: 16
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

@@ -1,0 +1,107 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-CM03 -- FORBIDDEN ABI-ATTRIBUTE STRIPPING (preflight seed).
+#
+# Class-A ABI attributes are preserved or rejected; they are never removed to
+# make a module easier to analyze.  This test pins definition and call-site
+# spellings, then creates six valid but byte-distinct stripping mutations.
+# These are countermodel inputs, not alleged normalizer outputs.
+#
+# Nothing here performs the LLVM 22.1.8 Class-A audit, establishes NFConforms,
+# or computes Unknown(NormalizerMismatch) / Unknown(UnsupportedType).
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in -o %t.original.bc
+# RUN: %opt -passes=verify -disable-output %t.original.bc
+# RUN: %llvm-dis %t.original.bc -o %t.original.ll
+# RUN: %FileCheck %s --check-prefix=CM03-ROUNDTRIP --input-file=%t.original.ll
+# CM03-ROUNDTRIP: define signext i8 @cm03_signext(i8 signext %value)
+# CM03-ROUNDTRIP: define zeroext i8 @cm03_zeroext(i8 zeroext %value)
+# CM03-ROUNDTRIP: define void @cm03_aggregate(ptr sret(%Pair) %out, ptr byval(%Pair) align 8 %input)
+# CM03-ROUNDTRIP: define fastcc i32 @cm03_fastcc(i32 inreg %value)
+# CM03-ROUNDTRIP: define i32 @cm03_ccc(i32 %value)
+# CM03-ROUNDTRIP: %signed_result = call signext i8 @cm03_signext(i8 signext %signed_value)
+# CM03-ROUNDTRIP: %unsigned_result = call zeroext i8 @cm03_zeroext(i8 zeroext %unsigned_value)
+# CM03-ROUNDTRIP: call void @cm03_aggregate(ptr sret(%Pair) %out, ptr byval(%Pair) align 8 %input)
+# CM03-ROUNDTRIP: %fast_result = call fastcc i32 @cm03_fastcc(i32 inreg %register_value)
+# CM03-ROUNDTRIP: %ccc_result = call i32 @cm03_ccc(i32 %fast_result)
+
+# RUN: %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.original.ll | %FileCheck %s --check-prefix=CM03-ORACLE
+# CM03-ORACLE: case=NF-CM03
+# CM03-ORACLE: attribute-count signext=4
+# CM03-ORACLE-NEXT: attribute-count zeroext=4
+# CM03-ORACLE-NEXT: attribute-count sret=2
+# CM03-ORACLE-NEXT: attribute-count byval=2
+# CM03-ORACLE-NEXT: attribute-count inreg=2
+# CM03-ORACLE-NEXT: attribute-count fastcc=2
+# CM03-ORACLE: SPS-Harness-Expectation: Unknown(NormalizerMismatch)
+# CM03-ORACLE: tier=CandidateOnly
+# CM03-ORACLE-NEXT: nf_conforms=NotEvaluated
+# CM03-ORACLE-NEXT: model_status=NotComputed
+# CM03-ORACLE-NEXT: deployment_status=NotComputed
+
+# Each mutation strips one family everywhere, still assembles and verifies,
+# changes the bitcode bytes (source_filename is pinned), and is rejected by the
+# same inventory oracle.  A test that merely round-tripped the original could
+# otherwise pass while a normalizer silently erased attributes afterward.
+
+# RUN: sed 's/signext //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-signext.ll
+# RUN: %llvm-as %t.no-signext.ll -o %t.no-signext.bc
+# RUN: %opt -passes=verify -disable-output %t.no-signext.bc
+# RUN: not cmp -s %t.original.bc %t.no-signext.bc
+# RUN: %llvm-dis %t.no-signext.bc -o %t.no-signext.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-signext.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-SIGNEXT
+# CM03-NO-SIGNEXT: error: NF-CM03 attribute inventory mismatch for signext: expected 4, found 0
+
+# RUN: sed 's/zeroext //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-zeroext.ll
+# RUN: %llvm-as %t.no-zeroext.ll -o %t.no-zeroext.bc
+# RUN: %opt -passes=verify -disable-output %t.no-zeroext.bc
+# RUN: not cmp -s %t.original.bc %t.no-zeroext.bc
+# RUN: %llvm-dis %t.no-zeroext.bc -o %t.no-zeroext.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-zeroext.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-ZEROEXT
+# CM03-NO-ZEROEXT: error: NF-CM03 attribute inventory mismatch for zeroext: expected 4, found 0
+
+# RUN: sed 's/sret(%Pair) //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-sret.ll
+# RUN: %llvm-as %t.no-sret.ll -o %t.no-sret.bc
+# RUN: %opt -passes=verify -disable-output %t.no-sret.bc
+# RUN: not cmp -s %t.original.bc %t.no-sret.bc
+# RUN: %llvm-dis %t.no-sret.bc -o %t.no-sret.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-sret.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-SRET
+# CM03-NO-SRET: error: NF-CM03 attribute inventory mismatch for sret: expected 2, found 0
+
+# RUN: sed 's/byval(%Pair) align 8 //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-byval.ll
+# RUN: %llvm-as %t.no-byval.ll -o %t.no-byval.bc
+# RUN: %opt -passes=verify -disable-output %t.no-byval.bc
+# RUN: not cmp -s %t.original.bc %t.no-byval.bc
+# RUN: %llvm-dis %t.no-byval.bc -o %t.no-byval.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-byval.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-BYVAL
+# CM03-NO-BYVAL: error: NF-CM03 attribute inventory mismatch for byval: expected 2, found 0
+
+# RUN: sed 's/inreg //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-inreg.ll
+# RUN: %llvm-as %t.no-inreg.ll -o %t.no-inreg.bc
+# RUN: %opt -passes=verify -disable-output %t.no-inreg.bc
+# RUN: not cmp -s %t.original.bc %t.no-inreg.bc
+# RUN: %llvm-dis %t.no-inreg.bc -o %t.no-inreg.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-inreg.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-INREG
+# CM03-NO-INREG: error: NF-CM03 attribute inventory mismatch for inreg: expected 2, found 0
+
+# RUN: sed 's/fastcc //g' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.no-fastcc.ll
+# RUN: %llvm-as %t.no-fastcc.ll -o %t.no-fastcc.bc
+# RUN: %opt -passes=verify -disable-output %t.no-fastcc.bc
+# RUN: not cmp -s %t.original.bc %t.no-fastcc.bc
+# RUN: %llvm-dis %t.no-fastcc.bc -o %t.no-fastcc.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.no-fastcc.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-NO-FASTCC
+# CM03-NO-FASTCC: error: NF-CM03 attribute inventory mismatch for fastcc: expected 2, found 0
+
+# A global token count is not enough: stripping both signext roles from the
+# named callee definition and relocating two tokens onto an unrelated function
+# keeps the total at four. Exact definition/call-site role binding rejects it.
+# RUN: sed -e 's/define signext i8 @cm03_signext(i8 signext %value)/define i8 @cm03_signext(i8 %value)/' -e 's/define i32 @cm03_call_sites(/define signext i32 @cm03_call_sites(/' -e 's/i8 %%signed_value, i8 %unsigned_value/i8 signext %%signed_value, i8 %unsigned_value/' %harness/integration/Inputs/sps-rev4-nf/cm03-abi-attributes.ll.in > %t.relocated-signext.ll
+# RUN: %llvm-as %t.relocated-signext.ll -o %t.relocated-signext.bc
+# RUN: %opt -passes=verify -disable-output %t.relocated-signext.bc
+# RUN: %llvm-dis %t.relocated-signext.bc -o %t.relocated-signext.rendered.ll
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case cm03 %t.relocated-signext.rendered.ll 2>&1 | %FileCheck %s --check-prefix=CM03-RELOCATED
+# CM03-RELOCATED: error: cm03: @cm03_signext definition ABI spelling mismatch
+
+# INTERPRETATION: green means LLVM 17 preserves the six spellings on a normal
+# round trip and every stripping mutation remains executable but observably
+# changes the artifact.  It does not authorize any such mutation.

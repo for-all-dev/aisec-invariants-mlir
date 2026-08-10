@@ -1,0 +1,85 @@
+; HAND-AUTHORED FIXTURE SHAPES: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact. Tier CandidateOnly.
+;
+; NF-A07's eligible closure is @a07_closed_entry -> @a07_branching_helper ->
+; @a07_memory_leaf. It is direct and acyclic, has scalar/pointer ABI, reaches
+; call depth two, and has two expanded paths. The helper branch and leaf
+; load/store are the control and memory events semantic expansion must retain.
+;
+; The same module carries the required contrasts: a recursive SCC and an
+; indirect function-pointer call. Resource-limit contrasts reuse the eligible
+; entry with smaller K_call or K_paths values in the adjacent JSON table.
+
+target triple = "x86_64-unknown-linux-gnu"
+
+define internal i32 @a07_memory_leaf(ptr %slot, i32 %delta) {
+entry:
+  %before = load i32, ptr %slot, align 4
+  %after = add i32 %before, %delta
+  store i32 %after, ptr %slot, align 4
+  ret i32 %after
+}
+
+define internal i32 @a07_branching_helper(ptr %slot, i32 %value, i1 %choose_left) {
+entry:
+  br i1 %choose_left, label %left, label %right
+
+left:
+  %left.value = call i32 @a07_memory_leaf(ptr %slot, i32 %value)
+  br label %join
+
+right:
+  %right.delta = add i32 %value, 1
+  %right.value = call i32 @a07_memory_leaf(ptr %slot, i32 %right.delta)
+  br label %join
+
+join:
+  %result = phi i32 [ %left.value, %left ], [ %right.value, %right ]
+  ret i32 %result
+}
+
+define i32 @a07_closed_entry(ptr %slot, i32 %value, i1 %choose_left) {
+entry:
+  %result = call i32 @a07_branching_helper(ptr %slot, i32 %value, i1 %choose_left)
+  ret i32 %result
+}
+
+define internal i32 @a07_recursive_left(i32 %value) {
+entry:
+  %done = icmp eq i32 %value, 0
+  br i1 %done, label %stop, label %recur
+
+stop:
+  ret i32 0
+
+recur:
+  %next = sub i32 %value, 1
+  %result = call i32 @a07_recursive_right(i32 %next)
+  ret i32 %result
+}
+
+define internal i32 @a07_recursive_right(i32 %value) {
+entry:
+  %done = icmp eq i32 %value, 0
+  br i1 %done, label %stop, label %recur
+
+stop:
+  ret i32 0
+
+recur:
+  %next = sub i32 %value, 1
+  %result = call i32 @a07_recursive_left(i32 %next)
+  ret i32 %result
+}
+
+define i32 @a07_recursive_entry(i32 %value) {
+entry:
+  %result = call i32 @a07_recursive_left(i32 %value)
+  ret i32 %result
+}
+
+define i32 @a07_indirect_entry(ptr %callee, i32 %value) {
+entry:
+  %result = call i32 %callee(i32 %value)
+  ret i32 %result
+}

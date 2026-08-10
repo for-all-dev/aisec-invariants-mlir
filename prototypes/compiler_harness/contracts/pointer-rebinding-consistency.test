@@ -1,0 +1,16 @@
+# Pointer rebinding is checked by deriving its observation result from the
+# authoring ABI and policy, then binding that result to the snapshot, pair,
+# frozen MLIR/LLVM shapes, and CandidateOnly matcher.
+
+# RUN: env PYTHONDONTWRITEBYTECODE=1 %python %harness/tools/check_pointer_rebinding.py %harness | %FileCheck %s --check-prefix=POSITIVE
+
+# Mutations run on a private copy because they rewrite and restore fixture
+# authorities and captured review artifacts.
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root/fixtures
+# RUN: cp -R %fixtures/pointer-rebinding %t.root/fixtures/pointer-rebinding
+# RUN: cp -R %harness/tools %t.root/tools
+# RUN: env PYTHONDONTWRITEBYTECODE=1 %python %S/Inputs/pointer_rebinding_consistency_test.py %t.root | %FileCheck %s --check-prefix=NEGATIVE
+
+# POSITIVE: pointer-rebinding consistency checks passed
+# NEGATIVE: pointer-rebinding consistency mutations passed

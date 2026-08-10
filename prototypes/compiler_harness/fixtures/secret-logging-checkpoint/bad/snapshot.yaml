@@ -1,0 +1,55 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: secret_logging_checkpoint_bad
+c_evidence:
+- fixtures/secret-logging-checkpoint/bad/secret_logging_checkpoint_bad.c
+secret:
+- arg: 0
+  name: service_account_token
+public:
+- memory_at_arg: 2
+  name: public_log
+- memory_at_arg: 3
+  name: public_checkpoint
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-log-checkpoint-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      id: public-log
+      first_bad: true
+    because: the token is copied directly into both public outputs
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - secret_logging_checkpoint_bad
+        operation.names:
+          ordered:
+          - llvm.store
+        operation.occurrences.llvm.store:
+          count:
+            min: 2

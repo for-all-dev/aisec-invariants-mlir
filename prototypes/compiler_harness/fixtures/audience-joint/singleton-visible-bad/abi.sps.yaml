@@ -1,0 +1,19 @@
+source: audience_joint_singleton_visible_bad.c
+relation: provenance-only
+entry:
+  id: audience_joint_singleton_visible_bad
+  symbol: audience_joint_singleton_visible_bad
+  host: compute
+  function-type: "void (i32)"
+  return: void
+carriers:
+  logits:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-void: []

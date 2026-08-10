@@ -1,0 +1,29 @@
+entry: offset_disjoint_control
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  buffer-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+  secret-byte:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  public-value:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  buffer:
+    visibility: secret
+  return:
+    visibility: public
+releases: {}

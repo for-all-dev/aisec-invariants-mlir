@@ -1,0 +1,55 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: dynamic_kv_length_bad
+c_evidence:
+- fixtures/dynamic-kv-length/bad/dynamic_kv_length_bad.c
+secret:
+- arg: 0
+  name: secret_length
+public:
+- memory_at_arg: 2
+  name: public_allocation_count
+- memory_at_arg: 3
+  name: public_iteration_count
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-counts-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      id: public-allocation-count
+      first_bad: true
+    because: secret_length is stored into public_allocation_count
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - dynamic_kv_length_bad
+        operation.names:
+          ordered:
+          - llvm.store
+        operation.occurrences.llvm.store:
+          count:
+            min: 2

@@ -1,0 +1,18 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/external-memory.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family external-contract | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i32 @call_contracted_scalar(i32 %value)
+# SHAPE: %result = call i32 @contracted_scalar(i32 %value)
+# SHAPE-LABEL: define ptr @call_contracted_allocate(i64 %size)
+# SHAPE: %result = call ptr @contracted_allocate(i64 %size)
+# SHAPE-LABEL: define void @visible_host_transfer(i8 %secret)
+# SHAPE: call void @sps_host_transfer_i8(i8 %secret, i1 true)
+# SHAPE-LABEL: define void @hidden_host_transfer(i8 %secret)
+# SHAPE: call void @sps_host_transfer_i8(i8 %secret, i1 false)
+
+# CONTRACT: verified external-contract: 6 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

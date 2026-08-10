@@ -1,0 +1,32 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: dynamic_kv_length_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    secret-length:
+      bitvector:
+        width: 32
+        hex: "00000000"
+    private-result:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    secret-length:
+      bitvector:
+        width: 32
+        hex: "00000001"
+    private-result:
+      bitvector:
+        width: 32
+        hex: "00000000"
+expected:
+  bad_state: public-counts-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: public-allocation-count

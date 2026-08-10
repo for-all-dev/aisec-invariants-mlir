@@ -1,0 +1,566 @@
+{
+  "formatId": "SPS-Harness-Future-Conformance-Error-Contract-v2",
+  "fixtureTier": {
+    "tag": "CandidateOnly"
+  },
+  "targetTier": {
+    "tag": "ConformanceV2"
+  },
+  "claimable": false,
+  "currentStatus": {
+    "nfConforms": "NotEvaluated",
+    "modelStatus": "NotComputed",
+    "deploymentStatus": "NotComputed",
+    "policyReviewStatus": "NotComputed"
+  },
+  "caseId": "08-error-field-binding",
+  "sourceShape": "integration/Inputs/sps-error-events/capture-shape.ll",
+  "requiredMaterializedFiles": [
+    "artifact.bc",
+    "artifact-identity.sps.json",
+    "identity-evidence.sps.json",
+    "sps-manifest.sps.json",
+    "proof-configuration.sps.json",
+    "aggregation-input.sps.json",
+    "sps-report.sps.json"
+  ],
+  "policyIntent": {
+    "principals": [
+      "observer",
+      "owner"
+    ],
+    "hosts": [
+      "secure"
+    ],
+    "hostVisibility": {
+      "worldVisible": [],
+      "memberVisible": {
+        "observer": [],
+        "owner": [
+          "secure"
+        ]
+      },
+      "minimallyJointVisible": []
+    },
+    "maximalAdversaryCoalitions": [
+      [
+        "observer"
+      ],
+      [
+        "owner"
+      ]
+    ],
+    "components": {
+      "public.fail": {
+        "valueType": {
+          "tag": "BoolValueV2"
+        },
+        "lifecycle": "DerivedPublic",
+        "applicableEntries": [
+          "fixture.error-entry"
+        ]
+      },
+      "secret.detail": {
+        "valueType": {
+          "tag": "BVValueV2",
+          "bitWidth": 8
+        },
+        "lifecycle": "EntryInput",
+        "applicableEntries": [
+          "fixture.error-entry"
+        ]
+      },
+      "public.divisor": {
+        "valueType": {
+          "tag": "BVValueV2",
+          "bitWidth": 8
+        },
+        "lifecycle": "DerivedPublic",
+        "applicableEntries": [
+          "fixture.error-entry"
+        ]
+      }
+    },
+    "componentVisibility": {
+      "worldVisible": [
+        "public.divisor",
+        "public.fail"
+      ],
+      "memberVisible": {
+        "observer": [],
+        "owner": [
+          "secret.detail"
+        ]
+      },
+      "minimallyJointVisible": []
+    },
+    "outputVisibility": {
+      "worldVisible": [],
+      "memberVisible": {
+        "observer": [],
+        "owner": []
+      },
+      "minimallyJointVisible": []
+    },
+    "errorVisibility": {
+      "worldVisible": [
+        "verifier.ub-risk"
+      ],
+      "memberVisible": {
+        "observer": [
+          "app.error"
+        ],
+        "owner": []
+      },
+      "minimallyJointVisible": []
+    },
+    "entries": {
+      "fixture.error-entry": {
+        "llvmSymbol": "sps_error_fixture",
+        "allowedReturnClasses": [
+          {
+            "tag": "NormalValue"
+          },
+          {
+            "tag": "DeclaredFailure",
+            "args": [
+              "app.error"
+            ]
+          }
+        ]
+      }
+    },
+    "publicAliasTopologyIds": {
+      "fixture.error-entry": [
+        "topology.no-roots"
+      ]
+    },
+    "entryPlacement": {
+      "fixture.error-entry": "secure"
+    }
+  },
+  "abiIntent": {
+    "abiId": "generated-later",
+    "targetDataLayout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+    "entries": {
+      "fixture.error-entry": {
+        "functionType": "i8 (i1, i8, i8)",
+        "roots": [],
+        "returnObservationHost": "secure",
+        "returnBitWidth": [
+          {
+            "returnClass": {
+              "tag": "NormalValue"
+            },
+            "bitWidth": 8
+          },
+          {
+            "returnClass": {
+              "tag": "DeclaredFailure",
+              "args": [
+                "app.error"
+              ]
+            },
+            "bitWidth": 8
+          }
+        ],
+        "declaredErrorFields": [
+          "app.error"
+        ]
+      }
+    },
+    "carriers": {
+      "fixture.error-entry/public.fail": {
+        "tag": "ScalarArgumentCarrierV2",
+        "entryId": "fixture.error-entry",
+        "argumentIndex": 0,
+        "scalarType": "I1",
+        "encoding": {
+          "bitWidth": 1,
+          "byteWidth": 1,
+          "byteOrder": "BigEndian",
+          "highPaddingBits": 7,
+          "signedness": "Unsigned"
+        }
+      },
+      "fixture.error-entry/secret.detail": {
+        "tag": "ScalarArgumentCarrierV2",
+        "entryId": "fixture.error-entry",
+        "argumentIndex": 1,
+        "scalarType": "I8",
+        "encoding": {
+          "bitWidth": 8,
+          "byteWidth": 1,
+          "byteOrder": "BigEndian",
+          "highPaddingBits": 0,
+          "signedness": "Unsigned"
+        }
+      },
+      "fixture.error-entry/public.divisor": {
+        "tag": "ScalarArgumentCarrierV2",
+        "entryId": "fixture.error-entry",
+        "argumentIndex": 2,
+        "scalarType": "I8",
+        "encoding": {
+          "bitWidth": 8,
+          "byteWidth": 1,
+          "byteOrder": "BigEndian",
+          "highPaddingBits": 0,
+          "signedness": "Unsigned"
+        }
+      }
+    },
+    "namedCarriers": {},
+    "outputBindings": {
+      "return.byte": {
+        "outputId": "return.byte",
+        "source": {
+          "tag": "ReturnBitsV2",
+          "entryId": "fixture.error-entry",
+          "bitOffset": 0,
+          "bitWidth": 8,
+          "encoding": {
+            "bitWidth": 8,
+            "byteWidth": 1,
+            "byteOrder": "BigEndian",
+            "highPaddingBits": 0,
+            "signedness": "Unsigned"
+          }
+        },
+        "footprint": [
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 0
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 1
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 2
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 3
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 4
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 5
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 6
+          },
+          {
+            "tag": "ReturnBitV2",
+            "entryId": "fixture.error-entry",
+            "bitIndex": 7
+          }
+        ]
+      }
+    },
+    "returnClassBindings": [
+      {
+        "entryId": "fixture.error-entry",
+        "returnSiteAlias": "declared_failure.ret",
+        "returnClass": {
+          "tag": "DeclaredFailure",
+          "args": [
+            "app.error"
+          ]
+        }
+      },
+      {
+        "entryId": "fixture.error-entry",
+        "returnSiteAlias": "ordinary.ret",
+        "returnClass": {
+          "tag": "NormalValue"
+        }
+      }
+    ],
+    "terminalOutputOrder": [
+      {
+        "entryId": "fixture.error-entry",
+        "returnClass": {
+          "tag": "NormalValue"
+        },
+        "outputIds": [
+          "return.byte"
+        ]
+      },
+      {
+        "entryId": "fixture.error-entry",
+        "returnClass": {
+          "tag": "DeclaredFailure",
+          "args": [
+            "app.error"
+          ]
+        },
+        "outputIds": [
+          "return.byte"
+        ]
+      }
+    ],
+    "contractEventOutputOrder": [],
+    "errorFields": {
+      "app.error": {
+        "errorFieldId": "app.error",
+        "payloadType": {
+          "tag": "BVValueV2",
+          "bitWidth": 8
+        },
+        "source": {
+          "tag": "ReturnBitsAtFailureV2",
+          "entryId": "fixture.error-entry",
+          "returnClass": {
+            "tag": "DeclaredFailure",
+            "args": [
+              "app.error"
+            ]
+          },
+          "bitOffset": 0,
+          "bitWidth": 8,
+          "encoding": {
+            "bitWidth": 8,
+            "byteWidth": 1,
+            "byteOrder": "BigEndian",
+            "highPaddingBits": 0,
+            "signedness": "Unsigned"
+          }
+        },
+        "encoding": {
+          "bitWidth": 8,
+          "byteWidth": 1,
+          "byteOrder": "BigEndian",
+          "highPaddingBits": 0,
+          "signedness": "Unsigned"
+        }
+      },
+      "verifier.ub-risk": {
+        "errorFieldId": "verifier.ub-risk",
+        "payloadType": {
+          "tag": "TupleValueV2",
+          "fields": [
+            {
+              "fieldId": "kind",
+              "valueType": {
+                "tag": "BVValueV2",
+                "bitWidth": 8
+              }
+            },
+            {
+              "fieldId": "reasonClass",
+              "valueType": {
+                "tag": "BVValueV2",
+                "bitWidth": 4
+              }
+            }
+          ]
+        },
+        "source": {
+          "tag": "VerifierUBRiskPayloadV2"
+        },
+        "encoding": {
+          "bitWidth": 16,
+          "byteWidth": 2,
+          "byteOrder": "BigEndian",
+          "highPaddingBits": 0,
+          "signedness": "NotNumeric"
+        }
+      }
+    },
+    "ubRiskErrorFieldId": "verifier.ub-risk",
+    "aliasTopologyBindings": {
+      "bindings": [
+        {
+          "entryId": "fixture.error-entry",
+          "aliasTopologyId": "topology.no-roots",
+          "equivalenceClasses": [],
+          "overlaps": []
+        }
+      ]
+    }
+  },
+  "expectedSemantics": {
+    "errorStructuralFields": [
+      "tag",
+      "site",
+      "occurrence",
+      "errorFieldId",
+      "class"
+    ],
+    "declaredFailureEventOrder": [
+      {
+        "tag": "Failure",
+        "class": "DeclaredFailure"
+      },
+      {
+        "tag": "Error",
+        "errorFieldId": "app.error",
+        "class": "DeclaredFailure"
+      },
+      {
+        "tag": "Latency"
+      },
+      {
+        "tag": "Output",
+        "outputId": "return.byte"
+      },
+      {
+        "tag": "Termination",
+        "returnClass": {
+          "tag": "DeclaredFailure",
+          "args": [
+            "app.error"
+          ]
+        }
+      }
+    ],
+    "ubRiskEventOrder": [
+      {
+        "tag": "UBRisk",
+        "reasonClass": "DivisorZero"
+      },
+      {
+        "tag": "Failure",
+        "class": "UBRisk",
+        "reasonClass": "DivisorZero"
+      },
+      {
+        "tag": "Error",
+        "errorFieldId": "verifier.ub-risk",
+        "class": "UBRisk",
+        "payload": {
+          "kind": 1,
+          "reasonClass": "DivisorZero"
+        }
+      },
+      {
+        "tag": "Termination",
+        "returnClass": {
+          "tag": "UBFailure",
+          "args": [
+            "DivisorZero"
+          ]
+        }
+      }
+    ],
+    "payloadProjection": [
+      {
+        "coalition": [],
+        "errorFieldId": "app.error",
+        "payloadVisible": false
+      },
+      {
+        "coalition": [],
+        "errorFieldId": "verifier.ub-risk",
+        "payloadVisible": true
+      },
+      {
+        "coalition": [
+          "observer"
+        ],
+        "errorFieldId": "app.error",
+        "payloadVisible": true
+      },
+      {
+        "coalition": [
+          "observer"
+        ],
+        "errorFieldId": "verifier.ub-risk",
+        "payloadVisible": true
+      },
+      {
+        "coalition": [
+          "owner"
+        ],
+        "errorFieldId": "app.error",
+        "payloadVisible": true
+      },
+      {
+        "coalition": [
+          "owner"
+        ],
+        "errorFieldId": "verifier.ub-risk",
+        "payloadVisible": true
+      }
+    ],
+    "expectedModelStatus": {
+      "tag": "Counterexample",
+      "args": [
+        {
+          "tag": "FreshProtectedReceiptMatcherV2"
+        }
+      ]
+    },
+    "expectedDeploymentStatus": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
+      ]
+    },
+    "expectedPolicyReviewStatus": {
+      "tag": "Complete"
+    },
+    "negativeCases": [
+      {
+        "caseId": "missing-error-fields",
+        "targetOutcome": "ConfigurationRejectedV2(NoncanonicalInterface); NoModelStatus"
+      },
+      {
+        "caseId": "dangling-declared-error-id",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "declared-error-fields-mismatch",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "dangling-ub-risk-error-id",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "malformed-application-payload-binding",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "malformed-application-payload-source",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "malformed-ub-risk-payload-binding",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "duplicate-verifier-ub-payload-binding",
+        "targetOutcome": "Unknown(OutputBindingIncomplete)"
+      },
+      {
+        "caseId": "dangling-error-visibility-id",
+        "targetOutcome": "Unknown(ManifestMismatch)"
+      },
+      {
+        "caseId": "reordered-declared-failure-events",
+        "targetOutcome": "Unknown(OutputClosureMismatch)"
+      },
+      {
+        "caseId": "reordered-ub-risk-events",
+        "targetOutcome": "Unknown(OutputClosureMismatch)"
+      }
+    ]
+  }
+}

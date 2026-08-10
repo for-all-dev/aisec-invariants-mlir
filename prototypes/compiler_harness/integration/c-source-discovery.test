@@ -1,0 +1,44 @@
+# Fixture compilation, coverage, and provenance share one case-owned source
+# inventory. ABI source selects the primary translation unit; every sibling
+# support unit is discovered from the case directory, and no family sources/
+# compatibility path remains.
+
+# RUN: %python %harness/tools/fixture_layout.py --root %harness --check-c-source-layout | %FileCheck %s --check-prefix=CHECK
+# RUN: %python %harness/tools/fixture_layout.py --root %harness --relative-to %harness --list-provenance-c-sources | %FileCheck %s --check-prefix=CORPUS
+
+# RUN: rm -rf %t.base
+# RUN: mkdir -p %t.base/fixtures/family/case %t.base/integration/Inputs/release-body-fragments
+# RUN: %python -c "import pathlib; r=pathlib.Path(r'%t.base'); c=r/'fixtures/family/case'; (c/'primary.c').write_text('SPS_ENTRY(\"entry\")\n'); (c/'support.cpp').write_text('int support(void) { return 0; }\n'); (c/'policy.sps.yaml').write_text('entry: entry\n'); (c/'abi.sps.yaml').write_text('source: primary.c\n'); (r/'integration/Inputs/release-body-fragments/fragment.c').write_text('int fragment(void) { return 0; }\n')"
+# RUN: %python -c "import pathlib,yaml; r=pathlib.Path(r'%t.base'); c=r/'fixtures/family/case'; paths=['fixtures/family/case/primary.c','fixtures/family/case/support.cpp']; snapshot={'c_evidence':paths,'expect':{'pipelines':{'source-boundary':{'kind':'diagnostic'}}}}; (c/'snapshot.yaml').write_text(yaml.safe_dump(snapshot,sort_keys=False))"
+# RUN: %python %harness/tools/fixture_layout.py --root %t.base --relative-to %t.base --list-provenance-c-sources | %FileCheck %s --check-prefix=TEMP
+
+# RUN: cp -R %t.base %t.legacy
+# RUN: mkdir -p %t.legacy/fixtures/family/sources
+# RUN: not %python %harness/tools/fixture_layout.py --root %t.legacy --check-c-source-layout 2>&1 | %FileCheck %s --check-prefix=LEGACY
+# RUN: cp -R %t.base %t.legacy-link
+# RUN: ln -s case %t.legacy-link/fixtures/family/sources
+# RUN: not %python %harness/tools/fixture_layout.py --root %t.legacy-link --check-c-source-layout 2>&1 | %FileCheck %s --check-prefix=LEGACY
+
+# RUN: cp -R %t.base %t.orphan
+# RUN: mkdir -p %t.orphan/fixtures/family/case/nested
+# RUN: touch %t.orphan/fixtures/family/case/nested/orphan.c
+# RUN: not %python %harness/tools/fixture_layout.py --root %t.orphan --check-c-source-layout 2>&1 | %FileCheck %s --check-prefix=ORPHAN
+
+# RUN: cp -R %t.base %t.symlink
+# RUN: rm %t.symlink/fixtures/family/case/support.cpp
+# RUN: ln -s primary.c %t.symlink/fixtures/family/case/support.cpp
+# RUN: not %python %harness/tools/fixture_layout.py --root %t.symlink --check-c-source-layout 2>&1 | %FileCheck %s --check-prefix=SYMLINK
+
+# CHECK: C source layout checks passed
+
+# CORPUS-NOT: /sources/
+# CORPUS-DAG: fixtures/audience-mismatch/bad/audience_mismatch_bad.c
+# CORPUS-DAG: integration/Inputs/release-body-fragments/argmax_release_body.c
+
+# TEMP: fixtures/family/case/primary.c
+# TEMP-NEXT: fixtures/family/case/support.cpp
+# TEMP-NEXT: integration/Inputs/release-body-fragments/fragment.c
+
+# LEGACY: error: fixtures/family/sources: family sources/ directories are forbidden
+# ORPHAN: error: fixtures/family/case/nested/orphan.c: fixture translation unit must be directly owned by a snapshot case
+# SYMLINK: fixtures/family/case/support.cpp: case-owned translation units must not be symlinks

@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sps.dev/source-annotations/policy.schema.json",
+  "title": "SPS source policy authoring document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "entry",
+    "observation-model",
+    "principals",
+    "adversaries",
+    "hosts",
+    "components",
+    "outputs",
+    "releases"
+  ],
+  "properties": {
+    "entry": {
+      "$ref": "#/$defs/id"
+    },
+    "observation-model": {
+      "const": "constant-time"
+    },
+    "principals": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "adversaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximal"],
+      "properties": {
+        "maximal": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/nonempty-coalition"
+          }
+        }
+      }
+    },
+    "hosts": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/visible-item"
+      }
+    },
+    "components": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/visible-item"
+      }
+    },
+    "releases": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/release"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+    },
+    "nonempty-coalition": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "joint-coalition": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "visibility": {
+      "oneOf": [
+        {
+          "enum": ["public", "secret"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["world", "members", "joint"],
+          "properties": {
+            "world": {
+              "type": "boolean"
+            },
+            "members": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            },
+            "joint": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/joint-coalition"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visible-item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility"],
+      "properties": {
+        "visibility": {
+          "$ref": "#/$defs/visibility"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lifecycle", "type", "visibility"],
+      "properties": {
+        "lifecycle": {
+          "const": "entry-input"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^(bv[1-9][0-9]*|bytes)$"
+        },
+        "visibility": {
+          "$ref": "#/$defs/visibility"
+        }
+      }
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["component"],
+          "properties": {
+            "component": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["constant"],
+          "properties": {
+            "constant": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bit-and"],
+          "properties": {
+            "bit-and": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["left", "right"],
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/expression"
+                },
+                "right": {
+                  "$ref": "#/$defs/expression"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bit-xor"],
+          "properties": {
+            "bit-xor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["left", "right"],
+              "properties": {
+                "left": {
+                  "$ref": "#/$defs/expression"
+                },
+                "right": {
+                  "$ref": "#/$defs/expression"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["negate"],
+          "properties": {
+            "negate": {
+              "$ref": "#/$defs/expression"
+            }
+          }
+        }
+      ]
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locator",
+        "audience",
+        "type",
+        "expression",
+        "guard",
+        "payload-footprint",
+        "multiplicity"
+      ],
+      "properties": {
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["helper", "call-ordinal"],
+          "properties": {
+            "helper": {
+              "$ref": "#/$defs/id"
+            },
+            "call-ordinal": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "audience": {
+          "$ref": "#/$defs/visibility"
+        },
+        "type": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "width", "byte-order"],
+          "properties": {
+            "kind": {
+              "const": "bv"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "byte-order": {
+              "enum": ["little", "big"]
+            }
+          }
+        },
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "guard": {
+          "type": "boolean"
+        },
+        "payload-footprint": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "multiplicity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

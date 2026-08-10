@@ -1,0 +1,38 @@
+# These examples remain in their review-friendly location, but this discovered
+# integration test makes their parse/FileCheck contracts part of the corpus.
+# RUN: %mlir-opt %harness/examples/actors/t2_joint_visibility.mlir | %FileCheck %s --check-prefix=T2
+# RUN: %mlir-opt %harness/examples/actors/t5_clearance_violation.mlir | %FileCheck %s --check-prefix=T5
+# RUN: %mlir-opt %harness/examples/actors/t6_downward_closure.mlir | %FileCheck %s --check-prefix=T6
+# RUN: %mlir-opt %harness/examples/actors/t9_placement_incomplete.mlir | %FileCheck %s --check-prefix=T9
+# RUN: %mlir-opt %harness/integration/Inputs/sps-rev4-high-value/actor-placement-complete.mlir.in | %FileCheck %s --check-prefix=T9C
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family actor-policy | %FileCheck %s
+
+# T2: sps.coalitions_maximal =
+# T2-SAME: "alice", "bob"
+# T2: minimally_joint_visible =
+# T2-SAME: output = "joint_result"
+# T2-LABEL: llvm.func @serve_kv_cache
+# T2: llvm.store %{{.*}}, %{{.*}} {sps.audience = ["alice", "bob"], sps.output = "joint_result"}
+
+# T5: sps.visibility = [{item = "embeddings", visible_to = ["alice"]}, {item = "raw_prompt", visible_to = []}]
+# T5-LABEL: llvm.func @serve_two_items
+# T5: llvm.store %{{.*}}, %{{.*}} {sps.audience = ["alice"], sps.item = "embeddings"}
+# T5-NEXT: llvm.store %{{.*}}, %{{.*}} {sps.audience = ["alice"], sps.item = "raw_prompt"}
+
+# T6: sps.coalitions_maximal =
+# T6-SAME: "alice", "bob", "carol"
+# T6: sps.principals = ["alice", "bob", "carol"]
+# T6-LABEL: llvm.func @serve_carol_item
+# T6: llvm.store %{{.*}}, %{{.*}} {sps.audience = ["carol"], sps.output = "carol_output"}
+
+# T9: sps.placement = [{func = "@serve_placed", host = "host_eu"}]
+# T9-LABEL: llvm.func @serve_placed
+# T9-LABEL: llvm.func @serve_unplaced
+
+# T9C: sps.placement =
+# T9C-SAME: {func = "@serve_placed", host = "host_eu"}
+# T9C-SAME: {func = "@serve_unplaced", host = "host_eu"}
+# T9C-LABEL: llvm.func @serve_placed
+# T9C-LABEL: llvm.func @serve_unplaced
+
+# CHECK: verified actor-policy: 5 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed

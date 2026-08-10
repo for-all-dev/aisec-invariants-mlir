@@ -1,0 +1,237 @@
+{
+  "schema_version": "SPS-Harness-Rev4-Conformance-Matrix-v2",
+  "authority": "SPS Rev4.1 corrigendum and SPS-LLVM-NF-v2 acceptance/countermodel ledger",
+  "status_meaning": "A seed preserves a relevant shape or expected disposition; a capability-gated seed is UNSUPPORTED until patched LLVM or the exact verifier is present. Neither kind is itself a conformance result.",
+  "tier_rule": "preflight-seed cases preserve review shapes only; only a Rev4.1 conformance fixture may exercise NFConforms or match SPSRunReportV2",
+  "required_conformance_fixture_records": [
+    "artifact.bc",
+    "artifact-identity.sps.json",
+    "identity-evidence.sps.json",
+    "manifest.sps.json",
+    "ordered-pass-trace.sps.json",
+    "normalizer-trace.sps.json",
+    "normal-form-audit-inventory.sps.json",
+    "expected/run-report.matcher.json"
+  ],
+  "cases": [
+    {
+      "id": "NF-A01",
+      "title": "Exact byte replay to core ISel",
+      "expected": "NFConforms may hold after freeze, fresh parse, equal canonical hash, and mutation-free replay to core ISel",
+      "harness_status": "infrastructure-seed",
+      "seeds": ["integration/candidate-bundles/pairs.test", "integration/nfv2-release-codegen.test"],
+      "gap": "Current pairs prove only exact candidate bc/ll disassembly and reassembly. The NFv2 test contracts one-to-one SPS_RELEASE lowering and zero-code removal but is capability-gated until patched LLVM exists; canonical freeze capture, pass trace, full audit, and exact ISel replay remain absent"
+    },
+    {
+      "id": "NF-A02",
+      "title": "Strict scalar arithmetic",
+      "expected": "Accept only flag-free defined scalar arithmetic and unambiguous strict FP semantics",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a02-scalar-fp-surface.test"],
+      "gap": "Both sides of the Lemma R5.0N line are now pinned under LLVM 17.0.6: an admitted-only module (load/store/same-width bitcast/phi/select/fneg/fcmp plus flag-free integer arithmetic with checked div and shift operands) assembles, verifies, and round-trips with a zero rejected-opcode count, and fadd, fptrunc/fpext, and sitofp/fptosi/uitofp arms are each separated from it by tools/nf_surface_gate.py --profile fp-closure, whose Unknown(PONFFPArithmeticUnsupported) string is a harness expectation record. The gate is a syntactic single-file opcode scan: it does not compute the frozen-closure NoAmbiguousNaNResult_e(T) premise, does not follow calls or intrinsics, and does not run the transition-rule audit"
+    },
+    {
+      "id": "NF-A03",
+      "title": "Safe annotation weakening",
+      "expected": "SPSFinalWeaken_v2 may remove only permitted annotations and must preserve every llvm.sps.release occurrence through subsequent DCE and fresh parse",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/nfv2-release-intrinsic-preservation.test"],
+      "gap": "The executable preservation contract covers O1/O2/O3/Os/Oz, SPSFinalWeaken_v2, DCE, bitcode round-trip, and fresh parse, but remains UNSUPPORTED until patched LLVM provides the intrinsic and weakening pass"
+    },
+    {
+      "id": "NF-A04",
+      "title": "Proven-safe freeze erasure",
+      "expected": "Accept only when the frozen value is proved non-undef and non-poison and the rewrite is recorded",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The LLVM shape and noundef premise are pinned; the LLVM 22.1.8 normalizer rewrite record is not implemented"
+    },
+    {
+      "id": "NF-A05",
+      "title": "Complete fixed-vector scalarization",
+      "expected": "Accept only after complete scalarization leaves no vector type or operation",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a05-vector-scalarization.test"],
+      "gap": "The quantitative criterion has a real zero: an escape-free scalar-ABI <4 x i32> lane-wise function carrying lanes, a splat and a reversing constant shuffle, a vector select, and a vector PHI drops from 21 residual vector items to 0 under LLVM 17.0.6 opt -passes=scalarizer, with the lane structure visible as four scalar selects and four scalar PHIs. Two companions that look scalarized stay nonzero: a private alloca <4 x i32> buffer leaves 1 item after -scalarize-load-store and 9 without it. The count is over <N x T> tokens in one textual module, not the Rev4 residual audit inventory over a frozen identity-bound LLVM 22.1.8 artifact, and zero is a necessary shape rather than acceptance"
+    },
+    {
+      "id": "NF-A06",
+      "title": "Masked memory to guarded lanes",
+      "expected": "Accept exact guarded-lane lowering while retaining every introduced branch and address event",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a06-masked-memory-guarded-lanes.test"],
+      "gap": "LLVM 17 pins guarded active-lane control flow, passthrough values, access counts, offsets, and the stock scalarizer's residual-vector and copied-alignment limitations. LLVM 22.1.8 SPS normalization, exact commonAlignment values, zero residual inventory, branch/address event inventory, and NFConforms remain absent"
+    },
+    {
+      "id": "NF-A07",
+      "title": "Closed direct-call analysis inlining",
+      "expected": "Accept bounded analysis-time expansion of an eligible acyclic internal direct call without mutating the artifact",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a07-direct-call-expansion.test"],
+      "gap": "Direct, recursive, indirect, and resource-limit shapes plus a mutating stock-inline contrast are pinned. Identity-preserving semantic expansion, exact cap accounting, pointer/memory/event preservation, and a computed disposition remain absent"
+    },
+    {
+      "id": "NF-A08",
+      "title": "NFv2 release intrinsic binding and equivalence",
+      "expected": "Accept exactly one bound llvm.sps.release occurrence whose variadic integer leaves equal flattened ReleaseType; obtain ReleaseId only through ReleaseImplementationBindingV2.emitMarkerInstructionId and discharge expression/guard equivalence",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/nfv2-release-intrinsic-contract.test", "integration/invalid-callable-high-value-markers.test"],
+      "gap": "Twenty textual NFv2 structural cases now distinguish ReleaseCarrierMismatch from unresolved ReleaseConformanceUnknown. The 21 callable-wrapper cases are retained only as invalid-carrier negative evidence; exact semantic equivalence, PONF construction, and replay remain unimplemented"
+    },
+    {
+      "id": "NF-A09",
+      "title": "Exhausted bounded loop",
+      "expected": "Encode BoundExhausted and prove it unreachable from the public semantic bound; K_loop supplies no premise",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a09-bound-exhaustion.test"],
+      "gap": "The canonical loop shape and public-bound 0, 1, and 16 cases, cap shortfall/adequacy, aligned exhaustion, and one-lane mismatch expectations are pinned. ExpandV2, retained BoundExhausted semantics, horizon derivation, adequacy proof, relational solving, and exact replay remain absent"
+    },
+    {
+      "id": "NF-A10",
+      "title": "Whole-region initialization at exit",
+      "expected": "Discharge initialization only with exact per-byte semantics on every feasible path",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-exact-memory.test"],
+      "gap": "Loop, early-exit, copy, move, zero-length, and overwrite shapes are pinned; exact byte-memory proof is not implemented"
+    },
+    {
+      "id": "NF-A11",
+      "title": "Eligible lockstep product",
+      "expected": "An AuditAll safety query may be Discharged only after UNSAT proves every branch, loop, event, failure, and termination bad state unreachable",
+      "harness_status": "preflight-seed",
+      "seeds": [
+        "integration/rev4-high-value-output-closure.test",
+        "integration/rev4-high-value-aggregation.test"
+      ],
+      "gap": "Terminal and aggregation oracles are executable, but no audit-all relational product or replay engine exists"
+    },
+    {
+      "id": "NF-A12",
+      "title": "Contracted external call",
+      "expected": "Accept only a hash-bound complete contract covering ABI, memory, events, termination, faults, and deployment identity",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-external-contract.test"],
+      "gap": "Deterministic, incomplete, multivalued, allocation, and host-transfer variants are pinned; normative contract evaluation is not implemented"
+    },
+    {
+      "id": "NF-A13",
+      "title": "Layout-independent pointer equality",
+      "expected": "Accept only a proved modular offset predicate valid for every admissible base address",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "Same-root and lifetime-control shapes are pinned; canonical allocation/offset term construction is not implemented"
+    },
+    {
+      "id": "NF-A14",
+      "title": "Versioned unreachable cleanup",
+      "expected": "Accept only pinned CFG-unreachable cleanup with recorded sites; reachable unsupported operations remain Unknown",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-a14-unreachable-cleanup.test"],
+      "gap": "LLVM 17 input graph reachability and the broader simplifycfg,dce contrast pin orphaned poison/freeze removal, PHI repair, zero-use cleanup, a literal-false CFG edge, and a runtime-reachable freeze. The exact versioned cleanup, stable-site telemetry, residual audit, and computed FreezeMayChoose disposition remain absent"
+    },
+    {
+      "id": "NF-A15",
+      "title": "Target-bound timing-risk lint",
+      "expected": "Emit timing-risk records without changing NFConforms or ModelStatus; leave DeploymentStatus Open absent paired P4 evidence",
+      "harness_status": "preflight-seed",
+      "seeds": ["fixtures/launder-scan/model-clean-p4-open/candidate", "fixtures/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg.bad.mlir", "p4-risk/laundering-x86-codegen.test"],
+      "gap": "The select and division shapes are seeds only; no normative TimingRiskLintRecord is emitted"
+    },
+    {
+      "id": "NF-CM01",
+      "title": "Post-freeze IR mutation",
+      "expected": "Unknown(PipelineMismatch)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The test proves captured and post-instcombine bitcode differ; canonical LLVM 22.1.8 capture-to-ISel identity is not implemented"
+    },
+    {
+      "id": "NF-CM02",
+      "title": "Residual target-legal masked/vector operation",
+      "expected": "Unknown(ResidualVector)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-cm02-residual-vector.test"],
+      "gap": "Both NF-CM02 failure modes are pinned as cardinalities under LLVM 17.0.6. Target-legality: with -mattr=+avx2 exactly 2 masked intrinsic call sites (masked.load and masked.store of <4 x i32>) survive scalarize-masked-mem-intrin while masked.scatter is expanded; at baseline x86-64 zero survive yet the residual vector inventory rises from 32 to 39, so the pass running is not closure. Unsplittable vector: opt -passes=scalarizer leaves define <4 x i32> @lanewise intact because the vector type escapes through the ABI. Unknown(ResidualVector) appears only as a harness expectation string; no ModelStatus, DeploymentStatus, or PolicyReviewStatus is computed, and the normative refusal at the LLVM 22.1.8 boundary is not implemented"
+    },
+    {
+      "id": "NF-CM03",
+      "title": "ABI attribute stripped",
+      "expected": "Unknown(NormalizerMismatch) or Unknown(UnsupportedType)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-nf-cm03-abi-attribute-stripping.test"],
+      "gap": "LLVM 17 round-trip preservation and separate byte-changing mutations cover definition and call-site signext, zeroext, sret, byval, inreg, and fastcc spellings. Exact Class-A audit classification, canonical LLVM 22.1.8 normalizer refusal, and computed NormalizerMismatch or UnsupportedType remain absent"
+    },
+    {
+      "id": "NF-CM04",
+      "title": "freeze of undef unsafely erased",
+      "expected": "Unknown(FreezeMayChoose)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The freeze undef shape and disposition oracle are pinned; the normalizer refusal is not implemented"
+    },
+    {
+      "id": "NF-CM05",
+      "title": "Public-bound exhaustion discarded",
+      "expected": "Counterexample after replay for a lane mismatch, otherwise Unknown(LoopRemainder); never Proved",
+      "harness_status": "preflight-seed",
+      "seeds": ["fixtures/loop-bounds/public-bound-exhausted-unknown/candidate"]
+    },
+    {
+      "id": "NF-CM06",
+      "title": "Divergent controls forced into lockstep",
+      "expected": "AuditAll SAT remains CandidateOnly until exact replay reaches Bad_A; the final public result is Counterexample(receiptId)",
+      "harness_status": "preflight-seed",
+      "seeds": ["fixtures/loop-bounds/secret-trip-count-bad/candidate", "fixtures/predecessor-choice/blockarg-bad/predecessor_choice_blockarg.bad.mlir"]
+    },
+    {
+      "id": "NF-CM07",
+      "title": "UBRisk pair filtered away",
+      "expected": "Counterexample after asymmetric exact replay; aligned UBRisk companion is Unknown(PossibleUB)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-definedness.test"],
+      "gap": "Asymmetric and aligned udiv pairs are both pinned; exact relational definedness and replay are not implemented"
+    },
+    {
+      "id": "NF-CM08",
+      "title": "Diagnostic initialization summary used as semantics",
+      "expected": "Unknown(InvalidDiagnosticShortcut), with exact unwritten-byte read producing Unknown(UninitializedLoadProducesUndef)",
+      "harness_status": "preflight-seed",
+      "seeds": [
+        "integration/rev4-high-value-definedness.test",
+        "integration/rev4-high-value-exact-memory.test"
+      ],
+      "gap": "Direct uninitialized load and propagation shapes are pinned; exact byte initialization semantics are not implemented"
+    },
+    {
+      "id": "NF-CM09",
+      "title": "ABI separation inferred from LLVM",
+      "expected": "Unknown(AliasBindingMismatch)",
+      "harness_status": "preflight-seed",
+      "seeds": ["fixtures/abi-alias/missing-binding-unknown/candidate", "fixtures/abi-alias/mayalias-overlap-bad/candidate", "fixtures/abi-alias/disjoint-control/candidate"]
+    },
+    {
+      "id": "NF-CM10",
+      "title": "Adjacent-allocation pointer equality guessed false",
+      "expected": "Unknown(LayoutDependentPointerComparison)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "The adjacent one-past/base comparison is pinned; the layout-independence auditor is not implemented"
+    },
+    {
+      "id": "NF-CM11",
+      "title": "Null compared with a wrapping GEP",
+      "expected": "Unknown(LayoutDependentPointerComparison)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-pointer-layout.test"],
+      "gap": "The flag-free wrapping GEP/null shape is pinned; the layout-independence auditor is not implemented"
+    },
+    {
+      "id": "NF-CM12",
+      "title": "Stack-protector semantics enter the frozen artifact",
+      "expected": "Unknown(UnsupportedStackProtector)",
+      "harness_status": "preflight-seed",
+      "seeds": ["integration/rev4-high-value-artifact-freeze.test"],
+      "gap": "The sspstrong artifact shape is pinned; the LLVM 22.1.8 conformance refusal is not implemented"
+    }
+  ]
+}

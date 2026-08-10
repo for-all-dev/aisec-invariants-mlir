@@ -1,0 +1,101 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-A07 -- CLOSED DIRECT-CALL ANALYSIS INLINING (CandidateOnly seed).
+#
+# The eligible closure is direct, acyclic, scalar/pointer-only, and measures
+# call depth 2, expanded path count 2, and longest expanded instruction count
+# 12. Three otherwise-identical rows set exactly one resource cap to zero.
+# Separate closures carry recursive-SCC and indirect-call refusals.
+#
+# The normative mechanism is semantic expansion without changing the captured
+# module. The real LLVM inline pass below is deliberately a contrast: it
+# preserves visible branch/load/store shapes in its output, but changes the
+# bitcode bytes, so it cannot stand in for analysis-time expansion of T.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining.ll.in -o %t.capture.bc
+# RUN: %opt -passes=verify -disable-output %t.capture.bc
+# RUN: %llvm-dis %t.capture.bc -o %t.capture.ll
+# RUN: %FileCheck %s --check-prefix=A07-SOURCE --input-file=%t.capture.ll
+
+# A07-SOURCE-LABEL: define internal i32 @a07_memory_leaf(ptr %slot, i32 %delta)
+# A07-SOURCE: %before = load i32, ptr %slot, align 4
+# A07-SOURCE: store i32 %after, ptr %slot, align 4
+# A07-SOURCE-LABEL: define internal i32 @a07_branching_helper(ptr %slot, i32 %value, i1 %choose_left)
+# A07-SOURCE: br i1 %choose_left, label %left, label %right
+# A07-SOURCE: call i32 @a07_memory_leaf
+# A07-SOURCE: call i32 @a07_memory_leaf
+# A07-SOURCE-LABEL: define i32 @a07_closed_entry(ptr %slot, i32 %value, i1 %choose_left)
+# A07-SOURCE: call i32 @a07_branching_helper
+# A07-SOURCE-LABEL: define internal i32 @a07_recursive_left(i32 %value)
+# A07-SOURCE: call i32 @a07_recursive_right
+# A07-SOURCE-LABEL: define internal i32 @a07_recursive_right(i32 %value)
+# A07-SOURCE: call i32 @a07_recursive_left
+# A07-SOURCE-LABEL: define i32 @a07_indirect_entry(ptr %callee, i32 %value)
+# A07-SOURCE: call i32 %callee(i32 %value)
+
+# LLVM's call-graph printer independently distinguishes the closed direct
+# edges, the recursive SCC, and the unresolved indirect edge.
+# RUN: %opt -passes=print-callgraph -disable-output %t.capture.bc 2>&1 | %FileCheck %s --check-prefix=A07-CALLGRAPH
+# A07-CALLGRAPH: Call graph node for function: 'a07_closed_entry'
+# A07-CALLGRAPH-NEXT: {{.*}}calls function 'a07_branching_helper'
+# A07-CALLGRAPH: Call graph node for function: 'a07_indirect_entry'
+# A07-CALLGRAPH-NEXT: {{.*}}calls external node
+# A07-CALLGRAPH: Call graph node for function: 'a07_recursive_left'
+# A07-CALLGRAPH-NEXT: {{.*}}calls function 'a07_recursive_right'
+# A07-CALLGRAPH: Call graph node for function: 'a07_recursive_right'
+# A07-CALLGRAPH-NEXT: {{.*}}calls function 'a07_recursive_left'
+
+# RUN: %python %harness/tools/check_rev4_nf_seeds.py --case a07 %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining.ll.in --cases %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining-cases.json | %FileCheck %s --check-prefix=A07-CHECK
+
+# A07-CHECK: SPS-Harness-Rev4-NF-Seed-Check-v1
+# A07-CHECK: A07-01 entry=@a07_closed_entry direct-call-depth=2 expanded-path-count=2 expanded-instruction-count=12 K_call=2 K_paths=2 K_expanded_instructions=12 candidate=AnalysisExpansionCandidateShape
+# A07-CHECK-NEXT: A07-02 entry=@a07_closed_entry direct-call-depth=2 expanded-path-count=2 expanded-instruction-count=12 K_call=0 K_paths=2 K_expanded_instructions=12 reason-seed=ResourceLimit
+# A07-CHECK-NEXT: A07-03 entry=@a07_closed_entry direct-call-depth=2 expanded-path-count=2 expanded-instruction-count=12 K_call=2 K_paths=0 K_expanded_instructions=12 reason-seed=ResourceLimit
+# A07-CHECK-NEXT: A07-04 entry=@a07_closed_entry direct-call-depth=2 expanded-path-count=2 expanded-instruction-count=12 K_call=2 K_paths=2 K_expanded_instructions=0 reason-seed=ResourceLimit
+# A07-CHECK-NEXT: A07-05 entry=@a07_recursive_entry direct-call-depth=- expanded-path-count=- expanded-instruction-count=- K_call=8 K_paths=8 K_expanded_instructions=64 reason-seed=Recursion
+# A07-CHECK-NEXT: A07-06 entry=@a07_indirect_entry direct-call-depth=- expanded-path-count=- expanded-instruction-count=- K_call=8 K_paths=8 K_expanded_instructions=64 reason-seed=IndirectCall
+# A07-CHECK-NEXT: verified a07: 6 CandidateOnly cases; direct-acyclic=1; zero-resource-contrast=3; recursion=1; indirect=1; temporary-bitcode-ready
+# A07-CHECK: tier=CandidateOnly
+# A07-CHECK-NEXT: nf_conforms=NotEvaluated
+# A07-CHECK-NEXT: model_status=NotComputed
+# A07-CHECK-NEXT: deployment_status=NotComputed
+
+# Mutating only the zero-depth row's expected classification is rejected. This
+# makes the resource discriminator executable rather than a decorative table.
+# RUN: cp %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining-cases.json %t.bad-cap.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad-cap.json'); v=json.loads(p.read_text()); v['cases'][1]['expectedObservation']={'tag':'AnalysisExpansionCandidateShape','artifactMutation':'Forbidden','memoryAndEvents':'Preserved'}; p.write_text(json.dumps(v,separators=(',',':')))"
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a07 %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining.ll.in --cases %t.bad-cap.json 2>&1 | %FileCheck %s --check-prefix=A07-BAD-CAP
+# A07-BAD-CAP: error: {{.*}}cases[1]: expectation disagrees with derived call-closure observation
+
+# Tail-position markers change the accepted call contract even when the
+# closure and all three resource metrics remain numerically identical.
+# RUN: sed '/%result = call i32 @a07_branching_helper/ s/call/tail call/' %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining.ll.in > %t.tail.ll
+# RUN: %llvm-as %t.tail.ll -o %t.tail.bc
+# RUN: %opt -passes=verify -disable-output %t.tail.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a07 %t.tail.ll --cases %harness/integration/Inputs/sps-rev4-nf/a07-analysis-inlining-cases.json 2>&1 | %FileCheck %s --check-prefix=A07-TAIL
+# A07-TAIL: error: a07: @a07_closed_entry uses a forbidden tail/notail call form
+
+# Contrast with a real IR-mutating inline pass. The transformed bytes differ
+# from the captured temporary bitcode, while the caller now visibly contains
+# the helper branch and both memory paths.
+# RUN: %opt -passes='cgscc(inline)' %t.capture.bc -o %t.ir-inlined.bc
+# RUN: %opt -passes=verify -disable-output %t.ir-inlined.bc
+# RUN: not cmp %t.capture.bc %t.ir-inlined.bc
+# RUN: %llvm-dis %t.ir-inlined.bc -o %t.ir-inlined.ll
+# RUN: %FileCheck %s --check-prefix=A07-INLINED --input-file=%t.ir-inlined.ll
+
+# A07-INLINED-LABEL: define i32 @a07_closed_entry(ptr %slot, i32 %value, i1 %choose_left)
+# A07-INLINED-NOT: call i32 @a07_branching_helper
+# A07-INLINED-NOT: call i32 @a07_memory_leaf
+# A07-INLINED: br i1 %choose_left, label %left.i, label %right.i
+# A07-INLINED: %before.i.i = load i32, ptr %slot, align 4
+# A07-INLINED: store i32 %after.i.i, ptr %slot, align 4
+# A07-INLINED: %before.i1.i = load i32, ptr %slot, align 4
+# A07-INLINED: store i32 %after.i2.i, ptr %slot, align 4
+# A07-INLINED-NOT: call i32 @a07_branching_helper
+# A07-INLINED-NOT: call i32 @a07_memory_leaf
+# A07-INLINED: ret i32 %result.i
+
+# A green result establishes only executable call-graph/resource discriminators
+# and proves that ordinary LLVM inlining mutates the temporary module. It does
+# not implement the non-mutating semantic expansion or issue a final result.

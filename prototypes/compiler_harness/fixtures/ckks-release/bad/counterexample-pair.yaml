@@ -1,0 +1,32 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: ckks_unsafe_release_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    public-sanitizer-mask:
+      bitvector:
+        width: 32
+        hex: "000000ff"
+    certificate-ok:
+      bitvector:
+        width: 32
+        hex: "00000001"
+  high_left:
+    raw-approximate-plaintext:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    raw-approximate-plaintext:
+      bitvector:
+        width: 32
+        hex: "00000100"
+expected:
+  bad_state: raw-unauthorized-public-release-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: public-release

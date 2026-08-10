@@ -1,0 +1,26 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-REPLAY-WIRE",
+  "caseId": "replay-wire-reordered-rejected",
+  "kind": "model-wire",
+  "requirementRefs": [
+    "Normative 21.6 ModelExtractionPlanV2"
+  ],
+  "input": {
+    "variables": [
+      [
+        "L.input.secret",
+        8
+      ],
+      [
+        "R.input.secret",
+        8
+      ]
+    ],
+    "response": "((|R.input.secret| #x00) (|L.input.secret| #xff))"
+  },
+  "expected": {
+    "accepted": false,
+    "values": null
+  }
+}

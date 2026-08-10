@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sps.dev/harness/schemas/SPS-Harness-Verification-Result.schema.json",
+  "title": "SPS Harness Verification Result",
+  "description": "A nonclaimable comparison between an independently derived test outcome and one fixture snapshot.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "authority",
+    "sensitivity",
+    "claimable",
+    "sps_model_status",
+    "outcome",
+    "pipelines",
+    "consumed",
+    "ignored",
+    "issues"
+  ],
+  "properties": {
+    "format": {
+      "const": "SPS-Harness-Verification-Result"
+    },
+    "authority": {
+      "const": "TestOnly"
+    },
+    "sensitivity": {
+      "enum": [
+        "SyntheticTestData",
+        "Restricted"
+      ]
+    },
+    "claimable": {
+      "const": false
+    },
+    "sps_model_status": {
+      "const": "NotComputed"
+    },
+    "outcome": {
+      "$ref": "#/$defs/outcome"
+    },
+    "pipelines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pipelineResult"
+      }
+    },
+    "consumed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/consumption"
+      }
+    },
+    "ignored": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ignored"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "properties": {
+              "tag": {
+                "const": "Matched"
+              }
+            },
+            "required": [
+              "tag"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "properties": {
+          "issues": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "issues": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "caseId": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)+$(?![\\s\\S])"
+    },
+    "mlirSymbol": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z_.$][A-Za-z0-9_.$-]*$(?![\\s\\S])"
+    },
+    "stableId": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$(?![\\s\\S])"
+    },
+    "pipelineId": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "safeFactObjectKey": {
+      "type": "string",
+      "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+    },
+    "factValue": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "string",
+          "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/safeFactObjectKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/factValue"
+          }
+        }
+      ]
+    },
+    "missingValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "const": "Missing"
+        }
+      }
+    },
+    "presentValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "value"],
+      "properties": {
+        "state": {
+          "const": "Present"
+        },
+        "value": {
+          "$ref": "#/$defs/factValue"
+        }
+      }
+    },
+    "observedValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/presentValue"
+        },
+        {
+          "$ref": "#/$defs/missingValue"
+        }
+      ]
+    },
+    "jsonPointer": {
+      "type": "string",
+      "pattern": "^(?:/(?:[^~/\\u0000\\uD800-\\uDFFF]|~0|~1)*)*$"
+    },
+    "eventKind": {
+      "enum": [
+        "BranchSuccessor",
+        "SwitchSuccessor",
+        "CalleeChoice",
+        "LoopContinuation",
+        "Failure",
+        "Termination",
+        "BoundExhausted",
+        "UBRisk",
+        "Memory",
+        "Transfer",
+        "Output",
+        "Release",
+        "Error",
+        "Latency",
+        "ContractMeta"
+      ]
+    },
+    "eventField": {
+      "enum": [
+        "successor",
+        "callee",
+        "continueOrExit",
+        "class",
+        "returnClass",
+        "boundId",
+        "reasonClass",
+        "allocationClass",
+        "offsetClass",
+        "width",
+        "addressSpace",
+        "readOrWrite",
+        "source",
+        "destinations",
+        "representation",
+        "valueBytes",
+        "metadata",
+        "outputId",
+        "footprint",
+        "releaseId",
+        "releaseOrdinal",
+        "errorFieldId",
+        "payload",
+        "configuredClass",
+        "contractId",
+        "metadataFieldId",
+        "typedValue"
+      ]
+    },
+    "eventSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "field": {
+          "$ref": "#/$defs/eventField"
+        },
+        "id": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "oneOf": [
+        {"properties": {"kind": {"const": "BranchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "SwitchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "CalleeChoice"}, "field": {"const": "callee"}}},
+        {"properties": {"kind": {"const": "LoopContinuation"}, "field": {"const": "continueOrExit"}}},
+        {"properties": {"kind": {"const": "Failure"}, "field": {"const": "class"}}},
+        {"properties": {"kind": {"const": "Termination"}, "field": {"const": "returnClass"}}},
+        {"properties": {"kind": {"const": "BoundExhausted"}, "field": {"const": "boundId"}}},
+        {"properties": {"kind": {"const": "UBRisk"}, "field": {"const": "reasonClass"}}},
+        {"properties": {"kind": {"const": "Memory"}, "field": {"enum": ["allocationClass", "offsetClass", "width", "addressSpace", "readOrWrite"]}}},
+        {"properties": {"kind": {"const": "Transfer"}, "field": {"enum": ["source", "destinations", "width", "representation", "valueBytes", "metadata"]}}},
+        {"properties": {"kind": {"const": "Output"}, "field": {"enum": ["outputId", "footprint", "valueBytes"]}}},
+        {"properties": {"kind": {"const": "Release"}, "field": {"enum": ["releaseId", "releaseOrdinal", "valueBytes", "footprint"]}}},
+        {"properties": {"kind": {"const": "Error"}, "field": {"enum": ["errorFieldId", "class", "payload"]}}},
+        {"properties": {"kind": {"const": "Latency"}, "field": {"const": "configuredClass"}}},
+        {"properties": {"kind": {"const": "ContractMeta"}, "field": {"enum": ["contractId", "metadataFieldId", "typedValue"]}}}
+      ]
+    },
+    "position": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Proved"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "cause",
+            "first_difference"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Counterexample"
+            },
+            "cause": {
+              "$ref": "#/$defs/stableId"
+            },
+            "first_difference": {
+              "$ref": "#/$defs/eventSelector"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "reason"
+          ],
+          "properties": {
+            "tag": {
+              "const": "Unknown"
+            },
+            "reason": {
+              "$ref": "#/$defs/stableId"
+            }
+          }
+        }
+      ]
+    },
+    "actual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "deployment",
+        "policy"
+      ],
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/position"
+        },
+        "deployment": {
+          "const": "Open"
+        },
+        "policy": {
+          "enum": [
+            "Complete",
+            "Findings",
+            "Incomplete"
+          ]
+        }
+      }
+    },
+    "comparedOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "case",
+        "entry",
+        "actual"
+      ],
+      "properties": {
+        "tag": {
+          "enum": [
+            "Matched",
+            "Mismatched"
+          ]
+        },
+        "case": {
+          "$ref": "#/$defs/caseId"
+        },
+        "entry": {
+          "$ref": "#/$defs/mlirSymbol"
+        },
+        "actual": {
+          "$ref": "#/$defs/actual"
+        }
+      }
+    },
+    "invalidOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag"
+      ],
+      "properties": {
+        "tag": {
+          "const": "Invalid"
+        },
+        "case": {
+          "$ref": "#/$defs/caseId"
+        },
+        "entry": {
+          "$ref": "#/$defs/mlirSymbol"
+        }
+      }
+    },
+    "outcome": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/comparedOutcome"
+        },
+        {
+          "$ref": "#/$defs/invalidOutcome"
+        }
+      ]
+    },
+    "pipelineResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipeline",
+        "comparison"
+      ],
+      "properties": {
+        "pipeline": {
+          "$ref": "#/$defs/pipelineId"
+        },
+        "comparison": {
+          "enum": [
+            "Matched",
+            "Mismatched"
+          ]
+        }
+      }
+    },
+    "consumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expectation_path",
+        "actual_path",
+        "check",
+        "disposition",
+        "expected",
+        "actual"
+      ],
+      "properties": {
+        "expectation_path": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "actual_path": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "check": {
+          "enum": [
+            "Exact",
+            "Equals",
+            "Contains",
+            "Excludes",
+            "CountEq",
+            "CountMin",
+            "CountMax",
+            "Ordered"
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "Matched",
+            "Mismatched"
+          ]
+        },
+        "expected": {
+          "$ref": "#/$defs/factValue"
+        },
+        "actual": {
+          "$ref": "#/$defs/observedValue"
+        }
+      }
+    },
+    "ignored": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "reason": {
+          "const": "ExplanationOnly"
+        }
+      }
+    },
+    "sourceLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "byte_offset",
+        "line",
+        "column"
+      ],
+      "properties": {
+        "byte_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "phase",
+        "code",
+        "path",
+        "message"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "InvalidInput",
+            "ExpectationMismatch"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "TraceParse",
+            "TraceValidate",
+            "TraceDerive",
+            "SnapshotParse",
+            "SnapshotValidate",
+            "Compare"
+          ]
+        },
+        "code": {
+          "$ref": "#/$defs/stableId"
+        },
+        "path": {
+          "$ref": "#/$defs/jsonPointer"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192,
+          "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    }
+  }
+}

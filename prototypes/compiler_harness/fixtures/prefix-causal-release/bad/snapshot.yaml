@@ -1,0 +1,62 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: prefix_causal_release_bad
+c_evidence:
+- fixtures/prefix-causal-release/bad/prefix_causal_release_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: transfer
+allowed:
+- the release may authorize secret only from its own occurrence onward
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: pre-release-public-observation
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Transfer
+      field: valueBytes
+      first_bad: true
+    - kind: Release
+      field: valueBytes
+      id: policy-h
+    because: the public observation occurs before the authorized release
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - prefix_causal_release_bad
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - sps_transfer_prefix_public
+          - llvm.sps.release

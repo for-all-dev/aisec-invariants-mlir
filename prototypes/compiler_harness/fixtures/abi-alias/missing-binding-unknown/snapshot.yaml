@@ -1,0 +1,62 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: abi_alias_missing_binding
+c_evidence:
+- fixtures/abi-alias/missing-binding-unknown/abi_alias_missing_binding.c
+secret:
+- arg: 0
+  name: secret
+public:
+- memory_at_arg: 3
+  name: public_output
+expect:
+  final:
+    model:
+      status: Unknown
+      reason: AliasBindingMismatch
+    deployment: Open
+    policy: Complete
+    because: no complete alias topology says whether p and q overlap
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - AliasBindingMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - abi_alias_missing_binding
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.load
+        argument.attributes:
+          contains:
+          - abi_alias_missing_binding|1|sps.abi_root_ref|"p"
+          - abi_alias_missing_binding|2|sps.abi_root_ref|"q"
+          - abi_alias_missing_binding|3|sps.abi_root_ref|"public-output"
+        operation.occurrences.llvm.store:
+          count:
+            min: 2
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

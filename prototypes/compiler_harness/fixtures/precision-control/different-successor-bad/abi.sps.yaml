@@ -1,0 +1,27 @@
+source: different_successor_bad.c
+relation: provenance-only
+entry:
+  id: different_successor_bad
+  symbol: different_successor_bad
+  host: compute
+  function-type: i32 (i32, i32)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  high-condition:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  public-value:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

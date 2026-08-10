@@ -1,0 +1,110 @@
+# REQUIRES: llvm-as, llvm-dis
+#
+# THE LECTURE MIRROR IS NOW BOUND TO ITS UPSTREAM SKETCH.
+#
+# integration/Inputs/sps-lecture/ mirrors the seven hand-authored teaching
+# instances from SPS/SPS_Lecture_Notes/artifacts/. Each case in cases.json has
+# always declared a `source_artifact` naming the upstream `frozen.ll.sketch`,
+# and nothing ever read it: the checker never opened the SPS corpus, so
+# cases.json and the checker's own EXPECTED tables were two copies of the same
+# thing checking each other. A body edit that still parsed and still satisfied
+# every structural rule was invisible -- concretely, changing
+# `and i8 %secret, 2` to `and i8 %secret, 1` in the case-06 capture shape
+# passed both the checker and that case's SHAPE assertions.
+#
+# THE CONSTRAINT THAT SHAPES THE FIX. The SPS corpus is outside this repository
+# and will not exist on another machine or in CI. So the binding is recorded as
+# a digest and enforced offline, and the re-derivation from the corpus is an
+# opt-in extra that reports honestly when it did not run.
+#
+# The digest is taken over a normalized form -- leading comment and blank lines
+# dropped, every remaining line right-stripped, trailing blank lines dropped --
+# because the mirror and the sketch deliberately carry different headers and
+# are otherwise byte-identical today.
+#
+# WHAT THIS TEST DOES NOT CLAIM. A digest match says the mirrored text is the
+# text that was mirrored. It says nothing about NFConforms, ModelStatus,
+# DeploymentStatus, or PolicyReviewStatus, and the fixtures remain CandidateOnly
+# and nonclaimable.
+
+# --- 1. offline: the pin is enforced with no corpus present -----------------
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness > %t.offline.out
+# RUN: %FileCheck %s --check-prefix=OFFLINE --input-file=%t.offline.out
+
+# The skip is stated, never implied by silence.
+# OFFLINE: upstream source re-verification: SKIPPED (SPS_LECTURE_SOURCE unset)
+# OFFLINE-SAME: were not re-derived from the SPS corpus
+# All seven mirrors are checked against their recorded digest anyway.
+# OFFLINE: verified 01-secret-branch: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 02-branchless-repair: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 03-missing-placement: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 04-authorized-release-first: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 05-branch-before-release: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 06-equal-release-stays-active: {{.*}} capture-shape-sha256=verified
+# OFFLINE: verified 07-wrong-audience-stays-active: {{.*}} capture-shape-sha256=verified
+# RUN: grep -c 'capture-shape-sha256=verified' %t.offline.out | %FileCheck %s --check-prefix=SEVEN
+# SEVEN: {{^7$}}
+
+# --- 2. the mutation that used to slip through is now refused ---------------
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root/tools %t.root/integration/Inputs
+# RUN: cp %harness/tools/check_sps_lecture_cases.py %t.root/tools/check_sps_lecture_cases.py
+# RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
+# RUN: cp -R %harness/integration/Inputs/sps-lecture %t.root/integration/Inputs/sps-lecture
+# RUN: %python %t.root/tools/check_sps_lecture_cases.py --root %t.root
+
+# Flip one bit of the high-mask constant in the case-06 mirror.
+# RUN: sed 's/and i8 %%secret, 2/and i8 %%secret, 1/' %t.root/integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll > %t.flipped.ll
+# RUN: cp %t.flipped.ll %t.root/integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll
+# RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root --case 06-equal-release-stays-active 2>&1 | %FileCheck %s --check-prefix=FLIPPED
+# FLIPPED: 06-equal-release-stays-active: capture shape normalized sha256 mismatch: recorded {{[0-9a-f]+}}, computed {{[0-9a-f]+}}
+
+# The mutant is still valid LLVM and still satisfies every assertion the
+# existing case-06 test makes, which is why the digest had to be added: the
+# structural checks are not able to see this edit.
+# RUN: %llvm-as %t.flipped.ll -o %t.flipped.bc
+# RUN: %llvm-dis %t.flipped.bc -o %t.flipped.round.ll
+# RUN: %FileCheck %harness/integration/sps-lecture-06-equal-release-stays-active.test --check-prefix=SHAPE --input-file=%t.flipped.round.ll
+# RUN: grep -c 'and i8 %%secret, 1' %t.flipped.round.ll | %FileCheck %s --check-prefix=MUTANT-LIVES
+# MUTANT-LIVES: {{^1$}}
+
+# --- 3. opt-in upstream re-verification actually re-derives the digests -----
+#
+# Build a stand-in corpus laid out the way SPS_LECTURE_SOURCE expects, with
+# headers deliberately unlike the mirror's so that a pass here also proves the
+# normalization is doing its job rather than the files being byte-equal.
+# RUN: rm -rf %t.src
+# RUN: for c in 01-secret-branch 02-branchless-repair 03-missing-placement 04-authorized-release-first 05-branch-before-release 06-equal-release-stays-active 07-wrong-audience-stays-active; do mkdir -p %t.src/$c; { echo '; STAND-IN UPSTREAM HEADER, LINE ONE'; echo '; STAND-IN UPSTREAM HEADER, LINE TWO, UNLIKE THE MIRROR HEADER'; echo ''; tail -n +2 %harness/integration/Inputs/sps-lecture/$c/capture-shape.ll; } > %t.src/$c/frozen.ll.sketch; done
+
+# The headers really do differ, so the comparison is not trivially byte-equal.
+# RUN: not cmp -s %t.src/06-equal-release-stays-active/frozen.ll.sketch %harness/integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll
+
+# RUN: env SPS_LECTURE_SOURCE=%t.src %python %harness/tools/check_sps_lecture_cases.py --root %harness > %t.upstream.out
+# RUN: %FileCheck %s --check-prefix=UPSTREAM --input-file=%t.upstream.out
+# UPSTREAM: upstream source re-verification: PERFORMED against
+# UPSTREAM-SAME: 7/7 normalized frozen.ll.sketch digests matched
+
+# --- 4. upstream drift is refused -------------------------------------------
+# RUN: sed 's/and i8 %%secret, 2/and i8 %%secret, 1/' %t.src/06-equal-release-stays-active/frozen.ll.sketch > %t.src.flipped
+# RUN: cp %t.src.flipped %t.src/06-equal-release-stays-active/frozen.ll.sketch
+# RUN: not env SPS_LECTURE_SOURCE=%t.src %python %harness/tools/check_sps_lecture_cases.py --root %harness 2>&1 | %FileCheck %s --check-prefix=UPSTREAM-DRIFT
+# UPSTREAM-DRIFT: 06-equal-release-stays-active: upstream source artifact normalized sha256 mismatch: recorded {{[0-9a-f]+}}, computed {{[0-9a-f]+}}
+
+# --- 5. a misconfigured opt-in fails loudly instead of skipping -------------
+# RUN: not env SPS_LECTURE_SOURCE=%t.no.such.corpus %python %harness/tools/check_sps_lecture_cases.py --root %harness 2>&1 | %FileCheck %s --check-prefix=BADROOT
+# BADROOT: SPS_LECTURE_SOURCE={{.*}}no.such.corpus is not a directory
+
+# A present-but-incomplete corpus is also a failure, not a partial pass.
+# RUN: rm -rf %t.partial && mkdir -p %t.partial/01-secret-branch
+# RUN: cp %t.src/01-secret-branch/frozen.ll.sketch %t.partial/01-secret-branch/frozen.ll.sketch
+# RUN: not env SPS_LECTURE_SOURCE=%t.partial %python %harness/tools/check_sps_lecture_cases.py --root %harness 2>&1 | %FileCheck %s --check-prefix=PARTIAL
+# PARTIAL: 02-branchless-repair: SPS_LECTURE_SOURCE is set but 02-branchless-repair/frozen.ll.sketch is missing under
+
+# --- 6. the pin itself cannot be quietly deleted ----------------------------
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); del v['source_binding']; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=NOBINDING
+# NOBINDING: suite must declare a source_binding block
+
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['source_binding']={'formatId':'SPS-Harness-Lecture-Source-Binding-v2','source_root_env':'SPS_LECTURE_SOURCE','upstream_corpus_present_in_repo':False}; del v['cases'][0]['capture_shape_sha256']; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=NOHASH
+# NOHASH: 01-secret-branch: capture_shape_sha256 is missing or malformed

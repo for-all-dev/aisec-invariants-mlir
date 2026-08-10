@@ -1,0 +1,27 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+  "harnessCase": "precision-control/overwritten-slot",
+  "referenceCaseId": "overwritten-slot",
+  "entry": "overwritten_slot_control",
+  "counterexamplePair": null,
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "e4787da4c8e1c5c8d1892ef69e808e72635eff4c9ecccb28eac38b909888675d"},
+    {"role": "c", "path": "overwritten_slot_control.c", "sha256": "316f17ec264dad5dcd3fe2dd38ac499028f0269a31899c37cb8386fa6f32a271"},
+    {"role": "mlir", "path": "precision_overwritten_slot.control.mlir", "sha256": "c86c26a9ed8d73791152d104472243e79e2160e4cf5e1a6dbd9bf4310a1b39a0"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "1e98e49f91051dc8a5c5d0b8adff49ebcbe324fb28e0ac39c8dcf0905ac32247"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "dc2f9d8f592608066f1d60461b646caae6ec33201c231de4363553c81054f912"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "1b4ae980b32874c9d60422d8b26150e4139770e4eac061f62fea6beb9c736797"}
+  ],
+  "arguments": [
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 1, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"},
+    {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [
+    {"referenceRoot": "slot", "component": null, "storageKind": "InternalAlloca", "abiRoot": null, "argumentIndex": null, "argumentName": null, "allocationSite": "alloca.slot", "byteLength": 1, "initialClassification": "Uninitialized", "terminalVisibility": "NotTerminalOutput", "offsets": [0]}
+  ],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

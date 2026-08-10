@@ -1,0 +1,58 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: kyberslash2_compress_bad
+c_evidence:
+- fixtures/kyberslash2-compress/bad/kyberslash2_compress_vulnerable.c
+secret:
+- arg: 0
+  name: coefficient
+public:
+- observable: timing
+expect:
+  final:
+    model:
+      status: Unknown
+      reason: OpenModelObligations
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Latency
+      field: configuredClass
+    because: a secret-derived numerator reaches llvm.udiv before the four-bit mask,
+      but the unary latency diagnostic does not discharge the relational target-cost
+      model
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - kyberslash2_compress_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.shl
+          - llvm.add
+          - llvm.udiv
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 3
+        operation.argument_dependencies:
+          contains:
+          - kyberslash2_compress_bad|llvm.udiv|operand=0|args=0

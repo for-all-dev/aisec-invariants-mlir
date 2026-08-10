@@ -1,0 +1,57 @@
+; NF-A14 preflight source.  This is LLVM 17 input evidence, not canonical
+; LLVM 22.1.8 output from SPSFinalDeadCleanup_v2.
+
+declare i32 @a14_observable()
+
+define i32 @a14_dead_cleanup(i1 %choose_left, i32 %left_value, i32 %right_value) {
+entry:
+  br i1 %choose_left, label %left, label %right
+
+left:
+  br label %join
+
+right:
+  br label %join
+
+; This block has no path from entry.  Its outgoing edge deliberately leaves a
+; PHI incoming value that the versioned cleanup would have to repair.
+dead:
+  %dead.freeze = freeze i32 poison
+  br label %join
+
+join:
+  %value = phi i32 [ %left_value, %left ], [ %right_value, %right ], [ %dead.freeze, %dead ]
+  ; The second cleanup rule may remove this live-block, zero-use instruction.
+  %unused = add i32 %value, 7
+  ret i32 %value
+}
+
+; `false` makes this path semantically infeasible, but the block remains
+; reachable in the un-simplified CFG graph because the edge is present.
+define i32 @a14_literal_false_edge() {
+entry:
+  br i1 false, label %syntactically_reachable, label %exit
+
+syntactically_reachable:
+  %edge.freeze = freeze i32 poison
+  br label %exit
+
+exit:
+  %value = phi i32 [ 0, %entry ], [ %edge.freeze, %syntactically_reachable ]
+  ret i32 %value
+}
+
+; A runtime-reachable companion makes the refusal side non-vacuous even for a
+; general optimizer that folds the literal-false function above.
+define i32 @a14_runtime_reachable(i1 %guard) {
+entry:
+  br i1 %guard, label %choice, label %exit
+
+choice:
+  %live.freeze = freeze i32 poison
+  br label %exit
+
+exit:
+  %value = phi i32 [ 0, %entry ], [ %live.freeze, %choice ]
+  ret i32 %value
+}

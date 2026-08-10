@@ -1,0 +1,118 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+#
+# MT-CM4 WITNESS: LOCAL PER-TEMPLATE CHECKS DO NOT DETERMINE GLOBAL TRACE ORDER.
+#
+# Metatheory section 0.2 lists MT-CM4's invalid principle as "local per-template
+# checks determine global trace order"; section 15 states the invalid rule as
+# "equal payload, occurrence, and count for each static event template imply
+# equal whole traces" and exhibits
+#
+#   rho_1 = [event_a(0), event_b(0)]
+#   rho_2 = [event_b(0), event_a(0)]
+#
+# The normative side this defends: the specification's section 7 says the
+# projected trace is "the concatenation, in execution order, of every Project_A
+# word", so "presence, multiplicity, global order, failure, and termination are
+# therefore part of one trace rather than separate optional checks", and
+# SiteOrderAlignment (spec section on alignment coordinate families) compares
+# aligned equal-tag pairs on unequal `Site`, `DynamicVisit`, and
+# `WithinStepOrdinal` -- an ordering coordinate, not a count.
+#
+# integration/Inputs/metatheory-cm4/order_swap.ll is that pair, selected by a
+# secret bit: both arms write the SAME payload to the SAME two public sinks in
+# OPPOSITE order.
+#
+# WHAT THIS TEST CHECKS: that the fixture really does have equal per-template
+# multiplicity and payload across the two arms while the aligned order differs,
+# and that the ordered assertions are the only ones a repair kills.
+#
+# WHAT IT DOES NOT CHECK: nothing here executes relational semantics, aligns
+# events, or computes a status. There is no ModelStatus, no NFConforms, no
+# receipt, and no claim about the 22.1.8 normative boundary. This is a
+# CandidateOnly shape pin for a per-row event checker that does not exist yet.
+
+# RUN: %llvm-as %harness/integration/Inputs/metatheory-cm4/order_swap.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+
+# --- half one: every template-local quantity is EQUAL across the two arms ----
+#
+# Four release-shaped stores, two per arm. Asserted as cardinalities, because
+# presence is the easy half and MT-CM4 is precisely about the hard half.
+# RUN: grep -c 'store i8' %t.ll > %t.total.count
+# RUN: %FileCheck %s --check-prefix=TOTAL --input-file=%t.total.count
+# TOTAL: {{^4$}}
+
+# Per static event template, count 2: one occurrence in each arm.
+# RUN: grep -c 'store i8 0, ptr %%event_a' %t.ll | %FileCheck %s --check-prefix=TEMPLATE-A
+# TEMPLATE-A: {{^2$}}
+# RUN: grep -c 'store i8 0, ptr %%event_b' %t.ll | %FileCheck %s --check-prefix=TEMPLATE-B
+# TEMPLATE-B: {{^2$}}
+
+# Payload is literally the same constant everywhere, so a payload comparison
+# has nothing to report either.
+# RUN: grep -c 'store i8 0,' %t.ll | %FileCheck %s --check-prefix=PAYLOAD
+# PAYLOAD: {{^4$}}
+
+# --- half two: the GLOBAL order differs, and it is the secret that picks it --
+# RUN: %FileCheck %s --check-prefix=ORDER --input-file=%t.ll
+
+# ORDER-LABEL: define void @mt_cm4_order_selected(i8 %secret, ptr %event_a, ptr %event_b)
+# ORDER: %bit = and i8 %secret, 1
+# ORDER-NEXT: %high = icmp ne i8 %bit, 0
+# ORDER-NEXT: br i1 %high, label %order_ab, label %order_ba
+# ORDER-LABEL: order_ab:
+# ORDER-NEXT: store i8 0, ptr %event_a
+# ORDER-NEXT: store i8 0, ptr %event_b
+# ORDER-LABEL: order_ba:
+# ORDER-NEXT: store i8 0, ptr %event_b
+# ORDER-NEXT: store i8 0, ptr %event_a
+
+# --- negative arm 1: an order repair is INVISIBLE to the local checks --------
+#
+# Rewrite the second arm to use the same order as the first. This is the
+# repaired program: the order leak is gone. Every count above is unchanged,
+# which is the whole content of MT-CM4.
+# RUN: %python -c "import pathlib,sys; t=pathlib.Path(sys.argv[1]).read_text(); i=t.index('order_ba:'); j=t.index('br label', i); b=t[i:j].replace('%%event_b','@@SWAP@@').replace('%%event_a','%%event_b').replace('@@SWAP@@','%%event_a'); pathlib.Path(sys.argv[2]).write_text(t[:i]+b+t[j:])" %t.ll %t.aligned.ll
+
+# RUN: grep -c 'store i8' %t.aligned.ll | %FileCheck %s --check-prefix=TOTAL
+# RUN: grep -c 'store i8 0, ptr %%event_a' %t.aligned.ll | %FileCheck %s --check-prefix=TEMPLATE-A
+# RUN: grep -c 'store i8 0, ptr %%event_b' %t.aligned.ll | %FileCheck %s --check-prefix=TEMPLATE-B
+# RUN: grep -c 'store i8 0,' %t.aligned.ll | %FileCheck %s --check-prefix=PAYLOAD
+
+# The ordered assertions, and only the ordered assertions, die.
+# RUN: not %FileCheck %s --check-prefix=ORDER --input-file=%t.aligned.ll 2>&1 | %FileCheck %s --check-prefix=KILLED
+# KILLED: error: ORDER-NEXT{{:}} is not on the line after the previous match
+# KILLED-NEXT: ORDER-NEXT{{:}} store i8 0, ptr %event_b
+# KILLED: 'next' match was here
+# KILLED-NEXT: store i8 0, ptr %event_b
+
+# --- negative arm 2: the local checks are not vacuous either -----------------
+#
+# Drop the event_b occurrence from the first arm only. Now per-template
+# multiplicity really does differ between the arms, and that IS a local fact,
+# so the count assertions must move.
+# RUN: %python -c "import pathlib,sys; t=pathlib.Path(sys.argv[1]).read_text(); i=t.index('order_ab:'); j=t.index('br label', i); b=''.join(l for l in t[i:j].splitlines(True) if 'ptr %%event_b' not in l); pathlib.Path(sys.argv[2]).write_text(t[:i]+b+t[j:])" %t.ll %t.dropped.ll
+
+# RUN: grep -c 'store i8' %t.dropped.ll > %t.dropped.count
+# RUN: %FileCheck %s --check-prefix=DROPPED --input-file=%t.dropped.count
+# DROPPED: {{^3$}}
+# RUN: not %FileCheck %s --check-prefix=TOTAL --input-file=%t.dropped.count 2>&1 | %FileCheck %s --check-prefix=COUNT-KILLED
+# COUNT-KILLED: error: TOTAL{{:}} expected string not found in input
+
+# --- the leak is not an artifact of the unoptimised shape --------------------
+#
+# At -O2 the secret branch disappears, both arms fuse, and the static store
+# count halves from 4 to 2 -- so a static per-template counter now sees ONE
+# occurrence of each template and even less than before. The order dependence
+# survives as two secret-selected store addresses. This is why the ordering
+# coordinate has to live in the aligned trace comparison and not in a
+# per-template tally.
+# RUN: %opt -O2 -S %t.ll -o %t.o2.ll
+# RUN: grep -c 'store i8' %t.o2.ll | %FileCheck %s --check-prefix=OPT-TOTAL
+# OPT-TOTAL: {{^2$}}
+# RUN: %FileCheck %s --check-prefix=OPT --input-file=%t.o2.ll
+# OPT: = and i8 %secret, 1
+# OPT: = select i1 {{.*}}, ptr %event_b, ptr %event_a
+# OPT-NEXT: = select i1 {{.*}}, ptr %event_a, ptr %event_b
+# OPT-NEXT: store i8 0, ptr
+# OPT-NEXT: store i8 0, ptr

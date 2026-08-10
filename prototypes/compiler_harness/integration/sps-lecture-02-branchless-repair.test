@@ -1,0 +1,13 @@
+# REQUIRES: llvm-as, llvm-dis
+# RUN: %llvm-as %harness/integration/Inputs/sps-lecture/02-branchless-repair/capture-shape.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness --case 02-branchless-repair | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define i8 @fixture_entry(i8 %secret)
+# SHAPE: %private = select i1 %is_zero, i8 17, i8 34
+# SHAPE-NEXT: ret i8 %private
+# SHAPE-NOT: br i1
+# SHAPE-NOT: global
+
+# CONTRACT: verified 02-branchless-repair: fixture-contract only; tier=CandidateOnly; claimable=false; ModelStatus=not-computed; expected-matcher=Proved

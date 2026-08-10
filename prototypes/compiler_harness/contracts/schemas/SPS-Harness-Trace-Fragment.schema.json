@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sps.dev/harness/schemas/SPS-Harness-Trace-Fragment.schema.json",
+  "title": "SPS Harness Trace Fragment",
+  "description": "One expectation-blind producer record used to assemble a verification trace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "session",
+    "case",
+    "entry",
+    "record"
+  ],
+  "properties": {
+    "format": {
+      "const": "SPS-Harness-Trace-Fragment"
+    },
+    "session": {
+      "$ref": "#/$defs/sessionId"
+    },
+    "case": {
+      "$ref": "#/$defs/caseId"
+    },
+    "entry": {
+      "$ref": "#/$defs/mlirSymbol"
+    },
+    "record": {
+      "$ref": "#/$defs/record"
+    }
+  },
+  "$defs": {
+    "caseId": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)+$(?![\\s\\S])"
+    },
+    "sessionId": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$(?![\\s\\S])"
+    },
+    "mlirSymbol": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z_.$][A-Za-z0-9_.$-]*$(?![\\s\\S])"
+    },
+    "stableId": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$(?![\\s\\S])"
+    },
+    "pipelineId": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "pipelineKind": {
+      "enum": [
+        "mlir",
+        "llvm-ir",
+        "mir",
+        "assembly",
+        "object",
+        "bytes",
+        "diagnostic",
+        "json",
+        "relation-reference"
+      ]
+    },
+    "eventKind": {
+      "enum": [
+        "BranchSuccessor",
+        "SwitchSuccessor",
+        "CalleeChoice",
+        "LoopContinuation",
+        "Failure",
+        "Termination",
+        "BoundExhausted",
+        "UBRisk",
+        "Memory",
+        "Transfer",
+        "Output",
+        "Release",
+        "Error",
+        "Latency",
+        "ContractMeta"
+      ]
+    },
+    "eventField": {
+      "enum": [
+        "successor",
+        "callee",
+        "continueOrExit",
+        "class",
+        "returnClass",
+        "boundId",
+        "reasonClass",
+        "allocationClass",
+        "offsetClass",
+        "width",
+        "addressSpace",
+        "readOrWrite",
+        "source",
+        "destinations",
+        "representation",
+        "valueBytes",
+        "metadata",
+        "outputId",
+        "footprint",
+        "releaseId",
+        "releaseOrdinal",
+        "errorFieldId",
+        "payload",
+        "configuredClass",
+        "contractId",
+        "metadataFieldId",
+        "typedValue"
+      ]
+    },
+    "eventSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "field": {
+          "$ref": "#/$defs/eventField"
+        },
+        "id": {
+          "$ref": "#/$defs/stableId"
+        }
+      },
+      "oneOf": [
+        {"properties": {"kind": {"const": "BranchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "SwitchSuccessor"}, "field": {"const": "successor"}}},
+        {"properties": {"kind": {"const": "CalleeChoice"}, "field": {"const": "callee"}}},
+        {"properties": {"kind": {"const": "LoopContinuation"}, "field": {"const": "continueOrExit"}}},
+        {"properties": {"kind": {"const": "Failure"}, "field": {"const": "class"}}},
+        {"properties": {"kind": {"const": "Termination"}, "field": {"const": "returnClass"}}},
+        {"properties": {"kind": {"const": "BoundExhausted"}, "field": {"const": "boundId"}}},
+        {"properties": {"kind": {"const": "UBRisk"}, "field": {"const": "reasonClass"}}},
+        {"properties": {"kind": {"const": "Memory"}, "field": {"enum": ["allocationClass", "offsetClass", "width", "addressSpace", "readOrWrite"]}}},
+        {"properties": {"kind": {"const": "Transfer"}, "field": {"enum": ["source", "destinations", "width", "representation", "valueBytes", "metadata"]}}},
+        {"properties": {"kind": {"const": "Output"}, "field": {"enum": ["outputId", "footprint", "valueBytes"]}}},
+        {"properties": {"kind": {"const": "Release"}, "field": {"enum": ["releaseId", "releaseOrdinal", "valueBytes", "footprint"]}}},
+        {"properties": {"kind": {"const": "Error"}, "field": {"enum": ["errorFieldId", "class", "payload"]}}},
+        {"properties": {"kind": {"const": "Latency"}, "field": {"const": "configuredClass"}}},
+        {"properties": {"kind": {"const": "ContractMeta"}, "field": {"enum": ["contractId", "metadataFieldId", "typedValue"]}}}
+      ]
+    },
+    "expectationBlindKey": {
+      "type": "string",
+      "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$",
+      "not": {
+        "pattern": "^[^A-Za-z0-9]*(?:[bB][^A-Za-z0-9]*[eE][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[uU][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[eE]|[cC][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[mM][^A-Za-z0-9]*[pP][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[rR][^A-Za-z0-9]*[iI][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[nN]|[eE][^A-Za-z0-9]*[xX][^A-Za-z0-9]*[pP][^A-Za-z0-9]*[eE][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[tT]|[mM][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[hH]|[mM][^A-Za-z0-9]*[iI][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[mM][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[hH]|[mM][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[dD][^A-Za-z0-9]*[eE][^A-Za-z0-9]*[lL][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[uU][^A-Za-z0-9]*[sS]|[oO][^A-Za-z0-9]*[uU][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[mM][^A-Za-z0-9]*[eE]|[pP][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[iI][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[iI][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[nN]|[sS][^A-Za-z0-9]*[nN][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[pP][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[hH][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[tT]|[sS][^A-Za-z0-9]*[pP][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[mM][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[dD][^A-Za-z0-9]*[eE][^A-Za-z0-9]*[lL][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[aA][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[uU][^A-Za-z0-9]*[sS]|[tT][^A-Za-z0-9]*[eE][^A-Za-z0-9]*[sS][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[uU][^A-Za-z0-9]*[tT][^A-Za-z0-9]*[cC][^A-Za-z0-9]*[oO][^A-Za-z0-9]*[mM][^A-Za-z0-9]*[eE])"
+      }
+    },
+    "factValue": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "string",
+          "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/factValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/expectationBlindKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/factValue"
+          }
+        }
+      ]
+    },
+    "facts": {
+      "type": "object",
+      "propertyNames": {
+        "allOf": [
+          {
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$(?![\\s\\S])"
+          },
+          {
+            "$ref": "#/$defs/expectationBlindKey"
+          }
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/factValue"
+      }
+    },
+    "captured": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "kind",
+        "extractor",
+        "endpoint_sha256",
+        "facts"
+      ],
+      "properties": {
+        "state": {
+          "const": "Captured"
+        },
+        "kind": {
+          "$ref": "#/$defs/pipelineKind"
+        },
+        "extractor": {
+          "$ref": "#/$defs/stableId"
+        },
+        "endpoint_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "facts": {
+          "$ref": "#/$defs/facts"
+        }
+      }
+    },
+    "failedCapture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "kind",
+        "extractor",
+        "error"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "ProducerFailed",
+            "ExtractionFailed",
+            "Unsupported",
+            "Blocked"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/pipelineKind"
+        },
+        "extractor": {
+          "$ref": "#/$defs/stableId"
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192,
+          "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+        },
+        "blocked_by": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$"
+          }
+        }
+      }
+    },
+    "capture": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/captured"
+        },
+        {
+          "$ref": "#/$defs/failedCapture"
+        }
+      ]
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "build_sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stableId"
+        },
+        "build_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "validatedCounterexample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "cause",
+        "first_difference",
+        "pair_sha256",
+        "replay_sha256",
+        "validator"
+      ],
+      "properties": {
+        "tag": {
+          "const": "Validated"
+        },
+        "cause": {
+          "$ref": "#/$defs/stableId"
+        },
+        "first_difference": {
+          "$ref": "#/$defs/eventSelector"
+        },
+        "pair_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "replay_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "validator": {
+          "$ref": "#/$defs/validator"
+        }
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "reason",
+        "source"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "ProofCompletion",
+            "ReplayInvalidating",
+            "RunFinalization"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/stableId"
+        },
+        "source": {
+          "$ref": "#/$defs/stableId"
+        },
+        "detail_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "pipelineCaptureRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "pipeline",
+        "capture"
+      ],
+      "properties": {
+        "tag": {
+          "const": "PipelineCapture"
+        },
+        "pipeline": {
+          "$ref": "#/$defs/pipelineId"
+        },
+        "capture": {
+          "$ref": "#/$defs/capture"
+        }
+      }
+    },
+    "requiredChecksRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "event_coverage",
+        "all_required_gates_closed"
+      ],
+      "properties": {
+        "tag": {
+          "const": "RequiredChecks"
+        },
+        "event_coverage": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/eventSelector"
+          }
+        },
+        "all_required_gates_closed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "validatedCounterexampleRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "counterexample"
+      ],
+      "properties": {
+        "tag": {
+          "const": "ValidatedCounterexample"
+        },
+        "counterexample": {
+          "$ref": "#/$defs/validatedCounterexample"
+        }
+      }
+    },
+    "blockerRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "blocker"
+      ],
+      "properties": {
+        "tag": {
+          "const": "Blocker"
+        },
+        "blocker": {
+          "$ref": "#/$defs/blocker"
+        }
+      }
+    },
+    "finalAxesRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "deployment",
+        "policy"
+      ],
+      "properties": {
+        "tag": {
+          "const": "FinalAxes"
+        },
+        "deployment": {
+          "const": "Open"
+        },
+        "policy": {
+          "enum": [
+            "Complete",
+            "Findings",
+            "Incomplete"
+          ]
+        }
+      }
+    },
+    "record": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pipelineCaptureRecord"
+        },
+        {
+          "$ref": "#/$defs/requiredChecksRecord"
+        },
+        {
+          "$ref": "#/$defs/validatedCounterexampleRecord"
+        },
+        {
+          "$ref": "#/$defs/blockerRecord"
+        },
+        {
+          "$ref": "#/$defs/finalAxesRecord"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+source: explicit_error_oracle_fixed.c
+relation: provenance-only
+entry:
+  id: explicit_error_oracle_fixed
+  symbol: explicit_error_oracle_fixed
+  host: compute
+  function-type: i32 (i32, i32, i32, ptr, ptr)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  padding-is-valid:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  padding-error-detail:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+  authorized-plaintext-length:
+    argument: 2
+    llvm-type: i32
+    bit-width: 32
+roots:
+  public-status:
+    argument: 3
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-status
+  public-error-detail:
+    argument: 4
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-error-detail
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - public-error-detail
+    - public-status
+terminal-output-order:
+  normal-value:
+  - public-status
+  - public-error-detail
+  - return

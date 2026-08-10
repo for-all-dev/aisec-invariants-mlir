@@ -1,0 +1,21 @@
+entry: abi_alias_explicit_same_actual
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs:
+  shared:
+    visibility: secret
+  public-output:
+    visibility: public
+releases: {}

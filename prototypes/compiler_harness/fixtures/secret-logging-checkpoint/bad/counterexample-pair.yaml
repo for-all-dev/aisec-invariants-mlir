@@ -1,0 +1,24 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: secret_logging_checkpoint_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    service-account-token:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    service-account-token:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: public-log-checkpoint-payload-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: public-log

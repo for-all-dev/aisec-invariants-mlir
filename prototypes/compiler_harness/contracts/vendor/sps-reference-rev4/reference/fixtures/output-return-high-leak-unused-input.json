@@ -1,0 +1,78 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-OUTPUT-RETURN",
+  "caseId": "output-return-high-leak-unused-input",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 21.6 ModelExtractionPlanV2"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "entry.return.unused",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "used",
+          "width": 2,
+          "classification": "High",
+          "host": "entry"
+        },
+        {
+          "id": "unused",
+          "width": 2,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "terminalOutputOrder": [
+          "return.value"
+        ],
+        "return": {
+          "outputId": "return.value",
+          "width": 2,
+          "host": "caller",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": []
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "used"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true,
+    "eventShape": [
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "35850d2ec977e6e632714cb4c6a80c39d4b450f7663ed7f04cfa959e5de515a2",
+    "firstBadEventOrdinal": 0,
+    "firstTrueBadRow": 2
+  }
+}

@@ -1,0 +1,28 @@
+# REQUIRES: clang, host-coverage
+#
+# This is source-execution coverage, not semantic or input-domain completeness.
+# The driver's value assertions and the separate compiler-shape tests provide
+# complementary checks on those other dimensions.
+#
+# Every distinct C reduction is executable evidence, not just compilable
+# provenance. Intentional case-local copies are first required to emit the same
+# normal LLVM as one covered representative; every other fixture source and
+# integration fragment is linked directly. The TOTAL row then fails until every
+# function in that collision-free runtime inventory is exercised.
+#
+# The driver itself intentionally does not execute its failure return, so it is
+# excluded from the report. Every fixture region, function, line, and branch
+# must be reached.
+
+# RUN: %python %harness/tools/fixture_layout.py --root %harness --check-c-source-layout
+# RUN: %python %harness/c/runtime_inventory.py --root %harness --check-normal-llvm --clang %clang --include %harness/include
+# RUN: %host-coverage-cc -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -I%harness/include -fprofile-instr-generate -fcoverage-mapping $(%python %harness/c/runtime_inventory.py --root %harness --list-link-c-sources) %harness/c/equivalence_driver.c -o %t.exe
+# RUN: env LLVM_PROFILE_FILE=%t.profraw %t.exe
+# RUN: %host-llvm-profdata merge -sparse %t.profraw -o %t.profdata
+# RUN: %host-llvm-cov report %t.exe -instr-profile=%t.profdata -ignore-filename-regex='equivalence_driver\.c' %fixtures %harness/integration/Inputs/release-body-fragments | %FileCheck %s
+
+# CHECK: TOTAL
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%
+# CHECK-SAME: {{[0-9]+}} 0 100.00%

@@ -1,0 +1,50 @@
+# REQUIRES: sps-nfv2-intrinsic, llvm-as, llvm-dis, opt
+#
+# FUTURE PATCHED-LLVM CONTRACT. The capability probe requires TableGen-backed
+# NFv2 properties and the SPSFinalWeaken_v2 pass; stock LLVM therefore reports
+# this test as UNSUPPORTED instead of treating the spelling as an external call.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-nfv2-release/nfv2-release.ll.in -o %t.base.bc
+# RUN: %llvm-dis %t.base.bc -o %t.base.ll
+# RUN: grep -F 'memory(none)' %t.base.ll
+# RUN: grep -F 'noduplicate' %t.base.ll
+# RUN: grep -F 'nomerge' %t.base.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.base.ll
+
+# RUN: %opt -passes='default<O1>' %t.base.bc -o %t.o1.bc
+# RUN: %llvm-dis %t.o1.bc -o %t.o1.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.o1.ll
+# RUN: %opt -passes='default<O2>' %t.base.bc -o %t.o2.bc
+# RUN: %llvm-dis %t.o2.bc -o %t.o2.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.o2.ll
+# RUN: %opt -passes='default<O3>' %t.base.bc -o %t.o3.bc
+# RUN: %llvm-dis %t.o3.bc -o %t.o3.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.o3.ll
+# RUN: %opt -passes='default<Os>' %t.base.bc -o %t.os.bc
+# RUN: %llvm-dis %t.os.bc -o %t.os.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.os.ll
+# RUN: %opt -passes='default<Oz>' %t.base.bc -o %t.oz.bc
+# RUN: %llvm-dis %t.oz.bc -o %t.oz.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.oz.ll
+
+# The final weakener may remove only permitted annotations. DCE and GlobalDCE
+# run immediately afterward to prove that a zero-result marker is still live.
+# RUN: %opt -passes='sps-final-weaken-v2,function(dce),globaldce' %t.base.bc -o %t.weaken.bc
+# RUN: %llvm-dis %t.weaken.bc -o %t.weaken.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.weaken.ll
+
+# Destroy the in-memory module and freshly parse the textual rendering.
+# RUN: %llvm-as %t.weaken.ll -o %t.reparsed.bc
+# RUN: %llvm-dis %t.reparsed.bc -o %t.reparsed.ll
+# RUN: %FileCheck %s --check-prefix=PRESERVE --input-file=%t.reparsed.ll
+
+# PRESERVE-LABEL: define i32 @nfv2_single(i32 %payload)
+# PRESERVE: call void (...) @llvm.sps.release(i32 %payload)
+# PRESERVE-NEXT: ret i32 %payload
+# PRESERVE-LABEL: define i32 @nfv2_identical_pair(i32 %payload)
+# PRESERVE-COUNT-2: call void (...) @llvm.sps.release(i32 %payload)
+# PRESERVE-NEXT: ret i32 %payload
+# PRESERVE-LABEL: define i32 @nfv2_ordered_pair(i32 %first, i64 %second)
+# PRESERVE: call void (...) @llvm.sps.release(i32 %first)
+# PRESERVE-NEXT: call void (...) @llvm.sps.release(i64 %second)
+# PRESERVE-NEXT: ret i32 %first

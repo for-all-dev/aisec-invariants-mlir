@@ -1,0 +1,23 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: clangover_poly_frommsg_x86_bad_model
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    msg-input:
+      bytes:
+        length: 32
+        hex: "0000000000000000000000000000000000000000000000000000000000000000"
+  high_right:
+    msg-input:
+      bytes:
+        length: 32
+        hex: "0100000000000000000000000000000000000000000000000000000000000000"
+expected:
+  bad_state: world-control-successor-mismatch
+  first_difference:
+    kind: BranchSuccessor
+    field: successor

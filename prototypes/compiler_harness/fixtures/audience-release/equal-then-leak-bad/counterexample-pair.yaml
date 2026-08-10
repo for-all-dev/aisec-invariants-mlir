@@ -1,0 +1,23 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: audience_equal_release_then_leak_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000003"
+  high_right:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000005"
+expected:
+  bad_state: equal-authorized-release-did-not-retire
+  first_difference:
+    kind: Transfer
+    field: valueBytes

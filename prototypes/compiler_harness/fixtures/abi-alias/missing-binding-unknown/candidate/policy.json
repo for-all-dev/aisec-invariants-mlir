@@ -1,0 +1,79 @@
+{
+  "format_id": "SPS-Harness-Candidate-Policy-v2",
+  "fixed_observation_model": "Theta_ct",
+  "principals": [],
+  "maximal_adversary_coalitions": [
+    []
+  ],
+  "components": [
+    "secret"
+  ],
+  "component_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "output_visibility": {
+    "world_visible": [
+      "world"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "error_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "argument_roles": [
+    {
+      "entry": "abi_alias_missing_binding",
+      "argument_index": 0,
+      "role": {
+        "tag": "ComponentArgumentV2",
+        "args": [
+          "secret"
+        ]
+      }
+    },
+    {
+      "entry": "abi_alias_missing_binding",
+      "argument_index": 1,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "p"
+        ]
+      }
+    },
+    {
+      "entry": "abi_alias_missing_binding",
+      "argument_index": 2,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "q"
+        ]
+      }
+    },
+    {
+      "entry": "abi_alias_missing_binding",
+      "argument_index": 3,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "public-output"
+        ]
+      }
+    }
+  ],
+  "release_bindings": [],
+  "invocation_scope": "SingleInvocation",
+  "placement": [
+    {
+      "entry": "abi_alias_missing_binding",
+      "host": "host0"
+    }
+  ],
+  "candidate_bitcode_sha256": "7253ce30f6c1d263abfb5ea241427272d56046fb286c1ca68420137f445702d7"
+}

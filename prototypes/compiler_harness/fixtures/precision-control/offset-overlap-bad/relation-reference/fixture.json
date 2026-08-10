@@ -1,0 +1,145 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "HARNESS-PRECISION-CONTROL",
+  "caseId": "offset-overlap-bad",
+  "kind": "relation",
+  "requirementRefs": [
+    "Normative 4.1",
+    "Normative 11",
+    "Conformance Profile 18"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "offset_overlap_bad",
+      "entryHost": "compute",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "public-value",
+          "width": 2,
+          "classification": "Low",
+          "host": "compute"
+        },
+        {
+          "id": "secret-byte",
+          "width": 2,
+          "classification": "High",
+          "host": "compute"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return",
+          "width": 2,
+          "host": "observer",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": [
+          {
+            "id": "buffer",
+            "byteLength": 9,
+            "host": "private-memory",
+            "terminalOutput": true,
+            "outputId": "buffer",
+            "initialBytes": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "initialized": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ]
+          }
+        ],
+        "terminalOutputOrder": [
+          "buffer",
+          "return"
+        ]
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "store",
+          "site": "store.secret-byte-4",
+          "root": "buffer",
+          "offset": 4,
+          "value": {
+            "var": "secret-byte"
+          },
+          "byteOrder": "LittleEndian"
+        },
+        {
+          "op": "store",
+          "site": "store.public-byte-8",
+          "root": "buffer",
+          "offset": 8,
+          "value": {
+            "var": "public-value"
+          },
+          "byteOrder": "LittleEndian"
+        },
+        {
+          "op": "return",
+          "site": "return.byte-4",
+          "value": {
+            "extract": {
+              "value": {
+                "load": {
+                  "root": "buffer",
+                  "offset": 4,
+                  "width": 8,
+                  "byteOrder": "LittleEndian"
+                }
+              },
+              "low": 0,
+              "width": 2
+            }
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "observer"
+      ]
+    }
+  },
+  "expected": {
+    "auditAll": {
+      "status": "sat",
+      "firstDifference": {
+        "kind": "Output",
+        "field": "valueBytes"
+      }
+    },
+    "admissionNonempty": "sat",
+    "highVariation": [
+      {
+        "componentId": "secret-byte",
+        "status": "sat"
+      }
+    ],
+    "terminalOutputSurface": "unsat"
+  }
+}

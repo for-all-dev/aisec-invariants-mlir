@@ -1,0 +1,38 @@
+entry: audience_equal_release_then_leak_bad
+observation-model: constant-time
+principals: [observer]
+adversaries:
+  maximal:
+  - [observer]
+hosts:
+  compute:
+    visibility: secret
+  observer-endpoint:
+    visibility:
+      world: false
+      members: [observer]
+      joint: []
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs: {}
+releases:
+  zero-release:
+    locator:
+      helper: zero-release
+      call-ordinal: 0
+    audience:
+      world: false
+      members: [observer]
+      joint: []
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      constant: 0
+    guard: true
+    payload-footprint: [0, 1, 2, 3]
+    multiplicity: 1

@@ -1,0 +1,31 @@
+entry: pointer_rebinding_same_allocation_control
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility:
+      world: false
+      members:
+      - observer
+      joint: []
+components:
+  left-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+  right-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+  secret-selector:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs:
+  private-result:
+    visibility: secret
+releases: {}

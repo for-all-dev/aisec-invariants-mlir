@@ -1,0 +1,34 @@
+entry: audience_world_authorized
+observation-model: constant-time
+principals: [observer]
+adversaries:
+  maximal:
+  - [observer]
+hosts:
+  compute:
+    visibility: secret
+  world-endpoint:
+    visibility: public
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs: {}
+releases:
+  world-class:
+    locator:
+      helper: world-class
+      call-ordinal: 0
+    audience: public
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      bit-and:
+        left: {component: secret}
+        right: {constant: 255}
+    guard: true
+    payload-footprint: [0]
+    multiplicity: 1

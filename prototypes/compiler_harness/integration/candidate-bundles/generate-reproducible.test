@@ -1,0 +1,18 @@
+# REQUIRES: candidate-producer-toolchain, llvm-as, llvm-config, llvm-dis, mlir-translate
+#
+# The capture-time source hash alone does not establish that artifact.bc still
+# corresponds to source_mlir. Re-run the complete generator in an isolated tree
+# and require every candidate byte, derived LL file, sidecar, and all other
+# envelope fields to match. The regenerated envelope intentionally records the
+# current source hash; that is the only field allowed to differ from a frozen
+# capture.
+
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root
+# RUN: cp -R %harness/tools %t.root/tools
+# RUN: cp -R %harness/contracts %t.root/contracts
+# RUN: cp -R %fixtures %t.root/fixtures
+# RUN: %python %t.root/tools/artifact_bundle.py generate --llvm-bin %llvm_bin
+# RUN: %python %t.root/tools/artifact_bundle.py check --llvm-bin %llvm_bin
+# RUN: diff -qr -x artifact.json %fixtures %t.root/fixtures
+# RUN: %python -c 'import hashlib,json,pathlib; original=pathlib.Path(r"%fixtures"); regenerated=pathlib.Path(r"%t.root/fixtures"); paths=sorted(original.glob("*/*/candidate/artifact.json")); assert len(paths) == 13; exec("for path in paths:\n    before=json.loads(path.read_text())\n    after=json.loads((regenerated/path.relative_to(original)).read_text())\n    capture_hash=before.pop(\"source_mlir_sha256\")\n    current_hash=after.pop(\"source_mlir_sha256\")\n    assert len(capture_hash) == 64 and all(c in \"0123456789abcdef\" for c in capture_hash), path\n    source=(path.parent/before[\"source_mlir\"]).resolve()\n    assert current_hash == hashlib.sha256(source.read_bytes()).hexdigest(), path\n    assert before == after, path")'

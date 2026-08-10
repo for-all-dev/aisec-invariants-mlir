@@ -1,0 +1,58 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_location_visible_bad
+c_evidence:
+- fixtures/audience-visibility/location-visible-bad/audience_location_visible_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: release-identity
+allowed:
+- only Alice is authorized for the release even when Bob observes the release host
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: unauthorized-location-visible-release-value
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: alice-class
+      first_bad: true
+    because: Bob sees unequal release values through host visibility without becoming authorized
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - ReleaseCarrierMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_location_visible_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release

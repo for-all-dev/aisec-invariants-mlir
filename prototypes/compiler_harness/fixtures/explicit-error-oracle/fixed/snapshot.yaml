@@ -1,0 +1,67 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: explicit_error_oracle_fixed
+c_evidence:
+- fixtures/explicit-error-oracle/fixed/explicit_error_oracle_fixed.c
+secret:
+- arg: 0
+  name: padding_is_valid
+- arg: 1
+  name: padding_error_detail
+public:
+- memory_at_arg: 3
+  name: public_status
+- memory_at_arg: 4
+  name: public_error_detail
+allowed:
+- public_status may reveal only padding validity
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: padding-status
+    because: sanctioned status remains while the detailed error is replaced by zero
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - ReleaseCarrierMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - explicit_error_oracle_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.xor
+          - llvm.call
+          - llvm.store
+          - llvm.return
+        call.callees:
+          contains:
+          - llvm.sps.release
+        operation.occurrences.llvm.mlir.constant:
+          count:
+            min: 2

@@ -1,0 +1,29 @@
+entry: wrong_party_plaintext_bad
+observation-model: constant-time
+principals: [authorized, observer]
+adversaries:
+  maximal:
+  - [authorized, observer]
+hosts:
+  compute:
+    visibility: secret
+  authorized-mailbox-endpoint:
+    visibility:
+      world: false
+      members: [authorized]
+      joint: []
+  observer-mailbox-endpoint:
+    visibility:
+      world: false
+      members: [observer]
+      joint: []
+components:
+  plaintext:
+    lifecycle: entry-input
+    type: bv32
+    visibility:
+      world: false
+      members: [authorized]
+      joint: []
+outputs: {}
+releases: {}

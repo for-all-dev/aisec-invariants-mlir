@@ -1,0 +1,59 @@
+// RUN: %checkpoint-runner run --snapshot fixtures/explicit-error-oracle/fixed/snapshot.yaml --pipeline modeled-shape --endpoint %t.modeled.mlir --records %t.checkpoints -- %mlir-opt %s -o %t.modeled.mlir
+// RUN: %checkpoint-runner finalize --test fixtures/explicit-error-oracle/fixed/explicit_error_oracle.fixed.mlir --records %t.checkpoints
+
+//
+// input invariant: %padding_is_valid is a well-formed Boolean in {0, 1}
+// scope note: the preflight suppresses detail; the exact product models only
+// the sanctioned validity release, not synthetic-plaintext security
+// annotation boundary: sps.label/sps.sink_class are unary preflight hints;
+// sps.fixture_refs/sps.observable_candidate are review locators; snapshot/sidecars are authoritative.
+//
+module {
+  llvm.func @llvm.sps.release(i32)
+
+  llvm.func @explicit_error_oracle_fixed(
+      %padding_is_valid: i32 {
+        sps.component_ref = "padding-is-valid",
+        sps.fixture_refs = ["secret:padding_is_valid"],
+        sps.label = "high"},
+      %padding_error_detail: i32 {
+        sps.component_ref = "padding-error-detail",
+        sps.fixture_refs = ["secret:padding_error_detail"],
+        sps.label = "high"},
+      %authorized_plaintext_length: i32,
+      %public_status: !llvm.ptr {
+        sps.fixture_refs = ["public-memory:public_status"],
+        sps.output_ref = "public-status",
+        sps.sink_class = "public"},
+      %public_error_detail: !llvm.ptr {
+        sps.fixture_refs = ["public-memory:public_error_detail"],
+        sps.output_ref = "public-error-detail",
+        sps.sink_class = "public"}) -> i32 {
+    %one = llvm.mlir.constant(1 : i32) : i32
+    %zero = llvm.mlir.constant(0 : i32) : i32
+    %valid_bit = llvm.and %padding_is_valid, %one : i32
+    %status = llvm.xor %valid_bit, %one : i32
+    llvm.call @llvm.sps.release(%status) {
+      sps.fixture_refs = ["release:padding-status"],
+      sps.release_ref = "padding-status",
+      sps.site_alias = "padding-status"
+    } : (i32) -> ()
+    llvm.store %status, %public_status {
+      "sps.fixture_refs" = ["store:padding-validity-status"],
+      "sps.sink_class" = "public",
+      "sps.site_alias" = "padding-validity-status"
+    } : i32, !llvm.ptr
+    // PREFLIGHT CONTROL: replace the unauthorized padding detail with a constant
+    // secret source: %padding_error_detail is deliberately absent from the released value
+    // safe effect: callers observe error detail 0 for every secret padding failure
+    // reason: %zero has no data dependence on %padding_error_detail
+    // preflight expectation: unary scanner sees only the fixed public-detail value
+    llvm.store %zero, %public_error_detail {
+      sps.fixture_refs = ["store:padding-error-detail-redacted"],
+      sps.label = "public",
+      sps.sink_class = "public",
+      sps.site_alias = "padding-error-detail"
+    } : i32, !llvm.ptr
+    llvm.return %authorized_plaintext_length : i32
+  }
+}

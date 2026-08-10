@@ -1,0 +1,4 @@
+# REQUIRES: sps-scan-unary
+# Fixture tier: CandidateOnly; output is scanner-specific triage, not Section 10.
+# RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/high-count-unknown/snapshot.yaml --pipeline scanner-diagnostic --endpoint - --records %t.checkpoints -- %sps-scan --refine-address %fixtures/alloca-size/high-count-unknown/alloca_size_high_count.unknown.mlir
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

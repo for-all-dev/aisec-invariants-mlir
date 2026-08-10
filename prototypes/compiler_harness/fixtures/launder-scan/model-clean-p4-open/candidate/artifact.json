@@ -1,0 +1,44 @@
+{
+  "format_id": "SPS-Harness-Candidate-Artifact-v2",
+  "artifact_role": "checked-in-bitcode-candidate",
+  "fixture_tier": {
+    "tag": "CandidateOnly"
+  },
+  "claimable": false,
+  "candidate_bitcode_sha256": "66a13fdf39341130ed77072a63faa1e6edae850f21039b9e5e4eac28257f4880",
+  "derived_llvm_ir_sha256": "4a8ec030523c6eba39b0f0a0cd0085a48a2ef9774bf646a15f55f11536c5eb98",
+  "candidate_sidecar_sha256": {
+    "policy.json": "de9c4204f377652e92af3909a0ed49cad8c39e978ea4528607e987d20aa67e67",
+    "abi.json": "5e30fee4e6852e421e430f11394818274e46e9066e8a82c61b90bccb700387fc",
+    "contracts.json": "62b9c92571ad8555fb6642ec177b23185c9486d45de034b6e991ab75ad27cba6",
+    "release-table.json": "bdab3dbb1b2340d58b4f6f288d58648cdf11f73123ee5a0a5baec8b97c2c605a",
+    "expected-report.json": "4b5a9652a10316566af7df1b9395e2080587e6be05ebd3a388afa5305fee4a27"
+  },
+  "source_mlir": "../launder_scan.model_proved.p4_open.mlir",
+  "source_mlir_sha256": "06664c1ded1da548b94b0dd50c8272b326e4f27c1de8d03268db633023952bba",
+  "producer": {
+    "llvm_version": "17.0.6",
+    "mlir_translate": "Homebrew LLVM version 17.0.6",
+    "llvm_as": "Homebrew LLVM version 17.0.6",
+    "llvm_dis": "Homebrew LLVM version 17.0.6",
+    "tool_sha256": {
+      "mlir-translate": "a1a1439c8725fcc975260c08bb18476e3015c25f8790bfb5e82b132503bc9c9f",
+      "llvm-as": "8701c4def94000cad744ca2ad51b14bb858d3cb7c9e49c32023e02ae9aca4a2f",
+      "llvm-dis": "35d596c47478a215db9afab1e8a4d5c25908f865295be88f93ddf6a59278e71b",
+      "llvm-config": "402af15e8debee2c65e2985e4cf78dbd28156e81bc4e93fc9b25219c62817868"
+    }
+  },
+  "rev4_profile": {
+    "required_llvm_version": "22.1.8",
+    "producer_matches_required_version": false,
+    "not_authoritative": true,
+    "v2_materialization_requires_new_capture": true,
+    "missing": [
+      "llvm-22.1.8-pinned-freeze-pipeline",
+      "complete-artifact-identity",
+      "canonical-rev4-interfaces",
+      "normal-form-audit-and-fresh-reparse",
+      "whole-entry-product-and-exact-replay"
+    ]
+  }
+}

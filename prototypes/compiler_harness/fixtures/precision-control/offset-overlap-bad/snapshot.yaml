@@ -1,0 +1,152 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: offset_overlap_bad
+c_evidence:
+- fixtures/precision-control/offset-overlap-bad/offset_overlap_bad.c
+secret:
+- arg: 1
+  name: secret_byte
+public:
+- memory_at_arg: 0
+  name: buffer
+- arg: 2
+  name: public_value
+- observable: return
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-return-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      id: return
+      first_bad: true
+    because: the public return reloads the secret byte at offset 4
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - offset_overlap_bad
+        function.signatures:
+          contains:
+          - offset_overlap_bad|(!llvm.ptr,i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.getelementptr
+          - llvm.trunc
+          - llvm.store
+          - llvm.load
+          - llvm.zext
+          - llvm.return
+        operation.occurrences.llvm.getelementptr:
+          count:
+            eq: 2
+        operation.occurrences.llvm.trunc:
+          count:
+            eq: 2
+        operation.occurrences.llvm.store:
+          count:
+            eq: 2
+        memory.store_accesses:
+          ordered:
+          - offset_overlap_bad|value=arg:1|address=gep(base=arg:0;offsets=4)
+          - offset_overlap_bad|value=arg:2|address=gep(base=arg:0;offsets=8)
+        memory.load_accesses:
+          contains:
+          - offset_overlap_bad|address=gep(base=arg:0;offsets=4)
+        conversion.shapes:
+          contains:
+          - offset_overlap_bad|op=llvm.trunc|from=i32|to=i8
+          - offset_overlap_bad|op=llvm.zext|from=i8|to=i32
+        gep.accesses:
+          contains:
+          - offset_overlap_bad|base=arg:0|offsets=4
+          - offset_overlap_bad|base=arg:0|offsets=8
+        return.access_roots:
+          contains:
+          - offset_overlap_bad|op:llvm.load:8
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - offset_overlap_bad
+        function.signatures:
+          contains:
+          - offset_overlap_bad|(!llvm.ptr,i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.getelementptr
+          - llvm.trunc
+          - llvm.store
+          - llvm.load
+          - llvm.zext
+          - llvm.return
+        operation.occurrences.llvm.getelementptr:
+          count:
+            eq: 2
+        operation.occurrences.llvm.trunc:
+          count:
+            eq: 2
+        operation.occurrences.llvm.store:
+          count:
+            eq: 2
+        memory.store_accesses:
+          ordered:
+          - offset_overlap_bad|value=arg:1|address=gep(base=arg:0;offsets=4)
+          - offset_overlap_bad|value=arg:2|address=gep(base=arg:0;offsets=8)
+        memory.load_accesses:
+          contains:
+          - offset_overlap_bad|address=gep(base=arg:0;offsets=4)
+        conversion.shapes:
+          contains:
+          - offset_overlap_bad|op=llvm.trunc|from=i32|to=i8
+          - offset_overlap_bad|op=llvm.zext|from=i8|to=i32
+        gep.accesses:
+          contains:
+          - offset_overlap_bad|base=arg:0|offsets=4
+          - offset_overlap_bad|base=arg:0|offsets=8
+        return.access_roots:
+          contains:
+          - offset_overlap_bad|op:llvm.load:6
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret-byte
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: sat
+        query.audit-all-first-difference:
+          equals:
+            kind: Output
+            field: valueBytes
+        backend.agreement:
+          equals: true

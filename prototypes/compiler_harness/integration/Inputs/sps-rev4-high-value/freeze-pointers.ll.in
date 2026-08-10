@@ -1,0 +1,61 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary bitcode input, not canonical frozen.bc.
+
+declare void @llvm.lifetime.end.p0(i64 immarg, ptr nocapture)
+
+define i32 @post_capture_mutation_seed(i32 %value) {
+entry:
+  %identity = add i32 %value, 0
+  ret i32 %identity
+}
+
+define i32 @freeze_defined(i32 noundef %value) {
+entry:
+  %stable = freeze i32 %value
+  ret i32 %stable
+}
+
+define i32 @freeze_undef() {
+entry:
+  %choice = freeze i32 undef
+  ret i32 %choice
+}
+
+define void @stack_protector_fixture(ptr %output) sspstrong {
+entry:
+  store i8 0, ptr %output, align 1
+  ret void
+}
+
+define i1 @same_root_gep_equal(ptr %root, i64 %offset) {
+entry:
+  %left = getelementptr i8, ptr %root, i64 %offset
+  %right = getelementptr i8, ptr %root, i64 %offset
+  %equal = icmp eq ptr %left, %right
+  ret i1 %equal
+}
+
+define i1 @adjacent_one_past_vs_base() {
+entry:
+  %object_a = alloca [4 x i8], align 1
+  %object_b = alloca [1 x i8], align 1
+  %one_past_a = getelementptr [4 x i8], ptr %object_a, i64 0, i64 4
+  %base_b = getelementptr [1 x i8], ptr %object_b, i64 0, i64 0
+  %equal = icmp eq ptr %one_past_a, %base_b
+  ret i1 %equal
+}
+
+define i1 @wrapping_gep_vs_null(ptr nonnull %root, i64 %offset) {
+entry:
+  %wrapped = getelementptr i8, ptr %root, i64 %offset
+  %equal = icmp eq ptr %wrapped, null
+  ret i1 %equal
+}
+
+define i1 @outside_lifetime_compare() {
+entry:
+  %object = alloca i8, align 1
+  call void @llvm.lifetime.end.p0(i64 1, ptr %object)
+  %equal = icmp eq ptr %object, null
+  ret i1 %equal
+}
+

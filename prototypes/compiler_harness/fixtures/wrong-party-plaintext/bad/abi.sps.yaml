@@ -1,0 +1,19 @@
+source: wrong_party_plaintext_bad.c
+relation: provenance-only
+entry:
+  id: wrong_party_plaintext_bad
+  symbol: wrong_party_plaintext_bad
+  host: compute
+  function-type: void (i32)
+  return: void
+carriers:
+  plaintext:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots: {}
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-void: []

@@ -1,0 +1,49 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: leftoverlocals_scratch_fixed
+c_evidence:
+- fixtures/leftoverlocals-scratch/fixed/leftoverlocals_scratch_fixed.c
+secret:
+- arg: 0
+  name: prior_tenant_secret
+public:
+- memory_at_arg: 3
+  name: next_tenant_output
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: scratch is overwritten with current tenant data before it is reloaded
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - leftoverlocals_scratch_fixed
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.load
+          - llvm.return

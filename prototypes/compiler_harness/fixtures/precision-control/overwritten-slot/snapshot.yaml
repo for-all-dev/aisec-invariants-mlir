@@ -1,0 +1,119 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: overwritten_slot_control
+c_evidence:
+- fixtures/precision-control/overwritten-slot/overwritten_slot_control.c
+secret:
+- arg: 0
+  name: secret
+public:
+- arg: 1
+  name: public_value
+- observable: return
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: a public value fully overwrites the secret slot before the public reload
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - overwritten_slot_control
+        function.signatures:
+          contains:
+          - overwritten_slot_control|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.alloca
+          - llvm.store
+          - llvm.store
+          - llvm.load
+          - llvm.return
+        operation.occurrences.llvm.store:
+          count:
+            eq: 2
+        memory.alloca_counts:
+          contains:
+          - overwritten_slot_control|count=1|element=i32
+        memory.store_accesses:
+          ordered:
+          - overwritten_slot_control|value=arg:0|address=alloca(count=1;element=i32)
+          - overwritten_slot_control|value=arg:1|address=alloca(count=1;element=i32)
+        memory.load_accesses:
+          contains:
+          - overwritten_slot_control|address=alloca(count=1;element=i32)
+        return.roots:
+          contains:
+          - overwritten_slot_control|op:llvm.load:4
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - overwritten_slot_control
+        function.signatures:
+          contains:
+          - overwritten_slot_control|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.alloca
+          - llvm.store
+          - llvm.store
+          - llvm.load
+          - llvm.return
+        operation.occurrences.llvm.store:
+          count:
+            eq: 2
+        memory.alloca_counts:
+          contains:
+          - overwritten_slot_control|count=1|element=i32
+        memory.store_accesses:
+          ordered:
+          - overwritten_slot_control|value=arg:0|address=alloca(count=1;element=i32)
+          - overwritten_slot_control|value=arg:1|address=alloca(count=1;element=i32)
+        memory.load_accesses:
+          contains:
+          - overwritten_slot_control|address=alloca(count=1;element=i32)
+        return.roots:
+          contains:
+          - overwritten_slot_control|op:llvm.load:4
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: unsat
+        backend.agreement:
+          equals: true

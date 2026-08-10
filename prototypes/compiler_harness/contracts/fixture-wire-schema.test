@@ -1,0 +1,7 @@
+# The unversioned fixture-verifier wires are closed, share one identifier and
+# event domain, accept one golden object each, and reject cross-field/unknown
+# data when Draft 2020-12 validation is available.
+
+# RUN: %python %S/Inputs/fixture_wire_schema_test.py %S/schemas | %FileCheck %s
+
+# CHECK: fixture wire schemas passed

@@ -1,0 +1,2 @@
+# REQUIRES: candidate-producer-toolchain, llvm-as, llvm-config, llvm-dis, mlir-translate
+# RUN: %python %harness/tools/artifact_bundle.py check --llvm-bin %llvm_bin

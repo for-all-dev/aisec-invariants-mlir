@@ -1,0 +1,24 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: predecessor_choice_blockarg_bad
+coalition:
+- observer
+inputs:
+  low_equal: {}
+  high_left:
+    secret-bit:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    secret-bit:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: public-output-block-argument-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: return

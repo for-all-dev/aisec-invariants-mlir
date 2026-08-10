@@ -1,0 +1,128 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary bitcode input, not canonical frozen.bc.
+;
+; The release table is external to LLVM.  Functions below mutate one carrier
+; property at a time; cases.json supplies the corresponding binding mutation.
+
+declare void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8) #1
+declare void @__sps_invalid_callable_emit_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb(i8) #1
+declare i8 @__sps_invalid_callable_emit_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc(i8) #1
+declare void @__sps_invalid_callable_emit_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd(i8, ...) #1
+declare fastcc void @__sps_invalid_callable_emit_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee(i8) #1
+
+define internal void @release_conforming(i8 %value) #0 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_marker(i8 %value) #0 {
+entry:
+  ret void
+}
+
+define internal void @release_duplicate_marker(i8 %value) #0 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_wrong_symbol(i8 %value) #0 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb(i8 %value) #1
+  ret void
+}
+
+define internal i8 @release_wrong_type(i8 %value) #0 {
+entry:
+  %result = call ccc i8 @__sps_invalid_callable_emit_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc(i8 %value) #1
+  ret i8 %result
+}
+
+define internal void @release_tail_marker(i8 %value) #0 {
+entry:
+  tail call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_varargs_marker(i8 %value) #0 {
+entry:
+  call ccc void (i8, ...) @__sps_invalid_callable_emit_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd(i8 %value) #1
+  ret void
+}
+
+define internal void @release_operand_bundle(i8 %value) #0 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1 [ "sps.test"() ]
+  ret void
+}
+
+define internal void @release_wrong_cc(i8 %value) #0 {
+entry:
+  call fastcc void @__sps_invalid_callable_emit_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_noinline(i8 %value) #2 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_nooutline(i8 %value) #3 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_noduplicate(i8 %value) #4 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_nomerge(i8 %value) #5 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_missing_nobuiltin(i8 %value) #6 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  ret void
+}
+
+define internal void @release_wrong_value(i8 %value) #0 {
+entry:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 0) #1
+  ret void
+}
+
+define internal void @release_guarded(i8 %value, i1 %guard) #0 {
+entry:
+  br i1 %guard, label %emit, label %done
+
+emit:
+  call ccc void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value) #1
+  br label %done
+
+done:
+  ret void
+}
+
+define void @release_retry_ordinal(i8 %value) {
+entry:
+  call ccc void @release_guarded(i8 %value, i1 false)
+  call ccc void @release_guarded(i8 %value, i1 true)
+  ret void
+}
+
+attributes #0 = { noinline noduplicate nomerge nobuiltin "nooutline" }
+attributes #1 = { nounwind willreturn memory(none) }
+attributes #2 = { noduplicate nomerge nobuiltin "nooutline" }
+attributes #3 = { noinline noduplicate nomerge nobuiltin }
+attributes #4 = { noinline nomerge nobuiltin "nooutline" }
+attributes #5 = { noinline noduplicate nobuiltin "nooutline" }
+attributes #6 = { noinline noduplicate nomerge "nooutline" }
+

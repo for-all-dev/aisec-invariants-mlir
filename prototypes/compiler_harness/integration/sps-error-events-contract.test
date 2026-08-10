@@ -1,0 +1,83 @@
+# FUTURE CONFORMANCE ERROR-EVENT CONTRACT.
+#
+# The checked-in JSON is SPS-Harness-* CandidateOnly intent with every result axis
+# uncomputed. It is not an ABISchema, canonical identity, verifier report, or
+# present ConformanceV2 fixture. The positive and negative arms below validate
+# everything that can be pinned before LLVM 22.1.8 materialization: exact error
+# ID/source/encoding bindings, visibility derivation, and event ordering.
+#
+# REQUIRES: llvm-as, llvm-dis
+
+# --- positive: the capture shape round-trips and the contract is closed -------
+# RUN: %llvm-as %S/Inputs/sps-error-events/capture-shape.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o - | %FileCheck %S/Inputs/sps-error-events/capture-shape.ll
+# RUN: %python %harness/tools/check_sps_error_fixture.py --root %harness | %FileCheck %s --check-prefix=VALID
+# VALID: validated 08-error-field-binding: future ConformanceV2 error contract (2 error fields)
+# VALID: checked contract: DeclaredFailure and verifier-UB bindings, payload visibility, exact constructor/output order
+# VALID: claim boundary: CandidateOnly Pending; ModelStatus=NotComputed
+
+# --- missing mandatory schema field: pre-binding refusal, no ModelStatus ------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.missing.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.missing.json'); v=json.loads(p.read_text()); del v['abiIntent']['errorFields']; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.missing.json 2>&1 | %FileCheck %s --check-prefix=MISSING
+# MISSING: abiIntent fields/order mismatch: {{.*}}errorFields
+
+# --- semantically dangling application ErrorFieldId ---------------------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.app-id.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.app-id.json'); v=json.loads(p.read_text()); missing='app.missing'; v['policyIntent']['entries']['fixture.error-entry']['allowedReturnClasses'][1]['args']=[missing]; v['abiIntent']['entries']['fixture.error-entry']['declaredErrorFields']=[missing]; v['abiIntent']['returnClassBindings'][0]['returnClass']['args']=[missing]; v['abiIntent']['terminalOutputOrder'][1]['returnClass']['args']=[missing]; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.app-id.json 2>&1 | %FileCheck %s --check-prefix=APP-ID
+# APP-ID: DeclaredFailure ErrorFieldId 'app.missing' is absent from abiIntent.errorFields (target: Unknown(OutputBindingIncomplete))
+
+# --- declaredErrorFields is the exact application-failure ID set ------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.declared-set.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.declared-set.json'); v=json.loads(p.read_text()); v['abiIntent']['entries']['fixture.error-entry']['declaredErrorFields']=[]; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.declared-set.json 2>&1 | %FileCheck %s --check-prefix=DECLARED-SET
+# DECLARED-SET: EntryABIV2.declaredErrorFields must equal exactly the application DeclaredFailure IDs; the verifier UB-risk field is not an application ID
+
+# --- dangling mandatory verifier UB ErrorFieldId ------------------------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.ub-id.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.ub-id.json'); v=json.loads(p.read_text()); v['abiIntent']['ubRiskErrorFieldId']='verifier.missing'; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.ub-id.json 2>&1 | %FileCheck %s --check-prefix=UB-ID
+# UB-ID: ubRiskErrorFieldId 'verifier.missing' is absent from abiIntent.errorFields (target: Unknown(OutputBindingIncomplete))
+
+# --- malformed application payload binding: nested/outer encoding disagree ----
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.app-payload.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.app-payload.json'); v=json.loads(p.read_text()); v['abiIntent']['errorFields']['app.error']['source']['encoding']['bitWidth']=7; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.app-payload.json 2>&1 | %FileCheck %s --check-prefix=APP-PAYLOAD
+# APP-PAYLOAD: errorFields['app.error'].source.encoding must equal its outer encoding (target: Unknown(OutputBindingIncomplete))
+
+# --- malformed application payload source -----------------------------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.app-source.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.app-source.json'); v=json.loads(p.read_text()); v['abiIntent']['errorFields']['app.error']['source']['tag']='RootSliceAtFailureV2'; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.app-source.json 2>&1 | %FileCheck %s --check-prefix=APP-SOURCE
+# APP-SOURCE: errorFields['app.error'] must use ReturnBitsAtFailureV2 (target: Unknown(OutputBindingIncomplete))
+
+# --- malformed mandatory UB payload type -------------------------------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.ub-type.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.ub-type.json'); v=json.loads(p.read_text()); v['abiIntent']['errorFields']['verifier.ub-risk']['payloadType']['fields'][1]['valueType']['bitWidth']=5; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.ub-type.json 2>&1 | %FileCheck %s --check-prefix=UB-TYPE
+# UB-TYPE: ubRiskErrorFieldId must use the fixed verifier UB payload type and encoding (target: Unknown(OutputBindingIncomplete))
+
+# --- malformed UB binding: VerifierUBRiskPayloadV2 is no longer sole ----------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.ub-payload.json
+# RUN: %python -c "import copy,json,pathlib; p=pathlib.Path(r'%t.ub-payload.json'); v=json.loads(p.read_text()); extra=copy.deepcopy(v['abiIntent']['errorFields']['verifier.ub-risk']); extra['errorFieldId']='verifier.ub-risk.duplicate'; v['abiIntent']['errorFields']['verifier.ub-risk.duplicate']=extra; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.ub-payload.json 2>&1 | %FileCheck %s --check-prefix=UB-PAYLOAD
+# UB-PAYLOAD: VerifierUBRiskPayloadV2 must be the source of exactly one error field, found 2 (target: Unknown(OutputBindingIncomplete))
+
+# --- policy visibility may not name an undeclared ErrorFieldId ----------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.visibility.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.visibility.json'); v=json.loads(p.read_text()); v['policyIntent']['errorVisibility']['memberVisible']['observer'].append('app.missing'); p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.visibility.json 2>&1 | %FileCheck %s --check-prefix=VISIBILITY
+# VISIBILITY: policyIntent.errorVisibility references undeclared error field 'app.missing'
+
+# --- exact event order is load-bearing ----------------------------------------
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.order.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.order.json'); v=json.loads(p.read_text()); order=v['expectedSemantics']['declaredFailureEventOrder']; order[1],order[2]=order[2],order[1]; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.order.json 2>&1 | %FileCheck %s --check-prefix=ORDER
+# ORDER: declaredFailureEventOrder is not Failure -> Error -> Latency -> terminal outputs -> Termination (target: Unknown(OutputClosureMismatch))
+
+# --- the UB failure prefix has its own exact order and no ordinary suffix -----
+# RUN: cp %S/Inputs/sps-error-events/future-conformance-contract.json %t.ub-order.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.ub-order.json'); v=json.loads(p.read_text()); order=v['expectedSemantics']['ubRiskEventOrder']; order[1],order[2]=order[2],order[1]; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %harness/tools/check_sps_error_fixture.py --root %harness --contract %t.ub-order.json 2>&1 | %FileCheck %s --check-prefix=UB-ORDER
+# UB-ORDER: ubRiskEventOrder is not UBRisk -> Failure -> Error -> Termination(UBFailure), with no latency/output suffix

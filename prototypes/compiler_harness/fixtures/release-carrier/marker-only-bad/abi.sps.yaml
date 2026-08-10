@@ -1,0 +1,37 @@
+source: release_carrier.c
+relation: provenance-only
+entry:
+  id: release_carrier_marker_only_bad
+  symbol: release_carrier
+  host: compute
+  function-type: void (i32, i32, i32, ptr)
+  return: void
+carriers:
+  raw:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  mask-a:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+  mask-b:
+    argument: 2
+    llvm-type: i32
+    bit-width: 32
+roots:
+  sink:
+    argument: 3
+    host: compute
+    extent-bytes: 8
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: sink
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-void:
+  - sink

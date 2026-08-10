@@ -1,0 +1,602 @@
+{
+  "formatId": "SPS-Harness-Rev4.1-Aggregation-Inputs-v2",
+  "authority": {
+    "tag": "SyntheticInterfaceVectorV2",
+    "claimable": false
+  },
+  "cases": {
+    "AGG-01": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "Some",
+        "value": {
+          "formatId": "SPS-Accepted-Bad-Replay-v2",
+          "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "queryOrdinal": 0,
+          "query": {
+            "queryKind": {
+              "tag": "AuditAll"
+            },
+            "entryScope": {
+              "tag": "Some",
+              "value": "entry.main"
+            },
+            "coalitionScope": {
+              "tag": "ConcreteCoalition",
+              "coalitionId": "56787980b512fa492fc5300a2ca2703f7f1d020a9b925d80b92d6eddd2eafc69"
+            },
+            "releaseScope": {
+              "tag": "None"
+            },
+            "componentScope": {
+              "tag": "None"
+            },
+            "relationScope": {
+              "tag": "None"
+            }
+          },
+          "replaySemantics": "SPS-Replay-Acceptance-v2",
+          "firstBadStep": 3,
+          "firstBadStateDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "finalReceiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+          "protectedEvidence": {
+            "receiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sensitivity": "SecretBearing",
+            "storageClass": "RestrictedVerifierStore"
+          }
+        }
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "SolverTimeout"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-02": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "SolverTimeout"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-03": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "PossibleUB"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "SolverTimeout"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-04": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [],
+      "allRequiredGatesClosed": true
+    },
+    "AGG-05": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "PONFFPArithmeticUnsupported"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-06": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "VacuousAdmission"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-07": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "ExpectedHighVariationAbsent"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-08": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "Some",
+        "value": {
+          "formatId": "SPS-Accepted-Bad-Replay-v2",
+          "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "queryOrdinal": 0,
+          "query": {
+            "queryKind": {
+              "tag": "AuditAll"
+            },
+            "entryScope": {
+              "tag": "Some",
+              "value": "entry.main"
+            },
+            "coalitionScope": {
+              "tag": "ConcreteCoalition",
+              "coalitionId": "56787980b512fa492fc5300a2ca2703f7f1d020a9b925d80b92d6eddd2eafc69"
+            },
+            "releaseScope": {
+              "tag": "None"
+            },
+            "componentScope": {
+              "tag": "None"
+            },
+            "relationScope": {
+              "tag": "None"
+            }
+          },
+          "replaySemantics": "SPS-Replay-Acceptance-v2",
+          "firstBadStep": 3,
+          "firstBadStateDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "finalReceiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+          "protectedEvidence": {
+            "receiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sensitivity": "SecretBearing",
+            "storageClass": "RestrictedVerifierStore"
+          }
+        }
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "ReleaseCarrierMismatch"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-09": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "Some",
+        "value": {
+          "formatId": "SPS-Accepted-Bad-Replay-v2",
+          "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "queryOrdinal": 0,
+          "query": {
+            "queryKind": {
+              "tag": "AuditAll"
+            },
+            "entryScope": {
+              "tag": "Some",
+              "value": "entry.main"
+            },
+            "coalitionScope": {
+              "tag": "ConcreteCoalition",
+              "coalitionId": "56787980b512fa492fc5300a2ca2703f7f1d020a9b925d80b92d6eddd2eafc69"
+            },
+            "releaseScope": {
+              "tag": "None"
+            },
+            "componentScope": {
+              "tag": "None"
+            },
+            "relationScope": {
+              "tag": "None"
+            }
+          },
+          "replaySemantics": "SPS-Replay-Acceptance-v2",
+          "firstBadStep": 3,
+          "firstBadStateDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "finalReceiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+          "protectedEvidence": {
+            "receiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sensitivity": "SecretBearing",
+            "storageClass": "RestrictedVerifierStore"
+          }
+        }
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "RunFinalization",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ReportingBlocker",
+            "reason": {
+              "tag": "EvidenceFinalizationFailure"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-10": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "SolverTimeout"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "PONFFPArithmeticUnsupported"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-11": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "Some",
+        "value": {
+          "formatId": "SPS-Accepted-Bad-Replay-v2",
+          "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "queryOrdinal": 0,
+          "query": {
+            "queryKind": {
+              "tag": "AuditAll"
+            },
+            "entryScope": {
+              "tag": "Some",
+              "value": "entry.main"
+            },
+            "coalitionScope": {
+              "tag": "ConcreteCoalition",
+              "coalitionId": "56787980b512fa492fc5300a2ca2703f7f1d020a9b925d80b92d6eddd2eafc69"
+            },
+            "releaseScope": {
+              "tag": "None"
+            },
+            "componentScope": {
+              "tag": "None"
+            },
+            "relationScope": {
+              "tag": "None"
+            }
+          },
+          "replaySemantics": "SPS-Replay-Acceptance-v2",
+          "firstBadStep": 3,
+          "firstBadStateDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "finalReceiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+          "protectedEvidence": {
+            "receiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sensitivity": "SecretBearing",
+            "storageClass": "RestrictedVerifierStore"
+          }
+        }
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "DiagnosticHealthFailure"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-12": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ProofCompletion",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "DiagnosticHealthFailure"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-13": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "ToolInconsistency"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-14": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "Some",
+        "value": {
+          "formatId": "SPS-Accepted-Bad-Replay-v2",
+          "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "queryOrdinal": 0,
+          "query": {
+            "queryKind": {
+              "tag": "AuditAll"
+            },
+            "entryScope": {
+              "tag": "Some",
+              "value": "entry.main"
+            },
+            "coalitionScope": {
+              "tag": "ConcreteCoalition",
+              "coalitionId": "56787980b512fa492fc5300a2ca2703f7f1d020a9b925d80b92d6eddd2eafc69"
+            },
+            "releaseScope": {
+              "tag": "None"
+            },
+            "componentScope": {
+              "tag": "None"
+            },
+            "relationScope": {
+              "tag": "None"
+            }
+          },
+          "replaySemantics": "SPS-Replay-Acceptance-v2",
+          "firstBadStep": 3,
+          "firstBadStateDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "finalReceiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+          "protectedEvidence": {
+            "receiptId": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sensitivity": "SecretBearing",
+            "storageClass": "RestrictedVerifierStore"
+          }
+        }
+      },
+      "blockers": [
+        {
+          "formatId": "SPS-Blocker-Record-v2",
+          "scope": "ReplayInvalidating",
+          "phaseOrdinal": 2,
+          "scheduleOrdinal": {
+            "tag": "None"
+          },
+          "reason": {
+            "tag": "ModelBlocker",
+            "reason": {
+              "reasonClassId": "ToolInconsistency"
+            }
+          },
+          "restrictedDetailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "allRequiredGatesClosed": false
+    },
+    "AGG-15": {
+      "formatId": "SPS-Aggregation-Input-v2",
+      "artifactIdentityDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "proofConfigurationDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "queryScheduleDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "acceptedBadReplay": {
+        "tag": "None"
+      },
+      "blockers": [],
+      "allRequiredGatesClosed": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# ``SPS-Harness-Stage-Report-v2`` records completed fixture checks and nothing
+# stronger.  It cannot issue any SPS result axis or protected receipt.
+
+# RUN: %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/valid.json | %FileCheck %s --check-prefix=VALID
+# VALID: valid nonclaimable stage report:
+
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/claimable.json 2>&1 | %FileCheck %s --check-prefix=CLAIMABLE
+# CLAIMABLE: claimable must be false
+
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/model-proved.json 2>&1 | %FileCheck %s --check-prefix=STATUS
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/model-counterexample.json 2>&1 | %FileCheck %s --check-prefix=STATUS
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/model-unknown.json 2>&1 | %FileCheck %s --check-prefix=STATUS
+# STATUS: modelStatus must be the NotComputed harness sentinel; Proved, Counterexample, and Unknown are forbidden
+
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/duplicate-check.json 2>&1 | %FileCheck %s --check-prefix=DUPLICATE
+# DUPLICATE: completedChecks must be sorted and duplicate-free
+
+# RUN: not %python %S/../tools/check_sps_stage_report.py %S/Inputs/sps-stage-report/deployment-field.json 2>&1 | %FileCheck %s --check-prefix=AXIS
+# AXIS: wrong fields {{.*}}deploymentStatus
+
+# The high-value catalog embeds this report rather than retaining the ambiguous
+# ``StageOutcomeV2`` accepted-stage constructor.
+# RUN: not grep -n "StageOutcomeV2" %S/../integration/Inputs/sps-rev4-high-value/cases.json

@@ -1,0 +1,85 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-A09 -- PUBLIC BOUND ADEQUACY AND K_loop IRRELEVANCE (CandidateOnly seed).
+#
+# The source pins the original entry/backedge guards for public maxima 0, 1,
+# and 16. K_loop is an encoding capacity only: for maximum 16, caps 15 and 16
+# are ResourceLimit seeds, while exact required capacity 17 and larger cap 32
+# carry byte-identical, boundary-identified candidate expectations. A fixed
+# two-copy loop against public maximum one is
+# the aligned reachable-remainder contrast. A High-selected one/two-copy loop
+# is the one-lane BoundExhausted/BoundFailure mismatch shape.
+#
+# No checked-in bitcode and no `inbounds` GEP participate in the seed.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy.ll.in -o %t.loop.bc
+# RUN: %opt -passes=verify -disable-output %t.loop.bc
+# RUN: %llvm-dis %t.loop.bc -o %t.loop.ll
+# RUN: not grep -q 'getelementptr inbounds' %t.loop.ll
+# RUN: %opt -passes='print<loops>' -disable-output %t.loop.bc 2>&1 | grep -c 'Loop at depth 1 containing: %loop<header><latch><exiting>' | %FileCheck %s --check-prefix=A09-LOOPS
+# A09-LOOPS: 5
+# RUN: %FileCheck %s --check-prefix=A09-SOURCE --input-file=%t.loop.ll
+
+# A09-SOURCE-LABEL: define i32 @a09_public_bound_0(ptr %output)
+# A09-SOURCE: %enter = icmp ult i32 0, 0
+# A09-SOURCE-NEXT: br i1 %enter, label %preheader, label %zero
+# A09-SOURCE: preheader:
+# A09-SOURCE-NEXT: br label %loop
+# A09-SOURCE: %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+# A09-SOURCE: %continue = icmp ult i32 %next, 0
+# A09-SOURCE-NEXT: br i1 %continue, label %loop, label %exit
+# A09-SOURCE: exit:
+# A09-SOURCE-NEXT: %result = phi i32 [ %next, %loop ]
+# A09-SOURCE-LABEL: define i32 @a09_public_bound_1(ptr %output)
+# A09-SOURCE: %enter = icmp ult i32 0, 1
+# A09-SOURCE-NEXT: br i1 %enter, label %preheader, label %zero
+# A09-SOURCE: %continue = icmp ult i32 %next, 1
+# A09-SOURCE-LABEL: define i32 @a09_public_bound_16(ptr %output)
+# A09-SOURCE: %enter = icmp ult i32 0, 16
+# A09-SOURCE-NEXT: br i1 %enter, label %preheader, label %zero
+# A09-SOURCE: %continue = icmp ult i32 %next, 16
+# A09-SOURCE-LABEL: define i32 @a09_aligned_remainder(ptr %output)
+# A09-SOURCE: %continue = icmp ult i32 %next, 2
+# A09-SOURCE-LABEL: define i32 @a09_high_extra_iteration(ptr %output, i1 %high)
+# A09-SOURCE: %limit = select i1 %high, i32 2, i32 1
+# A09-SOURCE: %continue = icmp ult i32 %next, %limit
+
+# RUN: %python %harness/tools/check_rev4_nf_seeds.py --case a09 %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy.ll.in --cases %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy-cases.json | %FileCheck %s --check-prefix=A09-CHECK
+
+# A09-CHECK: SPS-Harness-Rev4-NF-Seed-Check-v1
+# A09-CHECK: A09-01 entry=@a09_public_bound_0 bound-id=bound.a09.public-0 bound-maximum=0 original-trip-count=0 K_loop=1 relation=boundary-unreachable candidate=BoundAdequacyCandidateShape canonical-expectation-sha256={{[0-9a-f]+}}
+# A09-CHECK-NEXT: A09-02 entry=@a09_public_bound_1 bound-id=bound.a09.public-1 bound-maximum=1 original-trip-count=1 K_loop=2 relation=boundary-unreachable candidate=BoundAdequacyCandidateShape canonical-expectation-sha256={{[0-9a-f]+}}
+# A09-CHECK-NEXT: A09-03 entry=@a09_public_bound_16 bound-id=bound.a09.public-16 bound-maximum=16 original-trip-count=16 K_loop=15 relation=cap-shortfall reason-seed=ResourceLimit canonical-expectation-sha256=[[SHORT:[0-9a-f]{64}]]
+# A09-CHECK-NEXT: A09-04 entry=@a09_public_bound_16 bound-id=bound.a09.public-16 bound-maximum=16 original-trip-count=16 K_loop=16 relation=cap-shortfall reason-seed=ResourceLimit canonical-expectation-sha256=[[SHORT]]
+# A09-CHECK-NEXT: A09-05 entry=@a09_public_bound_16 bound-id=bound.a09.public-16 bound-maximum=16 original-trip-count=16 K_loop=17 relation=boundary-unreachable candidate=BoundAdequacyCandidateShape canonical-expectation-sha256=[[ADEQ:[0-9a-f]{64}]]
+# A09-CHECK-NEXT: A09-06 entry=@a09_public_bound_16 bound-id=bound.a09.public-16 bound-maximum=16 original-trip-count=16 K_loop=32 relation=boundary-unreachable candidate=BoundAdequacyCandidateShape canonical-expectation-sha256=[[ADEQ]]
+# A09-CHECK-NEXT: A09-07 entry=@a09_aligned_remainder bound-id=bound.a09.public-1 bound-maximum=1 original-trip-count=2 K_loop=2 relation=aligned-reachable-exhaustion reason-seed=LoopRemainder canonical-expectation-sha256={{[0-9a-f]+}}
+# A09-CHECK-NEXT: A09-08 entry=@a09_high_extra_iteration bound-id=bound.a09.public-1 bound-maximum=1 original-trip-count=1..2 K_loop=2 relation=high-one-lane-mismatch candidate=BoundExhaustedLaneMismatchSeed canonical-expectation-sha256={{[0-9a-f]+}}
+# A09-CHECK-NEXT: cap-independence group=bound-16-exact-and-above cases=A09-05,A09-06 K_loop=17,32 canonical-expectation-sha256=[[ADEQ]]
+# A09-CHECK-NEXT: verified a09: 8 CandidateOnly cases; public-bounds=0,1,16; K_loop-15-16-17-32=below-max-equal-max-exact-cap-above-cap; aligned-remainder=1; high-lane-mismatch=1; temporary-bitcode-ready
+# A09-CHECK: tier=CandidateOnly
+# A09-CHECK-NEXT: nf_conforms=NotEvaluated
+# A09-CHECK-NEXT: model_status=NotComputed
+# A09-CHECK-NEXT: deployment_status=NotComputed
+
+# Raising only the equal-public-maximum shortfall row from K_loop=16 to 17 while leaving its
+# ResourceLimit expectation intact must fail. This pins the exact capacity
+# boundary rather than merely checking that all three integers occur.
+# RUN: cp %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy-cases.json %t.bad-cap.json
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.bad-cap.json'); v=json.loads(p.read_text()); v['cases'][3]['engineCap']=17; p.write_text(json.dumps(v,separators=(',',':')))"
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a09 %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy.ll.in --cases %t.bad-cap.json 2>&1 | %FileCheck %s --check-prefix=A09-BAD-CAP
+# A09-BAD-CAP: error: {{.*}}cases[3]: expectation disagrees with public-bound/cap observation
+
+# Swapping the entry successors preserves a verifier-clean one-block loop but
+# makes bound zero execute a copy. The topology oracle binds true to preheader
+# and false to the zero-trip return.
+# RUN: sed 's/br i1 %enter, label %%preheader, label %zero/br i1 %enter, label %zero, label %%preheader/g' %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy.ll.in > %t.bad-entry.ll
+# RUN: %llvm-as %t.bad-entry.ll -o %t.bad-entry.bc
+# RUN: %opt -passes=verify -disable-output %t.bad-entry.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a09 %t.bad-entry.ll --cases %harness/integration/Inputs/sps-rev4-nf/a09-bound-adequacy-cases.json 2>&1 | %FileCheck %s --check-prefix=A09-BAD-ENTRY
+# A09-BAD-ENTRY: error: @a09_public_bound_0: entry guard must enter %preheader on true and %zero on false
+
+# A green result means the source guards, cap split, cap-independent canonical
+# expectation bytes, aligned remainder, and High mismatch are pinned as
+# CandidateOnly records. BoundExhausted is not inserted by this stock LLVM
+# pass; the checker does not prove it unreachable and issues no final result.

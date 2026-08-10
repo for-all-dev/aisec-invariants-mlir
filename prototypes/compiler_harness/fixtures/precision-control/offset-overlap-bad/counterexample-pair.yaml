@@ -1,0 +1,32 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: offset_overlap_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    buffer-input:
+      bytes:
+        length: 9
+        hex: "000000000000000000"
+    public-value:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_left:
+    secret-byte:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    secret-byte:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: public-return-payload-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: return

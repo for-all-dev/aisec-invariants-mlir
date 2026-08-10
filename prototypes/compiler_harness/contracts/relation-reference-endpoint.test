@@ -1,0 +1,5 @@
+# REQUIRES: z3
+
+# RUN: env Z3=%z3 PYTHONDONTWRITEBYTECODE=1 %python %S/Inputs/relation_reference_endpoint_test.py %harness %t.build | %FileCheck %s
+
+# CHECK: relation-reference endpoint refusals passed

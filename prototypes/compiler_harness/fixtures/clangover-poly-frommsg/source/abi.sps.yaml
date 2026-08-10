@@ -1,0 +1,38 @@
+source: clangover_poly_frommsg_vulnerable.c
+relation: provenance-only
+entry:
+  id: clangover_poly_frommsg_source
+  symbol: clangover_poly_frommsg_vulnerable
+  host: compute
+  function-type: void (ptr, ptr)
+  return: void
+carriers: {}
+roots:
+  out:
+    argument: 0
+    host: compute
+    extent-bytes: 512
+    alignment: 2
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: out
+  msg:
+    argument: 1
+    host: compute
+    extent-bytes: 32
+    alignment: 1
+    permission: read-only
+    initialization: initialized
+    ownership: caller
+    input: msg-input
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - msg
+    - out
+terminal-output-order:
+  normal-void:
+  - out

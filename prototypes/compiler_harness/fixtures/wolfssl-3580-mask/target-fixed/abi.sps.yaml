@@ -1,0 +1,32 @@
+source: wolfssl_3580_mask_fixed.c
+relation: provenance-only
+entry:
+  id: wolfssl_3580_select_fixed
+  symbol: wolfssl_3580_mask_fixed
+  host: compute
+  function-type: i32 (ptr, i32)
+  return:
+    llvm-type: i32
+    bit-width: 32
+    output: return
+carriers:
+  table-index:
+    argument: 1
+    llvm-type: i32
+    bit-width: 32
+roots:
+  table:
+    argument: 0
+    host: compute
+    extent-bytes: 64
+    alignment: 4
+    permission: read-only
+    initialization: initialized
+    ownership: caller
+    input: table-input
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

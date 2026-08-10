@@ -1,0 +1,89 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: pointer_rebinding_pointer_spill_unsupported
+c_evidence:
+- fixtures/pointer-rebinding/pointer-spill-unsupported/pointer_rebinding_pointer_spill_unsupported.c
+secret:
+- arg: 0
+  name: secret_selector
+public:
+- memory_at_arg: 1
+  name: left
+- memory_at_arg: 2
+  name: right
+- observable: address
+expect:
+  final:
+    model:
+      status: Unknown
+      reason: UnsupportedType
+    deployment: Open
+    policy: Complete
+    because: the frozen artifact serializes a structural pointer through an ordinary pointer-valued store and load
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - pointer_rebinding_pointer_spill_unsupported
+        function.signatures:
+          contains:
+          - pointer_rebinding_pointer_spill_unsupported|(i32,!llvm.ptr,!llvm.ptr,!llvm.ptr)->()
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.select
+          - llvm.alloca
+          - llvm.store
+          - llvm.load
+          - llvm.load
+          - llvm.store
+          - llvm.return
+        branch.conditional:
+          count:
+            eq: 0
+        operation.occurrences.llvm.select:
+          count:
+            eq: 1
+        operation.occurrences.llvm.load:
+          count:
+            eq: 2
+        operation.occurrences.llvm.store:
+          count:
+            eq: 2
+        memory.alloca_counts:
+          contains:
+          - pointer_rebinding_pointer_spill_unsupported|count=1|element=!llvm.ptr
+        memory.store_accesses:
+          ordered:
+          - pointer_rebinding_pointer_spill_unsupported|value=op:llvm.select:3|address=alloca(count=1;element=!llvm.ptr)
+          - pointer_rebinding_pointer_spill_unsupported|value=op:llvm.load:7|address=arg:3
+        memory.load_accesses:
+          ordered:
+          - pointer_rebinding_pointer_spill_unsupported|address=alloca(count=1;element=!llvm.ptr)
+          - pointer_rebinding_pointer_spill_unsupported|address=op:llvm.load:6
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

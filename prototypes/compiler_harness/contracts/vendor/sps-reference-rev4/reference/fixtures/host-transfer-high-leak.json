@@ -1,0 +1,74 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-HOST-TRANSFER",
+  "caseId": "host-transfer-high-leak",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 10"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "entry.transfer",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "terminalOutputOrder": [],
+        "return": null,
+        "roots": []
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "transfer",
+          "site": "transfer.site",
+          "value": {
+            "var": "secret"
+          },
+          "sourceHost": "entry",
+          "destinationHosts": [
+            "remote"
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [],
+      "controlledHosts": [
+        "remote"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true,
+    "eventShape": [
+      "Transfer@transfer.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "132b17b3b197e46a1dd39a0020be3a456c24e2c0313cd79b57dc9e688a8e66a7",
+    "firstBadEventOrdinal": 0,
+    "firstTrueBadRow": 2
+  }
+}
