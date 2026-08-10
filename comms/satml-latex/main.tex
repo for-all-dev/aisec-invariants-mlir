@@ -1,0 +1,63 @@
+% SaTML 2027 submission — OUTLINE STAGE, no prose yet.
+% Template: IEEEtran (conference option) until the official SaTML kit lands
+% (announced for mid-August 2026; swap the class/options then).
+% Submission deadline: 2026-09-29 AoE. See README.md for the full timeline.
+
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{url}
+
+\begin{document}
+
+\title{Your Compiler Is Leaking Your Model: Measuring and Verifying
+  Confidentiality Across Deep-Learning Compilation}
+
+% Order TBD with the fellows. SaTML is expected to be double-blind —
+% keep this block in a non-anonymous copy only, once policy is announced.
+\author{
+  \IEEEauthorblockN{Quinn Dougherty, Kapedalex (full name TBD),%TODO full name
+    Siddharth Priya, Shefali Sharma, John Wu}
+  \IEEEauthorblockA{Apart Research --- Secure Program Synthesis Fellowship\\
+    quinn@for-all.dev} % TODO remaining emails
+}
+
+\maketitle
+
+\begin{abstract}
+% OUTLINE — one sentence per slot, expand later.
+% 1. DL compilers (Inductor, MLIR pipelines, Polygeist) sit inside the
+%    trust boundary of every deployed model, unaudited.
+% 2. Threat model: unified observer-ring × asset grid over four existing
+%    frameworks (docs/research/threat-models.agents.md).
+% 3. Attack half: differential eager-vs-compiled measurement finds
+%    compiler-introduced AND compiler-removed side channels (leak_check).
+% 4. Defense half: per-pass checked specifications for a real pipeline,
+%    where "safe" = semantic congruence + non-interference (fcvd_ct).
+% 5. Headline results: exp activation channel COMPILER-REMOVED;
+%    Polygeist steps carrying checked two-property specs.
+\emph{Abstract to be written from the outline above.}
+\end{abstract}
+
+\begin{IEEEkeywords}
+compiler security, side channels, machine learning, MLIR,
+translation validation, non-interference
+\end{IEEEkeywords}
+
+\input{sections/01-introduction}
+\input{sections/02-threat-model}
+\input{sections/03-attack-leak-check}
+\input{sections/04-defense-fcvd-ct}
+\input{sections/05-case-studies}
+\input{sections/06-related-work}
+\input{sections/07-discussion}
+\input{sections/08-conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

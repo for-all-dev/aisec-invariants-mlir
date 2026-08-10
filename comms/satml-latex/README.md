@@ -1,11 +1,10 @@
 # SaTML 2027 submission
 
-> **SUPERSEDED 2026-08-10** — the team drafts on Overleaf now; the live copy is
-> [`../satml-latex/`](../satml-latex/). This Typst version is frozen at the
-> outline stage.
-
 Target: [IEEE SaTML 2027](https://satml.org/call-for-papers/), **research paper** track.
 Unified attack+defense story: threat model → leak_check measurements → fcvd_ct verification.
+
+LaTeX migration of `../satml-typst/` (the team is drafting on Overleaf). The
+Typst version is frozen at the outline stage; this directory is the live one.
 
 ## Timeline (all AoE)
 
@@ -26,20 +25,27 @@ pointing at the repo artifact that backs it. No prose has been drafted.
 ## Open items
 
 - [ ] Official submission kit (template, page limit, anonymization policy,
-      submission site) announced **mid-August 2026** — currently on the
-      `charged-ieee` Typst template as a stand-in; likely converting to the
-      official IEEE LaTeX class at that point.
-- [ ] Author order + full names/emails (placeholders in `main.typ`).
+      submission site) announced **mid-August 2026** — currently on plain
+      `IEEEtran` (conference option) as a stand-in; swap the class/options
+      when the kit lands.
+- [ ] Author order + full names/emails (placeholders in `main.tex`).
 - [ ] Double-blind: expect to need an anonymized build; keep repo pointers
       in comments, not prose, until policy is known.
-- [ ] Related-work sweep (repo issue #23) feeds `sections/06-related-work.typ`;
+- [ ] Related-work sweep (repo issue #23) feeds `sections/06-related-work.tex`;
       `refs.bib` holds only seed entries.
 - [ ] Regenerate the Polygeist status table and coverage numbers from live
       data at draft time — do not hand-copy.
 
 ## Build
 
+### Overleaf
+
+Upload this directory (zip it, or connect the repo via Overleaf's GitHub sync)
+and set `main.tex` as the root document. `IEEEtran` and `IEEEtran.bst` are in
+Overleaf's TeX Live distribution — no class files need uploading.
+
+### Local
+
 ```sh
-typst compile main.typ    # first run downloads the charged-ieee package
-typst watch main.typ      # live preview while writing
+pdflatex main && bibtex main && pdflatex main && pdflatex main
 ```

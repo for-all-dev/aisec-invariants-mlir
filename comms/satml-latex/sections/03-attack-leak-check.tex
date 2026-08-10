@@ -1,0 +1,40 @@
+\section{Measuring: Compiler-Introduced and Compiler-Removed Channels}
+
+% OUTLINE ONLY. Source of truth: prototypes/leak_check,
+% docs/research/leak_check.{methodology,results,environment}.siddharth.md,
+% leak_check.count-confound.agents.md, leak_check.lessons.agents.md.
+
+\subsection{Methodology}
+\begin{itemize}
+  \item Differential eager-vs-Inductor on deterministic channels: instruction
+    counts (Ir), branch counts (Bc), instruction-level taint; baited input
+    classes probe value-regime branches.
+  \item The $2{\times}2$ attribution: whose fault --- source or compiler;
+    four-valued verdicts (OBLIVIOUS / DISTINGUISHABLE / COMPILER-INTRODUCED /
+    COMPILER-REMOVED).
+  \item Instrument honesty: the Zen5 count-channel confound; verdicts resting
+    on small $|\mathrm{dIr}|$ without taint corroboration were retired
+    (softmax), criterion updated in \texttt{noninterference.py}.
+\end{itemize}
+
+\subsection{Results}
+\begin{itemize}
+  \item Activation corpus (CSI-NN mechanism 2):
+    \begin{itemize}
+      \item relu: OBLIVIOUS both builds --- PyTorch's eager kernel is already a
+        vectorized max; library kernels can be constant-time where hand code
+        is not.
+      \item \textbf{exp: COMPILER-REMOVED (headline).} Eager libm \texttt{expf}
+        branches on magnitude ($\mathrm{dIr} \approx +35\mathrm{M}$, taint
+        fires); Inductor lowers to a branchless vectorized polynomial ---
+        compilation erased the CSI-NN channel.
+      \item softmax: RETIRED --- degenerate probe (uniform rows cancel under
+        max-subtraction); shown as a worked example of the retirement
+        discipline.
+    \end{itemize}
+  \item Freezing / constant-folding: instruction-level taint proof of the
+    weight-fold leak (\texttt{probe} branch work, PR \#55 lineage).
+  \item Autotune: max-autotune GEMM kernel \emph{selection} as a
+    value-dependent channel.
+  \item Overnight-sweep coverage numbers.
+\end{itemize}
