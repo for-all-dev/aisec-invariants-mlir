@@ -1,0 +1,27 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: wolfssl_3580_rv32_bad_model
+coalition:
+- observer
+inputs:
+  low_equal:
+    table-input:
+      bytes:
+        length: 64
+        hex: "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  high_left:
+    table-index:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    table-index:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: world-control-successor-mismatch
+  first_difference:
+    kind: BranchSuccessor
+    field: successor

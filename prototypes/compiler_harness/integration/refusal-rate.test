@@ -1,0 +1,14 @@
+# RUN: %python %harness/tools/test_refusal_rate.py
+# RUN: %python %harness/tools/refusal_rate.py %harness/ext/spillg.ll | %FileCheck %s
+
+# The real debug-enabled spill fixture has ordinary, tail and inline-asm calls.
+# Missing the tail prefix used to undercount 20 observations and left one
+# function falsely accepted.
+# CHECK: policy-relevant observations   76
+# CHECK: FUNCTIONS REFUSED              3 / 3 = 100.0%
+# CHECK: absent-callee-model
+# CHECK: distinct unmodelled callees    4
+# CHECK-DAG: <indirect-or-inline-asm>
+# CHECK-DAG: opaque
+# CHECK-DAG: sink
+# CHECK-DAG: printf

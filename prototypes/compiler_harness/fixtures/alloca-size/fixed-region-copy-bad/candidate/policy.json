@@ -1,0 +1,59 @@
+{
+  "format_id": "SPS-Harness-Candidate-Policy-v2",
+  "fixed_observation_model": "Theta_ct",
+  "principals": [],
+  "maximal_adversary_coalitions": [
+    []
+  ],
+  "components": [
+    "secret"
+  ],
+  "component_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "output_visibility": {
+    "world_visible": [
+      "public-out"
+    ],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "error_visibility": {
+    "world_visible": [],
+    "member_visible": {},
+    "minimally_joint_visible": []
+  },
+  "argument_roles": [
+    {
+      "entry": "alloca_size_fixed_region_copy_bad",
+      "argument_index": 0,
+      "role": {
+        "tag": "ComponentArgumentV2",
+        "args": [
+          "secret"
+        ]
+      }
+    },
+    {
+      "entry": "alloca_size_fixed_region_copy_bad",
+      "argument_index": 1,
+      "role": {
+        "tag": "PointerRootArgumentV2",
+        "args": [
+          "public-out"
+        ]
+      }
+    }
+  ],
+  "release_bindings": [],
+  "invocation_scope": "SingleInvocation",
+  "placement": [
+    {
+      "entry": "alloca_size_fixed_region_copy_bad",
+      "host": "host0"
+    }
+  ],
+  "candidate_bitcode_sha256": "89a6d88636cf50acb5812c4c2aa059dde67d62930a54fbf777c7bd10ba9853bf"
+}

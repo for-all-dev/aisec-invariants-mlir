@@ -1,0 +1,29 @@
+source: alloca_size_fixed_region_copy_bad.c
+relation: provenance-only
+entry:
+  id: alloca_size_fixed_region_copy_bad
+  symbol: alloca_size_fixed_region_copy_bad
+  host: compute
+  function-type: void (i32, ptr)
+  return: void
+carriers:
+  secret:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots:
+  public-out:
+    argument: 1
+    host: compute
+    extent-bytes: 1
+    alignment: 1
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-out
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-void:
+  - public-out

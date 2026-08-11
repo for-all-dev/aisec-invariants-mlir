@@ -1,0 +1,23 @@
+entry: different_successor_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  high-condition:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  public-value:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  return:
+    visibility: public
+releases: {}

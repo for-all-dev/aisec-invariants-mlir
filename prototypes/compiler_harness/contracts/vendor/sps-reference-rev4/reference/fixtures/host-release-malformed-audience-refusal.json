@@ -1,0 +1,62 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-HOST-RELEASE",
+  "caseId": "host-release-malformed-audience-refusal",
+  "kind": "refusal",
+  "requirementRefs": [
+    "Normative 2.4",
+    "Normative 7.2"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "entry.bad-audience",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [],
+      "abi": {
+        "terminalOutputOrder": [],
+        "return": null,
+        "roots": []
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.bad-audience",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "const": {
+              "width": 8,
+              "value": 0
+            }
+          },
+          "audience": [
+            123
+          ],
+          "host": "entry",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": null
+        }
+      ]
+    }
+  },
+  "expected": {
+    "reason": "ReferenceSchemaMismatch",
+    "refusalLocus": {
+      "space": "programJson",
+      "path": "$.input.program.statements[0].audience[0]"
+    }
+  }
+}

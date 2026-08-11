@@ -1,0 +1,26 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+  "harnessCase": "precision-control/different-successor-bad",
+  "referenceCaseId": "different-successor-bad",
+  "entry": "different_successor_bad",
+  "counterexamplePair": {"path": "counterexample-pair.yaml", "sha256": "afe73a45dce5898ebf95444333d4f5cd96244ba2ea6cc9d1028203bfd0ce8e7c"},
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "cabfa205f9619daadb281f73a38a45ac9ffe2386ce67bc07a19b45448acdd998"},
+    {"role": "c", "path": "different_successor_bad.c", "sha256": "9b62f9e054418fccaceb32a030de565b881dc21cca8f7bbd023a99d7fc5348a8"},
+    {"role": "mlir", "path": "precision_different_successor.bad.mlir", "sha256": "4147f064b73e993fd5aae5d5a21c846c487f851c7050e537022def2a45df9bb9"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "095009f0b17eb4e66b368d2108ef64be1f69c462150b92102cce3d50db129b5f"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "313972a24b819fe8d6c5cc5f9d7ca7e993da5cbfbf2a9dbe647142040cf2ebd5"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "f02a31a73f14c5079cbf61314c8b8e58c91212773100d125950e522fc0fcfc9b"}
+  ],
+  "arguments": [
+    {"referenceInput": "high-condition", "component": "high-condition", "argumentIndex": 0, "argumentName": "high_condition", "fullWidth": 32, "reducedWidth": 1, "classification": "High"},
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 1, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"}
+  ],
+  "roots": [],
+  "observations": [
+    {"kind": "BranchSuccessor", "field": "successor"},
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

@@ -1,0 +1,37 @@
+# REQUIRES: sps-nfv2-codegen, llvm-as, llc, llvm-objdump, llvm-readobj, x86-target
+#
+# FUTURE PATCHED-LLVM CONTRACT. The intrinsic lowers one-for-one to SPS_RELEASE,
+# survives the selected machine capture boundaries, and contributes no final
+# instruction bytes, symbol, call, or marker relocation.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-nfv2-release/nfv2-release.ll.in -o %t.bc
+# RUN: %llc -mtriple=x86_64-unknown-linux-gnu -O2 -stop-after=finalize-isel %t.bc -o %t.isel.mir
+# RUN: grep -c 'SPS_RELEASE' %t.isel.mir | %FileCheck %s --check-prefix=ONE-PSEUDO
+# RUN: %FileCheck %s --check-prefix=MIR-MAP --input-file=%t.isel.mir
+# RUN: %llc -mtriple=x86_64-unknown-linux-gnu -O2 -stop-after=prologepilog %t.bc -o %t.pei.mir
+# RUN: grep -c 'SPS_RELEASE' %t.pei.mir | %FileCheck %s --check-prefix=ONE-PSEUDO
+# RUN: %FileCheck %s --check-prefix=MIR-MAP --input-file=%t.pei.mir
+
+# Compare the single-marker function with its marker-free control in the same
+# object, so source identity and target settings are held fixed.
+# RUN: %llc -mtriple=x86_64-unknown-linux-gnu -O2 -filetype=asm %t.bc -o %t.s
+# RUN: not grep -E 'llvm[.]sps[.]release|SPS_RELEASE|call.*sps' %t.s
+# RUN: %llc -mtriple=x86_64-unknown-linux-gnu -O2 -filetype=obj %t.bc -o %t.o
+# RUN: %python %harness/tools/check_nfv2_codegen_object.py --objdump %llvm-objdump --readobj %llvm-readobj --object %t.o --marked nfv2_single --control nfv2_control | %FileCheck %s --check-prefix=ZERO-CODE
+
+# ONE-PSEUDO: 5
+# MIR-MAP-LABEL: name: nfv2_single
+# MIR-MAP: SPS_RELEASE
+# MIR-MAP-NOT: SPS_RELEASE
+# MIR-MAP-LABEL: name: nfv2_identical_pair
+# MIR-MAP: SPS_RELEASE
+# MIR-MAP: SPS_RELEASE
+# MIR-MAP-NOT: SPS_RELEASE
+# MIR-MAP-LABEL: name: nfv2_ordered_pair
+# MIR-MAP: SPS_RELEASE
+# MIR-MAP: SPS_RELEASE
+# MIR-MAP-NOT: SPS_RELEASE
+# MIR-MAP-LABEL: name: nfv2_control
+# MIR-MAP-NOT: SPS_RELEASE
+# ZERO-CODE: verified zero-code SPS_RELEASE lowering: nfv2_single == nfv2_control
+# ZERO-CODE-SAME: no marker symbol or relocation

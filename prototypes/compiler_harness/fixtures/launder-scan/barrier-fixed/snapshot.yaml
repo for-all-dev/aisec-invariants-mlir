@@ -1,0 +1,78 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: launder_scan_fixed
+c_evidence:
+- fixtures/launder-scan/barrier-fixed/launder_scan_fixed.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: control
+- observable: address
+- observable: timing
+expect:
+  final:
+    model:
+      status: Unknown
+      reason: UnsupportedOpcode
+    deployment: Open
+    policy: Complete
+    because: llvm.inline_asm is outside the modeled opcode surface even though the
+      expected arithmetic-masking structure is present
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - launder_scan_fixed
+        operation.names:
+          ordered:
+          - llvm.load
+          - llvm.icmp
+          - llvm.sext
+          - llvm.inline_asm
+          - llvm.and
+          - llvm.xor
+          - llvm.or
+          - llvm.store
+          excludes:
+          - llvm.select
+          - llvm.cond_br
+        operation.occurrences.llvm.and:
+          count:
+            min: 2
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - launder_scan_fixed
+        operation.names:
+          ordered:
+          - llvm.inline_asm
+          excludes:
+          - llvm.select
+          - llvm.cond_br
+    x86-backend-control:
+      kind: assembly
+      properties:
+        instruction.mnemonics:
+          excludes:
+          - je

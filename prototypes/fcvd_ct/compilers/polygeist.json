@@ -121,6 +121,92 @@
       "verifies": "--canonicalize-for",
       "expect": "ct-preserving",
       "covers": []
+    },
+    {
+      "file": "polygeist/loop_restructure_while.mlir",
+      "verifies": "--loop-restructure",
+      "expect": "ct-preserving",
+      "covers": [
+        "scf.while",
+        "scf.condition"
+      ]
+    },
+    {
+      "file": "polygeist/loop_restructure_dowhile.mlir",
+      "verifies": "--loop-restructure",
+      "expect": "ct-breaking"
+    },
+    {
+      "file": "polygeist/mem2reg_if.mlir",
+      "verifies": "--polygeist-mem2reg",
+      "expect": "ct-preserving",
+      "covers": [
+        "memref.alloca"
+      ]
+    },
+    {
+      "file": "polygeist/mem2reg_if_stale.mlir",
+      "verifies": "--polygeist-mem2reg",
+      "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/lower_affine_for_load_store.mlir",
+      "verifies": "--lower-affine",
+      "expect": "ct-preserving",
+      "covers": [
+        "affine.load",
+        "affine.store"
+      ]
+    },
+    {
+      "file": "polygeist/lower_affine_wrong_index.mlir",
+      "verifies": "--lower-affine",
+      "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/affine_cfg_raise_store.mlir",
+      "verifies": "--affine-cfg",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/affine_cfg_wrong_map.mlir",
+      "verifies": "--affine-cfg",
+      "expect": "ct-preserving"
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_arith.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_swapped_sub.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving"
+    },
+    {
+      "file": "scf_for_to_cf.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "scf_if_to_cf.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_memref.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving",
+      "covers": []
+    },
+    {
+      "file": "polygeist/polygeist_to_llvm_memref_offset.mlir",
+      "verifies": "--convert-polygeist-to-llvm",
+      "expect": "ct-preserving"
     }
   ]
 }

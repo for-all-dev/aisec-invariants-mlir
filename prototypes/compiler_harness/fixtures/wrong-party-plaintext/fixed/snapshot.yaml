@@ -1,0 +1,58 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: wrong_party_plaintext_fixed
+c_evidence:
+- fixtures/wrong-party-plaintext/fixed/wrong_party_plaintext_fixed.c
+secret:
+- arg: 0
+  name: plaintext
+public:
+- observable: transfer
+allowed:
+- plaintext may be written only to authorized_mailbox
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Transfer
+      field: valueBytes
+    because: the unauthorized mailbox receives zero while plaintext remains authorized-only
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wrong_party_plaintext_fixed
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.mlir.constant
+          - llvm.call
+          - llvm.return
+        call.callees:
+          contains:
+          - sps_transfer_party_authorized
+          - sps_transfer_party_observer

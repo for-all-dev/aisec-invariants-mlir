@@ -1,0 +1,19 @@
+# REQUIRES: clang, x86-target
+#
+# Laundering: secret-dependent branch introduced in emitted x86 assembly.
+#
+# This is P4-risk evidence for fixtures/launder-scan/model-clean-p4-open/launder_scan.model_proved.p4_open.mlir. The
+# LLVM ModelStatus is independent; the backend branch keeps DeploymentStatus
+# Open until paired final-binary refinement closes it.
+#
+# On x86-64 both bad forms become a CONDITIONAL JUMP on the secret, and the load moves
+#    from unconditional to conditional -- so the memory event trace becomes
+#    secret-dependent as well as the timing.
+
+# RUN: %checkpoint-runner run --snapshot fixtures/launder-scan/model-clean-p4-open/snapshot.yaml --pipeline x86-backend-risk --endpoint %t.bad.s --records %t.checkpoints -- %clang -std=c11 -I%harness/include -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/model-clean-p4-open/launder_scan_bad.c -o %t.bad.s
+
+# RUN: %checkpoint-runner run --snapshot fixtures/launder-scan/folded-mask-p4-open/snapshot.yaml --pipeline x86-backend-risk --endpoint %t.folded.s --records %t.checkpoints -- %clang -std=c11 -I%harness/include -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/folded-mask-p4-open/launder_scan_folded_bad.c -o %t.folded.s
+
+# The barrier form has no conditional jump in emitted assembly.
+# RUN: %checkpoint-runner run --snapshot fixtures/launder-scan/barrier-fixed/snapshot.yaml --pipeline x86-backend-control --endpoint %t.fixed.s --records %t.checkpoints -- %clang -std=c11 -I%harness/include -O2 --target=x86_64-unknown-linux-gnu -S %fixtures/launder-scan/barrier-fixed/launder_scan_fixed.c -o %t.fixed.s
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

@@ -1,0 +1,254 @@
+{
+  "formatId": "SPS-Harness-Reference-Lock-v1",
+  "claimBoundary": "ExecutableReferenceOnly",
+  "treeSha256": "14e46ad9a53694294623a80e4d73376bf5bdcf356f7622e969fac247d9834d6c",
+  "interfaceLockSha256": "0e9597c441cb1d1ee3025c0d74d32498e23b75cf00a9acdfe0a4dc474b181473",
+  "counts": {
+    "fixtureCases": 21,
+    "unitTests": 20,
+    "executableFamilies": 10,
+    "profileFamilies": 61
+  },
+  "files": [
+    {
+      "path": "SPS_Rev4_LLVM_Normal_Form_and_Conformance_Profile.md",
+      "sha256": "50ab2b22914e176cdcbe15516837c7abdd9df3b1b61bf3ed10cd39d13385b18b",
+      "size": 178134
+    },
+    {
+      "path": "interfaces/rev4.1/build_interfaces.py",
+      "sha256": "c72b82603b7ae0037b0ab7d2f6ce41807a46a8d0874e258e1e9981829fc460fd",
+      "size": 205754
+    },
+    {
+      "path": "reference/README.md",
+      "sha256": "33b603190a61b12cac7b164315365aec102af5c413ee0537f6b199ccd1cf1205",
+      "size": 27025
+    },
+    {
+      "path": "reference/assurance-status.json",
+      "sha256": "066fd5e86bbb29264f00ba425d5c44f4fcf4632cfa1e4293015e0ae180b038a3",
+      "size": 1174
+    },
+    {
+      "path": "reference/fixture-catalog.json",
+      "sha256": "0a017c85a93f3b07db4f69b6e01732426736c0c3b58948b5b748632e88b69cbb",
+      "size": 3931
+    },
+    {
+      "path": "reference/fixtures/bad-circuit-mutation-rejected.json",
+      "sha256": "0a5770a3568cbdf6c1536e275990b4343b0b81596955647394eb3ce55a2e1b3b",
+      "size": 1366
+    },
+    {
+      "path": "reference/fixtures/bad-circuit-mutation-resealed.json",
+      "sha256": "5ea84311e2cdf8604284dbae353ee8d089801d74dc5f8e09273fa8e7627bf290",
+      "size": 1406
+    },
+    {
+      "path": "reference/fixtures/bad-circuit-secret-branch.json",
+      "sha256": "06e06614fd9104e36b1895256b038171e379674d427171e2e4d81c216eaf963c",
+      "size": 2181
+    },
+    {
+      "path": "reference/fixtures/bit-encoding-nonbyte.json",
+      "sha256": "ba988e85d82c650e4dd20da5ca75826851ff9d6661a14e49f719cfbfeb971b06",
+      "size": 372
+    },
+    {
+      "path": "reference/fixtures/host-release-malformed-audience-refusal.json",
+      "sha256": "4de4e21e13bc63c2f7a4bf5ae1f3e784938ca19225c0e75dad372b7733229718",
+      "size": 1376
+    },
+    {
+      "path": "reference/fixtures/host-release-unauthorized-visible.json",
+      "sha256": "27780f6c0085b1e593d601fb471673cf13c0c94d8c673fdf2826e0807fcd278b",
+      "size": 1883
+    },
+    {
+      "path": "reference/fixtures/host-transfer-high-leak.json",
+      "sha256": "de2654a716523530edaff936bbb1592c6e737cc5786c931010016276699b364f",
+      "size": 1677
+    },
+    {
+      "path": "reference/fixtures/host-transfer-malformed-host-refusal.json",
+      "sha256": "d2e294823d5f15d006f1caa22b2433e32bb5acf5cc60ba993c1632db411f3e5d",
+      "size": 1221
+    },
+    {
+      "path": "reference/fixtures/loop-canonical-expand.json",
+      "sha256": "f59340c51c7f2ca1ca083856d7142b355e128a009923f7c25e75551fbabbc4f2",
+      "size": 3012
+    },
+    {
+      "path": "reference/fixtures/output-missing-termination-refusal.json",
+      "sha256": "802507a89a9a5a718ca46877495bba95892cfe21be64a01d7242f26e80bc7a86",
+      "size": 905
+    },
+    {
+      "path": "reference/fixtures/output-return-constant-control.json",
+      "sha256": "386a574d6ec55b88196888a4edc26c70b156ce75591e22a68631ec483a0f9e68",
+      "size": 1681
+    },
+    {
+      "path": "reference/fixtures/output-return-high-leak-unused-input.json",
+      "sha256": "7f46986e6c8a5e67bdfe710cd7be2d270a3bf20e546c2f9f223823ef23779588",
+      "size": 1802
+    },
+    {
+      "path": "reference/fixtures/output-return-high-leak.json",
+      "sha256": "ad3fca34e79e0b6205b77e922ca2fcf6e5ba007af866f8ec0b49877096a46e91",
+      "size": 1659
+    },
+    {
+      "path": "reference/fixtures/output-uninitialized-refusal.json",
+      "sha256": "77ee382314c8086f82a75040da4958d3a036280d2a66b416ba5efe8c1c7faaad",
+      "size": 1218
+    },
+    {
+      "path": "reference/fixtures/output-writeback-high-leak.json",
+      "sha256": "227fa6182f16352ddcd712156676b81f0a7e17f59e5cf7870e6305984290c8cb",
+      "size": 2030
+    },
+    {
+      "path": "reference/fixtures/release-authorized-retire.json",
+      "sha256": "0bba81dc738166d6bc51a30b95ecb50b1a791b2e33950630362dee41068306b5",
+      "size": 2044
+    },
+    {
+      "path": "reference/fixtures/release-equal-then-output-leak.json",
+      "sha256": "b503c19d5d6b95746f6960c0c06afcc25a71d96ebaa319a0e9c9dda01d0ceb19",
+      "size": 2178
+    },
+    {
+      "path": "reference/fixtures/release-partial-footprint-replay-refusal.json",
+      "sha256": "f464fcab39825453293c201e908e155af89811944039004a5359257905277638",
+      "size": 1982
+    },
+    {
+      "path": "reference/fixtures/release-presence-secret-branch.json",
+      "sha256": "8db42dd12b7875841c69196d695b97a25b01634a9d83dc4fe52336cd92f41867",
+      "size": 2606
+    },
+    {
+      "path": "reference/fixtures/replay-wire-reordered-rejected.json",
+      "sha256": "05885a0375cd49524fc7e644b611c8212f5d7e5562742f03cadb0ad4e8757406",
+      "size": 512
+    },
+    {
+      "path": "reference/fixtures/replay-wire-valid.json",
+      "sha256": "9b8f101a5819c24768f0ed57d31d5c35aed4d7891fde5ce944322a365b5c3e44",
+      "size": 563
+    },
+    {
+      "path": "reference/mutation_check.py",
+      "sha256": "cae7aa95de7baff9b9659e95bd8642bdcc2f2756c958d3234ca0d863075959a3",
+      "size": 10976
+    },
+    {
+      "path": "reference/profiles/reference-relation-v1.json",
+      "sha256": "81995fe4db70967e0f61fc06b7d210dbaf31b81576267f6d891215f67c645ebd",
+      "size": 1619
+    },
+    {
+      "path": "reference/run_reference_checks.py",
+      "sha256": "428e7ea888a7e34a643940c9bf33b6b5ece174e66b89af0c061c3e959a377506",
+      "size": 33634
+    },
+    {
+      "path": "reference/sps_ref/__init__.py",
+      "sha256": "cd6d2a82febd0e8aa773354c098cb510754db25fff76fa95cbbce8e038172484",
+      "size": 541
+    },
+    {
+      "path": "reference/sps_ref/canonical.py",
+      "sha256": "eceaac0991470396922d13033dd9d1c51ab2a49a5c0326f402f216fbbd479fc0",
+      "size": 1854
+    },
+    {
+      "path": "reference/sps_ref/counterexample.py",
+      "sha256": "a9ea227dfb0c817da7d181c79ce61823c1983eaa5ad075b9efb5159451e743df",
+      "size": 10138
+    },
+    {
+      "path": "reference/sps_ref/encoding.py",
+      "sha256": "e2631a6799dc975d805c615a16e8e8459bab88dc80ea9124bd3da86bfd96f30f",
+      "size": 2823
+    },
+    {
+      "path": "reference/sps_ref/engine.py",
+      "sha256": "585cd3932851f88dd1e0a59e885f6258ce69047e4e949d793f08d5359bcc25bb",
+      "size": 27908
+    },
+    {
+      "path": "reference/sps_ref/errors.py",
+      "sha256": "cf60c566ec1939531b8f55cf422e8b5dd39a1168fa9ac39d435c28be94b80835",
+      "size": 635
+    },
+    {
+      "path": "reference/sps_ref/evidence.py",
+      "sha256": "0cbf359b525b6e3e9ba1c93f63a31f6830685e17b0be7efedb01298546fd43ab",
+      "size": 49057
+    },
+    {
+      "path": "reference/sps_ref/expand.py",
+      "sha256": "3123cb9000daa843e83c4f23d30b9f5bb242228e55c46abaa4e361dacaf0d46c",
+      "size": 3470
+    },
+    {
+      "path": "reference/sps_ref/model.py",
+      "sha256": "fbb866235cbc5cc1a5928f0caba4a4a3ec6e5868f3cd09b2eb1a378a6b1a224b",
+      "size": 18479
+    },
+    {
+      "path": "reference/sps_ref/ponf.py",
+      "sha256": "135e1adf9a246c0477fb87b2423827eafbf22294f537fc6eddf71eb4205257a8",
+      "size": 6012
+    },
+    {
+      "path": "reference/sps_ref/product.py",
+      "sha256": "c7136debca940c00644f86bff3ec24b60949c1d29c1ca91bb25c945eeeeb7100",
+      "size": 6219
+    },
+    {
+      "path": "reference/sps_ref/query.py",
+      "sha256": "0f6261a305ed0e8c1e58d31b4c38292712c01065e3498be49f78be0b18a267ca",
+      "size": 10054
+    },
+    {
+      "path": "reference/sps_ref/replay.py",
+      "sha256": "f7fec6deac69129fb6e07a3a08e8b3690cfefb7de325f9dcfe3e54ff1fde3546",
+      "size": 33997
+    },
+    {
+      "path": "reference/sps_ref/smt.py",
+      "sha256": "e85bbce755e203656e9187da2b313b2ba9db842ef09a415f212f5ac2443a789e",
+      "size": 9330
+    },
+    {
+      "path": "reference/sps_ref/solve.py",
+      "sha256": "0ff7acf40b40c95b37297ac3193fb8c2d1634b6ae60affd3a6666aedcdb0372e",
+      "size": 11443
+    },
+    {
+      "path": "reference/sps_ref/strict_yaml.py",
+      "sha256": "75fcb2b90305e7594dcde36ce0ae2c387af9c85f192c86f52ee592e84521a92a",
+      "size": 6565
+    },
+    {
+      "path": "reference/sps_ref/terminal.py",
+      "sha256": "7fac006c112e6e8172cdab2ece7dee887646468663b0d5d3319d5a48fb9c1d68",
+      "size": 15583
+    },
+    {
+      "path": "reference/sps_ref/terms.py",
+      "sha256": "f1b01d95c35309826d93bdc92953bab0fbbe90a431a7fe65b6b6639ae94a17c6",
+      "size": 13195
+    },
+    {
+      "path": "reference/tests/test_reference.py",
+      "sha256": "30bcd2d435a9a6f91846c9a56ee707adf535f141ddad230935c4d4dae739f5b2",
+      "size": 39276
+    }
+  ]
+}

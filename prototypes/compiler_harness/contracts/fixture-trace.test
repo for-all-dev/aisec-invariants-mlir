@@ -1,0 +1,6 @@
+# Trace fragments contain independently observed facts and decision evidence.
+# Assembly has no snapshot input and recursively rejects expectation vocabulary.
+
+# RUN: %python %S/Inputs/fixture_trace_test.py %harness/tools | %FileCheck %s
+
+# CHECK: expectation-blind fixture trace assembly passed

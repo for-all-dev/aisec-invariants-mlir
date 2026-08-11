@@ -1,0 +1,18 @@
+\section{Case Studies and Evaluation}
+
+% OUTLINE ONLY. Candidates — cut to the two or three strongest at draft time.
+
+\begin{itemize}
+  \item KyberSlash through the non-interference lens: what the
+    proofs\_l2\_seabmc jobs admit and reject
+    (\texttt{prototypes/proofs\_l2\_seabmc}, commit 8e0cf35
+    ``five more non-interference jobs, and what KyberSlash admits'').
+  \item End-to-end walk of one program through the verified Polygeist steps,
+    reporting the four coordinates (observer, evidence kind, level,
+    attribution) at each stage.
+  \item Structure leaks as a distinct class: sparsity and dynamic shapes
+    (\texttt{prototypes/mlir\_leak}, \texttt{prototypes/Staging\_NI}) ---
+    leaked by control structure, not values.
+  \item Coverage accounting: steps checked / model-blocked, unproved operation
+    counts, sweep breadth --- the numbers the coverage counter regenerates.
+\end{itemize}

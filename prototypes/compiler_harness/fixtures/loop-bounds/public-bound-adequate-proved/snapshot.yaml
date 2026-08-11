@@ -1,0 +1,72 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: bound_adequate_public_loop
+c_evidence:
+- fixtures/loop-bounds/public-bound-adequate-proved/bound_adequate_public_loop.c
+secret: []
+public:
+- arg: 0
+  name: public_count
+- observable: control
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: LoopContinuation
+      field: continueOrExit
+    - kind: Output
+      field: valueBytes
+    because: the declared bound admits every loop-block execution of the admitted public
+      count, so the retained remainder is unreachable and both lanes take the same
+      public loop decisions
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - bound_adequate_public_loop
+        operation.names:
+          ordered:
+          - llvm.br
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.store
+        operation.occurrences.llvm.br:
+          count:
+            min: 2
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - bound_adequate_public_loop
+        operation.names:
+          ordered:
+          - llvm.icmp
+          - llvm.cond_br
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

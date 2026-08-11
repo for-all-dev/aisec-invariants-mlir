@@ -1,0 +1,14 @@
+format-id: SPS-Harness-Authoring-Contracts-v1
+claim-boundary: NonClaimableAuthoringLocator
+contracts:
+- id: transfer-joint
+  locator: {callee: sps_transfer_joint_endpoint, call-ordinal: 0}
+  source-host: compute
+  destination-host: joint-endpoint
+  signature: {arguments: [i32], result: void}
+  memory-effects: []
+  choice: Unit
+  total: true
+  deterministic: true
+  representation: SPS-ContractWire-v2
+  limitations: [NoFunctionSemantics, NotCanonicalContractTableV2]

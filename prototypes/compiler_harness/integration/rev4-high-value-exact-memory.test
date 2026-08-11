@@ -1,0 +1,27 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/external-memory.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family exact-memory | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define void @whole_loop_init(ptr %output)
+# SHAPE: store i8 0, ptr %address
+# SHAPE: %done = icmp eq i64 %next, 4
+# SHAPE-LABEL: define void @early_exit_init(ptr %output, i1 %stop)
+# SHAPE: br i1 %stop, label %exit, label %continue
+# SHAPE-LABEL: define void @memcpy_uninitialized_byte(ptr %output)
+# SHAPE: %source = alloca [2 x i8]
+# SHAPE: store i8 9, ptr %source
+# SHAPE-NEXT: call void @llvm.memcpy.p0.p0.i64(ptr %output, ptr %source, i64 2, i1 false)
+# SHAPE-LABEL: define void @overlapping_memmove(ptr %buffer)
+# SHAPE: call void @llvm.memmove.p0.p0.i64(ptr %destination, ptr %buffer, i64 3, i1 false)
+# SHAPE-LABEL: define void @zero_length_copy(ptr %output, ptr %input)
+# SHAPE: call void @llvm.memcpy.p0.p0.i64(ptr %output, ptr %input, i64 0, i1 false)
+# SHAPE-LABEL: define void @partial_overwrite(ptr %output)
+# SHAPE: store i8 0, ptr %output
+# SHAPE-LABEL: define void @full_overwrite(ptr %output)
+# SHAPE: store i32 0, ptr %output
+
+# CONTRACT: verified exact-memory: 7 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+

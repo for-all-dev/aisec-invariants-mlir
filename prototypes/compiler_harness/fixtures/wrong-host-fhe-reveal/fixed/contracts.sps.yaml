@@ -1,0 +1,25 @@
+format-id: SPS-Harness-Authoring-Contracts-v1
+claim-boundary: NonClaimableAuthoringLocator
+contracts:
+- id: authorized-client-transfer
+  locator: {callee: sps_transfer_fhe_authorized_client, call-ordinal: 0}
+  source-host: compute
+  destination-host: authorized-client-endpoint
+  signature: {arguments: [i32], result: void}
+  memory-effects: []
+  choice: Unit
+  total: true
+  deterministic: true
+  representation: SPS-ContractWire-v2
+  limitations: [NoFunctionSemantics, NotCanonicalContractTableV2]
+- id: server-transfer
+  locator: {callee: sps_transfer_fhe_server, call-ordinal: 0}
+  source-host: compute
+  destination-host: server-endpoint
+  signature: {arguments: [i32], result: void}
+  memory-effects: []
+  choice: Unit
+  total: true
+  deterministic: true
+  representation: SPS-ContractWire-v2
+  limitations: [NoFunctionSemantics, NotCanonicalContractTableV2]

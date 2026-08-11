@@ -25,9 +25,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.dialects import affine, arith, cf, func, scf
+from xdsl.dialects import affine, arith, cf, func, memref, scf
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir.affine import (
+    AffineBinaryOpExpr,
+    AffineBinaryOpKind,
+    AffineConstantExpr,
+    AffineDimExpr,
+    AffineExpr,
+    AffineSymExpr,
+)
 
 from .affine_ops import constant_bound
 from .dialect import CONTROL, OTHER, HoleOp, ObserveOp, ResultOp
@@ -93,8 +101,23 @@ class Flattener:
         if isinstance(op, affine.ForOp):
             self.run_affine_for(op, guard, values)
             return
-        if isinstance(op, scf.WhileOp | scf.ParallelOp):
+        if isinstance(op, scf.WhileOp):
+            self.run_while(op, guard, values)
+            return
+        if isinstance(op, scf.ParallelOp):
             raise UnsupportedTemplate(f"not modelled yet: {op.name}")
+        if isinstance(op, memref.StoreOp):
+            self.run_store(op, guard, values)
+            return
+        if isinstance(op, memref.LoadOp):
+            self.run_load(op, guard, values)
+            return
+        if isinstance(op, affine.LoadOp):
+            self.run_affine_load(op, guard, values)
+            return
+        if isinstance(op, affine.StoreOp):
+            self.run_affine_store(op, guard, values)
+            return
 
         copy = op.clone(value_mapper=dict(values))
         for original, new in zip(op.results, copy.results, strict=True):
@@ -107,6 +130,124 @@ class Flattener:
                 self.observe(guard, leaked)
             return
         rule = self.model.get(type(copy))
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def expand_affine_indices(
+        self, map_attr: object, operands: Sequence[SSAValue]
+    ) -> list[SSAValue]:
+        """The addresses an affine access touches, as plain index values.
+
+        This is `expandAffineMap` of AffineToStandard.cpp: dimensions and symbols pick
+        operands, add and mul become their arith ops. mod/floordiv/ceildiv are refused
+        rather than approximated.
+        """
+        affine_map = getattr(map_attr, "data", None)
+        results = getattr(affine_map, "results", None)
+        if results is None:
+            raise UnsupportedTemplate("affine access without a map")
+        dims = getattr(affine_map, "num_dims", 0)
+        return [self.emit_affine_expr(expression, operands, dims) for expression in results]
+
+    def emit_affine_expr(
+        self, expression: AffineExpr, operands: Sequence[SSAValue], num_dims: int
+    ) -> SSAValue:
+        """Emit the arith computing one affine expression (`expandAffineExpr`)."""
+        if isinstance(expression, AffineDimExpr):
+            return operands[expression.position]
+        if isinstance(expression, AffineSymExpr):
+            return operands[num_dims + expression.position]
+        if isinstance(expression, AffineConstantExpr):
+            constant = arith.ConstantOp(IntegerAttr(expression.value, IndexType()))
+            return self.emit(constant).results[0]
+        if isinstance(expression, AffineBinaryOpExpr):
+            lhs = self.emit_affine_expr(expression.lhs, operands, num_dims)
+            rhs = self.emit_affine_expr(expression.rhs, operands, num_dims)
+            if expression.kind == AffineBinaryOpKind.Add:
+                return self.emit(arith.AddiOp(lhs, rhs)).results[0]
+            if expression.kind == AffineBinaryOpKind.Mul:
+                return self.emit(arith.MuliOp(lhs, rhs)).results[0]
+        raise UnsupportedTemplate(f"affine map expression not modelled: {expression}")
+
+    def guarded_indices(self, guard: SSAValue, indices: Sequence[SSAValue]) -> list[SSAValue]:
+        """Route an access that only happens under `guard` to index 0 otherwise.
+
+        The flattened program executes every access unconditionally; one sitting on a
+        cut loop iteration or an untaken arm would then fault (UB) at an address the
+        real execution never touches, and that artificial UB is asymmetric between an
+        exactly-unrolled source and a bounded target. Index 0 stands for "did not
+        happen": in bounds for any non-empty memref, and every consumer of the access
+        is guarded anyway. The observation still records these routed indices -- under
+        a false guard the comparison ignores them, under a true guard they are the real
+        ones.
+        """
+        zero = self.emit(arith.ConstantOp(IntegerAttr(0, IndexType()))).results[0]
+        return [self.emit(arith.SelectOp(guard, index, zero)).results[0] for index in indices]
+
+    def run_load(
+        self, op: memref.LoadOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """A load with its indices predicated (see `guarded_indices`)."""
+        source = values.get(op.memref, op.memref)
+        indices = self.guarded_indices(guard, [values.get(index, index) for index in op.indices])
+        copy = self.emit(memref.LoadOp.get(source, indices))
+        values[op.res] = copy.results[0]
+        rule = self.model.get(memref.LoadOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_affine_load(
+        self, op: affine.LoadOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """`affine.load` is `memref.load` after map expansion (AffineToStandard.cpp:345)."""
+        source = values.get(op.memref, op.memref)
+        operands = [values.get(index, index) for index in op.indices]
+        indices = self.guarded_indices(guard, self.expand_affine_indices(op.map, operands))
+        copy = self.emit(memref.LoadOp.get(source, indices))
+        values[op.result] = copy.results[0]
+        rule = self.model.get(memref.LoadOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_affine_store(
+        self, op: affine.StoreOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """`affine.store` is a (predicated) `memref.store` after map expansion
+        (AffineToStandard.cpp:388)."""
+        stored = values.get(op.value, op.value)
+        target = values.get(op.memref, op.memref)
+        operands = [values.get(index, index) for index in op.indices]
+        indices = self.guarded_indices(guard, self.expand_affine_indices(op.map, operands))
+        old = self.emit(memref.LoadOp.get(target, indices)).results[0]
+        merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
+        copy = self.emit(memref.StoreOp.get(merged, target, indices))
+        rule = self.model.get(memref.StoreOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    def run_store(
+        self, op: memref.StoreOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """Predicate a store: it must take effect only on the paths that reach it.
+
+        The flattened program contains both arms of every branch, so a store emitted
+        as-is would fire on paths that never executed it and corrupt the final memory
+        (and, through later loads, the values downstream observations see). The
+        standard if-conversion of a store is emitted instead: load the old element,
+        store `select(guard, new, old)`. The synthetic load is not observed -- its
+        address is the store's own, and that one is.
+        """
+        stored = values.get(op.value, op.value)
+        target = values.get(op.memref, op.memref)
+        indices = self.guarded_indices(guard, [values.get(index, index) for index in op.indices])
+        old = self.emit(memref.LoadOp.get(target, indices)).results[0]
+        merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
+        copy = self.emit(memref.StoreOp.get(merged, target, indices))
+        rule = self.model.get(memref.StoreOp)
         if rule is not None:
             for observed in rule(copy.operands):
                 self.observe(guard, observed, rule.kind)
@@ -167,6 +308,55 @@ class Flattener:
         self.hit_bound = True
 
         for result, value in zip(op.results, carried, strict=True):
+            values[result] = value
+
+    def run_while(self, op: scf.WhileOp, guard: SSAValue, values: dict[SSAValue, SSAValue]) -> None:
+        """Unroll a `scf.while`, guarding iteration *k* by its own before-region's condition.
+
+        The before region runs on every check *including the failing one* (that is
+        `scf.while`'s semantics: `scf.condition` forwards its arguments both into the
+        after region and out of the loop). Unrolling therefore re-runs the before region
+        `max_visits` times unconditionally; once the condition has gone false the carried
+        values are frozen, so the extra runs are copies of the real exit check and add no
+        observation the exit check does not make.
+        """
+        carried = [values.get(a, a) for a in op.arguments]
+        before = op.before_region.block
+        after = op.after_region.block
+        condition_op = before.last_op
+        if not isinstance(condition_op, scf.ConditionOp):
+            raise UnsupportedTemplate("scf.while whose before region has no scf.condition")
+
+        forwarded: list[SSAValue] = []
+        for _ in range(self.max_visits):
+            before_values = dict(values)
+            for arg, value in zip(before.args, carried, strict=True):
+                before_values[arg] = value
+            for inner in before.ops:
+                if inner is condition_op:
+                    break
+                self.run_op(inner, guard, before_values)
+            condition = before_values.get(condition_op.condition, condition_op.condition)
+            forwarded = [before_values.get(a, a) for a in condition_op.args]
+            # How many times the loop ran is the loop-bound channel, as in `run_for`.
+            self.observe(guard, condition, CONTROL)
+            iteration_guard = self.conjoin(guard, condition)
+
+            after_values = dict(values)
+            for arg, value in zip(after.args, forwarded, strict=True):
+                after_values[arg] = value
+            yielded = self.run_block(after, iteration_guard, after_values)
+
+            carried = [
+                self.emit(arith.SelectOp(condition, new, old)).results[0]
+                for new, old in zip(yielded, carried, strict=True)
+            ]
+
+        # The results are what `scf.condition` forwarded at the failing check; with the
+        # carried values frozen after exit, the last unrolled check computes exactly
+        # that. A loop still live after `max_visits` checks was cut, and says so.
+        self.hit_bound = True
+        for result, value in zip(op.res, forwarded, strict=True):
             values[result] = value
 
     def run_affine_for(

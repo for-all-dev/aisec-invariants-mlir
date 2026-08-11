@@ -1,0 +1,62 @@
+# SPS owns the Rev4.1 wire interface. The harness consumes a generated,
+# digest-locked snapshot and keeps prose-defined cross-field rules separate.
+
+# RUN: %python %harness/tools/sps_interfaces.py --verify-vendor | %FileCheck %s --check-prefix=VENDOR
+# RUN: %python %harness/tools/sps_interfaces.py --check-consumers | %FileCheck %s --check-prefix=CONSUMERS
+# RUN: %python %harness/tools/sps_interfaces.py --validate SPSRunReportV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/configuration-rejected.v2.json | %FileCheck %s --check-prefix=REPORT
+# RUN: %python %harness/tools/sps_interfaces.py --validate AggregationInputV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/replay-with-proof-blocker.v2.json | %FileCheck %s --check-prefix=AGGREGATION
+# RUN: %python %harness/tools/sps_interfaces.py --validate ArtifactIdentityEvidenceV2 %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/coalition-closure-identity-evidence.v2.json | %FileCheck %s --check-prefix=COALITION-CLOSURE
+# RUN: %python %harness/tools/sps_interfaces.py --validate AggregationInputV2 %harness/contracts/vendor/sps-rev4.1/vectors/semantic-invalid/replay-with-invalidating-blocker.v2.json --expect-semantic-rule XF-REPLAY-001 | %FileCheck %s --check-prefix=SEMANTIC
+# RUN: not %python %harness/tools/sps_interfaces.py --validate ModelStatusV2 %harness/contracts/vendor/sps-rev4.1/vectors/schema-invalid/public-witness-is-not-receipt.v2.json 2>&1 | %FileCheck %s --check-prefix=WITNESS
+# RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%harness/contracts/vendor/sps-rev4.1'); registry=json.loads((root/'interface-registry.json').read_text()); policy=registry['interfacePolicy']; assert list(policy)==['currentRoots','versionPolicy']; assert policy['versionPolicy']=='v2-only'; assert all(name.endswith('V2') for name in policy['currentRoots']); print('uniform V2 package closure verified')" | %FileCheck %s --check-prefix=V2-ONLY
+# RUN: not test -e %harness/tools/check_sps_run_report.py
+# RUN: cp %harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid/proof-configuration.v2.json %t.query-order.json
+# RUN: %python -c "import pathlib,sys; sys.path.insert(0,r'%harness/tools'); import sps_interfaces as S; p=pathlib.Path(r'%t.query-order.json'); v=S.require_canonical(p.read_bytes()); v['queryKinds'][0],v['queryKinds'][1]=v['queryKinds'][1],v['queryKinds'][0]; p.write_bytes(S.canonical_bytes(v))"
+# RUN: not %python %harness/tools/sps_interfaces.py --validate ProofConfigurationV2 %t.query-order.json 2>&1 | %FileCheck %s --check-prefix=QUERY-ORDER
+
+# Exercise manifest and coupled-source drift in isolated copies so this test
+# never rewrites the checked-in vendor.
+# RUN: rm -rf %t.root %t.source %t.schema %t.refs
+# RUN: mkdir -p %t.root/tools %t.root/contracts/vendor %t.source/dist
+# RUN: cp -R %harness/contracts/vendor/sps-rev4.1/. %t.source/dist
+# RUN: cp %t.source/dist/upstream-manifest.json %t.source/interface-manifest.json
+# RUN: rm %t.source/dist/upstream-manifest.json
+# RUN: %python %harness/tools/sync_sps_interfaces.py --source %t.source --expected-source-revision SPS-Rev4.1-V2-2026-08-01 --check | %FileCheck %s --check-prefix=SYNC
+# RUN: not %python %harness/tools/sync_sps_interfaces.py --source %t.source --expected-source-revision SPS-Rev4.1-V2-wrong --check 2>&1 | %FileCheck %s --check-prefix=REVISION
+# RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
+# RUN: cp -R %harness/contracts/vendor/sps-rev4.1 %t.root/contracts/vendor/sps-rev4.1
+# RUN: cp %harness/contracts/sps-interface.lock.json %t.root/contracts/sps-interface.lock.json
+# RUN: %python -c "import json,pathlib; root=pathlib.Path(r'%t.root'); v=json.loads((root/'contracts/vendor/sps-rev4.1/interface-registry.json').read_text()); (root/'tools/copied.py').write_text('PUBLIC_REASON_CLASSES_V2 = '+repr(v['enums']['PublicReasonClassesV2']['values'])+'\n')"
+# RUN: not %python %t.root/tools/sps_interfaces.py --check-consumers 2>&1 | %FileCheck %s --check-prefix=COPIED-TABLE
+# RUN: rm %t.root/tools/copied.py
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.root/contracts/vendor/sps-rev4.1/interface-registry.json'); p.write_bytes(p.read_bytes() + b'\n')"
+# RUN: not %python %t.root/tools/sps_interfaces.py --verify-vendor 2>&1 | %FileCheck %s --check-prefix=VENDOR-DRIFT
+# RUN: cp -R %t.source/dist %t.schema
+# RUN: %python -c "import pathlib,sys; sys.path.insert(0,r'%harness/tools'); import sps_interfaces as S; p=pathlib.Path(r'%t.schema/schemas/sps-rev4.1.bundle.schema.json'); v=S.require_canonical(p.read_bytes()); v[chr(36)+'defs']['ModelStatusV2']['oneOf'][0]['properties']['tag']['const']='SchemaDiverged'; p.write_bytes(S.canonical_bytes(v))"
+# RUN: not %python -c "import pathlib,sys; sys.path.insert(0,r'%harness/tools'); import sps_interfaces as S; v={'tag':'Proved'}; S.Registry(S.require_canonical(pathlib.Path(r'%harness/contracts/vendor/sps-rev4.1/interface-registry.json').read_bytes())).validate_root(v,'ModelStatusV2'); S.validate_schema_root(v,'ModelStatusV2',pathlib.Path(r'%t.schema'))" 2>&1 | %FileCheck %s --check-prefix=SCHEMA-LAYER
+# RUN: cp -R %t.source/dist %t.refs
+# RUN: %python -c "import pathlib,sys; sys.path.insert(0,r'%harness/tools'); import sps_interfaces as S; p=pathlib.Path(r'%t.refs/schemas/common.schema.json'); v=S.require_canonical(p.read_bytes()); key=chr(36)+'ref'; v['oneOf'][0][key]=v['oneOf'][0][key].rsplit('/',1)[0]+'/MissingRoot'; p.write_bytes(S.canonical_bytes(v))"
+# RUN: not %python -c "import pathlib,sys; sys.path.insert(0,r'%harness/tools'); import sps_interfaces as S; S._verify_refs(pathlib.Path(r'%t.refs'))" 2>&1 | %FileCheck %s --check-prefix=MISSING-FRAGMENT
+# RUN: %python -c "import pathlib; pathlib.Path(r'%t.source/dist/unlisted.json').write_bytes(b'{}')"
+# RUN: not env SPS_INTERFACE_ROOT=%t.source %python %harness/tools/sps_interfaces.py --verify-vendor 2>&1 | %FileCheck %s --check-prefix=SOURCE-CLOSURE
+# RUN: rm %t.source/dist/unlisted.json
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.source/dist/interface-registry.json'); raw=p.read_bytes(); p.write_bytes(raw.replace(b'SPS-LLVM-NF-v2', b'SPS-LLVM-NF-x2', 1))"
+# RUN: not env SPS_INTERFACE_ROOT=%t.source %python %harness/tools/sps_interfaces.py --verify-vendor 2>&1 | %FileCheck %s --check-prefix=COUPLED-DRIFT
+
+# VENDOR: verified SPS Rev4.1 interface vendor: SPS-Interfaces-Rev4.1-2026-08-01 bundle=fab12fd8594f311b6b9922ef9200aa7471b99fbb8f19c4461f62c1dcc3fc87a3
+# CONSUMERS: verified SPS interface consumers: no copied normative tables
+# REPORT: validated canonical SPSRunReportV2:
+# AGGREGATION: validated canonical AggregationInputV2:
+# COALITION-CLOSURE: validated canonical ArtifactIdentityEvidenceV2:
+# SEMANTIC: schema-valid; semantic failure XF-REPLAY-001
+# WITNESS: JSON Schema oneOf matched 0 alternatives
+# V2-ONLY: uniform V2 package closure verified
+# QUERY-ORDER: QueryKindV2 normative order mismatch
+# SYNC: SPS Rev4.1 interfaces match the vendored snapshot
+# REVISION: requested source revision mismatch
+# COPIED-TABLE: copied normative interface tables remain
+# VENDOR-DRIFT: manifest digest mismatch: interface-registry.json
+# SCHEMA-LAYER: JSON Schema oneOf matched 0 alternatives
+# MISSING-FRAGMENT: missing schema fragment target
+# SOURCE-CLOSURE: manifest file closure mismatch
+# COUPLED-DRIFT: manifest digest mismatch: interface-registry.json

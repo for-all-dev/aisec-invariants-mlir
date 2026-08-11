@@ -1,0 +1,65 @@
+# REQUIRES: clang, x86-target
+#
+# NORMAL-FORM FRAGMENT BOUNDARY: a hash body cannot enter the fragment.
+#
+# This test is not about a leak. It records a SCOPE limitation, and it exists
+# because the limitation is easy to discover the expensive way -- by designing a
+# declassification story around a hash and finding out at implementation time
+# that the release body was never admissible.
+#
+# THE CHAIN.
+#
+#   SHA-2 is defined by rotations.
+#     -> the pinned pipeline canonicalises (x >> n) | (x << (32-n))
+#        into llvm.fshl / llvm.fshr.
+#     -> funnel shift is absent from profile section 6.5's accepted integer
+#        family ("Every other LLVM instruction is rejected") and from section
+#        6.6's eight accepted residual intrinsics ("All other residual
+#        intrinsics ... are out of profile").
+#     -> the residual audit rejects the module.
+#
+# So a hash-valued release fails at the normal-form audit, BEFORE any question
+# about release carriers, inlining, or conformance is reached. Inlining does not
+# relax this: it moves the funnel shifts into the caller, it does not remove them.
+#
+# This is consistent with the policy side of the same limitation, where
+# SPS-PolicyExpr-NF-v2 has no SHA-256 primitive and an opaque named hash call is
+# not an authorized release expression.
+#
+# These checks make no ModelStatus claim. They assert what the compiler emits.
+
+# --- the rotation idiom becomes a funnel shift ------------------------------
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/sha256_round_release_body.c -o %t.hash.ll
+# RUN: %FileCheck %s --check-prefix=IR-HASH --input-file=%t.hash.ll
+
+# Three rotations in Sigma1 become three funnel shifts.
+# IR-HASH-DAG: call i32 @llvm.fshl.i32
+# The intrinsic is declared, so it is a genuine residual intrinsic in the module
+# and not a fold that disappeared.
+# IR-HASH-DAG: declare i32 @llvm.fshl.i32
+
+# --- the rejection is not an artifact of one optimisation level -------------
+# At -O0 with optnone disabled the same canonicalisation still applies once any
+# instcombine runs, so the fragment boundary is not something -O0 avoids.
+# RUN: %clang -std=c11 -fno-builtin --target=x86_64-unknown-linux-gnu -O1 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/sha256_round_release_body.c -o %t.hash.o1.ll
+# RUN: %FileCheck %s --check-prefix=IR-HASH-O1 --input-file=%t.hash.o1.ll
+# IR-HASH-O1: llvm.fshl.i32
+
+# --- what an admissible release body looks like instead ---------------------
+# Bounded argmax is one of the corpus's V2 release types. Its body is loads at
+# public offsets, integer compares, and selects -- every one of which is inside
+# the accepted integer surface, with no intrinsic at all.
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/integration/Inputs/release-body-fragments/argmax_release_body.c -o %t.argmax.ll
+# RUN: %FileCheck %s --check-prefix=IR-ARGMAX --input-file=%t.argmax.ll
+# IR-ARGMAX-NOT: @llvm.fsh
+# IR-ARGMAX: icmp
+# IR-ARGMAX: select i1
+
+# INTERPRETATION.
+#
+# The contrast is the point. Both bodies are branchless, both are pure integer
+# arithmetic in the source, and only one of them is expressible. The distinction
+# is not difficulty or size; it is whether the operations used are in the
+# accepted surface. An implementer choosing a declassifier should check that list
+# first, because no amount of carrier discipline recovers a body the audit
+# refuses.

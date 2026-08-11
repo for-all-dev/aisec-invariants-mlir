@@ -1,0 +1,14 @@
+# REQUIRES: clang, llc, llvm-as, llvm-dis, mlir-translate, opt
+#
+# Breadth guard for the C / textual LLVM / bitcode / machine-basic-block
+# corpus. Discovery is automatic, so a new input cannot sit unparsed merely
+# because nobody remembered to add a hand-written RUN line.
+
+# RUN: %python %harness/tools/check_compiler_inputs.py --llvm-bin %llvm_bin | %FileCheck %s
+
+# CHECK: verified C -> bitcode: 78
+# CHECK: verified C -> LLVM -> MLIR: 77; expected inline-asm refusals: 1
+# CHECK: verified MLIR -> LLVM -> bitcode: 74
+# CHECK: verified textual LLVM: 25
+# CHECK: verified checked-in bitcode fresh-reparse fixpoints: 13
+# CHECK: verified machine basic-block snapshots: 7

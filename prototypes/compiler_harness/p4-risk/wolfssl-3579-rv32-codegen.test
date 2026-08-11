@@ -1,0 +1,4 @@
+# REQUIRES: clang, riscv32-target
+# RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-bad/snapshot.yaml --pipeline rv32-backend-risk --endpoint %t.bad.s --records %t.checkpoints -- %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/target-bad/wolfssl_3579_mul_vulnerable.c -o %t.bad.s
+# RUN: %checkpoint-runner run --snapshot fixtures/wolfssl-3579-mul/target-fixed/snapshot.yaml --pipeline rv32-backend-control --endpoint %t.fixed.s --records %t.checkpoints -- %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=riscv32-unknown-elf -march=rv32i -mabi=ilp32 -O3 -S %fixtures/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul_fixed.c -o %t.fixed.s
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

@@ -1,0 +1,20 @@
+# REQUIRES: aarch64-target, clang, llvm-as, make, mlir-translate, riscv32-target, x86-target
+#
+# Exercise the Makefile-owned C -> target LLVM -> imported MLIR pipeline in a
+# scratch build. Broad corpus parsing deliberately excludes build outputs, so
+# it cannot establish that this producer DAG, its target flags, or all ten
+# imports still work.
+
+# RUN: %make -B -C %harness/c BUILD=%t.build LLVM_BIN=%llvm_bin regen-mlir
+
+# The producer owns exactly two x86, four RV32, and four AArch64 LLVM files,
+# each with one imported MLIR output.
+# RUN: find %t.build -type f -name '*.ll' | wc -l | %FileCheck %s --check-prefix=LL-COUNT
+# RUN: find %t.build -type f -name '*.mlir' | wc -l | %FileCheck %s --check-prefix=MLIR-COUNT
+
+# LL-COUNT: {{^ *10$}}
+# MLIR-COUNT: {{^ *10$}}
+
+# Verify the produced files independently of the checks in the Make recipes.
+# RUN: for f in %t.build/x86/*.ll %t.build/rv32/*.ll %t.build/aarch64/*.ll; do %llvm-as "$f" -o /dev/null; done
+# RUN: for f in %t.build/mlir/*.mlir; do %mlir-opt --verify-each "$f" -o /dev/null; done

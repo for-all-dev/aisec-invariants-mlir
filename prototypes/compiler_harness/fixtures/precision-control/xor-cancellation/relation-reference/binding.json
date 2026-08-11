@@ -1,0 +1,24 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+  "harnessCase": "precision-control/xor-cancellation",
+  "referenceCaseId": "xor-cancellation",
+  "entry": "xor_cancellation_control",
+  "counterexamplePair": null,
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "3d06ffc9a307be951375b8c818675094cc636fbd2d139ffdc93e75a0a23c105e"},
+    {"role": "c", "path": "xor_cancellation_control.c", "sha256": "267c23feddf08abe7945c5158817d22aeae4562077c394a1786d30b74fe3a8d4"},
+    {"role": "mlir", "path": "precision_xor_cancellation.control.mlir", "sha256": "5b2a2363c55a7c68e87132c43abb61856c15aa88df35e36f47968241c108c0e1"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "0532ba10dab1d6f5f4a51533ee5959926f45a6ab0324beecfda8f3c32e1dce0d"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "45371f0518126815e3e3c4d62edc8fe1fe5d6bb5c4ac8e3c973ddc68daf6bb2c"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "fa49ed41b4c899b67de6725f7bc7452537f98ddec83b5943cd3fde144a2b7682"}
+  ],
+  "arguments": [
+    {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

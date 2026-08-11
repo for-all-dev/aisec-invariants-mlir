@@ -1,0 +1,184 @@
+{
+  "format_id": "SPS-Harness-Candidate-Bundle-Spec-v2",
+  "bundle_id": "alloca-size-high",
+  "catalog_authority": {
+    "tag": "CandidatePreflightCatalogV2",
+    "claimable": false
+  },
+  "policy": {
+    "format_id": "SPS-Harness-Candidate-Policy-v2",
+    "fixed_observation_model": "Theta_ct",
+    "principals": [],
+    "maximal_adversary_coalitions": [
+      []
+    ],
+    "components": [
+      "secret-bit"
+    ],
+    "component_visibility": {
+      "world_visible": [],
+      "member_visible": {},
+      "minimally_joint_visible": []
+    },
+    "output_visibility": {
+      "world_visible": [
+        "world"
+      ],
+      "member_visible": {},
+      "minimally_joint_visible": []
+    },
+    "error_visibility": {
+      "world_visible": [],
+      "member_visible": {},
+      "minimally_joint_visible": []
+    },
+    "argument_roles": [
+      {
+        "entry": "alloca_size_high_count",
+        "argument_index": 0,
+        "role": {
+          "tag": "ComponentArgumentV2",
+          "args": [
+            "secret-bit"
+          ]
+        }
+      },
+      {
+        "entry": "alloca_size_high_count",
+        "argument_index": 1,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "public-sink"
+          ]
+        }
+      }
+    ],
+    "release_bindings": [],
+    "invocation_scope": "SingleInvocation",
+    "placement": [
+      {
+        "entry": "alloca_size_high_count",
+        "host": "host0"
+      }
+    ]
+  },
+  "abi": {
+    "format_id": "SPS-Harness-Candidate-ABI-v2",
+    "arguments": [
+      {
+        "index": 0,
+        "name": "secret_bit",
+        "kind": "scalar"
+      },
+      {
+        "index": 1,
+        "name": "public_sink",
+        "kind": "root",
+        "root_id": "public-sink",
+        "extent_bytes": 4,
+        "output": "world"
+      }
+    ],
+    "admission_constraints": [
+      {
+        "argument": "secret_bit",
+        "relation": "in",
+        "values": [
+          0,
+          1
+        ]
+      }
+    ],
+    "alias_topology": {
+      "complete": true,
+      "relations": []
+    },
+    "initialized_regions": [],
+    "entry": "alloca_size_high_count"
+  },
+  "contracts": {
+    "format_id": "SPS-Harness-Candidate-Contracts-v2",
+    "mechanism_contracts": [],
+    "timing_contracts": [],
+    "target_profile": null,
+    "timing_environment": {
+      "format_id": "SPS-Harness-Candidate-Timing-Environment-v2",
+      "claimable": false,
+      "explicit_empty_timing_choice_contract": true,
+      "choiceDomain": [],
+      "occurrences": {},
+      "latencyMeaning": [],
+      "latencyClasses": [
+        {
+          "latencyClassId": "lat.fixed.1"
+        }
+      ],
+      "pairedChoiceCoupling": {},
+      "versionAndObservationBoundary": "generated-later-not-a-canonical-digest",
+      "notes": [
+        "Spec section 2.5.1 requires an explicit empty timing-choice contract when no ideal timing choice is modeled; an omitted or absent object is not that instance.",
+        "Every instruction transition is assigned the one fixed public latency class lat.fixed.1; that assignment introduces no timing choice.",
+        "This is a CandidateOnly harness mirror of TimingEnvironmentContract, not a canonical SPS-TimingEnvironment interface: timingEnvironmentId and versionAndObservationBoundary digests do not exist for a candidate bundle."
+      ]
+    }
+  },
+  "release_table": {
+    "format_id": "SPS-Harness-Candidate-Release-Table-v2",
+    "entries": []
+  },
+  "expected_report": {
+    "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+    "fixture_tier": {
+      "tag": "CandidateOnly"
+    },
+    "claimable_from_checked_in_pair": false,
+    "required_checker_feature": "sps-verifier",
+    "current_harness_status": {
+      "tag": "PendingV2",
+      "reasons": [
+        "sps-verifier-not-implemented",
+        "llvm-22.1.8-nf-recapture-required"
+      ]
+    },
+    "expected": {
+      "audit_all_expectations": [
+        {
+          "coalition": [],
+          "query_outcome": {
+            "tag": "NotConstructedResultMatcherV2",
+            "reason": {
+              "reasonClassId": "AllocaSizeNotWorldStructural"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotAvailableV2",
+            "reason": {
+              "reasonClassId": "AllocaSizeNotWorldStructural"
+            }
+          }
+        }
+      ],
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status": {
+        "tag": "Complete"
+      },
+      "entry": "alloca_size_high_count",
+      "expected_model_status": {
+        "tag": "Unknown",
+        "args": [
+          {
+            "reasonClassId": "AllocaSizeNotWorldStructural"
+          }
+        ]
+      }
+    }
+  }
+}

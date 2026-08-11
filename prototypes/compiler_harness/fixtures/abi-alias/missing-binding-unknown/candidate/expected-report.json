@@ -1,0 +1,55 @@
+{
+  "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+  "fixture_tier": {
+    "tag": "CandidateOnly"
+  },
+  "claimable_from_checked_in_pair": false,
+  "required_checker_feature": "sps-verifier",
+  "current_harness_status": {
+    "tag": "PendingV2",
+    "reasons": [
+      "sps-verifier-not-implemented",
+      "llvm-22.1.8-nf-recapture-required"
+    ]
+  },
+  "expected": {
+    "audit_all_expectations": [
+      {
+        "coalition": [],
+        "query_outcome": {
+          "tag": "NotConstructedResultMatcherV2",
+          "reason": {
+            "reasonClassId": "AliasBindingMismatch"
+          }
+        },
+        "replay_expectation": {
+          "tag": "NotAvailableV2",
+          "reason": {
+            "reasonClassId": "AliasBindingMismatch"
+          }
+        }
+      }
+    ],
+    "expected_deployment_status": {
+      "tag": "Open",
+      "args": [
+        {
+          "tag": "P4EvidenceProfileUnavailable"
+        }
+      ]
+    },
+    "expected_policy_review_status": {
+      "tag": "Complete"
+    },
+    "entry": "abi_alias_missing_binding",
+    "expected_model_status": {
+      "tag": "Unknown",
+      "args": [
+        {
+          "reasonClassId": "AliasBindingMismatch"
+        }
+      ]
+    }
+  },
+  "candidate_bitcode_sha256": "7253ce30f6c1d263abfb5ea241427272d56046fb286c1ca68420137f445702d7"
+}

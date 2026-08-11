@@ -1,0 +1,6 @@
+# REQUIRES: sps-scan-unary
+# Fixture tier: CandidateOnly; output is scanner-specific triage, not Section 10.
+# Negative calibration for an always-reporting scanner. Zero findings here is
+# scanner silence only; it is never ModelStatus: Proved.
+# RUN: %checkpoint-runner run --snapshot fixtures/alloca-size/public-control/snapshot.yaml --pipeline scanner-diagnostic --endpoint - --records %t.checkpoints -- %sps-scan --refine-address %fixtures/alloca-size/public-control/alloca_size_public.control.mlir
+# RUN: %checkpoint-runner finalize --test %s --records %t.checkpoints

@@ -1,0 +1,27 @@
+entry: redis_pool_reuse_fixed
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  response-owned-by-a:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  response-owned-by-b:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+  request-a-was-cancelled:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  return:
+    visibility: public
+releases: {}

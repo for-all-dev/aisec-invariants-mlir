@@ -1,0 +1,26 @@
+; REJECTED ARM: FP/integer NUMERIC conversion. This is the arm that shows the
+; NF-A02 boundary is about value reinterpretation, not about "does the
+; instruction mention a float type".
+;
+; `bitcast i32 -> float` is admitted (same-width, exact bits preserved) and
+; appears in a02-scalar-fp-admitted.ll.in. `sitofp i32 -> float` is rejected:
+; same operand type, same result type, different semantics, because it renumbers
+; the value rather than reinterpreting its bits.
+
+define float @a02_signed_integer_to_fp(i32 %value) {
+entry:
+  %converted = sitofp i32 %value to float
+  ret float %converted
+}
+
+define i32 @a02_fp_to_signed_integer(float %value) {
+entry:
+  %converted = fptosi float %value to i32
+  ret i32 %converted
+}
+
+define double @a02_unsigned_integer_to_fp(i64 %value) {
+entry:
+  %converted = uitofp i64 %value to double
+  ret double %converted
+}

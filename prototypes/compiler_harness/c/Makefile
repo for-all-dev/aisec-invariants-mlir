@@ -3,15 +3,38 @@ SHELL := /bin/sh
 include toolchains.mk
 
 .PHONY: all verify compile-host regen-mlir check-codegen check-equivalence \
-	check-provenance check-annotations clean clangover clangover-models \
+	check-provenance check-snapshots check-c-source-layout \
+	check-runtime-source-groups check-runtime-link-symbols clean \
+	clangover clangover-models \
 	wolfssl-3580 wolfssl-3579 kyberslash
 
-PYTHON ?= python3
+PYTHON ?= ../.venv/bin/python
 
-SOURCES := $(filter-out equivalence_driver.c,$(wildcard *.c))
-HOST_OBJECTS := $(patsubst %.c,$(BUILD)/host/%.o,$(SOURCES))
+SOURCE_LAYOUT := $(PYTHON) ../tools/fixture_layout.py --root ..
+RUNTIME_INVENTORY := $(PYTHON) runtime_inventory.py --root ..
+ALL_SOURCES := $(shell $(SOURCE_LAYOUT) --relative-to . --list-provenance-c-sources)
+UNSUPPORTED_RUNTIME_SOURCES := $(filter %.cc %.cpp %.cxx,$(ALL_SOURCES))
+ifneq ($(strip $(UNSUPPORTED_RUNTIME_SOURCES)),)
+$(error C++ fixture sources need an explicit C++ runtime driver before Make can compile/link them: $(UNSUPPORTED_RUNTIME_SOURCES))
+endif
+RUNTIME_SOURCES := $(shell $(RUNTIME_INVENTORY) --relative-to . --list-link-c-sources)
+HOST_OBJECTS := $(patsubst ../%.c,$(BUILD)/host/%.o,$(ALL_SOURCES))
+RUNTIME_OBJECTS := $(patsubst ../%.c,$(BUILD)/host/%.o,$(RUNTIME_SOURCES))
 EQUIV_DRIVER := $(BUILD)/host/equivalence_driver.o
 EQUIV_BIN := $(BUILD)/host/equivalence_driver
+LLVM_NM ?= $(LLVM_BIN)/llvm-nm
+
+CLANGOVER_BAD_SOURCE := $(FIXTURES_DIR)/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
+CLANGOVER_FIXED_SOURCE := $(FIXTURES_DIR)/clangover-poly-frommsg/lowered-fixed/clangover_poly_frommsg_fixed.c
+CLANGOVER_HELPER_SOURCE := $(FIXTURES_DIR)/clangover-poly-frommsg/lowered-fixed/clangover_ct_cmov.c
+WOLFSSL_3580_BAD_SOURCE := $(FIXTURES_DIR)/wolfssl-3580-mask/target-bad/wolfssl_3580_mask_vulnerable.c
+WOLFSSL_3580_FIXED_SOURCE := $(FIXTURES_DIR)/wolfssl-3580-mask/target-fixed/wolfssl_3580_mask_fixed.c
+WOLFSSL_3579_BAD_SOURCE := $(FIXTURES_DIR)/wolfssl-3579-mul/target-bad/wolfssl_3579_mul_vulnerable.c
+WOLFSSL_3579_FIXED_SOURCE := $(FIXTURES_DIR)/wolfssl-3579-mul/target-fixed/wolfssl_3579_mul_fixed.c
+KYBERSLASH1_BAD_SOURCE := $(FIXTURES_DIR)/kyberslash1-poly-tomsg/bad/kyberslash1_poly_tomsg_vulnerable.c
+KYBERSLASH1_FIXED_SOURCE := $(FIXTURES_DIR)/kyberslash1-poly-tomsg/fixed/kyberslash1_poly_tomsg_fixed.c
+KYBERSLASH2_BAD_SOURCE := $(FIXTURES_DIR)/kyberslash2-compress/bad/kyberslash2_compress_vulnerable.c
+KYBERSLASH2_FIXED_SOURCE := $(FIXTURES_DIR)/kyberslash2-compress/fixed/kyberslash2_compress_fixed.c
 
 all: verify
 
@@ -46,9 +69,9 @@ kyberslash: \
 	$(BUILD)/mlir/kyberslash2_compress.fixed.mlir
 	@echo "KyberSlash C, LLVM IR, and imported MLIR are ready"
 
-compile-host: $(HOST_OBJECTS)
+compile-host: check-c-source-layout $(HOST_OBJECTS)
 
-$(BUILD)/host/%.o: %.c
+$(BUILD)/host/%.o: ../%.c
 	@mkdir -p $(dir $@)
 	$(HOST_CC) $(COMMON_CFLAGS) -c $< -o $@
 
@@ -56,70 +79,70 @@ $(EQUIV_DRIVER): equivalence_driver.c
 	@mkdir -p $(dir $@)
 	$(HOST_CC) $(COMMON_CFLAGS) -c $< -o $@
 
-$(EQUIV_BIN): $(HOST_OBJECTS) $(EQUIV_DRIVER)
+$(EQUIV_BIN): $(RUNTIME_OBJECTS) $(EQUIV_DRIVER) | check-c-source-layout check-runtime-link-symbols
 	$(HOST_CC) $(COMMON_CFLAGS) $^ -o $@
 
-$(BUILD)/x86/clangover_poly_frommsg_vulnerable.ll: clangover_poly_frommsg_vulnerable.c
+$(BUILD)/x86/clangover_poly_frommsg_vulnerable.ll: $(CLANGOVER_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(X86_FLAGS) -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm $< -o $@
 
-$(BUILD)/x86/clangover_poly_frommsg_fixed.ll: clangover_poly_frommsg_fixed.c clangover_ct_cmov.c
+$(BUILD)/x86/clangover_poly_frommsg_fixed.ll: $(CLANGOVER_FIXED_SOURCE) $(CLANGOVER_HELPER_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(X86_FLAGS) -Os -fno-vectorize -fno-slp-vectorize -S -emit-llvm $< -o $@
 
-$(BUILD)/x86/clangover_poly_frommsg_vulnerable.s: clangover_poly_frommsg_vulnerable.c
+$(BUILD)/x86/clangover_poly_frommsg_vulnerable.s: $(CLANGOVER_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(X86_FLAGS) -Os -fno-vectorize -fno-slp-vectorize -S $< -o $@
 
-$(BUILD)/x86/clangover_poly_frommsg_fixed.s: clangover_poly_frommsg_fixed.c
+$(BUILD)/x86/clangover_poly_frommsg_fixed.s: $(CLANGOVER_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(X86_FLAGS) -Os -fno-vectorize -fno-slp-vectorize -S $< -o $@
 
-$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.ll: wolfssl_3580_mask_vulnerable.c
+$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.ll: $(WOLFSSL_3580_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S -emit-llvm $< -o $@
 
-$(BUILD)/rv32/wolfssl_3580_mask_fixed.ll: wolfssl_3580_mask_fixed.c
+$(BUILD)/rv32/wolfssl_3580_mask_fixed.ll: $(WOLFSSL_3580_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S -emit-llvm $< -o $@
 
-$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.s: wolfssl_3580_mask_vulnerable.c
+$(BUILD)/rv32/wolfssl_3580_mask_vulnerable.s: $(WOLFSSL_3580_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S $< -o $@
 
-$(BUILD)/rv32/wolfssl_3580_mask_fixed.s: wolfssl_3580_mask_fixed.c
+$(BUILD)/rv32/wolfssl_3580_mask_fixed.s: $(WOLFSSL_3580_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S $< -o $@
 
-$(BUILD)/rv32/wolfssl_3579_mul_vulnerable.ll: wolfssl_3579_mul_vulnerable.c
+$(BUILD)/rv32/wolfssl_3579_mul_vulnerable.ll: $(WOLFSSL_3579_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S -emit-llvm $< -o $@
 
-$(BUILD)/rv32/wolfssl_3579_mul_fixed.ll: wolfssl_3579_mul_fixed.c
+$(BUILD)/rv32/wolfssl_3579_mul_fixed.ll: $(WOLFSSL_3579_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S -emit-llvm $< -o $@
 
-$(BUILD)/rv32/wolfssl_3579_mul_vulnerable.s: wolfssl_3579_mul_vulnerable.c
+$(BUILD)/rv32/wolfssl_3579_mul_vulnerable.s: $(WOLFSSL_3579_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S $< -o $@
 
-$(BUILD)/rv32/wolfssl_3579_mul_fixed.s: wolfssl_3579_mul_fixed.c
+$(BUILD)/rv32/wolfssl_3579_mul_fixed.s: $(WOLFSSL_3579_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(RV32_FLAGS) -O3 -S $< -o $@
 
-$(BUILD)/aarch64/kyberslash1_poly_tomsg_vulnerable.ll: kyberslash1_poly_tomsg_vulnerable.c
+$(BUILD)/aarch64/kyberslash1_poly_tomsg_vulnerable.ll: $(KYBERSLASH1_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(AARCH64_FLAGS) -O0 -Xclang -disable-O0-optnone -S -emit-llvm $< -o $@
 
-$(BUILD)/aarch64/kyberslash1_poly_tomsg_fixed.ll: kyberslash1_poly_tomsg_fixed.c
+$(BUILD)/aarch64/kyberslash1_poly_tomsg_fixed.ll: $(KYBERSLASH1_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(AARCH64_FLAGS) -O0 -Xclang -disable-O0-optnone -S -emit-llvm $< -o $@
 
-$(BUILD)/aarch64/kyberslash2_compress_vulnerable.ll: kyberslash2_compress_vulnerable.c
+$(BUILD)/aarch64/kyberslash2_compress_vulnerable.ll: $(KYBERSLASH2_BAD_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(AARCH64_FLAGS) -O0 -Xclang -disable-O0-optnone -S -emit-llvm $< -o $@
 
-$(BUILD)/aarch64/kyberslash2_compress_fixed.ll: kyberslash2_compress_fixed.c
+$(BUILD)/aarch64/kyberslash2_compress_fixed.ll: $(KYBERSLASH2_FIXED_SOURCE)
 	@mkdir -p $(dir $@)
 	$(CLANG) $(COMMON_CFLAGS) $(AARCH64_FLAGS) -O0 -Xclang -disable-O0-optnone -S -emit-llvm $< -o $@
 
@@ -185,26 +208,35 @@ check-codegen: compile-host \
 	@! grep -q '__muldi3' $(BUILD)/rv32/wolfssl_3579_mul_fixed.s
 	@echo "Clangover assembly and RV32I table-selection assembly are in $(BUILD)/x86 and $(BUILD)/rv32"
 	@if test -n "$(RISCV_GCC)"; then \
-	  $(RISCV_GCC) -O3 -march=rv32i -mabi=ilp32 -S wolfssl_3580_mask_vulnerable.c -o $(BUILD)/rv32/wolfssl_3580_gcc_vulnerable.s; \
-	  $(RISCV_GCC) -O3 -march=rv32i -mabi=ilp32 -S wolfssl_3580_mask_fixed.c -o $(BUILD)/rv32/wolfssl_3580_gcc_fixed.s; \
+	  $(RISCV_GCC) -O3 -march=rv32i -mabi=ilp32 -S $(WOLFSSL_3580_BAD_SOURCE) -o $(BUILD)/rv32/wolfssl_3580_gcc_vulnerable.s; \
+	  $(RISCV_GCC) -O3 -march=rv32i -mabi=ilp32 -S $(WOLFSSL_3580_FIXED_SOURCE) -o $(BUILD)/rv32/wolfssl_3580_gcc_fixed.s; \
 	  grep -q 'bnez\|bne' $(BUILD)/rv32/wolfssl_3580_gcc_vulnerable.s; \
 	  ! grep -q 'bnez\|bne' $(BUILD)/rv32/wolfssl_3580_gcc_fixed.s; \
 	else \
 	  echo "SKIP: set RISCV_GCC to test the historical GCC CVE-2026-3580 lowering"; \
 	fi
 
-check-equivalence: $(EQUIV_BIN)
+check-equivalence: check-c-source-layout check-runtime-source-groups $(EQUIV_BIN)
 	$(EQUIV_BIN)
 	@echo "Equivalence and witness smoke checks passed"
 
-check-provenance:
+check-c-source-layout:
+	$(SOURCE_LAYOUT) --check-c-source-layout
+
+check-runtime-source-groups: check-c-source-layout
+	$(RUNTIME_INVENTORY) --check-normal-llvm --clang $(CLANG) --include ../include
+
+check-runtime-link-symbols: $(HOST_OBJECTS)
+	$(RUNTIME_INVENTORY) --check-objects --object-root $(BUILD)/host --llvm-nm $(LLVM_NM)
+
+check-provenance: check-c-source-layout
 	$(PYTHON) check_harness.py provenance
 
-check-annotations:
-	$(PYTHON) check_harness.py annotations
+check-snapshots: check-c-source-layout
+	$(PYTHON) check_harness.py snapshots
 
-verify: compile-host check-provenance check-annotations check-equivalence check-codegen regen-mlir
-	@for f in ../mlir/*.mlir; do $(MLIR_OPT) --verify-each "$$f" -o /dev/null; done
+verify: compile-host check-provenance check-snapshots check-equivalence check-codegen regen-mlir
+	@find ../fixtures -name '*.mlir' -type f -exec $(MLIR_OPT) --verify-each '{}' -o /dev/null \;
 	@echo "C compilation, code-generation checks, and checked-in MLIR parsing succeeded"
 
 clean:

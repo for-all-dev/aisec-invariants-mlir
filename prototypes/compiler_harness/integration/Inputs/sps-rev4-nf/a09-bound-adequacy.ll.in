@@ -1,0 +1,137 @@
+; HAND-AUTHORED FIXTURE SHAPES: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact. Tier CandidateOnly.
+;
+; The first three functions pin public bounds 0, 1, and 16. A guard block
+; selects either a zero-trip return or an unconditional preheader; the
+; preheader, one-block header/latch, and dedicated exit then have the exact
+; CanonicalSingleBlockLoopV2 topology. Bound zero therefore permits no
+; loop-block execution and bound N permits copies 0..N-1.
+;
+; @a09_aligned_remainder executes twice against public maximum one: both lanes
+; can reach the retained boundary together. @a09_high_extra_iteration uses a
+; High control to select one versus two copies, creating the one-lane
+; BoundExhausted/BoundFailure mismatch shape. No GEP carries `inbounds`, so the
+; loop seed does not introduce an unrelated normal-form annotation question.
+
+target triple = "x86_64-unknown-linux-gnu"
+
+define i32 @a09_public_bound_0(ptr %output) {
+entry:
+  %enter = icmp ult i32 0, 0
+  br i1 %enter, label %preheader, label %zero
+
+zero:
+  ret i32 0
+
+preheader:
+  br label %loop
+
+loop:
+  %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+  %address = getelementptr i32, ptr %output, i32 %index
+  store i32 %index, ptr %address, align 4
+  %next = add i32 %index, 1
+  %continue = icmp ult i32 %next, 0
+  br i1 %continue, label %loop, label %exit
+
+exit:
+  %result = phi i32 [ %next, %loop ]
+  ret i32 %result
+}
+
+define i32 @a09_public_bound_1(ptr %output) {
+entry:
+  %enter = icmp ult i32 0, 1
+  br i1 %enter, label %preheader, label %zero
+
+zero:
+  ret i32 0
+
+preheader:
+  br label %loop
+
+loop:
+  %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+  %address = getelementptr i32, ptr %output, i32 %index
+  store i32 %index, ptr %address, align 4
+  %next = add i32 %index, 1
+  %continue = icmp ult i32 %next, 1
+  br i1 %continue, label %loop, label %exit
+
+exit:
+  %result = phi i32 [ %next, %loop ]
+  ret i32 %result
+}
+
+define i32 @a09_public_bound_16(ptr %output) {
+entry:
+  %enter = icmp ult i32 0, 16
+  br i1 %enter, label %preheader, label %zero
+
+zero:
+  ret i32 0
+
+preheader:
+  br label %loop
+
+loop:
+  %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+  %address = getelementptr i32, ptr %output, i32 %index
+  store i32 %index, ptr %address, align 4
+  %next = add i32 %index, 1
+  %continue = icmp ult i32 %next, 16
+  br i1 %continue, label %loop, label %exit
+
+exit:
+  %result = phi i32 [ %next, %loop ]
+  ret i32 %result
+}
+
+define i32 @a09_aligned_remainder(ptr %output) {
+entry:
+  %enter = icmp ult i32 0, 2
+  br i1 %enter, label %preheader, label %zero
+
+zero:
+  ret i32 0
+
+preheader:
+  br label %loop
+
+loop:
+  %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+  %address = getelementptr i32, ptr %output, i32 %index
+  store i32 %index, ptr %address, align 4
+  %next = add i32 %index, 1
+  %continue = icmp ult i32 %next, 2
+  br i1 %continue, label %loop, label %exit
+
+exit:
+  %result = phi i32 [ %next, %loop ]
+  ret i32 %result
+}
+
+define i32 @a09_high_extra_iteration(ptr %output, i1 %high) {
+entry:
+  %limit = select i1 %high, i32 2, i32 1
+  %enter = icmp ult i32 0, %limit
+  br i1 %enter, label %preheader, label %zero
+
+zero:
+  ret i32 0
+
+preheader:
+  br label %loop
+
+loop:
+  %index = phi i32 [ 0, %preheader ], [ %next, %loop ]
+  %address = getelementptr i32, ptr %output, i32 %index
+  store i32 %index, ptr %address, align 4
+  %next = add i32 %index, 1
+  %continue = icmp ult i32 %next, %limit
+  br i1 %continue, label %loop, label %exit
+
+exit:
+  %result = phi i32 [ %next, %loop ]
+  ret i32 %result
+}

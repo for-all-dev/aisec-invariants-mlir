@@ -1,0 +1,40 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+#
+# INVALID-CARRIER NEGATIVE CORPUS. These 21 wrapper/call cases remain useful as
+# rejected alternatives and binding edge cases, but none is an NFv2 release
+# carrier. The current carrier is `llvm.sps.release`; ReleaseId is supplied only
+# by ReleaseImplementationBindingV2.emitMarkerInstructionId.
+#
+# RUN: not grep -F '@llvm.sps.release' %harness/integration/Inputs/sps-rev4-high-value/release-markers.ll.in
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/release-markers.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family release-marker | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define internal void @release_conforming(i8 %value)
+# SHAPE: call void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 %value)
+# SHAPE-NEXT: ret void
+# SHAPE-LABEL: define internal void @release_missing_marker(i8 %value)
+# SHAPE-NEXT: entry:
+# SHAPE-NEXT: ret void
+# SHAPE-LABEL: define internal void @release_duplicate_marker(i8 %value)
+# SHAPE: call void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# SHAPE-NEXT: call void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# SHAPE-LABEL: define internal i8 @release_wrong_type(i8 %value)
+# SHAPE: call i8 @__sps_invalid_callable_emit_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+# SHAPE-LABEL: define internal void @release_tail_marker(i8 %value)
+# SHAPE: tail call void @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# SHAPE-LABEL: define internal void @release_varargs_marker(i8 %value)
+# SHAPE: call void (i8, ...) @__sps_invalid_callable_emit_dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# SHAPE-LABEL: define internal void @release_operand_bundle(i8 %value)
+# SHAPE: [ "sps.test"() ]
+# SHAPE-LABEL: define internal void @release_wrong_cc(i8 %value)
+# SHAPE: call fastcc void @__sps_invalid_callable_emit_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+# SHAPE-LABEL: define internal void @release_wrong_value(i8 %value)
+# SHAPE: @__sps_invalid_callable_emit_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(i8 0)
+# SHAPE-LABEL: define void @release_retry_ordinal(i8 %value)
+# SHAPE: call void @release_guarded(i8 %value, i1 false)
+# SHAPE-NEXT: call void @release_guarded(i8 %value, i1 true)
+
+# CONTRACT: verified release-marker: 21 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed

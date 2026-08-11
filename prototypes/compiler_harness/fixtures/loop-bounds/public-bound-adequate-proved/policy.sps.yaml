@@ -1,0 +1,19 @@
+entry: bound_adequate_public_loop
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  public-count:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  public-sink:
+    visibility: public
+releases: {}

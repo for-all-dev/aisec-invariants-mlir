@@ -1,0 +1,7 @@
+# The C fixture verifier compares only after an expectation-blind actual trace
+# has been parsed, validated, and reduced to an immutable test position.
+
+# REQUIRES: sps-fixture-verifier
+# RUN: %python %S/Inputs/fixture_verifier_cli_test.py %fixture-verifier %S/schemas | %FileCheck %s
+
+# CHECK: fixture verifier CLI contract passed

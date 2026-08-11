@@ -1,0 +1,27 @@
+entry: wolfssl_3579_mul_rv32_bad_model
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility:
+      world: false
+      members:
+      - observer
+      joint: []
+components:
+  secret-a:
+    lifecycle: entry-input
+    type: bv64
+    visibility: secret
+  secret-b:
+    lifecycle: entry-input
+    type: bv64
+    visibility: secret
+outputs:
+  return:
+    visibility: secret
+releases: {}

@@ -1,0 +1,6 @@
+# RUN: %python %S/Inputs/audience_basis_test.py %harness | %FileCheck %s
+
+# CHECK: derived all eight coalitions and exact world/member/joint/none visibility
+# CHECK-NEXT: distinguished member OR from joint AND semantics
+# CHECK-NEXT: accepted public/secret shorthand normalization
+# CHECK-NEXT: rejected malformed and nonminimal audience bases

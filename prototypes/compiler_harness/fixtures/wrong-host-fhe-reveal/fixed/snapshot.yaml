@@ -1,0 +1,59 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: wrong_host_fhe_reveal_fixed
+c_evidence:
+- fixtures/wrong-host-fhe-reveal/fixed/wrong_host_fhe_reveal_fixed.c
+secret:
+- arg: 1
+  name: revealed_plaintext
+public:
+- observable: transfer
+allowed:
+- revealed plaintext may be written only to authorized_client_plaintext
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Transfer
+      field: valueBytes
+    because: the unauthorized server receives zero while plaintext stays at the authorized
+      client
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - wrong_host_fhe_reveal_fixed
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.mlir.constant
+          - llvm.call
+          - llvm.return
+        call.callees:
+          contains:
+          - sps_transfer_fhe_authorized_client
+          - sps_transfer_fhe_server

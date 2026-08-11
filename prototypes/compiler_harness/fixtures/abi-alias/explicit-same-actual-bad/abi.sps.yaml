@@ -1,0 +1,43 @@
+source: abi_alias_explicit_same_actual.c
+relation: provenance-only
+entry:
+  id: abi_alias_explicit_same_actual
+  symbol: abi_alias_explicit_same_actual
+  host: compute
+  function-type: void (i32, ptr, ptr)
+  return: void
+carriers:
+  secret:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+roots:
+  shared:
+    argument: 1
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: read-write
+    initialization: uninitialized
+    ownership: caller
+    output: shared
+  public-output:
+    argument: 2
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: write-only
+    initialization: uninitialized
+    ownership: caller
+    output: public-output
+aliases:
+  complete: true
+  relations:
+  - relation: disjoint
+    roots:
+    - public-output
+    - shared
+terminal-output-order:
+  normal-void:
+  - shared
+  - public-output

@@ -1,0 +1,6 @@
+# RUN: %python %S/Inputs/candidate_expected_matcher_test.py %harness | %FileCheck %s
+
+# CHECK: authenticated 13 checked-in candidate expectation envelopes
+# CHECK-NEXT: matched Proved and Unknown materialized reports
+# CHECK-NEXT: Counterexample bad_state_class failed closed as unresolved
+# CHECK-NEXT: rejected axis mismatch and stale sidecar digest

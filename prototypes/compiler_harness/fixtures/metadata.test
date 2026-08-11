@@ -1,0 +1,6 @@
+# RUN: %python %harness/c/check_harness.py snapshots | %FileCheck %s --check-prefix=CHECK
+# RUN: %python %harness/c/check_harness.py list-fixtures | %FileCheck %s --check-prefix=LIST
+# RUN: %checkpoint-runner inventory --root %harness
+
+# CHECK: snapshots checks passed
+# LIST: 74 fixtures

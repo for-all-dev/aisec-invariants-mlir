@@ -1,0 +1,27 @@
+groups:
+  clangover-vulnerable:
+    representative: fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
+    members:
+      - fixtures/clangover-poly-frommsg/lowered-bad/clangover_poly_frommsg_vulnerable.c
+      - fixtures/clangover-poly-frommsg/source/clangover_poly_frommsg_vulnerable.c
+
+  release-carrier:
+    representative: fixtures/release-carrier/pinned-control/release_carrier.c
+    members:
+      - fixtures/release-carrier/lost-bad/release_carrier.c
+      - fixtures/release-carrier/marker-only-bad/release_carrier.c
+      - fixtures/release-carrier/pinned-control/release_carrier.c
+
+  wolfssl-3579-vulnerable:
+    representative: fixtures/wolfssl-3579-mul/target-bad/wolfssl_3579_mul_vulnerable.c
+    members:
+      - fixtures/wolfssl-3579-mul/source/wolfssl_3579_mul_vulnerable.c
+      - fixtures/wolfssl-3579-mul/target-bad/wolfssl_3579_mul_vulnerable.c
+      - fixtures/wolfssl-3579-mul/target-constant-latency/wolfssl_3579_mul_vulnerable.c
+      - fixtures/wolfssl-3579-mul/target-unknown/wolfssl_3579_mul_vulnerable.c
+
+  wolfssl-3580-vulnerable:
+    representative: fixtures/wolfssl-3580-mask/target-bad/wolfssl_3580_mask_vulnerable.c
+    members:
+      - fixtures/wolfssl-3580-mask/source/wolfssl_3580_mask_vulnerable.c
+      - fixtures/wolfssl-3580-mask/target-bad/wolfssl_3580_mask_vulnerable.c

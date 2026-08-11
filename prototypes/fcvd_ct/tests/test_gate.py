@@ -38,8 +38,8 @@ EXPECTED = {
     "select_to_cf": ("rejected", "ct-breaking", "equivalent", 0),
     # Unrolled loops: bounded on both halves, and the skeleton computes what the loop did.
     "scf_for_to_cf": ("verified", "ct-preserving", "equivalent", 0),
-    # No semantics for `scf.while`, so neither half has an answer. Never a pass.
-    "while_unsupported": ("unknown", "unknown", "unknown", 0),
+    # No semantics for `cf.switch`, so neither half has an answer. Never a pass.
+    "switch_unsupported": ("unknown", "unknown", "unknown", 0),
 }
 
 

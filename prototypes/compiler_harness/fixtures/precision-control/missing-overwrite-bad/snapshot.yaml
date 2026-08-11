@@ -1,0 +1,123 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: missing_overwrite_bad
+c_evidence:
+- fixtures/precision-control/missing-overwrite-bad/missing_overwrite_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- arg: 1
+  name: public_value
+- observable: return
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-return-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      id: return
+      first_bad: true
+    because: without the public overwrite the returned reload contains the secret
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - missing_overwrite_bad
+        function.signatures:
+          contains:
+          - missing_overwrite_bad|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.alloca
+          - llvm.store
+          - llvm.load
+          - llvm.return
+        operation.occurrences.llvm.store:
+          count:
+            eq: 1
+        memory.alloca_counts:
+          contains:
+          - missing_overwrite_bad|count=1|element=i32
+        memory.store_accesses:
+          contains:
+          - missing_overwrite_bad|value=arg:0|address=alloca(count=1;element=i32)
+        memory.load_accesses:
+          contains:
+          - missing_overwrite_bad|address=alloca(count=1;element=i32)
+        return.roots:
+          contains:
+          - missing_overwrite_bad|op:llvm.load:3
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - missing_overwrite_bad
+        function.signatures:
+          contains:
+          - missing_overwrite_bad|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.alloca
+          - llvm.store
+          - llvm.load
+          - llvm.return
+        operation.occurrences.llvm.store:
+          count:
+            eq: 1
+        memory.alloca_counts:
+          contains:
+          - missing_overwrite_bad|count=1|element=i32
+        memory.store_accesses:
+          contains:
+          - missing_overwrite_bad|value=arg:0|address=alloca(count=1;element=i32)
+        memory.load_accesses:
+          contains:
+          - missing_overwrite_bad|address=alloca(count=1;element=i32)
+        return.roots:
+          contains:
+          - missing_overwrite_bad|op:llvm.load:3
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - secret
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: sat
+        query.audit-all-first-difference:
+          equals:
+            kind: Output
+            field: valueBytes
+        backend.agreement:
+          equals: true

@@ -1,0 +1,46 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, not a
+; canonical frozen Rev4 artifact.bc. Tier CandidateOnly.
+;
+; NF-A05 "Complete fixed-vector scalarization": a private <4 x i32> lane-wise
+; computation has no ABI/global escape; every lane, PHI, select, and constant
+; shuffle is converted to scalar SSA and no vector type remains. Accepted only
+; "if the residual inventory contains zero vector items".
+;
+; This module is deliberately a SINGLE function with a fully scalar ABI
+; (i32/i1 in, i32 out), so the vector values are genuinely private and the
+; quantitative criterion can reach a real zero over the whole module. It
+; exercises each construct NF-A05 names: lanes (insertelement/extractelement),
+; a constant shuffle (both a splat and a fixed permutation), a vector select,
+; and a vector PHI.
+;
+; Nothing here asserts NFConforms or any ModelStatus.
+
+define i32 @a05_private_lanewise(i32 %x0, i32 %x1, i32 %x2, i32 %x3, i32 %k, i1 %flag) {
+entry:
+  %l0 = insertelement <4 x i32> poison, i32 %x0, i64 0
+  %l1 = insertelement <4 x i32> %l0, i32 %x1, i64 1
+  %l2 = insertelement <4 x i32> %l1, i32 %x2, i64 2
+  %lane = insertelement <4 x i32> %l2, i32 %x3, i64 3
+  %kseed = insertelement <4 x i32> poison, i32 %k, i64 0
+  %ksplat = shufflevector <4 x i32> %kseed, <4 x i32> poison, <4 x i32> zeroinitializer
+  %sum = add <4 x i32> %lane, %ksplat
+  %prod = mul <4 x i32> %sum, <i32 3, i32 5, i32 7, i32 11>
+  %reversed = shufflevector <4 x i32> %prod, <4 x i32> poison, <4 x i32> <i32 3, i32 2, i32 1, i32 0>
+  %chosen = select i1 %flag, <4 x i32> %prod, <4 x i32> %reversed
+  br i1 %flag, label %join, label %alt
+
+alt:
+  %masked = xor <4 x i32> %chosen, <i32 1, i32 1, i32 1, i32 1>
+  br label %join
+
+join:
+  %merged = phi <4 x i32> [ %chosen, %entry ], [ %masked, %alt ]
+  %e0 = extractelement <4 x i32> %merged, i64 0
+  %e1 = extractelement <4 x i32> %merged, i64 1
+  %e2 = extractelement <4 x i32> %merged, i64 2
+  %e3 = extractelement <4 x i32> %merged, i64 3
+  %pair0 = add i32 %e0, %e1
+  %pair1 = add i32 %e2, %e3
+  %total = add i32 %pair0, %pair1
+  ret i32 %total
+}

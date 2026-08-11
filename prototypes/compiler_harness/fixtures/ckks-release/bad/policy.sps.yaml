@@ -1,0 +1,47 @@
+entry: ckks_unsafe_release_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  raw-approximate-plaintext:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  public-sanitizer-mask:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+  certificate-ok:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  public-release:
+    visibility: public
+  return:
+    visibility: secret
+releases:
+  sanitized-release:
+    locator: {helper: sanitized-release, call-ordinal: 0}
+    audience: public
+    type: {kind: bv, width: 32, byte-order: little}
+    expression:
+      bit-and:
+        left:
+          bit-and:
+            left: {component: raw-approximate-plaintext}
+            right: {component: public-sanitizer-mask}
+        right:
+          negate:
+            bit-and:
+              left: {component: certificate-ok}
+              right: {constant: 1}
+    guard: true
+    payload-footprint: [0, 1, 2, 3]
+    multiplicity: 1

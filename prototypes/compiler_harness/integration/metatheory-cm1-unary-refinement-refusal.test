@@ -1,0 +1,128 @@
+# REQUIRES: clang, host-execution, x86-target
+#
+# MT-CM1 -- UNARY REFINEMENT DOES NOT LIFT, AND THE DEPLOYMENT AXIS CANNOT
+# BE TALKED INTO CLOSING.
+#
+# Metatheory section 0.2 lists MT-CM1's invalid principle as "unary P4
+# refinement preserves confidentiality". Section 15 gives the finite system: an
+# ideal component whose nondeterministic choice r in {64,128} is independent of
+# the secret and whose declared two-run coupling requires the same r on both
+# sides, against a concrete component that picks the length from the secret.
+# Every single concrete run is a member of the ideal one-run trace set, so
+# unary refinement holds; the pair h1=0, h2=1 still leaks the bit, because the
+# two unary ideal witnesses must choose 64 and 128 and therefore violate the
+# ideal same-choice coupling. Metatheory 13.1: the ideal witnesses "cannot be
+# chosen independently for the two runs", and "that jointness is the property
+# missing from unary trace refinement". A-P4 requires PairedRefines_A of every
+# refinement-bearing component before any real-deployment claim.
+#
+# THREE THINGS THIS TEST PINS.
+#
+# 1. A concrete executed two-run witness for MT-CM1's arithmetic.
+# 2. That the ideal and concrete components are INDISTINGUISHABLE by any unary
+#    length check: at -O2 they are the same instruction sequence with the same
+#    two constants, differing only in which argument drives the selector.
+# 3. That a bundle ASSERTING DeploymentStatus Closed is refused. Specification
+#    section 17 says that until a closed serialization, validation algorithm,
+#    stable failure mapping, and authenticated restricted-storage binding
+#    exist, "`P4EvidenceBundle` is a mathematical metavariable only and
+#    `DeploymentClosed(C,I)` is not an implementable V2 status constructor",
+#    and base-profile tools "must report `Open(P4EvidenceProfileUnavailable)`".
+#    Nothing here validates a P4 bundle -- there is no such validator, and
+#    building one is not what this test is for. It checks the refusal.
+#
+# WHAT THIS TEST DOES NOT CLAIM. No ModelStatus, no NFConforms, no receipt, no
+# witness in a public status, and no property of the 22.1.8 normative boundary,
+# which does not exist here. The three result axes stay independent: this file
+# touches the deployment axis only, and only to show a refusal.
+
+# --- 1. the executed two-run witness ----------------------------------------
+# RUN: %host-cc -std=c11 -Wall -Wextra -Wpedantic -Werror -O0 %harness/integration/Inputs/metatheory-cm1/unary_refinement.c -o %t.witness
+# RUN: %t.witness > %t.witness.out
+# RUN: %FileCheck %s --check-prefix=WITNESS --input-file=%t.witness.out
+
+# WITNESS: MT-CM1 two-run witness; tier=CandidateOnly; no status is computed
+# WITNESS: ideal one-run trace set: send_length(64) send_length(128)
+# Each single concrete run is inside the ideal set: unary refinement holds.
+# WITNESS: unary h=0: send_length(64) in-ideal-set=yes
+# WITNESS: unary h=1: send_length(128) in-ideal-set=yes
+# WITNESS: UnaryRefines(C,J): HOLDS
+# The ideal, on its declared same-choice coupling, agrees on both lanes.
+# WITNESS: ideal coupled pair r=0: lane1=64 lane2=64 equal=yes
+# WITNESS: ideal coupled pair r=1: lane1=128 lane2=128 equal=yes
+# The concrete pair does not, so the ideal witnesses would have to be picked
+# independently per lane, which the coupling forbids.
+# WITNESS: concrete pair h1=0 h2=1: lane1=64 lane2=128 equal=no
+# WITNESS: ideal witnesses needed for that concrete pair: r_lane1=0 r_lane2=1
+# WITNESS: same-choice coupling: VIOLATED
+# WITNESS: PairedRefines_A(C,J): FAILS
+
+# --- 2. a unary length check cannot tell the two components apart ------------
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -Werror -fno-builtin -fno-discard-value-names --target=x86_64-unknown-linux-gnu -O2 -S -emit-llvm %harness/integration/Inputs/metatheory-cm1/unary_refinement.c -o %t.shape.ll
+
+# Both components emit exactly the same two lengths, from the same select with
+# the same constant pair. Pinned as a cardinality, not a presence check.
+# RUN: grep -c 'select i1 %%tobool.not, i32 64, i32 128' %t.shape.ll > %t.shape.count
+# RUN: %FileCheck %s --check-prefix=SAMESET --input-file=%t.shape.count
+# SAMESET: {{^2$}}
+
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.shape.ll
+# The ideal selects on its choice argument and never mentions the secret one.
+# SHAPE-LABEL: define {{.*}}@mt_cm1_ideal_send_length(i32 noundef %secret_bit, i32 noundef %ideal_choice)
+# SHAPE: %tobool.not = icmp eq i32 %ideal_choice, 0
+# SHAPE-NEXT: %cond = select i1 %tobool.not, i32 64, i32 128
+# SHAPE-NEXT: ret i32 %cond
+# The concrete one is the identical sequence with the secret in that slot.
+# SHAPE-LABEL: define {{.*}}@mt_cm1_concrete_send_length(i32 noundef %secret_bit)
+# SHAPE: %tobool.not = icmp eq i32 %secret_bit, 0
+# SHAPE-NEXT: %cond = select i1 %tobool.not, i32 64, i32 128
+# SHAPE-NEXT: ret i32 %cond
+
+# The ideal body really is free of its secret parameter, so no unary reading of
+# the ideal could have exposed the difference either.
+# RUN: %python -c "import pathlib,re,sys; t=pathlib.Path(sys.argv[1]).read_text(); m=re.search(r'define [^\n]*@mt_cm1_ideal_send_length[^{]*\{(.*?)\n\}', t, re.S); sys.stdout.write('ideal-body-mentions-secret=' + ('yes' if '%%secret_bit' in m.group(1) else 'no') + '\n')" %t.shape.ll | %FileCheck %s --check-prefix=IDEALFREE
+# IDEALFREE: ideal-body-mentions-secret=no
+
+# --- 3. asserting a Closed deployment status is refused ---------------------
+#
+# Two independent enforcers get the same mutation, because "every bundle must
+# declare Open" was previously only ever exercised positively.
+# The copy is complete enough that the pristine tree passes cleanly, so the
+# only diagnostic below is the one the mutation causes.
+# RUN: rm -rf %t.root
+# RUN: mkdir -p %t.root/c %t.root/tools
+# RUN: cp %harness/c/check_harness.py %t.root/c/check_harness.py
+# RUN: cp %harness/tools/check_sps_lecture_cases.py %t.root/tools/check_sps_lecture_cases.py
+# RUN: cp %harness/tools/sps_aggregation.py %t.root/tools/sps_aggregation.py
+# RUN: cp %harness/tools/fixture_layout.py %t.root/tools/fixture_layout.py
+# RUN: cp %harness/tools/sps_interfaces.py %t.root/tools/sps_interfaces.py
+# RUN: cp %harness/tools/checkpoint_model.py %t.root/tools/checkpoint_model.py
+# RUN: cp %harness/tools/counterexample_pair.py %t.root/tools/counterexample_pair.py
+# RUN: cp %harness/tools/checkpoint_extractors.py %t.root/tools/checkpoint_extractors.py
+# RUN: cp -R %harness/contracts %t.root/contracts
+# RUN: cp -R %fixtures %t.root/fixtures
+# RUN: cp -R %harness/integration %t.root/integration
+# RUN: cp -R %harness/p4-risk %t.root/p4-risk
+# RUN: %python %t.root/c/check_harness.py artifacts
+
+# A candidate bundle claims Closed(P4EvidenceBundle) and repairs its own
+# recorded sidecar digest, so nothing but the status itself is wrong.
+# RUN: %python -c "import hashlib,json,pathlib; root=pathlib.Path(r'%t.root/fixtures/abi-alias/disjoint-control/candidate'); side=root/'expected-report.json'; value=json.loads(side.read_text()); value['expected']['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v2'}]}; side.write_text(json.dumps(value,indent=2)+'\n'); identity_path=root/'artifact.json'; identity=json.loads(identity_path.read_text()); identity['candidate_sidecar_sha256']['expected-report.json']=hashlib.sha256(side.read_bytes()).hexdigest(); identity_path.write_text(json.dumps(identity,indent=2)+'\n')"
+# RUN: not %python %t.root/c/check_harness.py artifacts > %t.closed.out 2>&1
+# RUN: %FileCheck %s --check-prefix=CLOSED --input-file=%t.closed.out
+# CLOSED: fixtures/abi-alias/disjoint-control/candidate/expected-report.json: checked-in candidate deployment must remain Open(P4EvidenceProfileUnavailable)
+# RUN: grep -c '^error' %t.closed.out | %FileCheck %s --check-prefix=CLOSED-ONLY
+# CLOSED-ONLY: {{^1$}}
+
+# The same assertion in a lecture fixture contract is refused by a different
+# checker, so the rule is not one file's private opinion.
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.root/integration/Inputs/sps-lecture/cases.json'); v=json.loads(p.read_text()); v['cases'][0]['expected_deployment_status']={'tag':'Closed','args':[{'tag':'P4EvidenceBundle','bundleId':'SPS-Harness-Asserted-P4-Bundle-v2'}]}; p.write_text(json.dumps(v,indent=2)+'\n')"
+# RUN: not %python %t.root/tools/check_sps_lecture_cases.py --root %t.root 2>&1 | %FileCheck %s --check-prefix=LECTURE-CLOSED
+# LECTURE-CLOSED: 01-secret-branch: wrong base-profile deployment status
+
+# CONTROL: the unmutated tree passes both, so the refusals above are the
+# mutation and not a broken copy.
+# RUN: %python %harness/c/check_harness.py artifacts
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness > %t.lecture.out
+# RUN: %FileCheck %s --check-prefix=LECTURE-OK --input-file=%t.lecture.out
+# LECTURE-OK: verified 01-secret-branch: fixture-contract only; tier=CandidateOnly; claimable=false; ModelStatus=not-computed

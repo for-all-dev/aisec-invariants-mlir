@@ -1,0 +1,47 @@
+; NF-CM03 preflight source.  Every Class-A spelling appears on a definition
+; and its corresponding call site so round-trip preservation is observable.
+
+source_filename = "cm03-abi-attributes.ll"
+
+%Pair = type { i64, i64 }
+
+define signext i8 @cm03_signext(i8 signext %value) {
+entry:
+  ret i8 %value
+}
+
+define zeroext i8 @cm03_zeroext(i8 zeroext %value) {
+entry:
+  ret i8 %value
+}
+
+define void @cm03_aggregate(ptr sret(%Pair) %out, ptr byval(%Pair) align 8 %input) {
+entry:
+  %value = load %Pair, ptr %input, align 8
+  store %Pair %value, ptr %out, align 8
+  ret void
+}
+
+define fastcc i32 @cm03_fastcc(i32 inreg %value) {
+entry:
+  ret i32 %value
+}
+
+define i32 @cm03_ccc(i32 %value) {
+entry:
+  ret i32 %value
+}
+
+define i32 @cm03_call_sites(ptr %out, ptr %input, i8 %signed_value, i8 %unsigned_value, i32 %register_value) {
+entry:
+  %signed_result = call signext i8 @cm03_signext(i8 signext %signed_value)
+  %unsigned_result = call zeroext i8 @cm03_zeroext(i8 zeroext %unsigned_value)
+  call void @cm03_aggregate(ptr sret(%Pair) %out, ptr byval(%Pair) align 8 %input)
+  %fast_result = call fastcc i32 @cm03_fastcc(i32 inreg %register_value)
+  %ccc_result = call i32 @cm03_ccc(i32 %fast_result)
+  %signed_wide = zext i8 %signed_result to i32
+  %unsigned_wide = zext i8 %unsigned_result to i32
+  %sum = add i32 %signed_wide, %unsigned_wide
+  %total = add i32 %sum, %ccc_result
+  ret i32 %total
+}

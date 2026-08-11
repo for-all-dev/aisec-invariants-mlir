@@ -1,0 +1,26 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary LLVM 17.0.6 bitcode input, tier
+; CandidateOnly.
+;
+; The NF-A05 companion that does NOT reach zero. A private, non-escaping
+; <4 x i32> staging buffer looks like the same lane-wise pattern, and
+; `-scalarize-load-store` really does split the store and the load into
+; per-lane scalar accesses -- but the `alloca <4 x i32>` keeps a vector TYPE.
+;
+; NF-A05's criterion is "no vector type or operation" and "zero vector items",
+; not "no vector operations". This module exists so that the quantitative check
+; is exercised against a case that superficially looks fully scalarized.
+
+define i32 @a05_private_buffer(i32 %x0, i32 %x1, i32 %x2, i32 %x3) {
+entry:
+  %buffer = alloca <4 x i32>, align 16
+  %l0 = insertelement <4 x i32> poison, i32 %x0, i64 0
+  %l1 = insertelement <4 x i32> %l0, i32 %x1, i64 1
+  %l2 = insertelement <4 x i32> %l1, i32 %x2, i64 2
+  %lane = insertelement <4 x i32> %l2, i32 %x3, i64 3
+  store <4 x i32> %lane, ptr %buffer, align 16
+  %back = load <4 x i32>, ptr %buffer, align 16
+  %e0 = extractelement <4 x i32> %back, i64 0
+  %e3 = extractelement <4 x i32> %back, i64 3
+  %total = add i32 %e0, %e3
+  ret i32 %total
+}

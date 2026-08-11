@@ -1,0 +1,23 @@
+entry: bound_secret_trip_count_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility:
+      world: false
+      members:
+      - observer
+      joint: []
+components:
+  secret-count:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs:
+  public-sink:
+    visibility: public
+releases: {}

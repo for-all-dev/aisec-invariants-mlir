@@ -1,0 +1,22 @@
+\section{Related Work}
+
+% OUTLINE ONLY. priorlit/ currently holds one summary (csi_nn_paper) —
+% this section needs the DBLP/Scholar sweep tracked in issue #23.
+
+\begin{itemize}
+  \item Side-channel extraction of model internals: CSI-NN
+    \cite{batina2019csinn} and successors; where our asset/observer grid
+    places them.
+  \item Timing leaks in compiled crypto: KyberSlash \cite{kyberslash2024};
+    constant-time verification (ct-verif, Binsec/Rel lineage) --- hand
+    kernels, not compilers.
+  \item Compiler correctness: CompCert, Alive2, translation validation
+    \cite{lopes2021alive2} --- correctness without secrecy; our two-property
+    extension.
+  \item Secure compilation / full abstraction --- the theory frame our
+    per-pass specs approximate.
+  \item MLIR \cite{lattner2021mlir} and Polygeist \cite{moses2021polygeist}
+    as substrate; MLIR-TV and dialect-level verification efforts
+    (\texttt{docs/research/mlir-tv-custom-dialect.agents.md}).
+  \item IFC dialects claim-check (``first MLIR IFC dialect'', issue \#23).
+\end{itemize}

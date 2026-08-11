@@ -1,0 +1,77 @@
+# Rev4.1 module requiredness, modeled only as nonclaimable harness state.
+#
+# This contract does not run SPS and cannot issue ModelStatus.  It checks the
+# completion gates that surround aggregation, using vendored Rev4.1 blocker,
+# reason, and policy-status spellings.
+
+# Candidate discovery may be skipped, and running it with findings changes no
+# completion gate.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case candidate-search-not-run | %FileCheck %s --check-prefix=CANDIDATE-NONE
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case candidate-findings-do-not-vote | %FileCheck %s --check-prefix=CANDIDATE-FINDINGS
+# CANDIDATE-NONE: proof=[]; finalization=[]; completion-ready=true
+# CANDIDATE-FINDINGS: proof=[]; finalization=[]; completion-ready=true
+
+# Healthy diagnostic conclusions and timing findings are advisory: even a
+# RelationalRequired/high-selector arm creates no blocker.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case diagnostic-conclusions-do-not-vote | %FileCheck %s --check-prefix=DIAGNOSTIC-ADVISORY
+# DIAGNOSTIC-ADVISORY: proof=[]; finalization=[]; completion-ready=true
+# DIAGNOSTIC-ADVISORY-SAME: proof-axis=WouldYieldProvedIfAuthoritativeRun; model=NotComputed
+
+# Missing and malformed mandatory diagnostic health both become the exact
+# vendored ProofCompletion reason.  The compact dump also proves that the row
+# is a structurally valid BlockerRecordV2 rather than an untyped string.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case missing-diagnostic-health | %FileCheck %s --check-prefix=DIAGNOSTIC-MISSING
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case partial-entry-coalition-coverage | %FileCheck %s --check-prefix=DIAGNOSTIC-PARTIAL
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case malformed-diagnostic-health | %FileCheck %s --check-prefix=DIAGNOSTIC-MALFORMED
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case missing-diagnostic-health --dump-json | %FileCheck %s --check-prefix=DIAGNOSTIC-TYPED
+# DIAGNOSTIC-MISSING: proof=['DiagnosticHealthFailure']; finalization=[]; completion-ready=false
+# DIAGNOSTIC-MISSING-SAME: proof-axis=Open; model=NotComputed
+# DIAGNOSTIC-PARTIAL: proof=['DiagnosticHealthFailure']; finalization=[]; completion-ready=false
+# DIAGNOSTIC-PARTIAL-SAME: proof-axis=Open; model=NotComputed
+# DIAGNOSTIC-MALFORMED: proof=['DiagnosticHealthFailure']; finalization=[]; completion-ready=false
+# DIAGNOSTIC-MALFORMED-SAME: proof-axis=Open; model=NotComputed
+# DIAGNOSTIC-TYPED: "claimable":false
+# DIAGNOSTIC-TYPED-SAME: "formatId":"SPS-Harness-Required-Module-Evaluation-v2"
+# DIAGNOSTIC-TYPED-SAME: "modelStatus":{"tag":"NotComputed"}
+# DIAGNOSTIC-TYPED-SAME: "formatId":"SPS-Blocker-Record-v2"
+# DIAGNOSTIC-TYPED-SAME: "reasonClassId":"DiagnosticHealthFailure"
+# DIAGNOSTIC-TYPED-SAME: "scope":"ProofCompletion"
+
+# Every emitted diagnostic needs its timing-risk record.  Missing mandatory
+# report/P4 evidence is a RunFinalization blocker, so completion cannot occur
+# and no ModelStatus is synthesized.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case missing-timing-record | %FileCheck %s --check-prefix=TIMING-MISSING
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case missing-timing-record --dump-json | %FileCheck %s --check-prefix=TIMING-TYPED
+# TIMING-MISSING: proof=[]; finalization=['EvidenceFinalizationFailure']; completion-ready=false
+# TIMING-MISSING-SAME: model=NotComputed
+# TIMING-TYPED: "claimable":false
+# TIMING-TYPED-SAME: "tag":"EvidenceFinalizationFailure"
+# TIMING-TYPED-SAME: "tag":"ReportingBlocker"
+# TIMING-TYPED-SAME: "scope":"RunFinalization"
+
+# A completed run must have policy review.  Findings are an independent axis:
+# they are compatible with a proof gate that would yield Proved in an actual
+# complete SPS run, but this harness projection still emits NotComputed.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case missing-policy-review-for-completed-run | %FileCheck %s --check-prefix=POLICY-MISSING
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case policy-findings-preserve-proved-proof-axis | %FileCheck %s --check-prefix=POLICY-FINDINGS
+# POLICY-MISSING: finalization=['EvidenceFinalizationFailure']; completion-ready=false
+# POLICY-FINDINGS: proof=[]; finalization=[]; completion-ready=true
+# POLICY-FINDINGS-SAME: proof-axis=WouldYieldProvedIfAuthoritativeRun; model=NotComputed
+
+# Backend control delta is outside the model axis.  It is absent without
+# penalty until deployment closure is attempted; then it gates only deployment
+# evidence readiness, and a supplied record fills the slot.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case backend-delta-not-required-without-closure | %FileCheck %s --check-prefix=BACKEND-OPEN
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case backend-delta-required-for-closure | %FileCheck %s --check-prefix=BACKEND-REQUIRED
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --case backend-delta-closes-required-slot | %FileCheck %s --check-prefix=BACKEND-CLOSED
+# BACKEND-OPEN: completion-ready=true; backend-required=false; deployment-ready=true
+# BACKEND-REQUIRED: completion-ready=true; backend-required=true; deployment-ready=false
+# BACKEND-CLOSED: completion-ready=true; backend-required=true; deployment-ready=true
+
+# Every catalog arm remains harness-scoped and nonclaimable.
+# RUN: %python %S/../tools/check_required_modules.py %S/Inputs/required-modules/cases.json --dump-json > %t.all
+# RUN: grep -c '"claimable":false' %t.all | %FileCheck %s --check-prefix=COUNT-CLAIM
+# RUN: grep -c '"modelStatus":{"tag":"NotComputed"}' %t.all | %FileCheck %s --check-prefix=COUNT-MODEL
+# RUN: not grep -E '"modelStatus":\{"tag":"(Proved|Counterexample|Unknown)"' %t.all
+# COUNT-CLAIM: 12
+# COUNT-MODEL: 12

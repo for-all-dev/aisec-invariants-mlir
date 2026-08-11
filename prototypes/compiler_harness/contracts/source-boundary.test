@@ -1,0 +1,14 @@
+# REQUIRES: clang, llvm-config, clang-tooling
+
+# RUN: %python %S/Inputs/source_boundary_test.py %harness %llvm_bin | %FileCheck %s
+
+# CHECK: resolved temporary audience boundary and canonical coalition closure
+# CHECK-NEXT: resolved and fail-closed checked nonclaimable contract locators
+# CHECK-NEXT: rejected non-case-local ABI source path
+# CHECK-NEXT: rejected visibility in ABI authoring data
+# CHECK-NEXT: rejected duplicate policy YAML keys
+# CHECK-NEXT: rejected source/policy annotation drift
+# CHECK-NEXT: rejected missing helper call ordinal
+# CHECK-NEXT: rejected unproved release multiplicity
+# CHECK-NEXT: normal no-residue compilation treats warnings as errors
+# CHECK-NEXT: resolved inert C++ extern-C return annotation

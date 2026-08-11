@@ -1,0 +1,19 @@
+; REJECTED ARM: FP-width conversion. NF-A02 requires that "the frozen closure
+; contains no FP arithmetic, width conversion, or FP/integer numeric
+; conversion". `fptrunc`/`fpext` are the width-conversion pair.
+;
+; `fptrunc` is the sharper of the two: double -> float can turn a signalling
+; payload into a different one, which is exactly the ambiguity that
+; NoAmbiguousNaNResult_e(T) refuses to model.
+
+define float @a02_fp_width_narrowing(double %wide) {
+entry:
+  %narrow = fptrunc double %wide to float
+  ret float %narrow
+}
+
+define double @a02_fp_width_widening(float %narrow) {
+entry:
+  %wide = fpext float %narrow to double
+  ret double %wide
+}

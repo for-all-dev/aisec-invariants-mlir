@@ -1,0 +1,63 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: secret_embedding_index_bad
+c_evidence:
+- fixtures/secret-embedding-index/bad/secret_embedding_index_bad.c
+secret:
+- arg: 1
+  name: secret_index
+public:
+- observable: address
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: address-trace-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Memory
+      field: offsetClass
+      first_bad: true
+    because: the secret index chooses the table load address
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - secret_embedding_index_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.and
+          - llvm.zext
+          - llvm.getelementptr
+          - llvm.load
+    scanner-diagnostic:
+      kind: diagnostic
+      properties:
+        findings:
+          count:
+            eq: 1
+          contains:
+          - secret-dependent-address
+        blockers:
+          count:
+            eq: 0

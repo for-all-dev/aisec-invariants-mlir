@@ -1,0 +1,16 @@
+{
+  "formatId": "SPS-Harness-Stage-Report-v2",
+  "fixtureTier": {
+    "tag": "CandidateOnly"
+  },
+  "stageId": "ReleaseCarrierValidationV2",
+  "completedChecks": [
+    "InvalidCallableCarrierShapeCheckedV2"
+  ],
+  "findings": [],
+  "blockers": [],
+  "claimable": false,
+  "modelStatus": {
+    "tag": "Proved"
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "formatId": "SPS-Reference-Fixture-Catalog-v3",
+  "cases": [
+    {
+      "file": "bad-circuit-mutation-rejected.json",
+      "caseId": "bad-circuit-mutation-rejected",
+      "familyId": "NF-FX-BAD-CIRCUIT",
+      "kind": "artifact-mutation"
+    },
+    {
+      "file": "bad-circuit-mutation-resealed.json",
+      "caseId": "bad-circuit-mutation-resealed",
+      "familyId": "NF-FX-BAD-CIRCUIT",
+      "kind": "artifact-mutation"
+    },
+    {
+      "file": "bad-circuit-secret-branch.json",
+      "caseId": "bad-circuit-secret-branch",
+      "familyId": "NF-FX-BAD-CIRCUIT",
+      "kind": "noninterference"
+    },
+    {
+      "file": "bit-encoding-nonbyte.json",
+      "caseId": "bit-encoding-nonbyte",
+      "familyId": "NF-FX-BITENC-NONBYTE",
+      "kind": "bit-encoding"
+    },
+    {
+      "file": "host-release-malformed-audience-refusal.json",
+      "caseId": "host-release-malformed-audience-refusal",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "refusal"
+    },
+    {
+      "file": "host-release-unauthorized-visible.json",
+      "caseId": "host-release-unauthorized-visible",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "noninterference"
+    },
+    {
+      "file": "host-transfer-high-leak.json",
+      "caseId": "host-transfer-high-leak",
+      "familyId": "NF-FX-HOST-TRANSFER",
+      "kind": "noninterference"
+    },
+    {
+      "file": "host-transfer-malformed-host-refusal.json",
+      "caseId": "host-transfer-malformed-host-refusal",
+      "familyId": "NF-FX-HOST-TRANSFER",
+      "kind": "refusal"
+    },
+    {
+      "file": "loop-canonical-expand.json",
+      "caseId": "loop-canonical-expand",
+      "familyId": "NF-FX-LOOP-CANONICAL",
+      "kind": "expand"
+    },
+    {
+      "file": "output-missing-termination-refusal.json",
+      "caseId": "output-missing-termination-refusal",
+      "familyId": "NF-FX-OUTPUT-OMIT",
+      "kind": "refusal"
+    },
+    {
+      "file": "output-return-constant-control.json",
+      "caseId": "output-return-constant-control",
+      "familyId": "NF-FX-OUTPUT-RETURN",
+      "kind": "noninterference"
+    },
+    {
+      "file": "output-return-high-leak-unused-input.json",
+      "caseId": "output-return-high-leak-unused-input",
+      "familyId": "NF-FX-OUTPUT-RETURN",
+      "kind": "noninterference"
+    },
+    {
+      "file": "output-return-high-leak.json",
+      "caseId": "output-return-high-leak",
+      "familyId": "NF-FX-OUTPUT-RETURN",
+      "kind": "noninterference"
+    },
+    {
+      "file": "output-uninitialized-refusal.json",
+      "caseId": "output-uninitialized-refusal",
+      "familyId": "NF-FX-OUTPUT-UNINIT",
+      "kind": "refusal"
+    },
+    {
+      "file": "output-writeback-high-leak.json",
+      "caseId": "output-writeback-high-leak",
+      "familyId": "NF-FX-OUTPUT-WRITEBACK",
+      "kind": "noninterference"
+    },
+    {
+      "file": "release-authorized-retire.json",
+      "caseId": "release-authorized-retire",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "noninterference"
+    },
+    {
+      "file": "release-equal-then-output-leak.json",
+      "caseId": "release-equal-then-output-leak",
+      "familyId": "NF-FX-BAD-CIRCUIT",
+      "kind": "noninterference"
+    },
+    {
+      "file": "release-partial-footprint-replay-refusal.json",
+      "caseId": "release-partial-footprint-replay-refusal",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "product-profile-refusal"
+    },
+    {
+      "file": "release-presence-secret-branch.json",
+      "caseId": "release-presence-secret-branch",
+      "familyId": "NF-FX-HOST-RELEASE",
+      "kind": "noninterference"
+    },
+    {
+      "file": "replay-wire-reordered-rejected.json",
+      "caseId": "replay-wire-reordered-rejected",
+      "familyId": "NF-FX-REPLAY-WIRE",
+      "kind": "model-wire"
+    },
+    {
+      "file": "replay-wire-valid.json",
+      "caseId": "replay-wire-valid",
+      "familyId": "NF-FX-REPLAY-WIRE",
+      "kind": "model-wire"
+    }
+  ]
+}

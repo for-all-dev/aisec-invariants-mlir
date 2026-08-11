@@ -1,0 +1,41 @@
+# REQUIRES: aarch64-target, llc, llvm-17.0.6
+#
+# Register allocation creates memory observations that do not exist in the
+# frozen LLVM body. This is an artifact/deployment-boundary regression, not a
+# ModelStatus computation.
+
+# The cryptographic region has no source/LLVM local-memory operation. Its only
+# memory inputs are the caller-provided array loads.
+# RUN: %FileCheck %s --check-prefix=IR --input-file=%harness/ext/spill.ll
+
+# IR-LABEL: define i64 @crypt_region(
+# IR-NOT: alloca
+# IR-NOT: store
+# IR-DAG: tail call i64 @opaque
+# IR-DAG: tail call void asm sideeffect
+# IR-NOT: alloca
+# IR-NOT: store
+# IR: }
+
+# After register allocation, the same function owns spill slots and explicit
+# stores/reloads. Generate the snapshot from the checked LLVM input so stale
+# checked-in MIR cannot make this pass.
+# RUN: %llc -O2 -stop-after=virtregrewriter %harness/ext/spill.ll -o %t.vrr.mir
+# RUN: %FileCheck %s --check-prefix=VRR --input-file=%t.vrr.mir
+
+# VRR-LABEL: name:            crypt_region
+# VRR: stack:
+# VRR: type: spill-slot
+# VRR: STRXui $x0, %stack.0, 0
+# VRR: LDRXui %stack.0, 0
+# VRR-LABEL: name:            main
+
+# Frame lowering turns those abstract slots into concrete public SP offsets.
+# RUN: %llc -O2 -stop-after=prologepilog %harness/ext/spill.ll -o %t.pei.mir
+# RUN: %FileCheck %s --check-prefix=PEI --input-file=%t.pei.mir
+
+# PEI-LABEL: name:            crypt_region
+# PEI: type: spill-slot, offset:
+# PEI: STRXui $x0, $sp,
+# PEI: LDRXui $sp,
+# PEI-LABEL: name:            main

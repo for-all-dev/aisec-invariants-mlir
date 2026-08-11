@@ -1,0 +1,1285 @@
+--- |
+  ; ModuleID = 'spillg.ll'
+  source_filename = "spill.c"
+  target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
+  target triple = "arm64-apple-macosx16.0.0"
+  
+  @.str = private unnamed_addr constant [63 x i8] c"result=%llu  SECRET residue in freed frame = %u occurrence(s)\0A\00", align 1, !dbg !0
+  @__stack_chk_guard = external global ptr
+  
+  ; Function Attrs: noinline nounwind ssp uwtable(sync)
+  define i64 @crypt_region(i64 noundef %0, ptr nocapture noundef readonly %1, i32 noundef %2) local_unnamed_addr #0 align 64 !dbg !19 {
+    call void @llvm.dbg.value(metadata i64 %0, metadata !28, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata ptr %1, metadata !29, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i32 %2, metadata !30, metadata !DIExpression()), !dbg !51
+    %4 = load i64, ptr %1, align 8, !dbg !52, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %4, metadata !31, metadata !DIExpression()), !dbg !51
+    %5 = getelementptr inbounds i64, ptr %1, i64 1, !dbg !57
+    %6 = load i64, ptr %5, align 8, !dbg !57, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %6, metadata !32, metadata !DIExpression()), !dbg !51
+    %7 = getelementptr inbounds i64, ptr %1, i64 2, !dbg !58
+    %8 = load i64, ptr %7, align 8, !dbg !58, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %8, metadata !33, metadata !DIExpression()), !dbg !51
+    %9 = getelementptr inbounds i64, ptr %1, i64 3, !dbg !59
+    %10 = load i64, ptr %9, align 8, !dbg !59, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %10, metadata !34, metadata !DIExpression()), !dbg !51
+    %11 = getelementptr inbounds i64, ptr %1, i64 4, !dbg !60
+    %12 = load i64, ptr %11, align 8, !dbg !60, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %12, metadata !35, metadata !DIExpression()), !dbg !51
+    %13 = getelementptr inbounds i64, ptr %1, i64 5, !dbg !61
+    %14 = load i64, ptr %13, align 8, !dbg !61, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %14, metadata !36, metadata !DIExpression()), !dbg !51
+    %15 = getelementptr inbounds i64, ptr %1, i64 6, !dbg !62
+    %16 = load i64, ptr %15, align 8, !dbg !62, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %16, metadata !37, metadata !DIExpression()), !dbg !51
+    %17 = getelementptr inbounds i64, ptr %1, i64 7, !dbg !63
+    %18 = load i64, ptr %17, align 8, !dbg !63, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %18, metadata !38, metadata !DIExpression()), !dbg !51
+    %19 = getelementptr inbounds i64, ptr %1, i64 8, !dbg !64
+    %20 = load i64, ptr %19, align 8, !dbg !64, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %20, metadata !39, metadata !DIExpression()), !dbg !51
+    %21 = getelementptr inbounds i64, ptr %1, i64 9, !dbg !65
+    %22 = load i64, ptr %21, align 8, !dbg !65, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %22, metadata !40, metadata !DIExpression()), !dbg !51
+    %23 = getelementptr inbounds i64, ptr %1, i64 10, !dbg !66
+    %24 = load i64, ptr %23, align 8, !dbg !66, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %24, metadata !41, metadata !DIExpression()), !dbg !51
+    %25 = getelementptr inbounds i64, ptr %1, i64 11, !dbg !67
+    %26 = load i64, ptr %25, align 8, !dbg !67, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %26, metadata !42, metadata !DIExpression()), !dbg !51
+    %27 = getelementptr inbounds i64, ptr %1, i64 12, !dbg !68
+    %28 = load i64, ptr %27, align 8, !dbg !68, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %28, metadata !43, metadata !DIExpression()), !dbg !51
+    %29 = getelementptr inbounds i64, ptr %1, i64 13, !dbg !69
+    %30 = load i64, ptr %29, align 8, !dbg !69, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %30, metadata !44, metadata !DIExpression()), !dbg !51
+    %31 = getelementptr inbounds i64, ptr %1, i64 14, !dbg !70
+    %32 = load i64, ptr %31, align 8, !dbg !70, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %32, metadata !45, metadata !DIExpression()), !dbg !51
+    %33 = getelementptr inbounds i64, ptr %1, i64 15, !dbg !71
+    %34 = load i64, ptr %33, align 8, !dbg !71, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 %34, metadata !46, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i32 0, metadata !47, metadata !DIExpression()), !dbg !72
+    call void @llvm.dbg.value(metadata i64 %4, metadata !31, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %32, metadata !45, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %30, metadata !44, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %28, metadata !43, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %26, metadata !42, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %24, metadata !41, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %22, metadata !40, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %20, metadata !39, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %18, metadata !38, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %16, metadata !37, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %14, metadata !36, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %12, metadata !35, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %10, metadata !34, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %8, metadata !33, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %6, metadata !32, metadata !DIExpression()), !dbg !51
+    %35 = icmp eq i32 %2, 0, !dbg !73
+    br i1 %35, label %38, label %36, !dbg !75
+  
+  36:                                               ; preds = %3
+    %37 = zext i32 %2 to i64, !dbg !73
+    br label %72, !dbg !75
+  
+  38:                                               ; preds = %72, %3
+    %39 = phi i64 [ %6, %3 ], [ %93, %72 ], !dbg !51
+    %40 = phi i64 [ %8, %3 ], [ %95, %72 ], !dbg !51
+    %41 = phi i64 [ %10, %3 ], [ %97, %72 ], !dbg !51
+    %42 = phi i64 [ %12, %3 ], [ %99, %72 ], !dbg !51
+    %43 = phi i64 [ %14, %3 ], [ %101, %72 ], !dbg !51
+    %44 = phi i64 [ %16, %3 ], [ %103, %72 ], !dbg !51
+    %45 = phi i64 [ %18, %3 ], [ %105, %72 ], !dbg !51
+    %46 = phi i64 [ %20, %3 ], [ %107, %72 ], !dbg !51
+    %47 = phi i64 [ %22, %3 ], [ %109, %72 ], !dbg !51
+    %48 = phi i64 [ %24, %3 ], [ %111, %72 ], !dbg !51
+    %49 = phi i64 [ %26, %3 ], [ %113, %72 ], !dbg !51
+    %50 = phi i64 [ %28, %3 ], [ %115, %72 ], !dbg !51
+    %51 = phi i64 [ %30, %3 ], [ %117, %72 ], !dbg !51
+    %52 = phi i64 [ %32, %3 ], [ %119, %72 ], !dbg !51
+    %53 = phi i64 [ %34, %3 ], [ %121, %72 ], !dbg !51
+    %54 = phi i64 [ %4, %3 ], [ %91, %72 ], !dbg !51
+    %55 = xor i64 %40, %39, !dbg !76
+    %56 = xor i64 %55, %41, !dbg !77
+    %57 = xor i64 %56, %42, !dbg !78
+    %58 = xor i64 %57, %43, !dbg !79
+    %59 = xor i64 %58, %44, !dbg !80
+    %60 = xor i64 %59, %45, !dbg !81
+    %61 = xor i64 %60, %46, !dbg !82
+    %62 = xor i64 %61, %47, !dbg !83
+    %63 = xor i64 %62, %48, !dbg !84
+    %64 = xor i64 %63, %49, !dbg !85
+    %65 = xor i64 %64, %50, !dbg !86
+    %66 = xor i64 %65, %51, !dbg !87
+    %67 = xor i64 %66, %52, !dbg !88
+    %68 = xor i64 %67, %53, !dbg !89
+    %69 = xor i64 %68, %54, !dbg !90
+    call void @llvm.dbg.value(metadata i64 %69, metadata !49, metadata !DIExpression()), !dbg !51
+    %70 = lshr i64 %0, 60, !dbg !91
+    %71 = add i64 %69, %70, !dbg !92
+    call void @llvm.dbg.value(metadata i64 %71, metadata !50, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !28, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !38, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !37, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !36, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !35, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !34, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !33, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !32, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !31, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !46, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !45, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !44, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !43, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !42, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !41, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !40, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !39, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 0, metadata !49, metadata !DIExpression()), !dbg !51
+    tail call void asm sideeffect "", "r,r,~{memory}"(i64 0, i64 0) #8, !dbg !93, !srcloc !94
+    ret i64 %71, !dbg !95
+  
+  72:                                               ; preds = %72, %36
+    %73 = phi i64 [ 0, %36 ], [ %122, %72 ]
+    %74 = phi i64 [ %4, %36 ], [ %91, %72 ]
+    %75 = phi i64 [ %34, %36 ], [ %121, %72 ]
+    %76 = phi i64 [ %32, %36 ], [ %119, %72 ]
+    %77 = phi i64 [ %30, %36 ], [ %117, %72 ]
+    %78 = phi i64 [ %28, %36 ], [ %115, %72 ]
+    %79 = phi i64 [ %26, %36 ], [ %113, %72 ]
+    %80 = phi i64 [ %24, %36 ], [ %111, %72 ]
+    %81 = phi i64 [ %22, %36 ], [ %109, %72 ]
+    %82 = phi i64 [ %20, %36 ], [ %107, %72 ]
+    %83 = phi i64 [ %18, %36 ], [ %105, %72 ]
+    %84 = phi i64 [ %16, %36 ], [ %103, %72 ]
+    %85 = phi i64 [ %14, %36 ], [ %101, %72 ]
+    %86 = phi i64 [ %12, %36 ], [ %99, %72 ]
+    %87 = phi i64 [ %10, %36 ], [ %97, %72 ]
+    %88 = phi i64 [ %8, %36 ], [ %95, %72 ]
+    %89 = phi i64 [ %6, %36 ], [ %93, %72 ]
+    call void @llvm.dbg.value(metadata i64 %74, metadata !31, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %73, metadata !47, metadata !DIExpression()), !dbg !72
+    call void @llvm.dbg.value(metadata i64 %75, metadata !46, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %76, metadata !45, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %77, metadata !44, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %78, metadata !43, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %79, metadata !42, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %80, metadata !41, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %81, metadata !40, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %82, metadata !39, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %83, metadata !38, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %84, metadata !37, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %85, metadata !36, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %86, metadata !35, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %87, metadata !34, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %88, metadata !33, metadata !DIExpression()), !dbg !51
+    call void @llvm.dbg.value(metadata i64 %89, metadata !32, metadata !DIExpression()), !dbg !51
+    %90 = xor i64 %74, %73, !dbg !96
+    %91 = tail call i64 @opaque(i64 noundef %90) #8, !dbg !98
+    call void @llvm.dbg.value(metadata i64 %91, metadata !31, metadata !DIExpression()), !dbg !51
+    %92 = add i64 %91, %89, !dbg !99
+    %93 = tail call i64 @opaque(i64 noundef %92) #8, !dbg !100
+    call void @llvm.dbg.value(metadata i64 %93, metadata !32, metadata !DIExpression()), !dbg !51
+    %94 = xor i64 %93, %88, !dbg !101
+    %95 = tail call i64 @opaque(i64 noundef %94) #8, !dbg !102
+    call void @llvm.dbg.value(metadata i64 %95, metadata !33, metadata !DIExpression()), !dbg !51
+    %96 = add i64 %95, %87, !dbg !103
+    %97 = tail call i64 @opaque(i64 noundef %96) #8, !dbg !104
+    call void @llvm.dbg.value(metadata i64 %97, metadata !34, metadata !DIExpression()), !dbg !51
+    %98 = xor i64 %97, %86, !dbg !105
+    %99 = tail call i64 @opaque(i64 noundef %98) #8, !dbg !106
+    call void @llvm.dbg.value(metadata i64 %99, metadata !35, metadata !DIExpression()), !dbg !51
+    %100 = add i64 %99, %85, !dbg !107
+    %101 = tail call i64 @opaque(i64 noundef %100) #8, !dbg !108
+    call void @llvm.dbg.value(metadata i64 %101, metadata !36, metadata !DIExpression()), !dbg !51
+    %102 = xor i64 %101, %84, !dbg !109
+    %103 = tail call i64 @opaque(i64 noundef %102) #8, !dbg !110
+    call void @llvm.dbg.value(metadata i64 %103, metadata !37, metadata !DIExpression()), !dbg !51
+    %104 = add i64 %103, %83, !dbg !111
+    %105 = tail call i64 @opaque(i64 noundef %104) #8, !dbg !112
+    call void @llvm.dbg.value(metadata i64 %105, metadata !38, metadata !DIExpression()), !dbg !51
+    %106 = xor i64 %105, %82, !dbg !113
+    %107 = tail call i64 @opaque(i64 noundef %106) #8, !dbg !114
+    call void @llvm.dbg.value(metadata i64 %107, metadata !39, metadata !DIExpression()), !dbg !51
+    %108 = add i64 %107, %81, !dbg !115
+    %109 = tail call i64 @opaque(i64 noundef %108) #8, !dbg !116
+    call void @llvm.dbg.value(metadata i64 %109, metadata !40, metadata !DIExpression()), !dbg !51
+    %110 = xor i64 %109, %80, !dbg !117
+    %111 = tail call i64 @opaque(i64 noundef %110) #8, !dbg !118
+    call void @llvm.dbg.value(metadata i64 %111, metadata !41, metadata !DIExpression()), !dbg !51
+    %112 = add i64 %111, %79, !dbg !119
+    %113 = tail call i64 @opaque(i64 noundef %112) #8, !dbg !120
+    call void @llvm.dbg.value(metadata i64 %113, metadata !42, metadata !DIExpression()), !dbg !51
+    %114 = xor i64 %113, %78, !dbg !121
+    %115 = tail call i64 @opaque(i64 noundef %114) #8, !dbg !122
+    call void @llvm.dbg.value(metadata i64 %115, metadata !43, metadata !DIExpression()), !dbg !51
+    %116 = add i64 %115, %77, !dbg !123
+    %117 = tail call i64 @opaque(i64 noundef %116) #8, !dbg !124
+    call void @llvm.dbg.value(metadata i64 %117, metadata !44, metadata !DIExpression()), !dbg !51
+    %118 = xor i64 %117, %76, !dbg !125
+    %119 = tail call i64 @opaque(i64 noundef %118) #8, !dbg !126
+    call void @llvm.dbg.value(metadata i64 %119, metadata !45, metadata !DIExpression()), !dbg !51
+    %120 = add i64 %119, %75, !dbg !127
+    %121 = tail call i64 @opaque(i64 noundef %120) #8, !dbg !128
+    call void @llvm.dbg.value(metadata i64 %121, metadata !46, metadata !DIExpression()), !dbg !51
+    %122 = add nuw nsw i64 %73, 1, !dbg !129
+    call void @llvm.dbg.value(metadata i64 %122, metadata !47, metadata !DIExpression()), !dbg !72
+    %123 = icmp eq i64 %37, %122, !dbg !73
+    br i1 %123, label %38, label %72, !dbg !75, !llvm.loop !130
+  }
+  
+  ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+  declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+  
+  ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
+  declare void @llvm.lifetime.start.p0(i64 immarg, ptr nocapture) #2
+  
+  declare !dbg !133 i64 @opaque(i64 noundef) local_unnamed_addr #3
+  
+  ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
+  declare void @llvm.lifetime.end.p0(i64 immarg, ptr nocapture) #2
+  
+  ; Function Attrs: nounwind ssp uwtable(sync)
+  define i32 @main() local_unnamed_addr #4 !dbg !136 {
+    %StackGuardSlot = alloca ptr, align 8
+    %1 = call ptr @llvm.stackguard()
+    call void @llvm.stackprotector(ptr %1, ptr %StackGuardSlot)
+    %2 = alloca [16 x i64], align 16
+    call void @llvm.lifetime.start.p0(i64 128, ptr nonnull %2) #8, !dbg !149
+    call void @llvm.dbg.declare(metadata ptr %2, metadata !141, metadata !DIExpression()), !dbg !150
+    call void @llvm.dbg.value(metadata i32 0, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 0, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 1, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 1, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4096, i64 4097>, ptr %2, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 2, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 2, metadata !145, metadata !DIExpression()), !dbg !151
+    %3 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 2, !dbg !154
+    call void @llvm.dbg.value(metadata i64 3, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 3, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4098, i64 4099>, ptr %3, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 4, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 4, metadata !145, metadata !DIExpression()), !dbg !151
+    %4 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 4, !dbg !154
+    call void @llvm.dbg.value(metadata i64 5, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 5, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4100, i64 4101>, ptr %4, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 6, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 6, metadata !145, metadata !DIExpression()), !dbg !151
+    %5 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 6, !dbg !154
+    call void @llvm.dbg.value(metadata i64 7, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 7, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4102, i64 4103>, ptr %5, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 8, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 8, metadata !145, metadata !DIExpression()), !dbg !151
+    %6 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 8, !dbg !154
+    call void @llvm.dbg.value(metadata i64 9, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 9, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4104, i64 4105>, ptr %6, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 10, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 10, metadata !145, metadata !DIExpression()), !dbg !151
+    %7 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 10, !dbg !154
+    call void @llvm.dbg.value(metadata i64 11, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 11, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4106, i64 4107>, ptr %7, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 12, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 12, metadata !145, metadata !DIExpression()), !dbg !151
+    %8 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 12, !dbg !154
+    call void @llvm.dbg.value(metadata i64 13, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 13, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4108, i64 4109>, ptr %8, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 14, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 14, metadata !145, metadata !DIExpression()), !dbg !151
+    %9 = getelementptr inbounds [16 x i64], ptr %2, i64 0, i64 14, !dbg !154
+    call void @llvm.dbg.value(metadata i64 15, metadata !145, metadata !DIExpression()), !dbg !151
+    call void @llvm.dbg.value(metadata i64 15, metadata !145, metadata !DIExpression()), !dbg !151
+    store <2 x i64> <i64 4110, i64 4111>, ptr %9, align 16, !dbg !152, !tbaa !53
+    call void @llvm.dbg.value(metadata i64 16, metadata !145, metadata !DIExpression()), !dbg !151
+    %10 = call i64 @crypt_region(i64 noundef -4539648156078575603, ptr noundef nonnull %2, i32 noundef 3), !dbg !155
+    call void @llvm.dbg.value(metadata i64 %10, metadata !147, metadata !DIExpression()), !dbg !156
+    tail call void @sink(i64 noundef %10) #8, !dbg !157
+    %11 = tail call fastcc i32 @probe_residue(), !dbg !158
+    call void @llvm.dbg.value(metadata i32 %11, metadata !148, metadata !DIExpression()), !dbg !156
+    %12 = tail call i32 (ptr, ...) @printf(ptr noundef nonnull dereferenceable(1) @.str, i64 noundef %10, i32 noundef %11), !dbg !159
+    call void @llvm.lifetime.end.p0(i64 128, ptr nonnull %2) #8, !dbg !160
+    ret i32 0, !dbg !161
+  }
+  
+  declare !dbg !162 void @sink(i64 noundef) local_unnamed_addr #3
+  
+  ; Function Attrs: nofree noinline nounwind ssp memory(inaccessiblemem: readwrite) uwtable(sync)
+  define internal fastcc i32 @probe_residue() unnamed_addr #5 align 64 !dbg !165 {
+    %StackGuardSlot = alloca ptr, align 8
+    %1 = call ptr @llvm.stackguard()
+    call void @llvm.stackprotector(ptr %1, ptr %StackGuardSlot)
+    %2 = alloca [512 x i64], align 8
+    call void @llvm.dbg.value(metadata i64 -4539648156078575603, metadata !169, metadata !DIExpression()), !dbg !179
+    call void @llvm.dbg.value(metadata i32 512, metadata !170, metadata !DIExpression()), !dbg !179
+    call void @llvm.lifetime.start.p0(i64 4096, ptr nonnull %2) #8, !dbg !180
+    call void @llvm.dbg.declare(metadata ptr %2, metadata !171, metadata !DIExpression()), !dbg !181
+    call void @llvm.dbg.value(metadata i32 0, metadata !176, metadata !DIExpression()), !dbg !179
+    call void @llvm.dbg.value(metadata i32 0, metadata !177, metadata !DIExpression()), !dbg !182
+    br label %4, !dbg !183
+  
+  3:                                                ; preds = %4
+    call void @llvm.lifetime.end.p0(i64 4096, ptr nonnull %2) #8, !dbg !184
+    ret i32 %9, !dbg !185
+  
+  4:                                                ; preds = %4, %0
+    %lsr.iv = phi i64 [ %lsr.iv.next, %4 ], [ 0, %0 ]
+    %5 = phi i32 [ 0, %0 ], [ %9, %4 ]
+    call void @llvm.dbg.value(metadata i64 %lsr.iv, metadata !177, metadata !DIExpression(DW_OP_consts, 8, DW_OP_div, DW_OP_stack_value)), !dbg !182
+    call void @llvm.dbg.value(metadata i32 %5, metadata !176, metadata !DIExpression()), !dbg !179
+    %scevgep = getelementptr i8, ptr %2, i64 %lsr.iv, !dbg !186
+    %6 = load volatile i64, ptr %scevgep, align 8, !dbg !186, !tbaa !53
+    %7 = icmp eq i64 %6, -4539648156078575603, !dbg !189
+    %8 = zext i1 %7 to i32, !dbg !190
+    %9 = add i32 %5, %8, !dbg !190
+    call void @llvm.dbg.value(metadata i32 %9, metadata !176, metadata !DIExpression()), !dbg !179
+    call void @llvm.dbg.value(metadata i64 %lsr.iv, metadata !177, metadata !DIExpression(DW_OP_consts, 8, DW_OP_div, DW_OP_consts, 1, DW_OP_plus, DW_OP_stack_value)), !dbg !182
+    %lsr.iv.next = add nuw nsw i64 %lsr.iv, 8, !dbg !191
+    %10 = icmp eq i64 %lsr.iv.next, 4096, !dbg !191
+    br i1 %10, label %3, label %4, !dbg !183, !llvm.loop !192
+  }
+  
+  ; Function Attrs: nofree nounwind
+  declare !dbg !194 noundef i32 @printf(ptr nocapture noundef readonly, ...) local_unnamed_addr #6
+  
+  ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+  declare void @llvm.dbg.value(metadata, metadata, metadata) #1
+  
+  ; Function Attrs: nocallback nofree nosync nounwind willreturn
+  declare ptr @llvm.stackguard() #7
+  
+  ; Function Attrs: nocallback nofree nosync nounwind willreturn
+  declare void @llvm.stackprotector(ptr, ptr) #7
+  
+  attributes #0 = { noinline nounwind ssp uwtable(sync) "frame-pointer"="non-leaf" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+crc,+dotprod,+fp-armv8,+fp16fml,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+sha3,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8.5a,+v8a,+zcm,+zcz" }
+  attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+  attributes #2 = { nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
+  attributes #3 = { "frame-pointer"="non-leaf" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+crc,+dotprod,+fp-armv8,+fp16fml,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+sha3,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8.5a,+v8a,+zcm,+zcz" }
+  attributes #4 = { nounwind ssp uwtable(sync) "frame-pointer"="non-leaf" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+crc,+dotprod,+fp-armv8,+fp16fml,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+sha3,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8.5a,+v8a,+zcm,+zcz" }
+  attributes #5 = { nofree noinline nounwind ssp memory(inaccessiblemem: readwrite) uwtable(sync) "frame-pointer"="non-leaf" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+crc,+dotprod,+fp-armv8,+fp16fml,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+sha3,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8.5a,+v8a,+zcm,+zcz" }
+  attributes #6 = { nofree nounwind "frame-pointer"="non-leaf" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="apple-m1" "target-features"="+aes,+crc,+dotprod,+fp-armv8,+fp16fml,+fullfp16,+lse,+neon,+ras,+rcpc,+rdm,+sha2,+sha3,+v8.1a,+v8.2a,+v8.3a,+v8.4a,+v8.5a,+v8a,+zcm,+zcz" }
+  attributes #7 = { nocallback nofree nosync nounwind willreturn }
+  attributes #8 = { nounwind }
+  
+  !llvm.module.flags = !{!7, !8, !9, !10, !11, !12, !13}
+  !llvm.dbg.cu = !{!14}
+  !llvm.ident = !{!18}
+  
+  !0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
+  !1 = distinct !DIGlobalVariable(scope: null, file: !2, line: 92, type: !3, isLocal: true, isDefinition: true)
+  !2 = !DIFile(filename: "spill.c", directory: "/Users/johnwu/code/aisec-invariants-mlir/prototypes/compiler_harness/ext")
+  !3 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 504, elements: !5)
+  !4 = !DIBasicType(name: "char", size: 8, encoding: DW_ATE_signed_char)
+  !5 = !{!6}
+  !6 = !DISubrange(count: 63)
+  !7 = !{i32 2, !"SDK Version", [2 x i32] [i32 26, i32 5]}
+  !8 = !{i32 7, !"Dwarf Version", i32 4}
+  !9 = !{i32 2, !"Debug Info Version", i32 3}
+  !10 = !{i32 1, !"wchar_size", i32 4}
+  !11 = !{i32 8, !"PIC Level", i32 2}
+  !12 = !{i32 7, !"uwtable", i32 1}
+  !13 = !{i32 7, !"frame-pointer", i32 1}
+  !14 = distinct !DICompileUnit(language: DW_LANG_C11, file: !2, producer: "Homebrew clang version 17.0.6", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !15, globals: !17, splitDebugInlining: false, nameTableKind: Apple, sysroot: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", sdk: "MacOSX.sdk")
+  !15 = !{!16}
+  !16 = !DIBasicType(name: "unsigned long long", size: 64, encoding: DW_ATE_unsigned)
+  !17 = !{!0}
+  !18 = !{!"Homebrew clang version 17.0.6"}
+  !19 = distinct !DISubprogram(name: "crypt_region", scope: !2, file: !2, line: 31, type: !20, scopeLine: 32, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !14, retainedNodes: !27)
+  !20 = !DISubroutineType(types: !21)
+  !21 = !{!22, !22, !24, !26}
+  !22 = !DIDerivedType(tag: DW_TAG_typedef, name: "uint64_t", file: !23, line: 31, baseType: !16)
+  !23 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_types/_uint64_t.h", directory: "")
+  !24 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !25, size: 64)
+  !25 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !22)
+  !26 = !DIBasicType(name: "unsigned int", size: 32, encoding: DW_ATE_unsigned)
+  !27 = !{!28, !29, !30, !31, !32, !33, !34, !35, !36, !37, !38, !39, !40, !41, !42, !43, !44, !45, !46, !47, !49, !50}
+  !28 = !DILocalVariable(name: "key", arg: 1, scope: !19, file: !2, line: 31, type: !22)
+  !29 = !DILocalVariable(name: "in", arg: 2, scope: !19, file: !2, line: 31, type: !24)
+  !30 = !DILocalVariable(name: "n", arg: 3, scope: !19, file: !2, line: 31, type: !26)
+  !31 = !DILocalVariable(name: "a", scope: !19, file: !2, line: 33, type: !22)
+  !32 = !DILocalVariable(name: "b", scope: !19, file: !2, line: 33, type: !22)
+  !33 = !DILocalVariable(name: "c", scope: !19, file: !2, line: 33, type: !22)
+  !34 = !DILocalVariable(name: "d", scope: !19, file: !2, line: 33, type: !22)
+  !35 = !DILocalVariable(name: "e", scope: !19, file: !2, line: 34, type: !22)
+  !36 = !DILocalVariable(name: "f", scope: !19, file: !2, line: 34, type: !22)
+  !37 = !DILocalVariable(name: "g", scope: !19, file: !2, line: 34, type: !22)
+  !38 = !DILocalVariable(name: "h", scope: !19, file: !2, line: 34, type: !22)
+  !39 = !DILocalVariable(name: "i", scope: !19, file: !2, line: 35, type: !22)
+  !40 = !DILocalVariable(name: "j", scope: !19, file: !2, line: 35, type: !22)
+  !41 = !DILocalVariable(name: "k", scope: !19, file: !2, line: 35, type: !22)
+  !42 = !DILocalVariable(name: "l", scope: !19, file: !2, line: 35, type: !22)
+  !43 = !DILocalVariable(name: "m", scope: !19, file: !2, line: 36, type: !22)
+  !44 = !DILocalVariable(name: "o", scope: !19, file: !2, line: 36, type: !22)
+  !45 = !DILocalVariable(name: "p", scope: !19, file: !2, line: 36, type: !22)
+  !46 = !DILocalVariable(name: "q", scope: !19, file: !2, line: 36, type: !22)
+  !47 = !DILocalVariable(name: "t", scope: !48, file: !2, line: 38, type: !26)
+  !48 = distinct !DILexicalBlock(scope: !19, file: !2, line: 38, column: 5)
+  !49 = !DILocalVariable(name: "acc", scope: !19, file: !2, line: 59, type: !22)
+  !50 = !DILocalVariable(name: "res", scope: !19, file: !2, line: 61, type: !22)
+  !51 = !DILocation(line: 0, scope: !19)
+  !52 = !DILocation(line: 33, column: 18, scope: !19)
+  !53 = !{!54, !54, i64 0}
+  !54 = !{!"long long", !55, i64 0}
+  !55 = !{!"omnipotent char", !56, i64 0}
+  !56 = !{!"Simple C/C++ TBAA"}
+  !57 = !DILocation(line: 33, column: 29, scope: !19)
+  !58 = !DILocation(line: 33, column: 40, scope: !19)
+  !59 = !DILocation(line: 33, column: 51, scope: !19)
+  !60 = !DILocation(line: 34, column: 18, scope: !19)
+  !61 = !DILocation(line: 34, column: 29, scope: !19)
+  !62 = !DILocation(line: 34, column: 40, scope: !19)
+  !63 = !DILocation(line: 34, column: 51, scope: !19)
+  !64 = !DILocation(line: 35, column: 18, scope: !19)
+  !65 = !DILocation(line: 35, column: 29, scope: !19)
+  !66 = !DILocation(line: 35, column: 40, scope: !19)
+  !67 = !DILocation(line: 35, column: 52, scope: !19)
+  !68 = !DILocation(line: 36, column: 18, scope: !19)
+  !69 = !DILocation(line: 36, column: 30, scope: !19)
+  !70 = !DILocation(line: 36, column: 42, scope: !19)
+  !71 = !DILocation(line: 36, column: 54, scope: !19)
+  !72 = !DILocation(line: 0, scope: !48)
+  !73 = !DILocation(line: 38, column: 28, scope: !74)
+  !74 = distinct !DILexicalBlock(scope: !48, file: !2, line: 38, column: 5)
+  !75 = !DILocation(line: 38, column: 5, scope: !48)
+  !76 = !DILocation(line: 59, column: 22, scope: !19)
+  !77 = !DILocation(line: 59, column: 26, scope: !19)
+  !78 = !DILocation(line: 59, column: 30, scope: !19)
+  !79 = !DILocation(line: 59, column: 34, scope: !19)
+  !80 = !DILocation(line: 59, column: 38, scope: !19)
+  !81 = !DILocation(line: 59, column: 42, scope: !19)
+  !82 = !DILocation(line: 59, column: 46, scope: !19)
+  !83 = !DILocation(line: 60, column: 18, scope: !19)
+  !84 = !DILocation(line: 60, column: 22, scope: !19)
+  !85 = !DILocation(line: 60, column: 26, scope: !19)
+  !86 = !DILocation(line: 60, column: 30, scope: !19)
+  !87 = !DILocation(line: 60, column: 34, scope: !19)
+  !88 = !DILocation(line: 60, column: 38, scope: !19)
+  !89 = !DILocation(line: 60, column: 42, scope: !19)
+  !90 = !DILocation(line: 60, column: 46, scope: !19)
+  !91 = !DILocation(line: 61, column: 31, scope: !19)
+  !92 = !DILocation(line: 61, column: 24, scope: !19)
+  !93 = !DILocation(line: 67, column: 5, scope: !19)
+  !94 = !{i64 2566}
+  !95 = !DILocation(line: 69, column: 5, scope: !19)
+  !96 = !DILocation(line: 39, column: 22, scope: !97)
+  !97 = distinct !DILexicalBlock(scope: !74, file: !2, line: 38, column: 38)
+  !98 = !DILocation(line: 39, column: 13, scope: !97)
+  !99 = !DILocation(line: 40, column: 22, scope: !97)
+  !100 = !DILocation(line: 40, column: 13, scope: !97)
+  !101 = !DILocation(line: 41, column: 22, scope: !97)
+  !102 = !DILocation(line: 41, column: 13, scope: !97)
+  !103 = !DILocation(line: 42, column: 22, scope: !97)
+  !104 = !DILocation(line: 42, column: 13, scope: !97)
+  !105 = !DILocation(line: 43, column: 22, scope: !97)
+  !106 = !DILocation(line: 43, column: 13, scope: !97)
+  !107 = !DILocation(line: 44, column: 22, scope: !97)
+  !108 = !DILocation(line: 44, column: 13, scope: !97)
+  !109 = !DILocation(line: 45, column: 22, scope: !97)
+  !110 = !DILocation(line: 45, column: 13, scope: !97)
+  !111 = !DILocation(line: 46, column: 22, scope: !97)
+  !112 = !DILocation(line: 46, column: 13, scope: !97)
+  !113 = !DILocation(line: 47, column: 22, scope: !97)
+  !114 = !DILocation(line: 47, column: 13, scope: !97)
+  !115 = !DILocation(line: 48, column: 22, scope: !97)
+  !116 = !DILocation(line: 48, column: 13, scope: !97)
+  !117 = !DILocation(line: 49, column: 22, scope: !97)
+  !118 = !DILocation(line: 49, column: 13, scope: !97)
+  !119 = !DILocation(line: 50, column: 22, scope: !97)
+  !120 = !DILocation(line: 50, column: 13, scope: !97)
+  !121 = !DILocation(line: 51, column: 22, scope: !97)
+  !122 = !DILocation(line: 51, column: 13, scope: !97)
+  !123 = !DILocation(line: 52, column: 22, scope: !97)
+  !124 = !DILocation(line: 52, column: 13, scope: !97)
+  !125 = !DILocation(line: 53, column: 22, scope: !97)
+  !126 = !DILocation(line: 53, column: 13, scope: !97)
+  !127 = !DILocation(line: 54, column: 22, scope: !97)
+  !128 = !DILocation(line: 54, column: 13, scope: !97)
+  !129 = !DILocation(line: 38, column: 34, scope: !74)
+  !130 = distinct !{!130, !75, !131, !132}
+  !131 = !DILocation(line: 55, column: 5, scope: !48)
+  !132 = !{!"llvm.loop.mustprogress"}
+  !133 = !DISubprogram(name: "opaque", scope: !2, file: !2, line: 22, type: !134, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
+  !134 = !DISubroutineType(types: !135)
+  !135 = !{!22, !22}
+  !136 = distinct !DISubprogram(name: "main", scope: !2, file: !2, line: 83, type: !137, scopeLine: 84, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !14, retainedNodes: !140)
+  !137 = !DISubroutineType(types: !138)
+  !138 = !{!139}
+  !139 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
+  !140 = !{!141, !145, !147, !148}
+  !141 = !DILocalVariable(name: "in", scope: !136, file: !2, line: 85, type: !142)
+  !142 = !DICompositeType(tag: DW_TAG_array_type, baseType: !22, size: 1024, elements: !143)
+  !143 = !{!144}
+  !144 = !DISubrange(count: 16)
+  !145 = !DILocalVariable(name: "x", scope: !146, file: !2, line: 86, type: !26)
+  !146 = distinct !DILexicalBlock(scope: !136, file: !2, line: 86, column: 5)
+  !147 = !DILocalVariable(name: "r", scope: !136, file: !2, line: 88, type: !22)
+  !148 = !DILocalVariable(name: "hits", scope: !136, file: !2, line: 91, type: !26)
+  !149 = !DILocation(line: 85, column: 5, scope: !136)
+  !150 = !DILocation(line: 85, column: 14, scope: !136)
+  !151 = !DILocation(line: 0, scope: !146)
+  !152 = !DILocation(line: 86, column: 45, scope: !153)
+  !153 = distinct !DILexicalBlock(scope: !146, file: !2, line: 86, column: 5)
+  !154 = !DILocation(line: 86, column: 39, scope: !153)
+  !155 = !DILocation(line: 88, column: 18, scope: !136)
+  !156 = !DILocation(line: 0, scope: !136)
+  !157 = !DILocation(line: 89, column: 5, scope: !136)
+  !158 = !DILocation(line: 91, column: 21, scope: !136)
+  !159 = !DILocation(line: 92, column: 5, scope: !136)
+  !160 = !DILocation(line: 95, column: 1, scope: !136)
+  !161 = !DILocation(line: 94, column: 5, scope: !136)
+  !162 = !DISubprogram(name: "sink", scope: !2, file: !2, line: 23, type: !163, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
+  !163 = !DISubroutineType(types: !164)
+  !164 = !{null, !22}
+  !165 = distinct !DISubprogram(name: "probe_residue", scope: !2, file: !2, line: 74, type: !166, scopeLine: 75, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition | DISPFlagOptimized, unit: !14, retainedNodes: !168)
+  !166 = !DISubroutineType(cc: DW_CC_nocall, types: !167)
+  !167 = !{!26, !22, !26}
+  !168 = !{!169, !170, !171, !176, !177}
+  !169 = !DILocalVariable(name: "pattern", arg: 1, scope: !165, file: !2, line: 74, type: !22)
+  !170 = !DILocalVariable(name: "words", arg: 2, scope: !165, file: !2, line: 74, type: !26)
+  !171 = !DILocalVariable(name: "buf", scope: !165, file: !2, line: 76, type: !172)
+  !172 = !DICompositeType(tag: DW_TAG_array_type, baseType: !173, size: 32768, elements: !174)
+  !173 = !DIDerivedType(tag: DW_TAG_volatile_type, baseType: !22)
+  !174 = !{!175}
+  !175 = !DISubrange(count: 512)
+  !176 = !DILocalVariable(name: "hits", scope: !165, file: !2, line: 77, type: !26)
+  !177 = !DILocalVariable(name: "x", scope: !178, file: !2, line: 78, type: !26)
+  !178 = distinct !DILexicalBlock(scope: !165, file: !2, line: 78, column: 5)
+  !179 = !DILocation(line: 0, scope: !165)
+  !180 = !DILocation(line: 76, column: 5, scope: !165)
+  !181 = !DILocation(line: 76, column: 23, scope: !165)
+  !182 = !DILocation(line: 0, scope: !178)
+  !183 = !DILocation(line: 78, column: 5, scope: !178)
+  !184 = !DILocation(line: 81, column: 1, scope: !165)
+  !185 = !DILocation(line: 80, column: 5, scope: !165)
+  !186 = !DILocation(line: 79, column: 13, scope: !187)
+  !187 = distinct !DILexicalBlock(scope: !188, file: !2, line: 79, column: 13)
+  !188 = distinct !DILexicalBlock(scope: !178, file: !2, line: 78, column: 5)
+  !189 = !DILocation(line: 79, column: 20, scope: !187)
+  !190 = !DILocation(line: 79, column: 13, scope: !188)
+  !191 = !DILocation(line: 78, column: 36, scope: !188)
+  !192 = distinct !{!192, !183, !193, !132}
+  !193 = !DILocation(line: 79, column: 36, scope: !178)
+  !194 = !DISubprogram(name: "printf", scope: !195, file: !195, line: 34, type: !196, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
+  !195 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_printf.h", directory: "")
+  !196 = !DISubroutineType(types: !197)
+  !197 = !{!139, !198, null}
+  !198 = !DIDerivedType(tag: DW_TAG_restrict_type, baseType: !199)
+  !199 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !200, size: 64)
+  !200 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !4)
+
+...
+---
+name:            crypt_region
+alignment:       4
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   false
+failsVerification: false
+tracksDebugUserValues: true
+registers:       []
+liveins:
+  - { reg: '$x0', virtual-reg: '' }
+  - { reg: '$x1', virtual-reg: '' }
+  - { reg: '$w2', virtual-reg: '' }
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       176
+  offsetAdjustment: 0
+  maxAlignment:    8
+  adjustsStack:    true
+  hasCalls:        true
+  stackProtector:  ''
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  0
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:
+  - { id: 0, name: '', type: spill-slot, offset: -104, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 1, name: '', type: spill-slot, offset: -112, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 2, name: '', type: spill-slot, offset: -120, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 3, name: '', type: spill-slot, offset: -128, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 4, name: '', type: spill-slot, offset: -136, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 5, name: '', type: spill-slot, offset: -144, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 6, name: '', type: spill-slot, offset: -152, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 7, name: '', type: spill-slot, offset: -160, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 8, name: '', type: spill-slot, offset: -168, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 9, name: '', type: spill-slot, offset: -8, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$lr', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 10, name: '', type: spill-slot, offset: -16, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$fp', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 11, name: '', type: spill-slot, offset: -24, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x19', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 12, name: '', type: spill-slot, offset: -32, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x20', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 13, name: '', type: spill-slot, offset: -40, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x21', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 14, name: '', type: spill-slot, offset: -48, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x22', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 15, name: '', type: spill-slot, offset: -56, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x23', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 16, name: '', type: spill-slot, offset: -64, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x24', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 17, name: '', type: spill-slot, offset: -72, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x25', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 18, name: '', type: spill-slot, offset: -80, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x26', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 19, name: '', type: spill-slot, offset: -88, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x27', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 20, name: '', type: spill-slot, offset: -96, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x28', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  hasRedZone:      false
+body:             |
+  bb.0 (%ir-block.3):
+    successors: %bb.4(0x30000000), %bb.1(0x50000000)
+    liveins: $w2, $x0, $x1, $x27, $x28, $x25, $x26, $x23, $x24, $x21, $x22, $x19, $x20, $lr
+  
+    DBG_VALUE $x0, $noreg, !28, !DIExpression(), debug-location !51
+    DBG_VALUE $x1, $noreg, !29, !DIExpression(), debug-location !51
+    DBG_VALUE $w2, $noreg, !30, !DIExpression(), debug-location !51
+    $sp = frame-setup SUBXri $sp, 176, 0
+    frame-setup STPXi killed $x28, killed $x27, $sp, 10 :: (store (s64) into %stack.20), (store (s64) into %stack.19)
+    frame-setup STPXi killed $x26, killed $x25, $sp, 12 :: (store (s64) into %stack.18), (store (s64) into %stack.17)
+    frame-setup STPXi killed $x24, killed $x23, $sp, 14 :: (store (s64) into %stack.16), (store (s64) into %stack.15)
+    frame-setup STPXi killed $x22, killed $x21, $sp, 16 :: (store (s64) into %stack.14), (store (s64) into %stack.13)
+    frame-setup STPXi killed $x20, killed $x19, $sp, 18 :: (store (s64) into %stack.12), (store (s64) into %stack.11)
+    frame-setup STPXi killed $fp, killed $lr, $sp, 20 :: (store (s64) into %stack.10), (store (s64) into %stack.9)
+    $fp = frame-setup ADDXri $sp, 160, 0
+    frame-setup CFI_INSTRUCTION def_cfa $w29, 16
+    frame-setup CFI_INSTRUCTION offset $w30, -8
+    frame-setup CFI_INSTRUCTION offset $w29, -16
+    frame-setup CFI_INSTRUCTION offset $w19, -24
+    frame-setup CFI_INSTRUCTION offset $w20, -32
+    frame-setup CFI_INSTRUCTION offset $w21, -40
+    frame-setup CFI_INSTRUCTION offset $w22, -48
+    frame-setup CFI_INSTRUCTION offset $w23, -56
+    frame-setup CFI_INSTRUCTION offset $w24, -64
+    frame-setup CFI_INSTRUCTION offset $w25, -72
+    frame-setup CFI_INSTRUCTION offset $w26, -80
+    frame-setup CFI_INSTRUCTION offset $w27, -88
+    frame-setup CFI_INSTRUCTION offset $w28, -96
+    STRXui $x0, $sp, 1 :: (store (s64) into %stack.8)
+    DBG_VALUE $sp, 0, !28, !DIExpression(DW_OP_plus_uconst, 8), debug-location !51
+    renamable $x11 = LDRXui renamable $x1, 0, debug-location !52 :: (load (s64) from %ir.1, !tbaa !53)
+    DBG_VALUE $x11, $noreg, !31, !DIExpression(), debug-location !51
+    renamable $x27 = LDRXui renamable $x1, 1, debug-location !57 :: (load (s64) from %ir.5, !tbaa !53)
+    DBG_VALUE $x27, $noreg, !32, !DIExpression(), debug-location !51
+    renamable $x28 = LDRXui renamable $x1, 2, debug-location !58 :: (load (s64) from %ir.7, !tbaa !53)
+    DBG_VALUE $x28, $noreg, !33, !DIExpression(), debug-location !51
+    renamable $x19 = LDRXui renamable $x1, 3, debug-location !59 :: (load (s64) from %ir.9, !tbaa !53)
+    DBG_VALUE $x19, $noreg, !34, !DIExpression(), debug-location !51
+    renamable $x21 = LDRXui renamable $x1, 4, debug-location !60 :: (load (s64) from %ir.11, !tbaa !53)
+    DBG_VALUE $x21, $noreg, !35, !DIExpression(), debug-location !51
+    renamable $x20 = LDRXui renamable $x1, 5, debug-location !61 :: (load (s64) from %ir.13, !tbaa !53)
+    DBG_VALUE $x20, $noreg, !36, !DIExpression(), debug-location !51
+    renamable $x22 = LDRXui renamable $x1, 6, debug-location !62 :: (load (s64) from %ir.15, !tbaa !53)
+    DBG_VALUE $x22, $noreg, !37, !DIExpression(), debug-location !51
+    renamable $x24 = LDRXui renamable $x1, 7, debug-location !63 :: (load (s64) from %ir.17, !tbaa !53)
+    DBG_VALUE $x24, $noreg, !38, !DIExpression(), debug-location !51
+    renamable $x23 = LDRXui renamable $x1, 8, debug-location !64 :: (load (s64) from %ir.19, !tbaa !53)
+    DBG_VALUE $x23, $noreg, !39, !DIExpression(), debug-location !51
+    renamable $x8 = LDRXui renamable $x1, 9, debug-location !65 :: (load (s64) from %ir.21, !tbaa !53)
+    DBG_VALUE $x8, $noreg, !40, !DIExpression(), debug-location !51
+    renamable $x26 = LDRXui renamable $x1, 10, debug-location !66 :: (load (s64) from %ir.23, !tbaa !53)
+    DBG_VALUE $x26, $noreg, !41, !DIExpression(), debug-location !51
+    renamable $x10 = LDRXui renamable $x1, 11, debug-location !67 :: (load (s64) from %ir.25, !tbaa !53)
+    DBG_VALUE $x10, $noreg, !42, !DIExpression(), debug-location !51
+    renamable $x9 = LDRXui renamable $x1, 12, debug-location !68 :: (load (s64) from %ir.27, !tbaa !53)
+    DBG_VALUE $x9, $noreg, !43, !DIExpression(), debug-location !51
+    renamable $x12 = LDRXui renamable $x1, 13, debug-location !69 :: (load (s64) from %ir.29, !tbaa !53)
+    DBG_VALUE $x12, $noreg, !44, !DIExpression(), debug-location !51
+    renamable $x13 = LDRXui renamable $x1, 14, debug-location !70 :: (load (s64) from %ir.31, !tbaa !53)
+    DBG_VALUE $x13, $noreg, !45, !DIExpression(), debug-location !51
+    renamable $x0 = LDRXui killed renamable $x1, 15, debug-location !71 :: (load (s64) from %ir.33, !tbaa !53)
+    DBG_VALUE 0, $noreg, !47, !DIExpression(), debug-location !72
+    DBG_VALUE $x0, $noreg, !46, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !45, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !44, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !43, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !42, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !41, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !40, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !39, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !38, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !37, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !36, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !35, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !34, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !33, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !32, !DIExpression(), debug-location !51
+    DBG_VALUE $noreg, $noreg, !31, !DIExpression(), debug-location !51
+    STRXui killed renamable $x9, $sp, 9 :: (store (s64) into %stack.0)
+    STRXui killed renamable $x13, $sp, 8 :: (store (s64) into %stack.1)
+    STRXui killed renamable $x12, $sp, 7 :: (store (s64) into %stack.2)
+    STRXui killed renamable $x23, $sp, 6 :: (store (s64) into %stack.3)
+    STRXui killed renamable $x10, $sp, 5 :: (store (s64) into %stack.4)
+    CBNZW renamable $w2, %bb.1, debug-location !75
+  
+  bb.4:
+    successors: %bb.2(0x80000000)
+    liveins: $x0, $x8, $x11, $x19, $x20, $x21, $x22, $x24, $x26, $x27, $x28
+  
+    renamable $x23 = COPY killed renamable $x8
+    B %bb.2
+  
+  bb.1 (%ir-block.36):
+    successors: %bb.3(0x80000000)
+    liveins: $w2, $x0, $x8, $x11, $x19, $x20, $x21, $x22, $x24, $x26, $x27, $x28
+  
+    renamable $x25 = COPY $xzr
+    renamable $w14 = ORRWrs $wzr, killed renamable $w2, 0, implicit-def $x14, debug-location !73
+    STRXui killed renamable $x14, $sp, 2 :: (store (s64) into %stack.7)
+    renamable $x23 = COPY killed renamable $x8
+    B %bb.3, debug-location !75
+  
+  bb.2 (%ir-block.38):
+    liveins: $x0, $x11, $x19, $x20, $x21, $x22, $x23, $x24, $x26, $x27, $x28
+  
+    renamable $x8 = COPY $xzr
+    DBG_VALUE 0, $noreg, !49, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !46, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !45, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !44, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !43, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !42, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !41, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !40, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !39, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !38, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !37, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !36, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !35, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !34, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !33, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !32, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !31, !DIExpression(), debug-location !51
+    DBG_VALUE 0, $noreg, !28, !DIExpression(), debug-location !51
+    renamable $x9 = EORXrr killed renamable $x27, killed renamable $x19, debug-location !76
+    renamable $x10 = EORXrr killed renamable $x28, killed renamable $x21, debug-location !77
+    renamable $x9 = EORXrr killed renamable $x10, killed renamable $x9, debug-location !78
+    renamable $x10 = EORXrr killed renamable $x20, killed renamable $x22, debug-location !79
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x24, debug-location !80
+    renamable $x9 = EORXrr killed renamable $x9, killed renamable $x10, debug-location !81
+    renamable $x10 = LDRXui $sp, 6 :: (load (s64) from %stack.3)
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x23, debug-location !82
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x26, debug-location !83
+    renamable $x12 = LDRXui $sp, 5 :: (load (s64) from %stack.4)
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x12, debug-location !84
+    renamable $x9 = EORXrr killed renamable $x9, killed renamable $x10, debug-location !85
+    renamable $x10 = LDRXui $sp, 9 :: (load (s64) from %stack.0)
+    renamable $x12 = LDRXui $sp, 7 :: (load (s64) from %stack.2)
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x12, debug-location !86
+    renamable $x12 = LDRXui $sp, 8 :: (load (s64) from %stack.1)
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x12, debug-location !87
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x0, debug-location !88
+    renamable $x10 = EORXrr killed renamable $x10, killed renamable $x11, debug-location !89
+    renamable $x9 = EORXrr killed renamable $x9, killed renamable $x10, debug-location !90
+    DBG_VALUE $x9, $noreg, !49, !DIExpression(), debug-location !51
+    renamable $x10 = LDRXui $sp, 1 :: (load (s64) from %stack.8)
+    renamable $x0 = ADDXrs killed renamable $x9, killed renamable $x10, 124, debug-location !92
+    DBG_VALUE $x0, $noreg, !50, !DIExpression(), debug-location !51
+    INLINEASM &"", 25 /* sideeffect mayload maystore attdialect */, 2555913 /* reguse:GPR64common */, killed renamable $x8, 2555913 /* reguse:GPR64common */, renamable $x8, !94, debug-location !93
+    $fp, $lr = frame-destroy LDPXi $sp, 20, debug-location !95 :: (load (s64) from %stack.10), (load (s64) from %stack.9)
+    $x20, $x19 = frame-destroy LDPXi $sp, 18, debug-location !95 :: (load (s64) from %stack.12), (load (s64) from %stack.11)
+    $x22, $x21 = frame-destroy LDPXi $sp, 16, debug-location !95 :: (load (s64) from %stack.14), (load (s64) from %stack.13)
+    $x24, $x23 = frame-destroy LDPXi $sp, 14, debug-location !95 :: (load (s64) from %stack.16), (load (s64) from %stack.15)
+    $x26, $x25 = frame-destroy LDPXi $sp, 12, debug-location !95 :: (load (s64) from %stack.18), (load (s64) from %stack.17)
+    $x28, $x27 = frame-destroy LDPXi $sp, 10, debug-location !95 :: (load (s64) from %stack.20), (load (s64) from %stack.19)
+    $sp = frame-destroy ADDXri $sp, 176, 0, debug-location !95
+    RET_ReallyLR implicit $x0, debug-location !95
+  
+  bb.3 (%ir-block.72):
+    successors: %bb.2(0x04000000), %bb.3(0x7c000000)
+    liveins: $x0, $x11, $x19, $x20, $x21, $x22, $x23, $x24, $x25, $x26, $x27, $x28
+  
+    DBG_VALUE $x11, $noreg, !31, !DIExpression(), debug-location !51
+    DBG_VALUE $x27, $noreg, !32, !DIExpression(), debug-location !51
+    DBG_VALUE $x28, $noreg, !33, !DIExpression(), debug-location !51
+    DBG_VALUE $x19, $noreg, !34, !DIExpression(), debug-location !51
+    DBG_VALUE $x21, $noreg, !35, !DIExpression(), debug-location !51
+    DBG_VALUE $x20, $noreg, !36, !DIExpression(), debug-location !51
+    DBG_VALUE $x22, $noreg, !37, !DIExpression(), debug-location !51
+    DBG_VALUE $x24, $noreg, !38, !DIExpression(), debug-location !51
+    DBG_VALUE $sp, 0, !39, !DIExpression(DW_OP_plus_uconst, 48), debug-location !51
+    DBG_VALUE $x23, $noreg, !40, !DIExpression(), debug-location !51
+    DBG_VALUE $x26, $noreg, !41, !DIExpression(), debug-location !51
+    DBG_VALUE $sp, 0, !42, !DIExpression(DW_OP_plus_uconst, 40), debug-location !51
+    DBG_VALUE $sp, 0, !43, !DIExpression(DW_OP_plus_uconst, 72), debug-location !51
+    DBG_VALUE $sp, 0, !44, !DIExpression(DW_OP_plus_uconst, 56), debug-location !51
+    DBG_VALUE $sp, 0, !45, !DIExpression(DW_OP_plus_uconst, 64), debug-location !51
+    DBG_VALUE $x0, $noreg, !46, !DIExpression(), debug-location !51
+    DBG_VALUE $x25, $noreg, !47, !DIExpression(), debug-location !72
+    STRXui killed renamable $x0, $sp, 4 :: (store (s64) into %stack.5)
+    DBG_VALUE $sp, 0, !46, !DIExpression(DW_OP_plus_uconst, 32), debug-location !51
+    renamable $x0 = EORXrr killed renamable $x11, renamable $x25, debug-location !96
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !98
+    DBG_VALUE $x0, $noreg, !31, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 3 :: (store (s64) into %stack.6)
+    renamable $x0 = ADDXrr killed renamable $x0, killed renamable $x27, debug-location !99
+    DBG_VALUE $sp, 0, !31, !DIExpression(DW_OP_plus_uconst, 24), debug-location !51
+    DBG_VALUE $x0, $noreg, !31, !DIExpression(), debug-location !51
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !100
+    renamable $x27 = COPY $x0, debug-location !100
+    DBG_VALUE $x27, $noreg, !32, !DIExpression(), debug-location !51
+    renamable $x0 = EORXrr $x0, killed renamable $x28, debug-location !101
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !102
+    renamable $x28 = COPY $x0, debug-location !102
+    DBG_VALUE $x28, $noreg, !33, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr $x0, killed renamable $x19, debug-location !103
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !104
+    renamable $x19 = COPY $x0, debug-location !104
+    DBG_VALUE $x19, $noreg, !34, !DIExpression(), debug-location !51
+    renamable $x0 = EORXrr $x0, killed renamable $x21, debug-location !105
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !106
+    renamable $x21 = COPY $x0, debug-location !106
+    DBG_VALUE $x21, $noreg, !35, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr $x0, killed renamable $x20, debug-location !107
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !108
+    renamable $x20 = COPY $x0, debug-location !108
+    DBG_VALUE $x20, $noreg, !36, !DIExpression(), debug-location !51
+    renamable $x0 = EORXrr $x0, killed renamable $x22, debug-location !109
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !110
+    renamable $x22 = COPY $x0, debug-location !110
+    DBG_VALUE $x22, $noreg, !37, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr $x0, killed renamable $x24, debug-location !111
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !112
+    renamable $x24 = COPY $x0, debug-location !112
+    DBG_VALUE $x24, $noreg, !38, !DIExpression(), debug-location !51
+    renamable $x8 = LDRXui $sp, 6 :: (load (s64) from %stack.3)
+    DBG_VALUE $x8, $noreg, !39, !DIExpression(), debug-location !51
+    renamable $x0 = EORXrr $x0, killed renamable $x8, debug-location !113
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !114
+    DBG_VALUE $x0, $noreg, !39, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 6 :: (store (s64) into %stack.3)
+    DBG_VALUE $sp, 0, !39, !DIExpression(DW_OP_plus_uconst, 48), debug-location !51
+    renamable $x0 = ADDXrr killed renamable $x0, killed renamable $x23, debug-location !115
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !116
+    renamable $x23 = COPY $x0, debug-location !116
+    DBG_VALUE $x23, $noreg, !40, !DIExpression(), debug-location !51
+    renamable $x0 = EORXrr $x0, killed renamable $x26, debug-location !117
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !118
+    renamable $x26 = COPY $x0, debug-location !118
+    DBG_VALUE $x26, $noreg, !41, !DIExpression(), debug-location !51
+    renamable $x8 = LDRXui $sp, 5 :: (load (s64) from %stack.4)
+    DBG_VALUE $x8, $noreg, !42, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr $x0, killed renamable $x8, debug-location !119
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !120
+    DBG_VALUE $x0, $noreg, !42, !DIExpression(), debug-location !51
+    renamable $x8 = LDRXui $sp, 9 :: (load (s64) from %stack.0)
+    DBG_VALUE $x8, $noreg, !43, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 5 :: (store (s64) into %stack.4)
+    DBG_VALUE $sp, 0, !42, !DIExpression(DW_OP_plus_uconst, 40), debug-location !51
+    renamable $x0 = EORXrr killed renamable $x0, killed renamable $x8, debug-location !121
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !122
+    DBG_VALUE $x0, $noreg, !43, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 9 :: (store (s64) into %stack.0)
+    DBG_VALUE $sp, 0, !43, !DIExpression(DW_OP_plus_uconst, 72), debug-location !51
+    renamable $x8 = LDRXui $sp, 7 :: (load (s64) from %stack.2)
+    DBG_VALUE $x8, $noreg, !44, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr killed renamable $x0, killed renamable $x8, debug-location !123
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !124
+    DBG_VALUE $x0, $noreg, !44, !DIExpression(), debug-location !51
+    renamable $x8 = LDRXui $sp, 8 :: (load (s64) from %stack.1)
+    DBG_VALUE $x8, $noreg, !45, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 7 :: (store (s64) into %stack.2)
+    DBG_VALUE $sp, 0, !44, !DIExpression(DW_OP_plus_uconst, 56), debug-location !51
+    renamable $x0 = EORXrr killed renamable $x0, killed renamable $x8, debug-location !125
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !126
+    DBG_VALUE $x0, $noreg, !45, !DIExpression(), debug-location !51
+    STRXui renamable $x0, $sp, 8 :: (store (s64) into %stack.1)
+    DBG_VALUE $sp, 0, !45, !DIExpression(DW_OP_plus_uconst, 64), debug-location !51
+    renamable $x8 = LDRXui $sp, 4 :: (load (s64) from %stack.5)
+    DBG_VALUE $x8, $noreg, !46, !DIExpression(), debug-location !51
+    renamable $x0 = ADDXrr killed renamable $x0, killed renamable $x8, debug-location !127
+    BL @opaque, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def $x0, debug-location !128
+    DBG_VALUE $x0, $noreg, !46, !DIExpression(), debug-location !51
+    renamable $x11 = LDRXui $sp, 3 :: (load (s64) from %stack.6)
+    DBG_VALUE $x11, $noreg, !31, !DIExpression(), debug-location !51
+    renamable $x25 = nuw nsw ADDXri killed renamable $x25, 1, 0, debug-location !129
+    DBG_VALUE $x25, $noreg, !47, !DIExpression(), debug-location !72
+    renamable $x8 = LDRXui $sp, 2 :: (load (s64) from %stack.7)
+    dead $xzr = SUBSXrr killed renamable $x8, renamable $x25, implicit-def $nzcv, debug-location !75
+    Bcc 0, %bb.2, implicit killed $nzcv, debug-location !75
+    B %bb.3, debug-location !75
+
+...
+---
+name:            main
+alignment:       4
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   false
+failsVerification: false
+tracksDebugUserValues: true
+registers:       []
+liveins:         []
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       192
+  offsetAdjustment: 0
+  maxAlignment:    16
+  adjustsStack:    true
+  hasCalls:        true
+  stackProtector:  '%stack.0.StackGuardSlot'
+  functionContext: ''
+  maxCallFrameSize: 16
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  144
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:
+  - { id: 0, name: StackGuardSlot, type: default, offset: -40, size: 8, 
+      alignment: 8, stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      local-offset: -8, debug-info-variable: '', debug-info-expression: '', 
+      debug-info-location: '' }
+  - { id: 1, name: '', type: default, offset: -176, size: 128, alignment: 16, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      local-offset: -144, debug-info-variable: '!141', debug-info-expression: '!DIExpression()', 
+      debug-info-location: '!150' }
+  - { id: 2, name: '', type: spill-slot, offset: -8, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$lr', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 3, name: '', type: spill-slot, offset: -16, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$fp', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 4, name: '', type: spill-slot, offset: -24, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x19', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 5, name: '', type: spill-slot, offset: -32, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x20', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:
+  - id:              0
+    value:           '<2 x i64> <i64 4096, i64 4097>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              1
+    value:           '<2 x i64> <i64 4098, i64 4099>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              2
+    value:           '<2 x i64> <i64 4100, i64 4101>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              3
+    value:           '<2 x i64> <i64 4102, i64 4103>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              4
+    value:           '<2 x i64> <i64 4104, i64 4105>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              5
+    value:           '<2 x i64> <i64 4106, i64 4107>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              6
+    value:           '<2 x i64> <i64 4108, i64 4109>'
+    alignment:       16
+    isTargetSpecific: false
+  - id:              7
+    value:           '<2 x i64> <i64 4110, i64 4111>'
+    alignment:       16
+    isTargetSpecific: false
+machineFunctionInfo:
+  hasRedZone:      false
+body:             |
+  bb.0 (%ir-block.0):
+    successors: %bb.2(0x7ffff800), %bb.1(0x00000800)
+    liveins: $x19, $x20, $lr
+  
+    $sp = frame-setup SUBXri $sp, 192, 0
+    frame-setup STPXi killed $x20, killed $x19, $sp, 20 :: (store (s64) into %stack.5), (store (s64) into %stack.4)
+    frame-setup STPXi killed $fp, killed $lr, $sp, 22 :: (store (s64) into %stack.3), (store (s64) into %stack.2)
+    $fp = frame-setup ADDXri $sp, 176, 0
+    frame-setup CFI_INSTRUCTION def_cfa $w29, 16
+    frame-setup CFI_INSTRUCTION offset $w30, -8
+    frame-setup CFI_INSTRUCTION offset $w29, -16
+    frame-setup CFI_INSTRUCTION offset $w19, -24
+    frame-setup CFI_INSTRUCTION offset $w20, -32
+    renamable $x8 = LOAD_STACK_GUARD :: (dereferenceable invariant load (s64) from @__stack_chk_guard)
+    STURXi killed renamable $x8, $fp, -24 :: (volatile store (s64) into %stack.0.StackGuardSlot)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.0
+    DBG_VALUE 1, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q0 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.0, debug-location !152 :: (load (s128) from constant-pool)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.1
+    DBG_VALUE 3, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q1 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.1, debug-location !152 :: (load (s128) from constant-pool)
+    STRQui killed renamable $q0, $sp, 1, debug-location !152 :: (store (s128) into %ir.2, !tbaa !53)
+    STRQui killed renamable $q1, $sp, 2, debug-location !152 :: (store (s128) into %ir.3, !tbaa !53)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.2
+    DBG_VALUE 5, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q0 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.2, debug-location !152 :: (load (s128) from constant-pool)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.3
+    DBG_VALUE 7, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q1 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.3, debug-location !152 :: (load (s128) from constant-pool)
+    STRQui killed renamable $q0, $sp, 3, debug-location !152 :: (store (s128) into %ir.4, !tbaa !53)
+    STRQui killed renamable $q1, $sp, 4, debug-location !152 :: (store (s128) into %ir.5, !tbaa !53)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.4
+    DBG_VALUE 9, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q0 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.4, debug-location !152 :: (load (s128) from constant-pool)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.5
+    DBG_VALUE 11, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q1 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.5, debug-location !152 :: (load (s128) from constant-pool)
+    STRQui killed renamable $q0, $sp, 5, debug-location !152 :: (store (s128) into %ir.6, !tbaa !53)
+    STRQui killed renamable $q1, $sp, 6, debug-location !152 :: (store (s128) into %ir.7, !tbaa !53)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.6
+    DBG_VALUE 13, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q0 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.6, debug-location !152 :: (load (s128) from constant-pool)
+    renamable $x8 = ADRP target-flags(aarch64-page) %const.7
+    DBG_VALUE 15, $noreg, !145, !DIExpression(), debug-location !151
+    renamable $q1 = LDRQui killed renamable $x8, target-flags(aarch64-pageoff, aarch64-nc) %const.7, debug-location !152 :: (load (s128) from constant-pool)
+    STRQui killed renamable $q0, $sp, 7, debug-location !152 :: (store (s128) into %ir.8, !tbaa !53)
+    STRQui killed renamable $q1, $sp, 8, debug-location !152 :: (store (s128) into %ir.9, !tbaa !53)
+    DBG_VALUE 16, $noreg, !145, !DIExpression(), debug-location !151
+    $x1 = ADDXri $sp, 16, 0, debug-location !155
+    $x0 = MOVi64imm -4539648156078575603, debug-location !155
+    $w2 = MOVi32imm 3, debug-location !155
+    BL @crypt_region, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit $x1, implicit $w2, implicit-def $sp, implicit-def $x0, debug-location !155
+    renamable $x19 = COPY $x0, debug-location !155
+    DBG_VALUE $x19, $noreg, !147, !DIExpression(), debug-location !156
+    BL @sink, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, debug-location !157
+    BL @probe_residue, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit-def $sp, implicit-def $w0, debug-location !158
+    renamable $w0 = KILL $w0, implicit-def $x0, debug-location !158
+    DBG_VALUE $w0, $noreg, !148, !DIExpression(), debug-location !156
+    STRXui killed renamable $x0, $sp, 1, debug-location !159 :: (store (s64) into stack + 8)
+    STRXui killed renamable $x19, $sp, 0, debug-location !159 :: (store (s64) into stack)
+    renamable $x0 = MOVaddr target-flags(aarch64-page) @.str, target-flags(aarch64-pageoff, aarch64-nc) @.str, debug-location !159
+    BL @printf, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit $x0, implicit-def $sp, implicit-def dead $w0, debug-location !159
+    renamable $x8 = LDURXi $fp, -24 :: (volatile load (s64) from %stack.0.StackGuardSlot)
+    renamable $x9 = LOAD_STACK_GUARD :: (dereferenceable invariant load (s64) from @__stack_chk_guard)
+    dead $xzr = SUBSXrr killed renamable $x9, killed renamable $x8, implicit-def $nzcv
+    Bcc 1, %bb.1, implicit killed $nzcv
+    B %bb.2
+  
+  bb.1 (%ir-block.0):
+    successors: 
+  
+    BL &__stack_chk_fail, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit-def $sp
+  
+  bb.2 (%ir-block.0):
+    $w0 = COPY $wzr, debug-location !161
+    $fp, $lr = frame-destroy LDPXi $sp, 22, debug-location !161 :: (load (s64) from %stack.3), (load (s64) from %stack.2)
+    $x20, $x19 = frame-destroy LDPXi $sp, 20, debug-location !161 :: (load (s64) from %stack.5), (load (s64) from %stack.4)
+    $sp = frame-destroy ADDXri $sp, 192, 0, debug-location !161
+    RET_ReallyLR implicit $w0, debug-location !161
+
+...
+---
+name:            probe_residue
+alignment:       4
+exposesReturnsTwice: false
+legalized:       false
+regBankSelected: false
+selected:        false
+failedISel:      false
+tracksRegLiveness: true
+hasWinCFI:       false
+callsEHReturn:   false
+callsUnwindInit: false
+hasEHCatchret:   false
+hasEHScopes:     false
+hasEHFunclets:   false
+isOutlined:      false
+debugInstrRef:   false
+failsVerification: false
+tracksDebugUserValues: true
+registers:       []
+liveins:         []
+frameInfo:
+  isFrameAddressTaken: false
+  isReturnAddressTaken: false
+  hasStackMap:     false
+  hasPatchPoint:   false
+  stackSize:       4144
+  offsetAdjustment: 0
+  maxAlignment:    8
+  adjustsStack:    true
+  hasCalls:        true
+  stackProtector:  '%stack.0.StackGuardSlot'
+  functionContext: ''
+  maxCallFrameSize: 0
+  cvBytesOfCalleeSavedRegisters: 0
+  hasOpaqueSPAdjustment: false
+  hasVAStart:      false
+  hasMustTailInVarArgFunc: false
+  hasTailCall:     false
+  localFrameSize:  4104
+  savePoint:       ''
+  restorePoint:    ''
+fixedStack:      []
+stack:
+  - { id: 0, name: StackGuardSlot, type: default, offset: -40, size: 8, 
+      alignment: 8, stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      local-offset: -8, debug-info-variable: '', debug-info-expression: '', 
+      debug-info-location: '' }
+  - { id: 1, name: '', type: default, offset: -4136, size: 4096, alignment: 8, 
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true, 
+      local-offset: -4104, debug-info-variable: '!171', debug-info-expression: '!DIExpression()', 
+      debug-info-location: '!181' }
+  - { id: 2, name: '', type: spill-slot, offset: -8, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$lr', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 3, name: '', type: spill-slot, offset: -16, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$fp', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 4, name: '', type: spill-slot, offset: -24, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x27', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+  - { id: 5, name: '', type: spill-slot, offset: -32, size: 8, alignment: 8, 
+      stack-id: default, callee-saved-register: '$x28', callee-saved-restored: true, 
+      debug-info-variable: '', debug-info-expression: '', debug-info-location: '' }
+entry_values:    []
+callSites:       []
+debugValueSubstitutions: []
+constants:       []
+machineFunctionInfo:
+  hasRedZone:      false
+body:             |
+  bb.0 (%ir-block.0):
+    successors: %bb.4(0x80000000)
+    liveins: $x27, $x28, $lr
+  
+    early-clobber $sp = frame-setup STPXpre killed $x28, killed $x27, $sp, -4 :: (store (s64) into %stack.5), (store (s64) into %stack.4)
+    frame-setup STPXi killed $fp, killed $lr, $sp, 2 :: (store (s64) into %stack.3), (store (s64) into %stack.2)
+    $fp = frame-setup ADDXri $sp, 16, 0
+    $sp = frame-setup SUBXri $sp, 1, 12
+    $sp = frame-setup SUBXri $sp, 16, 0
+    frame-setup CFI_INSTRUCTION def_cfa $w29, 16
+    frame-setup CFI_INSTRUCTION offset $w30, -8
+    frame-setup CFI_INSTRUCTION offset $w29, -16
+    frame-setup CFI_INSTRUCTION offset $w27, -24
+    frame-setup CFI_INSTRUCTION offset $w28, -32
+    renamable $x8 = COPY $xzr
+    renamable $w0 = COPY $wzr
+    renamable $x9 = LOAD_STACK_GUARD :: (dereferenceable invariant load (s64) from @__stack_chk_guard)
+    STURXi killed renamable $x9, $fp, -24 :: (volatile store (s64) into %stack.0.StackGuardSlot)
+    DBG_VALUE 0, $noreg, !177, !DIExpression(), debug-location !182
+    DBG_VALUE 0, $noreg, !176, !DIExpression(), debug-location !179
+    DBG_VALUE 512, $noreg, !170, !DIExpression(), debug-location !179
+    DBG_VALUE -4539648156078575603, $noreg, !169, !DIExpression(), debug-location !179
+    $x9 = ADDXri $sp, 8, 0
+    renamable $x10 = MOVi64imm -4539648156078575603
+    B %bb.4, debug-location !183
+  
+  bb.1 (%ir-block.3):
+    successors: %bb.3(0x7ffff800), %bb.2(0x00000800)
+    liveins: $w0
+  
+    renamable $x8 = LDURXi $fp, -24 :: (volatile load (s64) from %stack.0.StackGuardSlot)
+    renamable $x9 = LOAD_STACK_GUARD :: (dereferenceable invariant load (s64) from @__stack_chk_guard)
+    dead $xzr = SUBSXrr killed renamable $x9, killed renamable $x8, implicit-def $nzcv
+    Bcc 1, %bb.2, implicit killed $nzcv
+    B %bb.3
+  
+  bb.2 (%ir-block.3):
+    successors: 
+  
+    BL &__stack_chk_fail, csr_darwin_aarch64_aapcs, implicit-def dead $lr, implicit $sp, implicit-def $sp
+  
+  bb.3 (%ir-block.3):
+    liveins: $w0
+  
+    $sp = frame-destroy ADDXri $sp, 1, 12, debug-location !185
+    $sp = frame-destroy ADDXri $sp, 16, 0, debug-location !185
+    $fp, $lr = frame-destroy LDPXi $sp, 2, debug-location !185 :: (load (s64) from %stack.3), (load (s64) from %stack.2)
+    early-clobber $sp, $x28, $x27 = frame-destroy LDPXpost $sp, 4, debug-location !185 :: (load (s64) from %stack.5), (load (s64) from %stack.4)
+    RET_ReallyLR implicit $w0, debug-location !185
+  
+  bb.4 (%ir-block.4):
+    successors: %bb.1(0x04000000), %bb.4(0x7c000000)
+    liveins: $w0, $x8, $x9, $x10
+  
+    DBG_VALUE $w0, $noreg, !176, !DIExpression(), debug-location !179
+    DBG_VALUE $x8, $noreg, !177, !DIExpression(DW_OP_consts, 8, DW_OP_div, DW_OP_stack_value), debug-location !182
+    renamable $x11 = LDRXroX renamable $x9, renamable $x8, 0, 0, debug-location !186 :: (volatile load (s64) from %ir.scevgep, !tbaa !53)
+    dead $xzr = SUBSXrr killed renamable $x11, renamable $x10, implicit-def $nzcv, debug-location !189
+    renamable $w0 = CSINCWr killed renamable $w0, renamable $w0, 1, implicit killed $nzcv, debug-location !190
+    DBG_VALUE $x8, $noreg, !177, !DIExpression(DW_OP_consts, 8, DW_OP_div, DW_OP_consts, 1, DW_OP_plus, DW_OP_stack_value), debug-location !182
+    DBG_VALUE $w0, $noreg, !176, !DIExpression(), debug-location !179
+    renamable $x8 = nuw nsw ADDXri killed renamable $x8, 8, 0, debug-location !191
+    dead $xzr = SUBSXri renamable $x8, 1, 12, implicit-def $nzcv, debug-location !183
+    Bcc 0, %bb.1, implicit killed $nzcv, debug-location !183
+    B %bb.4, debug-location !183
+
+...

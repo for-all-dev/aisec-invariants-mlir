@@ -1,0 +1,99 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: identical_successor_control
+c_evidence:
+- fixtures/precision-control/identical-successor/identical_successor_control.c
+secret:
+- arg: 0
+  name: high_condition
+public:
+- arg: 1
+  name: public_value
+- observable: control
+- observable: return
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: BranchSuccessor
+      field: successor
+    - kind: Output
+      field: valueBytes
+    because: both secret branch arms reach the same successor and return the same public value
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - identical_successor_control
+        function.signatures:
+          contains:
+          - identical_successor_control|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.return
+        branch.successor_shapes:
+          contains:
+          - identical_successor_control|targets=bb1,bb1|same-target=true|args=;
+        return.roots:
+          contains:
+          - identical_successor_control|arg:1
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - identical_successor_control
+        function.signatures:
+          contains:
+          - identical_successor_control|(i32,i32)->i32
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.cond_br
+          - llvm.return
+        branch.successor_shapes:
+          contains:
+          - identical_successor_control|targets=bb1,bb1|same-target=true|args=;
+        return.roots:
+          contains:
+          - identical_successor_control|arg:1
+    relation-reference:
+      kind: relation-reference
+      profile: SPS-Reference-Relation-v1
+      properties:
+        query.admission-nonempty:
+          equals: sat
+        query.high-variation:
+          contains:
+          - high-condition
+        query.terminal-output-surface:
+          equals: unsat
+        query.audit-all:
+          equals: unsat
+        backend.agreement:
+          equals: true

@@ -1,0 +1,32 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: redis_pool_reuse_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    response-owned-by-b:
+      bitvector:
+        width: 32
+        hex: "00000000"
+    request-a-was-cancelled:
+      bitvector:
+        width: 32
+        hex: "00000001"
+  high_left:
+    response-owned-by-a:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    response-owned-by-a:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: actor-b-return-payload-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: return

@@ -1,0 +1,23 @@
+entry: wolfssl_3580_select_fixed
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  table-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+  table-index:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+outputs:
+  return:
+    visibility: secret
+releases: {}

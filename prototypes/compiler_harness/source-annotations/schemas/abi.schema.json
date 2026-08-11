@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sps.dev/source-annotations/abi.schema.json",
+  "title": "SPS source ABI authoring document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "relation",
+    "entry",
+    "carriers",
+    "roots",
+    "aliases",
+    "terminal-output-order"
+  ],
+  "properties": {
+    "source": {
+      "type": "string",
+      "pattern": "^[^/\\\\]+\\.(c|cc|cpp|cxx)$"
+    },
+    "relation": {
+      "const": "provenance-only"
+    },
+    "entry": {
+      "$ref": "#/$defs/entry"
+    },
+    "carriers": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/scalar-carrier"
+      }
+    },
+    "roots": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/root"
+      }
+    },
+    "aliases": {
+      "$ref": "#/$defs/aliases"
+    },
+    "terminal-output-order": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "normal-void": {
+          "$ref": "#/$defs/id-list"
+        },
+        "normal-value": {
+          "$ref": "#/$defs/id-list"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+    },
+    "id-list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "symbol", "host", "function-type", "return"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "symbol": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "host": {
+          "$ref": "#/$defs/id"
+        },
+        "function-type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "return": {
+          "oneOf": [
+            {
+              "const": "void"
+            },
+            {
+              "$ref": "#/$defs/value-return"
+            }
+          ]
+        }
+      }
+    },
+    "value-return": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["llvm-type", "bit-width", "output"],
+      "properties": {
+        "llvm-type": {
+          "$ref": "#/$defs/scalar-llvm-type"
+        },
+        "bit-width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "scalar-llvm-type": {
+      "type": "string",
+      "pattern": "^(i[1-9][0-9]*|float|double)$"
+    },
+    "scalar-carrier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argument", "llvm-type", "bit-width"],
+      "properties": {
+        "argument": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "llvm-type": {
+          "$ref": "#/$defs/scalar-llvm-type"
+        },
+        "bit-width": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argument",
+        "host",
+        "extent-bytes",
+        "alignment",
+        "permission",
+        "initialization",
+        "ownership"
+      ],
+      "properties": {
+        "argument": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "host": {
+          "$ref": "#/$defs/id"
+        },
+        "extent-bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "alignment": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "permission": {
+          "enum": ["read-only", "write-only", "read-write"]
+        },
+        "initialization": {
+          "enum": ["initialized", "uninitialized"]
+        },
+        "ownership": {
+          "enum": ["caller", "entry"]
+        },
+        "input": {
+          "$ref": "#/$defs/id"
+        },
+        "output": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "relations"],
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "relations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/alias-relation"
+          }
+        }
+      }
+    },
+    "alias-relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "roots"],
+      "properties": {
+        "relation": {
+          "enum": ["disjoint", "same-allocation", "may-alias"]
+        },
+        "roots": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    }
+  }
+}

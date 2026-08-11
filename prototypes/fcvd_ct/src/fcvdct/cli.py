@@ -73,10 +73,15 @@ def _report_gate(name: str, gate: GateResult, show_counterexample: bool) -> None
         f"  constant-time  {_VERDICT_LINE[ct.verdict]:<14} "
         f"(observations: source {ct.n_source_observations}, target {ct.n_target_observations})"
     )
+    memory = (
+        "the memory left behind"
+        if equivalence.memory_compared
+        else "memory NOT compared (declared values-only)"
+    )
     compared = (
-        f"{equivalence.n_compared} returned value(s) + the memory left behind"
+        f"{equivalence.n_compared} returned value(s) + {memory}"
         if equivalence.n_compared
-        else "nothing returned, so the memory left behind is all that was compared"
+        else f"nothing returned, so {memory} is all that was compared"
     )
     print(f"  equivalence    {_EQUIVALENCE_LINE[equivalence.verdict]:<14} ({compared})")
     if ct.bounded or equivalence.bounded:
@@ -171,6 +176,11 @@ def main_selfcomp() -> None:
     )
     arg_parser.add_argument("--timeout", type=int, default=60, help="solver timeout, s")
     arg_parser.add_argument("--no-opt", action="store_true", help="skip SMT-level simplification")
+    arg_parser.add_argument(
+        "--no-prefilter",
+        action="store_true",
+        help="always consult the solver, even for taint-clean obligations (same verdicts, slower)",
+    )
     args = arg_parser.parse_args()
 
     ctx = make_context()
@@ -184,6 +194,7 @@ def main_selfcomp() -> None:
         opt=not args.no_opt,
         timeout=args.timeout,
         max_visits=args.unroll,
+        prefilter=not args.no_prefilter,
     )
     print(f"{args.file}: {_SELFCOMP_LINE[result.verdict]}")
     if result.bounded:

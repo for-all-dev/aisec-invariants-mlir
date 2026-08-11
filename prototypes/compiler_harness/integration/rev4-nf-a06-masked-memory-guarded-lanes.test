@@ -1,0 +1,130 @@
+# REQUIRES: llvm-as, llvm-dis, opt, x86-target, llvm-17.0.6
+#
+# NF-A06 -- MASKED MEMORY TO GUARDED LANES (CandidateOnly preflight seed).
+#
+# The authoritative rule requires exact guarded per-lane lowering: an inactive
+# load lane takes its passthrough value and performs no access, each introduced
+# branch/address event remains visible, and lane alignment is
+# commonAlignment(baseAlignment, byteOffset).
+#
+# This test pins the executable LLVM-17 shadow, including its limitation. With
+# input alignment 4, stock ScalarizeMaskedMemIntrin produces the exact eight
+# guards/eight addresses and correct 4,4,4,4 alignments. With input alignment
+# 16, it still writes 4,4,4,4, while the rule requires 16,4,8,4. That contrast
+# is intentionally a successful preflight observation, never an acceptance
+# claim. All bitcode is created under %t.
+
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a06-masked-guarded-lanes.ll.in -o %t.input.bc
+# RUN: %opt -passes=verify -disable-output %t.input.bc
+# RUN: %llvm-dis %t.input.bc -o %t.before.ll
+
+# The function ABI is scalar/pointer-only even though each body privately
+# constructs the two fixed vectors consumed by the masked intrinsics.
+# RUN: not grep -qE '^define .*<' %t.before.ll
+# RUN: grep -cE '^  (%[^ ]+ = )?call .*@llvm\.masked\.(load|store)' %t.before.ll | %FileCheck %s --check-prefix=A06-SOURCE-CALLS
+# A06-SOURCE-CALLS: 4
+# RUN: %FileCheck %s --check-prefix=A06-SOURCE --input-file=%t.before.ll
+# A06-SOURCE-LABEL: define void @a06_masked_roundtrip_align4(ptr %source, ptr %destination, i1 %mask0
+# A06-SOURCE: %mask.3 = insertelement <4 x i1> %mask.2, i1 %mask3, i32 3
+# A06-SOURCE: %passthrough.3 = insertelement <4 x i32> %passthrough.2, i32 %passthrough3, i32 3
+# A06-SOURCE: call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %source, i32 4
+# A06-SOURCE: call void @llvm.masked.store.v4i32.p0({{.*}}ptr %destination, i32 4
+# A06-SOURCE-LABEL: define void @a06_masked_roundtrip_align16(ptr %source, ptr %destination, i1 %mask0
+# A06-SOURCE: call <4 x i32> @llvm.masked.load.v4i32.p0(ptr %source, i32 16
+# A06-SOURCE: call void @llvm.masked.store.v4i32.p0({{.*}}ptr %destination, i32 16
+
+# NEGATIVE ARM 1: merely preserving the two masked calls is not guarded-lane
+# lowering. The checker refuses the unlowered temporary capture.
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.before.ll 2>&1 | %FileCheck %s --check-prefix=A06-UNLOWERED
+# A06-UNLOWERED: error: a06: @a06_masked_roundtrip_align4 expected zero residual masked-memory call sites, found 2
+
+# Generic x86-64 says the intrinsics are not target-legal, so the LLVM-17 pass
+# expands both four-lane load/store pairs.
+# RUN: %opt -mtriple=x86_64-unknown-linux-gnu -passes=scalarize-masked-mem-intrin %t.input.bc -o %t.lowered.bc
+# RUN: %opt -passes=verify -disable-output %t.lowered.bc
+# RUN: %llvm-dis %t.lowered.bc -o %t.lowered.ll
+# RUN: %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.lowered.ll | %FileCheck %s --check-prefix=A06-CHECK
+
+# A06-CHECK: SPS-Harness-Rev4-NF-Seed-Check-v1
+# A06-CHECK: case: a06
+# A06-CHECK: align4 scalar-abi=yes residual-masked-calls=0 lane-guards=8 lane-addresses=8 passthrough-phis=4
+# A06-CHECK-NEXT: align4 load-alignments=4,4,4,4 store-alignments=4,4,4,4 required-commonAlignment=4,4,4,4 match=yes
+# A06-CHECK-NEXT: align16 scalar-abi=yes residual-masked-calls=0 lane-guards=8 lane-addresses=8 passthrough-phis=4
+# A06-CHECK-NEXT: align16 load-alignments=4,4,4,4 store-alignments=4,4,4,4 required-commonAlignment=16,4,8,4 match=no
+# A06-CHECK-NEXT: llvm17-alignment-contrast=copied-element-alignment-4
+# A06-CHECK-NEXT: candidate-observation=MaskedMemoryGuardedLaneShapeWithAlignmentLimitation
+# A06-CHECK: tier=CandidateOnly
+# A06-CHECK-NEXT: nf_conforms=NotEvaluated
+# A06-CHECK-NEXT: model_status=NotComputed
+# A06-CHECK-NEXT: deployment_status=NotComputed
+
+# Raw cardinalities independently pin the introduced event-bearing surface:
+# four load guards plus four store guards per arm, and the corresponding lane
+# addresses/accesses. Inactive loads merge through four PHIs per arm.
+# RUN: grep -cE '^  br i1 ' %t.lowered.ll | %FileCheck %s --check-prefix=A06-BRANCHES
+# A06-BRANCHES: 16
+# RUN: grep -cE '^  %[^ ]+ = getelementptr .* i32, ptr ' %t.lowered.ll | %FileCheck %s --check-prefix=A06-ADDRESSES
+# A06-ADDRESSES: 16
+# RUN: grep -cE '^  %[^ ]+ = load i32, ptr ' %t.lowered.ll | %FileCheck %s --check-prefix=A06-LOADS
+# A06-LOADS: 8
+# RUN: grep -cE '^  store i32 ' %t.lowered.ll | %FileCheck %s --check-prefix=A06-STORES
+# A06-STORES: 8
+# RUN: grep -cE '^  %[^ ]+ = phi <4 x i32> ' %t.lowered.ll | %FileCheck %s --check-prefix=A06-PHIS
+# A06-PHIS: 8
+
+# NEGATIVE ARM 2: with AVX2 enabled, the target declares both masked forms
+# legal and four call sites survive. Running the pass is not evidence that the
+# guarded event surface exists.
+# RUN: %opt -mtriple=x86_64-unknown-linux-gnu -mattr=+avx2 -passes=scalarize-masked-mem-intrin %t.input.bc -o %t.avx2.bc
+# RUN: %llvm-dis %t.avx2.bc -o %t.avx2.ll
+# RUN: grep -cE '^  (%[^ ]+ = )?call .*@llvm\.masked\.(load|store)' %t.avx2.ll | %FileCheck %s --check-prefix=A06-AVX2-CALLS
+# A06-AVX2-CALLS: 4
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.avx2.ll 2>&1 | %FileCheck %s --check-prefix=A06-AVX2
+# A06-AVX2: error: a06: @a06_masked_roundtrip_align4 expected zero residual masked-memory call sites, found 2
+
+# NEGATIVE ARM 3, generated under %t from the primary source: force only the
+# two call operands in each function to an all-active mask. LLVM replaces each
+# intrinsic with one unconditional vector access. Zero residual intrinsic
+# calls is therefore still insufficient: all introduced lane guards disappear.
+# RUN: sed 's/<4 x i1> %mask\.3/<4 x i1> <i1 true, i1 true, i1 true, i1 true>/g' %harness/integration/Inputs/sps-rev4-nf/a06-masked-guarded-lanes.ll.in > %t.all-active.ll.in
+# RUN: %llvm-as %t.all-active.ll.in -o %t.all-active.bc
+# RUN: %opt -mtriple=x86_64-unknown-linux-gnu -passes=scalarize-masked-mem-intrin %t.all-active.bc -o %t.all-active.lowered.bc
+# RUN: %llvm-dis %t.all-active.lowered.bc -o %t.all-active.lowered.ll
+# RUN: not grep -qE '^  br i1 ' %t.all-active.lowered.ll
+# RUN: grep -cE '^  %[^ ]+ = load <4 x i32>' %t.all-active.lowered.ll | %FileCheck %s --check-prefix=A06-ALL-LOADS
+# A06-ALL-LOADS: 2
+# RUN: grep -cE '^  store <4 x i32>' %t.all-active.lowered.ll | %FileCheck %s --check-prefix=A06-ALL-STORES
+# A06-ALL-STORES: 2
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.all-active.lowered.ll 2>&1 | %FileCheck %s --check-prefix=A06-ALL-ACTIVE
+# A06-ALL-ACTIVE: error: a06: @a06_masked_roundtrip_align4 expected eight introduced conditional lane guards, found 0
+
+# NEGATIVE ARM 4: cardinalities alone are insufficient. Inverting every lane
+# predicate keeps all eight branches, accesses, addresses, and PHIs but makes
+# inactive lanes take the access edge. The structural oracle binds each true
+# successor to its mask-derived `icmp ne` condition and rejects the mutation.
+# RUN: sed 's/icmp ne i4/icmp eq i4/g' %t.lowered.ll > %t.inverted-mask.ll
+# RUN: %llvm-as %t.inverted-mask.ll -o %t.inverted-mask.bc
+# RUN: %opt -passes=verify -disable-output %t.inverted-mask.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.inverted-mask.ll 2>&1 | %FileCheck %s --check-prefix=A06-INVERTED
+# A06-INVERTED: error: a06: @a06_masked_roundtrip_align4 %entry must contain exactly one lane-mask comparison
+
+# NEGATIVE ARM 5: retaining eight GEPs while redirecting lanes 1..3 to lane 0
+# is verifier-clean, but no longer represents the four contiguous lanes.
+# RUN: sed '/getelementptr inbounds i32, ptr %/ s/i32 [123]$/i32 0/' %t.lowered.ll > %t.zero-indices.ll
+# RUN: %llvm-as %t.zero-indices.ll -o %t.zero-indices.bc
+# RUN: %opt -passes=verify -disable-output %t.zero-indices.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.zero-indices.ll 2>&1 | %FileCheck %s --check-prefix=A06-ZERO-INDICES
+# A06-ZERO-INDICES: error: a06: @a06_masked_roundtrip_align4 %cond.load1 must contain exactly one source lane-1 address
+
+# NEGATIVE ARM 6: the inactive edge must carry the previous passthrough vector,
+# not merely some type-correct vector value.
+# RUN: sed 's/\[ %%passthrough\.3, %entry \]/[ zeroinitializer, %entry ]/g' %t.lowered.ll > %t.bad-passthrough.ll
+# RUN: %llvm-as %t.bad-passthrough.ll -o %t.bad-passthrough.bc
+# RUN: %opt -passes=verify -disable-output %t.bad-passthrough.bc
+# RUN: not %python %harness/tools/check_rev4_nf_seeds.py --case a06 %t.bad-passthrough.ll 2>&1 | %FileCheck %s --check-prefix=A06-PASSTHROUGH
+# A06-PASSTHROUGH: error: a06: @a06_masked_roundtrip_align4 %else must contain exactly one lane-0 active/passthrough PHI
+
+# A green result records one exact align-4 guarded-lane shadow and the align-16
+# stock-pass mismatch under LLVM 17.0.6. It does not run the Rev4 normalizer,
+# bind a frozen artifact, build a relational product, replay evidence, or issue
+# any authoritative result.

@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
-from xdsl.dialects import arith, memref, tensor
+from xdsl.dialects import arith, llvm, memref, tensor
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
@@ -89,6 +89,11 @@ ADDRESS_RULES: dict[type[Operation], LeakageRule] = {
     # passes exist to remove. See `tensor_ops.py` for the assumption in full.
     tensor.ExtractOp: Rule(ADDRESS, operands_from(1)),
     tensor.InsertOp: Rule(ADDRESS, operands_from(2)),
+    # After memref is lowered C-style, the address is a getelementptr and the access is
+    # an llvm.load/store on its result. The index operands of the GEP are what a memref
+    # access leaked before lowering, so leaking them here keeps the two comparable --
+    # the load/store themselves take an already-computed pointer and add no new secret.
+    llvm.GEPOp: Rule(ADDRESS, operands_from(1)),
 }
 
 #: The resource obligation of the plan -- "the sets of allocated and un-freed memory at

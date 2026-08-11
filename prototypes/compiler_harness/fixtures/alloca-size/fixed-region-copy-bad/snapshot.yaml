@@ -1,0 +1,82 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: alloca_size_fixed_region_copy_bad
+c_evidence:
+- fixtures/alloca-size/fixed-region-copy-bad/alloca_size_fixed_region_copy_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- memory_at_arg: 1
+  name: public_out
+- observable: allocation-size
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-output-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Memory
+      field: allocationClass
+    - kind: Output
+      field: valueBytes
+      id: public-out
+      first_bad: true
+    because: both runs allocate eight bytes, but the secret byte copied through offsets 0 and 4 reaches public-out
+    reference: candidate/expected-report.json
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - alloca_size_fixed_region_copy_bad
+        operation.names:
+          ordered:
+          - llvm.trunc
+          - llvm.alloca
+          - llvm.getelementptr
+          - llvm.store
+          - llvm.load
+          - llvm.store
+          - llvm.load
+          - llvm.store
+        argument.attributes:
+          contains:
+          - alloca_size_fixed_region_copy_bad|0|sps.component_ref|"secret"
+          - alloca_size_fixed_region_copy_bad|1|sps.abi_root_ref|"public-out"
+        operation.occurrences.llvm.alloca:
+          count:
+            eq: 1
+        operation.occurrences.llvm.getelementptr:
+          count:
+            eq: 2
+        operation.occurrences.llvm.load:
+          count:
+            eq: 2
+        operation.occurrences.llvm.store:
+          count:
+            eq: 3
+    candidate-bitcode:
+      kind: bytes
+      digest:
+        manifest: candidate/artifact.json
+        field: candidate_bitcode_sha256

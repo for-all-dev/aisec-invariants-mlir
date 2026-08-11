@@ -1,0 +1,83 @@
+# REQUIRES: clang, llvm-as, llvm-dis, x86-target
+#
+# INVALID CALLABLE-WRAPPER SURVIVAL AT THE BITCODE LEVEL.
+#
+# integration/invalid-callable-mlir-survival.test shows that the
+# MLIR inliner honours passthrough noinline. This test preserves the analogous
+# C/bitcode experiment. Under SPS-LLVM-NF-v2, every function-shaped
+# wrapper is a structural negative; survival alone never makes it a release
+# carrier.
+#
+# The direct-call and call-count checks document why wrapper pinning is not a
+# valid substitute for the intrinsic carrier.
+#
+# These checks make no ModelStatus claim.
+
+# RUN: %clang -E -P -I%harness/include %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.preprocessed.c
+# RUN: not grep -F 'llvm.sps.release' %t.preprocessed.c
+
+# --- pinned wrapper survives O2, but default tail calls are out of profile ---
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.rc.bc
+# RUN: %llvm-dis %t.rc.bc -o %t.rc.ll
+# RUN: %FileCheck %s --check-prefix=CARRIER --input-file=%t.rc.ll
+
+# The wrapper is still a defined function and still carries noinline.
+# CARRIER-DAG: define{{.*}}@sps_release_invalid_callable
+# CARRIER-DAG: noinline
+# Clang's default sibling-call optimization marks both occurrences `tail`.
+# V2 rejected tail/musttail/notail/invoke/callbr carriers. NFv2 rejects this
+# function-shaped carrier before that distinction is relevant.
+# CARRIER: tail call i32 @sps_release_invalid_callable
+
+# --- a non-tail call-shape arm has cardinality exactly two ------------------
+# This isolates call kind and occurrence count. It is not a fully admissible
+# carrier because C still cannot express all of the required optimizer pins.
+# RUN: %clang -std=c11 -Wall -Wextra -Wpedantic -fno-builtin -I%harness/include -fno-optimize-sibling-calls --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %fixtures/release-carrier/pinned-control/release_carrier.c -o %t.rc.nontail.bc
+# RUN: %llvm-dis %t.rc.nontail.bc -o %t.rc.nontail.ll
+# RUN: %FileCheck %s --check-prefix=NONTAIL --implicit-check-not='tail call i32 @sps_release_invalid_callable' --input-file=%t.rc.nontail.ll
+# NONTAIL: {{^  %[^ ]+ = call i32 @sps_release_invalid_callable}}
+# NONTAIL: {{^  %[^ ]+ = call i32 @sps_release_invalid_callable}}
+# NONTAIL-NOT: call i32 @sps_release_invalid_callable
+
+# The manifest for this fixture declares multiplicity 2. If the optimiser had
+# merged, cloned, or inlined either site the count would move, and the carrier
+# audit would have nothing stable to bind. Asserted as a count rather than a
+# presence check, because presence is the easy half.
+# RUN: grep -c "call i32 @sps_release_invalid_callable" %t.rc.nontail.ll | %FileCheck %s --check-prefix=CALLCOUNT
+# CALLCOUNT: 2
+
+# --- and it survives canonicalisation ---------------------------------------
+# The binder reads the reparsed canonical module, not the emitted one, so the
+# carrier has to be present after the round trip too.
+# RUN: %llvm-as %t.rc.nontail.ll -o %t.rc.canon.bc
+# RUN: %llvm-dis %t.rc.canon.bc -o %t.rc.canon.ll
+# RUN: not grep -q "tail call i32 @sps_release_invalid_callable" %t.rc.canon.ll
+# RUN: grep -c "call i32 @sps_release_invalid_callable" %t.rc.canon.ll | %FileCheck %s --check-prefix=CANON-CALLCOUNT
+# CANON-CALLCOUNT: 2
+
+# --- the negative arm: without the pin, the carrier is gone -----------------
+# Same source, same flags, with the attribute removed by preprocessor
+# substitution. This is the C-level counterpart of the MLIR differential.
+# RUN: sed 's/__attribute__((noinline))//' %fixtures/release-carrier/pinned-control/release_carrier.c > %t.unpinned.c
+# RUN: %clang -std=c11 -fno-builtin -I%harness/include --target=x86_64-unknown-linux-gnu -O2 -c -emit-llvm %t.unpinned.c -o %t.unpinned.bc
+# RUN: %llvm-dis %t.unpinned.bc -o %t.unpinned.ll
+# RUN: %FileCheck %s --check-prefix=UNPINNED --implicit-check-not='call i32 @sps_release_invalid_callable' --input-file=%t.unpinned.ll
+
+# No call remains; the mask arithmetic has been spliced into the caller.
+# UNPINNED: and i32
+
+# INTERPRETATION.
+#
+# The unpinned arm is not a leak. It computes and publishes the same values. What
+# it has lost is bindability: no direct call to the manifest-named wrapper means
+# no stable SiteId, no ABI-role mapping, and no occurrence cardinality to match.
+# The correct disposition is a refusal, not a counterexample.
+#
+# A LIMITATION THIS TEST MAKES VISIBLE. Only `noinline` is pinned here, because
+# only `noinline` is expressible from C -- Clang warns and ignores GCC's
+# `noclone`, and there is no portable C spelling for LLVM's `noduplicate`. So a
+# release wrapper declared purely in C is pinned against inlining and against
+# nothing else; `nomerge`, `noduplicate` and the outliner pin have to be applied
+# at IR level. A declassifier API that ships as a C header is therefore an
+# incomplete carrier by construction, and that is worth knowing before designing
+# one.

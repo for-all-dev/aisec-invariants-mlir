@@ -1,0 +1,45 @@
+entry: explicit_error_oracle_fixed
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  padding-is-valid:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  padding-error-detail:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  authorized-plaintext-length:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  public-status:
+    visibility: public
+  public-error-detail:
+    visibility: public
+  return:
+    visibility: public
+releases:
+  padding-status:
+    locator: {helper: padding-status, call-ordinal: 0}
+    audience: public
+    type: {kind: bv, width: 32, byte-order: little}
+    expression:
+      bit-xor:
+        left: {constant: 1}
+        right:
+          bit-and:
+            left: {component: padding-is-valid}
+            right: {constant: 1}
+    guard: true
+    payload-footprint: [0]
+    multiplicity: 1

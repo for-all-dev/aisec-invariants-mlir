@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 
-#include "../../../../compiler_harness/c/explicit_error_oracle_fixed.c"
+#include "../../../../compiler_harness/fixtures/explicit-error-oracle/fixed/explicit_error_oracle_fixed.c"
 
 extern uint32_t nd_u32(void);
 

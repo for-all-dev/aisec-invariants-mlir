@@ -96,6 +96,9 @@ class EquivalenceResult:
     counterexample: str = ""
     reason: str = ""
     bounded: bool = False
+    memory_compared: bool = True
+    """False when the template declared `fcvdct.values_only`: the verdict rests on the
+    returned values alone."""
 
 
 @dataclass
@@ -175,13 +178,17 @@ def _instantiate(
     block_builder: Builder,
     model: dict[type[Operation], LeakageRule] | None,
     max_visits: int,
+    state: SSAValue | None = None,
 ) -> tuple[StructuralTrace, bool]:
-    """Flatten one program and lower it to SMT from its own fresh effect state.
+    """Flatten one program and lower it to SMT from the given initial effect state.
 
-    Each of the four programs starts from its own state: UB raised by one of them must
-    not propagate into the others.
+    The initial memory is an *input*: the source and target of one run must read the
+    same one, or a program that loads from memory can never be proved preserving (the
+    identity template itself came back ct-breaking until 2026-08-09, which is how this
+    was found). Only the initial state is shared -- each program threads its own state
+    chain from there, so UB raised by one still cannot propagate into another.
     """
-    trace, bounded, _ = instantiate(function, inputs, block_builder, model, max_visits)
+    trace, bounded, _ = instantiate(function, inputs, block_builder, model, max_visits, state)
     return trace, bounded
 
 
@@ -194,8 +201,17 @@ def _two_functions(template: ModuleOp) -> tuple[FuncOp, FuncOp]:
             f"found {sorted(functions)}"
         )
     source, target = functions["source"], functions["target"]
-    if source.function_type.inputs != target.function_type.inputs:
-        raise UnsupportedTemplate("@source and @target must take the same inputs")
+    # The two runs share one set of SMT inputs, so what has to match is the *lowered*
+    # type, not the MLIR type. A lowering step that changes a type -- memref to
+    # !llvm.ptr, say -- is exactly what type conversion does, and both lower to the same
+    # pointer+poison pair, so the shared input is legitimate. Comparing MLIR types would
+    # forbid checking any type-changing lowering, which is most of them.
+    source_inputs = [SMTLowerer.lower_type(t) for t in source.function_type.inputs]
+    target_inputs = [SMTLowerer.lower_type(t) for t in target.function_type.inputs]
+    if source_inputs != target_inputs:
+        raise UnsupportedTemplate(
+            "@source and @target must take inputs that lower to the same SMT types"
+        )
     return source, target
 
 
@@ -222,9 +238,16 @@ def build_query(
             declared = builder.insert(smt.DeclareConstOp(SMTLowerer.lower_type(input_type)))
             declared.res.name_hint = f"in{index}_run{run}"
             inputs.append(declared.res)
-        # Source and target of one run see the same inputs; the two runs do not.
-        source_trace, source_bounded = _instantiate(source, inputs, builder, model, max_visits)
-        target_trace, target_bounded = _instantiate(target, inputs, builder, model, max_visits)
+        # Source and target of one run see the same inputs -- the initial memory
+        # included; the two runs do not.
+        state = builder.insert(smt.DeclareConstOp(StateType())).res
+        state.name_hint = f"memory_in_run{run}"
+        source_trace, source_bounded = _instantiate(
+            source, inputs, builder, model, max_visits, state
+        )
+        target_trace, target_bounded = _instantiate(
+            target, inputs, builder, model, max_visits, state
+        )
         bounded = bounded or source_bounded or target_bounded
         source_traces.append(source_trace)
         target_traces.append(target_trace)
@@ -290,6 +313,7 @@ def build_equivalence_query(
     opt: bool = True,
     max_visits: int = DEFAULT_MAX_VISITS,
     assume_defined_inputs: bool = True,
+    compare_memory: bool = True,
 ) -> tuple[str, int, bool, bool]:
     """Build the SMTLib script asserting that the lowering *changes what is computed*.
 
@@ -365,11 +389,13 @@ def build_equivalence_query(
     # order blocks were allocated in -- so it can raise a false alarm on a lowering that
     # reallocates, and cannot pass one that writes different bytes. Strict is the safe
     # direction for a gate, and the asymmetry is reported rather than assumed away.
-    memory_agrees = builder.insert(smt.EqOp(source_state, target_state)).res
     ub_source = builder.insert(ub_effect.ToBoolOp(source_state)).res
     ub_target = builder.insert(ub_effect.ToBoolOp(target_state)).res
     not_ub_target = builder.insert(smt.NotOp(ub_target)).result
-    defined_case = _conjoin(builder, [not_ub_target, memory_agrees, *terms])
+    memory_clause: list[SSAValue] = []
+    if compare_memory:
+        memory_clause.append(builder.insert(smt.EqOp(source_state, target_state)).res)
+    defined_case = _conjoin(builder, [not_ub_target, *memory_clause, *terms])
     refines = builder.insert(smt.OrOp(ub_source, defined_case)).result
 
     builder.insert(smt.AssertOp(builder.insert(smt.NotOp(refines)).result))
@@ -432,6 +458,19 @@ def check_lowering(
     )
 
 
+VALUES_ONLY_ATTR = "fcvdct.values_only"
+"""A template carrying this module attribute asks the equivalence gate to compare the
+returned values but not the final memory. The whole-state comparison is strict enough to
+refuse any step that legitimately *removes* allocations (mem2reg being the canonical
+one) -- the docstring of `build_equivalence_query` warns of exactly this false alarm.
+The weakening is declared in the template file itself, so it is visible next to the
+transcription it excuses, and it is printed with the verdict."""
+
+
+def values_only(template: ModuleOp) -> bool:
+    return VALUES_ONLY_ATTR in (template.attributes or {})
+
+
 def check_equivalence(
     ctx: Context,
     template: ModuleOp,
@@ -442,9 +481,16 @@ def check_equivalence(
     assume_defined_inputs: bool = True,
 ) -> EquivalenceResult:
     """Decide whether the target of a lowering computes what the source computed."""
+    skip_memory = values_only(template)
     try:
         script, n_compared, bounded, reached = build_equivalence_query(
-            ctx, template, model, opt, max_visits, assume_defined_inputs
+            ctx,
+            template,
+            model,
+            opt,
+            max_visits,
+            assume_defined_inputs,
+            compare_memory=not skip_memory,
         )
     except Exception as e:
         return EquivalenceResult("unknown", 0, reason=f"{type(e).__name__}: {e}")
@@ -459,7 +505,12 @@ def check_equivalence(
             script,
             output,
             bounded=bounded,
-            reason="" if reached else "no path reached a return: values were not compared",
+            memory_compared=not skip_memory,
+            reason=(
+                "values only: the memory clause is OFF by the template's own declaration"
+                if skip_memory
+                else ("" if reached else "no path reached a return: values were not compared")
+            ),
         )
     if output.startswith("sat"):
         with_model = _run_z3(script + "\n(get-model)\n", timeout)
@@ -471,6 +522,7 @@ def check_equivalence(
             output,
             with_model.stdout.strip(),
             bounded=bounded,
+            memory_compared=not skip_memory,
         )
     return EquivalenceResult(
         "unknown",
@@ -480,6 +532,7 @@ def check_equivalence(
         output,
         reason=f"solver said {output or '<nothing>'}; stderr: {result.stderr.strip()}",
         bounded=bounded,
+        memory_compared=not skip_memory,
     )
 
 

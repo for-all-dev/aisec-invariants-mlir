@@ -1,0 +1,29 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary bitcode input, not canonical frozen.bc.
+
+define i32 @asymmetric_udiv_zero(i1 %secret, i32 %x) {
+entry:
+  %divisor = select i1 %secret, i32 0, i32 1
+  %quotient = udiv i32 %x, %divisor
+  ret i32 %quotient
+}
+
+define i32 @aligned_udiv_zero(i32 %x) {
+entry:
+  %quotient = udiv i32 %x, 0
+  ret i32 %quotient
+}
+
+define i32 @out_of_range_shift(i1 %secret, i32 %x) {
+entry:
+  %amount = select i1 %secret, i32 32, i32 33
+  %shifted = shl i32 %x, %amount
+  ret i32 %shifted
+}
+
+define i8 @uninitialized_load() {
+entry:
+  %slot = alloca i8, align 1
+  %value = load i8, ptr %slot, align 1
+  ret i8 %value
+}
+

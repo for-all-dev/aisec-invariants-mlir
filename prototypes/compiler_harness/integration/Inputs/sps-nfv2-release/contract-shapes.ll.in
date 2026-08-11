@@ -1,0 +1,99 @@
+; Textual contract cases for stock LLVM. This file is intentionally not
+; assembled: malformed arms exercise structural failure classification before
+; a patched LLVM parser or SPS verifier exists.
+
+declare void @llvm.sps.release(...)
+declare void @__sps_invalid_callable_emit_deadbeef(i8)
+declare i8 @release_wrapper(i8)
+
+define void @valid_mixed_width(i8 %byte, i32 %word) {
+entry:
+  call void (...) @llvm.sps.release(i8 %byte, i32 %word)
+  ret void
+}
+
+define void @missing_marker(i8 %value) {
+entry:
+  ret void
+}
+
+define void @duplicate_marker(i8 %value) {
+entry:
+  call void (...) @llvm.sps.release(i8 %value)
+  call void (...) @llvm.sps.release(i8 %value)
+  ret void
+}
+
+define void @wrong_result(i8 %value) {
+entry:
+  %released = call i8 (...) @llvm.sps.release(i8 %value)
+  ret void
+}
+
+define void @nonvariadic_call(i8 %value) {
+entry:
+  call void @llvm.sps.release(i8 %value)
+  ret void
+}
+
+define void @noninteger_payload(float %value) {
+entry:
+  call void (...) @llvm.sps.release(float %value)
+  ret void
+}
+
+define void @wrong_arity(i8 %byte, i32 %word) {
+entry:
+  call void (...) @llvm.sps.release(i8 %byte)
+  ret void
+}
+
+define void @wrong_order(i8 %byte, i32 %word) {
+entry:
+  call void (...) @llvm.sps.release(i32 %word, i8 %byte)
+  ret void
+}
+
+define void @wrong_width(i16 %byte, i32 %word) {
+entry:
+  call void (...) @llvm.sps.release(i16 %byte, i32 %word)
+  ret void
+}
+
+define void @release_id_operand(i8 %value) {
+entry:
+  call void (...) @llvm.sps.release(i64 7, i8 %value)
+  ret void
+}
+
+define void @legacy_function(i8 %value) {
+entry:
+  call void @__sps_invalid_callable_emit_deadbeef(i8 %value)
+  ret void
+}
+
+define void @legacy_wrapper(i8 %value) {
+entry:
+  %released = call i8 @release_wrapper(i8 %value)
+  ret void
+}
+
+define void @legacy_inline_asm(i8 %value) {
+entry:
+  call void asm sideeffect "# sps.release", "r"(i8 %value)
+  ret void
+}
+
+define void @metadata_only(i8 %value) {
+entry:
+  %copy = add i8 %value, 0, !sps.release !0
+  ret void
+}
+
+define void @store_only(i8 %value, ptr %output) {
+entry:
+  store i8 %value, ptr %output
+  ret void
+}
+
+!0 = !{!"release-seven"}

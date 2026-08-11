@@ -1,0 +1,24 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: audience_location_visible_bad
+coalition:
+- bob
+inputs:
+  low_equal: {}
+  high_left:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000003"
+  high_right:
+    secret:
+      bitvector:
+        width: 32
+        hex: "00000005"
+expected:
+  bad_state: unauthorized-location-visible-release-value
+  first_difference:
+    kind: Release
+    field: valueBytes
+    id: alice-class

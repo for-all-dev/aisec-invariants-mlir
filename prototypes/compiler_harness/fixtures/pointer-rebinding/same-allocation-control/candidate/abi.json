@@ -1,0 +1,67 @@
+{
+  "format_id": "SPS-Harness-Candidate-ABI-v2",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret_selector",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "left",
+      "kind": "root",
+      "root_id": "left",
+      "extent_bytes": 1
+    },
+    {
+      "index": 2,
+      "name": "right",
+      "kind": "root",
+      "root_id": "right",
+      "extent_bytes": 1
+    },
+    {
+      "index": 3,
+      "name": "private_result",
+      "kind": "root",
+      "root_id": "private-result",
+      "extent_bytes": 1,
+      "output": "private-result"
+    }
+  ],
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": true,
+    "relations": [
+      {
+        "left": "left",
+        "right": "right",
+        "relation": "SameAllocation"
+      },
+      {
+        "left": "left",
+        "right": "private-result",
+        "relation": "Disjoint"
+      },
+      {
+        "left": "right",
+        "right": "private-result",
+        "relation": "Disjoint"
+      }
+    ]
+  },
+  "initialized_regions": [
+    {
+      "root": "left",
+      "offset": 0,
+      "width": 1
+    },
+    {
+      "root": "right",
+      "offset": 0,
+      "width": 1
+    }
+  ],
+  "entry": "pointer_rebinding_same_allocation_control",
+  "candidate_bitcode_sha256": "b5e3d278af179bea773c9f0a10da5fa82c306b3879acf63375a4318e075371bf"
+}

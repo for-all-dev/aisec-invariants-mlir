@@ -1,0 +1,75 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-OUTPUT-RETURN",
+  "caseId": "output-return-constant-control",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 7.3",
+    "Normative 11"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "entry.return.control",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 1,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "terminalOutputOrder": [
+          "return.value"
+        ],
+        "return": {
+          "outputId": "return.value",
+          "width": 1,
+          "host": "caller",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": []
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "const": {
+              "width": 1,
+              "value": 0
+            }
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "unsat",
+    "firstBadCause": null,
+    "replayAccepted": false,
+    "eventShape": [
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [],
+    "canonicalReferencePONFDigest": "6c2c62065e0581c4fe9ffca677e120c19327e724e5faa7a486b86936057e3468",
+    "firstBadEventOrdinal": null,
+    "firstTrueBadRow": null
+  }
+}

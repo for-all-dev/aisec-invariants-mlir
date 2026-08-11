@@ -1,0 +1,188 @@
+# REQUIRES: llvm-as, llvm-dis, opt, llvm-17.0.6
+#
+# NF-A02 -- CLOSED SCALAR ARITHMETIC SURFACE (preflight seed).
+#
+# Before this test the whole harness contained zero floating-point IR:
+#   grep -rEn '\b(fadd|fmul|fsub|fdiv|fcmp|fneg|fptrunc|fpext|sitofp|uitofp)\b'
+# returned nothing. NF-A02 and Lemma R5.0N are entirely about which FP opcodes
+# may appear, so there was no witness of any kind for either side of the line.
+#
+# WHAT THE PROFILE ACTUALLY SAYS (NF-A02, section 15). The module contains
+# flag-free modulo integer arithmetic and checked division and shift operands.
+# "Floating-point values occur only in bit-preserving movement, same-width
+# bitcasts, `fneg`, and `fcmp`; the frozen closure contains no FP arithmetic,
+# width conversion, or FP/integer numeric conversion."
+#
+# Metatheory Lemma R5.0N supplies the reason and the two lists:
+# NoAmbiguousNaNResult_e(T) holds exactly when the frozen closure contains no
+# FP arithmetic, FP-width conversion, or FP/integer numeric conversion; any
+# residual such opcode yields Unknown(PONFFPArithmeticUnsupported) "before
+# relational construction, even if it is dynamically unreachable, its actual
+# arguments would produce a non-NaN result, or a target claim selects one
+# result". The admitted side is: "Loads, stores, same-width bitcasts, phi,
+# select, and `fneg` preserve exact input bits, while `fcmp` produces the fixed
+# predicate-defined Boolean".
+#
+# So `fneg` is ADMITTED even though LLVM groups it with FP arithmetic, and
+# `bitcast i32 -> float` is ADMITTED while `sitofp i32 -> float` is REJECTED.
+# Those two are the non-obvious placements and both are pinned below.
+#
+# WHAT THIS TEST CHECKS: that a hand-authored module can be built entirely from
+# the admitted surface and survive assemble/verify/disassemble under LLVM
+# 17.0.6, and that each rejected opcode class is detected by the harness gate
+# with the correct harness expectation string.
+#
+# WHAT IT DOES NOT CHECK: NFConforms, any ModelStatus, DeploymentStatus, or
+# PolicyReviewStatus; the transition-rule audit; the actual
+# NoAmbiguousNaNResult_e(T) gate. tools/nf_surface_gate.py is a syntactic
+# opcode scanner, and the reason-class strings it prints are harness
+# EXPECTATION records for a future Rev4 run, never computed results. The
+# normative boundary is LLVM 22.1.8, which does not exist on this machine.
+
+# ===========================================================================
+# ACCEPTED ARM -- the admitted surface assembles, verifies, and round-trips
+# ===========================================================================
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a02-scalar-fp-admitted.ll.in -o %t.admitted.bc
+# RUN: %opt -passes=verify -disable-output %t.admitted.bc
+# RUN: %llvm-dis %t.admitted.bc -o %t.admitted.ll
+
+# The integer half: flag-free modulo arithmetic with checked div/shift
+# operands. `udiv`/`urem` take a divisor that is provably nonzero on this path
+# and `shl`/`lshr` take an amount masked below the operand width, which is the
+# "checked division and shift operands" NF-A02 names.
+# RUN: %FileCheck %s --check-prefix=A02-INT --input-file=%t.admitted.ll
+# A02-INT-LABEL: define i32 @a02_checked_integer_surface(i32 %a, i32 %b, i32 %shift)
+# A02-INT: %sum = add i32 %a, %b
+# A02-INT: %checked_divisor = select i1 %divisor_is_zero, i32 1, i32 %b
+# A02-INT: %quotient = udiv i32 %prod, %checked_divisor
+# A02-INT: %checked_amount = and i32 %shift, 31
+# A02-INT: %shifted = shl i32 %quotient, %checked_amount
+
+# No `nsw`/`nuw`/`exact` flag survives anywhere in the module: NF-A02 says
+# flag-free. Non-vacuous because the mutation arm at the bottom shows the same
+# grep firing once a single opcode changes.
+# RUN: not grep -qE '\b(nsw|nuw|exact)\b' %t.admitted.ll
+
+# The FP half, pinned as counts rather than presence.
+# RUN: grep -cE '^  %[^ ]+ = fneg ' %t.admitted.ll | %FileCheck %s --check-prefix=A02-FNEG-COUNT
+# A02-FNEG-COUNT: 2
+# RUN: grep -cE '^  %[^ ]+ = fcmp ' %t.admitted.ll | %FileCheck %s --check-prefix=A02-FCMP-COUNT
+# A02-FCMP-COUNT: 2
+# RUN: grep -cE '^  %[^ ]+ = bitcast ' %t.admitted.ll | %FileCheck %s --check-prefix=A02-BITCAST-COUNT
+# A02-BITCAST-COUNT: 3
+
+# Same-width bitcasts in both directions, which is the pair that makes the
+# sitofp arm below meaningful: identical operand and result types, different
+# admissibility.
+# RUN: %FileCheck %s --check-prefix=A02-BITCAST --input-file=%t.admitted.ll
+# A02-BITCAST: %bits = bitcast double %merged to i64
+# A02-BITCAST: %as_float = bitcast i32 %encoded to float
+# A02-BITCAST: %back = bitcast float %selected to i32
+
+# The gate agrees, and exits 0. `rejected-fp-items:` is immediately followed by
+# the summary line, so the rejected list is pinned EMPTY by adjacency rather
+# than by a CHECK-NOT that could pass vacuously.
+# RUN: %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.admitted.ll | %FileCheck %s --check-prefix=A02-ADMIT
+# A02-ADMIT: SPS-Harness-Surface-Gate-v2
+# A02-ADMIT: profile: fp-closure
+# A02-ADMIT: admitted-bit-preserving-fp-items:
+# A02-ADMIT-NEXT: load 1
+# A02-ADMIT-NEXT: store 1
+# A02-ADMIT-NEXT: bitcast 3
+# A02-ADMIT-NEXT: phi 1
+# A02-ADMIT-NEXT: select 2
+# A02-ADMIT-NEXT: fneg 2
+# A02-ADMIT-NEXT: fcmp 2
+# A02-ADMIT-NEXT: rejected-fp-items:
+# A02-ADMIT-NEXT: summary: rejected-fp-item-count=0
+# A02-ADMIT-NEXT: SPS-Harness-Expectation: NF-A02 rejected-FP surface is textually empty in this module; the NoAmbiguousNaNResult_e(T) gate is NOT thereby established
+# A02-ADMIT-NEXT: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+# A02-ADMIT-NEXT: SPS-Harness-Note: syntactic opcode/type scan of one textual module under LLVM 17.0.6; not the Rev4 normal-form audit and not a proof
+
+# ===========================================================================
+# REJECTED ARM 1 -- FP arithmetic (`fadd`)
+# ===========================================================================
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a02-rejected-fadd.ll.in -o %t.fadd.bc
+# RUN: %opt -passes=verify -disable-output %t.fadd.bc
+# RUN: %llvm-dis %t.fadd.bc -o %t.fadd.ll
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.fadd.ll 2>&1 | %FileCheck %s --check-prefix=A02-FADD
+# A02-FADD: rejected-fp-items:
+# A02-FADD-NEXT: line {{[0-9]+}} in @a02_fp_arithmetic: fadd (fp-arithmetic): %sum = fadd double %left, %right
+# The second hit is behind `br i1 false`. R5.0N refuses it anyway: rejection is
+# syntactic, "even if it is dynamically unreachable".
+# A02-FADD-NEXT: line {{[0-9]+}} in @unreachable_fadd: fadd (fp-arithmetic): %sum = fadd double %left, %right
+# A02-FADD-NEXT: summary: rejected-fp-item-count=2
+# A02-FADD-NEXT: SPS-Harness-Expectation: Unknown(PONFFPArithmeticUnsupported) -- NF-A02 admits no residual FP arithmetic, FP-width conversion, or FP/integer numeric conversion (Lemma R5.0N)
+# A02-FADD: SPS-Harness-Boundary: tier=CandidateOnly nf_conforms=NotEvaluated model_status=NotComputed deployment_status=NotComputed
+
+# The dead branch really is still in the module the gate scanned; the arm would
+# be trivial if llvm-as had folded it away.
+# RUN: grep -q 'br i1 false' %t.fadd.ll
+
+# ===========================================================================
+# REJECTED ARM 2 -- FP-width conversion (`fptrunc`, and its `fpext` partner)
+# ===========================================================================
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a02-rejected-fptrunc.ll.in -o %t.fptrunc.bc
+# RUN: %opt -passes=verify -disable-output %t.fptrunc.bc
+# RUN: %llvm-dis %t.fptrunc.bc -o %t.fptrunc.ll
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.fptrunc.ll 2>&1 | %FileCheck %s --check-prefix=A02-FPTRUNC
+# A02-FPTRUNC: rejected-fp-items:
+# A02-FPTRUNC-NEXT: line {{[0-9]+}} in @a02_fp_width_narrowing: fptrunc (fp-width-conversion): %narrow = fptrunc double %wide to float
+# A02-FPTRUNC-NEXT: line {{[0-9]+}} in @a02_fp_width_widening: fpext (fp-width-conversion): %wide = fpext float %narrow to double
+# A02-FPTRUNC-NEXT: summary: rejected-fp-item-count=2
+# A02-FPTRUNC-NEXT: SPS-Harness-Expectation: Unknown(PONFFPArithmeticUnsupported)
+
+# ===========================================================================
+# REJECTED ARM 3 -- FP/integer NUMERIC conversion (`sitofp` and friends)
+# ===========================================================================
+# This is the arm that separates "mentions a float type" from "renumbers the
+# value". `bitcast i32 -> float` is admitted above; `sitofp i32 -> float` has
+# the same operand and result types and is rejected.
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-nf/a02-rejected-sitofp.ll.in -o %t.sitofp.bc
+# RUN: %opt -passes=verify -disable-output %t.sitofp.bc
+# RUN: %llvm-dis %t.sitofp.bc -o %t.sitofp.ll
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.sitofp.ll 2>&1 | %FileCheck %s --check-prefix=A02-SITOFP
+# A02-SITOFP: rejected-fp-items:
+# A02-SITOFP-NEXT: line {{[0-9]+}} in @a02_signed_integer_to_fp: sitofp (fp-integer-numeric-conversion): %converted = sitofp i32 %value to float
+# A02-SITOFP-NEXT: line {{[0-9]+}} in @a02_fp_to_signed_integer: fptosi (fp-integer-numeric-conversion): %converted = fptosi float %value to i32
+# A02-SITOFP-NEXT: line {{[0-9]+}} in @a02_unsigned_integer_to_fp: uitofp (fp-integer-numeric-conversion): %converted = uitofp i64 %value to double
+# A02-SITOFP-NEXT: summary: rejected-fp-item-count=3
+# A02-SITOFP-NEXT: SPS-Harness-Expectation: Unknown(PONFFPArithmeticUnsupported)
+
+# ===========================================================================
+# DISCRIMINATION ARM -- one opcode substitution flips the accepted module
+# ===========================================================================
+# The accepted arm's `not grep` and `rejected-fp-item-count=0` would both pass
+# on any module with no FP at all. This arm removes that doubt: take the
+# ACCEPTED module, replace exactly one admitted `fneg` with a rejected `fmul`,
+# change nothing else, and watch both mechanisms fire.
+# RUN: sed 's/fneg double %value/fmul double %value, %value/' %harness/integration/Inputs/sps-rev4-nf/a02-scalar-fp-admitted.ll.in > %t.mutated.ll.in
+# RUN: not cmp -s %t.mutated.ll.in %harness/integration/Inputs/sps-rev4-nf/a02-scalar-fp-admitted.ll.in
+# RUN: %llvm-as %t.mutated.ll.in -o %t.mutated.bc
+# RUN: %opt -passes=verify -disable-output %t.mutated.bc
+# RUN: %llvm-dis %t.mutated.bc -o %t.mutated.ll
+
+# The raw grep that was silent on the accepted module now has exactly one hit.
+# RUN: grep -cE '^  %[^ ]+ = (fadd|fsub|fmul|fdiv|frem|fptrunc|fpext|fptosi|fptoui|sitofp|uitofp) ' %t.mutated.ll | %FileCheck %s --check-prefix=A02-MUTATED-COUNT
+# A02-MUTATED-COUNT: 1
+
+# And the gate flips from exit 0 to exit 1, with `fneg` down from 2 to 1.
+# RUN: not %python %harness/tools/nf_surface_gate.py --profile fp-closure %t.mutated.ll 2>&1 | %FileCheck %s --check-prefix=A02-MUTATED
+# A02-MUTATED: fneg 1
+# A02-MUTATED: rejected-fp-items:
+# A02-MUTATED-NEXT: line {{[0-9]+}} in @a02_double_bit_preserving: fmul (fp-arithmetic): %negated = fmul double %value, %value
+# A02-MUTATED-NEXT: summary: rejected-fp-item-count=1
+# A02-MUTATED-NEXT: SPS-Harness-Expectation: Unknown(PONFFPArithmeticUnsupported)
+
+# INTERPRETATION.
+#
+# A green run here means: the admitted NF-A02 surface is expressible and stable
+# under LLVM 17.0.6 assemble/verify/disassemble, and each of the three rejected
+# classes is separated from it by a syntactic scan whose recorded expectation is
+# Unknown(PONFFPArithmeticUnsupported).
+#
+# It does not mean NoAmbiguousNaNResult_e(T) holds for any artifact. That gate
+# is over the FROZEN CLOSURE of a canonical LLVM 22.1.8 module -- including
+# everything reachable through calls and intrinsics -- and this scan reads one
+# textual file with no call-graph closure and no identity binding. A module
+# that passes this test can still fail the real gate through a callee.

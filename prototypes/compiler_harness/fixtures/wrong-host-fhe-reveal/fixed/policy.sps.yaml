@@ -1,0 +1,35 @@
+entry: wrong_host_fhe_reveal_fixed
+observation-model: constant-time
+principals: [authorized-client, observer]
+adversaries:
+  maximal:
+  - [authorized-client, observer]
+hosts:
+  compute:
+    visibility: secret
+  authorized-client-endpoint:
+    visibility:
+      world: false
+      members: [authorized-client]
+      joint: []
+  server-endpoint:
+    visibility:
+      world: false
+      members: [observer]
+      joint: []
+components:
+  ciphertext-handle:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+  revealed-plaintext:
+    lifecycle: entry-input
+    type: bv32
+    visibility:
+      world: false
+      members: [authorized-client]
+      joint: []
+outputs:
+  return:
+    visibility: public
+releases: {}

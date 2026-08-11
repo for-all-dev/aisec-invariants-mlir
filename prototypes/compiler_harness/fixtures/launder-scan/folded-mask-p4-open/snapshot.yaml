@@ -1,0 +1,74 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: launder_scan_folded_bad
+c_evidence:
+- fixtures/launder-scan/folded-mask-p4-open/launder_scan_folded_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: control
+- observable: address
+- observable: timing
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Memory
+      field: offsetClass
+    - kind: Latency
+      field: configuredClass
+    because: the source arithmetic mask folds to a select that may become secret control
+      and a conditional load on x86
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - launder_scan_folded_bad
+        operation.names:
+          ordered:
+          - llvm.load
+          - llvm.mlir.constant
+          - llvm.icmp
+          - llvm.select
+          - llvm.store
+          excludes:
+          - llvm.cond_br
+    canonicalized-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - launder_scan_folded_bad
+        operation.names:
+          ordered:
+          - llvm.select
+          excludes:
+          - llvm.cond_br
+    x86-backend-risk:
+      kind: assembly
+      properties:
+        instruction.mnemonics:
+          contains:
+          - je

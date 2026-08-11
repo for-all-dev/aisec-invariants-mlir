@@ -1,0 +1,52 @@
+# Materialize the six-file V2 bundle boundary and separate run report from the
+# SPS-owned canonical NF-manifest and aggregation-decision vectors. This checks
+# packaging and bindings only; it does not run a verifier.
+
+# RUN: rm -rf %t.good
+# RUN: mkdir -p %t.good
+# RUN: %python -c "import json,pathlib; vendor=pathlib.Path(r'%harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid'); bundle=pathlib.Path(r'%t.good'); manifest=json.loads((vendor/'nf-manifest.v2.json').read_text()); decision=json.loads((vendor/'aggregation-decision.v2.json').read_text()); evidence=manifest['artifactIdentityEvidence']; assert evidence == decision['identityEvidence']; values={'artifact-identity.sps.json':manifest['artifactIdentity'],'identity-evidence.sps.json':evidence,'sps-manifest.sps.json':manifest,'proof-configuration.sps.json':evidence['proofConfiguration'],'aggregation-input.sps.json':decision['input']}; [(bundle/name).write_text(json.dumps(value,separators=(',',':'),ensure_ascii=False)) for name,value in values.items()]; (bundle/'artifact.bc').write_bytes(bytes.fromhex(evidence['canonicalBitcode']['exactBytes'])); pathlib.Path(r'%t.report.sps.json').write_text(json.dumps(decision['runReport'],separators=(',',':'),ensure_ascii=False))"
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %t.good --report %t.report.sps.json | %FileCheck %s --check-prefix=VALID
+# VALID: validated SPS Rev4.1 V2 materialized bundle/report boundary; verifier not executed
+
+# Non-completed arms are also checked through the closed aggregation decision.
+# RUN: rm -rf %t.reporting
+# RUN: cp -R %t.good %t.reporting
+# RUN: %python -c "import json,pathlib; vendor=pathlib.Path(r'%harness/contracts/vendor/sps-rev4.1/vectors/canonical-valid'); bundle=pathlib.Path(r'%t.reporting'); bound=json.loads((bundle/'aggregation-input.sps.json').read_text()); value=json.loads((vendor/'run-finalization-failure.v2.json').read_text()); [value.__setitem__(field,bound[field]) for field in ('artifactIdentityDigest','proofConfigurationDigest','queryScheduleDigest')]; (bundle/'aggregation-input.sps.json').write_text(json.dumps(value,separators=(',',':'))); reason=value['blockers'][0]['reason']['reason']; report={'tag':'ReportingFailedV2','report':{'formatId':'SPS-Reporting-Failure-v2','disposition':'NoModelStatus','reason':reason}}; pathlib.Path(r'%t.reporting-report.sps.json').write_text(json.dumps(report,separators=(',',':')))"
+# RUN: %python %harness/tools/check_sps_v2_bundle.py %t.reporting --report %t.reporting-report.sps.json | %FileCheck %s --check-prefix=REPORTING
+# REPORTING: validated SPS Rev4.1 V2 materialized bundle/report boundary; verifier not executed
+
+# Every materialized member is mandatory.
+# RUN: rm -rf %t.missing
+# RUN: cp -R %t.good %t.missing
+# RUN: rm %t.missing/proof-configuration.sps.json
+# RUN: not %python %harness/tools/check_sps_v2_bundle.py %t.missing --report %t.report.sps.json 2>&1 | %FileCheck %s --check-prefix=MISSING
+# MISSING: missing required bundle member: proof-configuration.sps.json
+
+# The raw artifact must equal both the evidence bytes and their bound digest.
+# RUN: rm -rf %t.bitcode
+# RUN: cp -R %t.good %t.bitcode
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.bitcode/artifact.bc'); p.write_bytes(p.read_bytes()+b'\x00')"
+# RUN: not %python %harness/tools/check_sps_v2_bundle.py %t.bitcode --report %t.report.sps.json 2>&1 | %FileCheck %s --check-prefix=BITCODE
+# BITCODE: artifact.bc bytes differ from identity evidence canonicalBitcode.exactBytes
+
+# Standalone roots cannot drift from the identical objects nested in evidence
+# and the NF manifest, even when the mutated root remains schema-valid.
+# RUN: rm -rf %t.nested
+# RUN: cp -R %t.good %t.nested
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.nested/artifact-identity.sps.json'); v=json.loads(p.read_text()); v['llvmBuildDigest']='0000000000000000000000000000000000000000000000000000000000000000'; p.write_text(json.dumps(v,separators=(',',':')))"
+# RUN: not %python %harness/tools/check_sps_v2_bundle.py %t.nested --report %t.report.sps.json 2>&1 | %FileCheck %s --check-prefix=NESTED
+# NESTED: identity-evidence.sps.json artifactIdentity does not equal artifact-identity.sps.json
+
+# Strict SPS canonical bytes are required before schema or binding checks.
+# RUN: rm -rf %t.noncanonical
+# RUN: cp -R %t.good %t.noncanonical
+# RUN: %python -c "import pathlib; p=pathlib.Path(r'%t.noncanonical/proof-configuration.sps.json'); p.write_bytes(p.read_bytes()+b'\n')"
+# RUN: not %python %harness/tools/check_sps_v2_bundle.py %t.noncanonical --report %t.report.sps.json 2>&1 | %FileCheck %s --check-prefix=NONCANONICAL
+# NONCANONICAL: proof-configuration.sps.json: bytes are not canonical SPS interface JSON
+
+# A CompletedV2 report that is valid in isolation must still bind the identity
+# evidence. The mismatch is rejected only after constructing AggregationDecisionV2.
+# RUN: %python -c "import json,pathlib; source=pathlib.Path(r'%t.report.sps.json'); p=pathlib.Path(r'%t.mismatch-report.sps.json'); v=json.loads(source.read_text()); v['report']['releasePolicyReview']['policyDigest']='0000000000000000000000000000000000000000000000000000000000000000'; p.write_text(json.dumps(v,separators=(',',':')))"
+# RUN: not %python %harness/tools/check_sps_v2_bundle.py %t.good --report %t.mismatch-report.sps.json 2>&1 | %FileCheck %s --check-prefix=REPORT
+# REPORT: constructed aggregation decision semantic validation failed:
+# REPORT-SAME: XF-REPORT-003

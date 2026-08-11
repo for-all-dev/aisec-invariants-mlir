@@ -1,0 +1,27 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+  "harnessCase": "precision-control/offset-disjoint",
+  "referenceCaseId": "offset-disjoint",
+  "entry": "offset_disjoint_control",
+  "counterexamplePair": null,
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "34083aef35896fcbbb759e97bda2256b737d7e12176bd91a7ae1e979b9de55f0"},
+    {"role": "c", "path": "offset_disjoint_control.c", "sha256": "ad2d2a29ab77f544846370d5a88664e2f73b72eb553ca61a345c62bb64cbae57"},
+    {"role": "mlir", "path": "precision_offset_disjoint.control.mlir", "sha256": "b260529fd8914226bfd033dbb69691e6e914383f3442165d3d5fda9d663a88a5"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "ec8c8c37a5db4e897c74d8372d54d2a4d5dcb991b67ed95932fd4fc4d9d803c0"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "38a3e4f58bf37f8cba3d76b8d085acfaa9a4306da5eb1570b24dae8bd44123d0"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "4c3cdf6cd556999213cd0293ebddeaf613c58473e62f216cdd279b00aeea8851"}
+  ],
+  "arguments": [
+    {"referenceInput": "public-value", "component": "public-value", "argumentIndex": 2, "argumentName": "public_value", "fullWidth": 32, "reducedWidth": 2, "classification": "Low"},
+    {"referenceInput": "secret-byte", "component": "secret-byte", "argumentIndex": 1, "argumentName": "secret_byte", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [
+    {"referenceRoot": "buffer", "component": "buffer-input", "storageKind": "ABIArgument", "abiRoot": "buffer", "argumentIndex": 0, "argumentName": "buffer", "allocationSite": null, "byteLength": 9, "initialClassification": "Low", "terminalVisibility": "High", "offsets": [4, 8]}
+  ],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

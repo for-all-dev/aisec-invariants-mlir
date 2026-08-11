@@ -1,0 +1,33 @@
+; This input requires a patched LLVM that recognizes llvm.sps.release as the
+; SPS-LLVM-NF-v2 intrinsic. Stock LLVM may parse the spelling as an ordinary
+; external call, which is why lit enables the tests only after semantic probes.
+
+declare void @llvm.sps.release(...)
+
+define i32 @nfv2_single(i32 %payload) noinline {
+entry:
+  call void (...) @llvm.sps.release(i32 %payload)
+  ret i32 %payload
+}
+
+define i32 @nfv2_identical_pair(i32 %payload) noinline {
+entry:
+  call void (...) @llvm.sps.release(i32 %payload)
+  call void (...) @llvm.sps.release(i32 %payload)
+  ret i32 %payload
+}
+
+; Distinct payloads make carrier order reviewable.  The identical pair above
+; catches merging; this pair catches reordering while both also catch
+; duplication or deletion.
+define i32 @nfv2_ordered_pair(i32 %first, i64 %second) noinline {
+entry:
+  call void (...) @llvm.sps.release(i32 %first)
+  call void (...) @llvm.sps.release(i64 %second)
+  ret i32 %first
+}
+
+define i32 @nfv2_control(i32 %payload) noinline {
+entry:
+  ret i32 %payload
+}

@@ -1,0 +1,44 @@
+{
+  "format_id": "SPS-Harness-Candidate-Artifact-v2",
+  "artifact_role": "checked-in-bitcode-candidate",
+  "fixture_tier": {
+    "tag": "CandidateOnly"
+  },
+  "claimable": false,
+  "candidate_bitcode_sha256": "d87a54b4a4b57ee8f12497662e759fa6ae94800cb8ba6da8233f033e3ec2bb6a",
+  "derived_llvm_ir_sha256": "eab8d74d4ccc644f83334fc98b64e897c95cd030658607009423ccca9f9d817e",
+  "candidate_sidecar_sha256": {
+    "policy.json": "69bb376ecf818485d7ddba4b78d7b488ed5cebd9b5f547f37db3ffd4e056da51",
+    "abi.json": "8087625a93778005f4ca3a4d506ed5a4648286683ecddda44ac2e62a15e33d73",
+    "contracts.json": "6c1d6326bb446a1458f491b36a24e360c29ca7ae2d2ac1f8230c9af1c0ec77c8",
+    "release-table.json": "3a89bff903602b36918dae7f272105fd2b41f300d4eda837cdc00e03814f9a74",
+    "expected-report.json": "19dc961df58c49a419c3c508875e62e17241fdda57561208210ca651f4e630be"
+  },
+  "source_mlir": "../alloca_size_high_count.unknown.mlir",
+  "source_mlir_sha256": "fd0f19a5bad9cf55e53c7cb2786e7ab2a8020696a19005d4e629dff0b4b11d22",
+  "producer": {
+    "llvm_version": "17.0.6",
+    "mlir_translate": "Homebrew LLVM version 17.0.6",
+    "llvm_as": "Homebrew LLVM version 17.0.6",
+    "llvm_dis": "Homebrew LLVM version 17.0.6",
+    "tool_sha256": {
+      "mlir-translate": "a1a1439c8725fcc975260c08bb18476e3015c25f8790bfb5e82b132503bc9c9f",
+      "llvm-as": "8701c4def94000cad744ca2ad51b14bb858d3cb7c9e49c32023e02ae9aca4a2f",
+      "llvm-dis": "35d596c47478a215db9afab1e8a4d5c25908f865295be88f93ddf6a59278e71b",
+      "llvm-config": "402af15e8debee2c65e2985e4cf78dbd28156e81bc4e93fc9b25219c62817868"
+    }
+  },
+  "rev4_profile": {
+    "required_llvm_version": "22.1.8",
+    "producer_matches_required_version": false,
+    "not_authoritative": true,
+    "v2_materialization_requires_new_capture": true,
+    "missing": [
+      "llvm-22.1.8-pinned-freeze-pipeline",
+      "complete-artifact-identity",
+      "canonical-rev4-interfaces",
+      "normal-form-audit-and-fresh-reparse",
+      "whole-entry-product-and-exact-replay"
+    ]
+  }
+}

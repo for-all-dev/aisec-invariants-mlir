@@ -1,0 +1,24 @@
+{
+  "formatId": "SPS-Harness-Reference-Reduction-Binding-v2",
+  "harnessCase": "precision-control/xor-secret-output-bad",
+  "referenceCaseId": "xor-secret-output-bad",
+  "entry": "xor_secret_output_bad",
+  "counterexamplePair": {"path": "counterexample-pair.yaml", "sha256": "38d7710ee67a8a6a5a72d41d57d25a8dd465d7e932336501ef52438a25a6d4c1"},
+  "coalition": {"referenceCoalitionId": "observer", "policyAdversaryId": "maximal", "policyAdversaryIndex": 0, "principals": ["observer"], "controlledHosts": ["observer"], "hostMappings": [{"referenceHost": "observer", "policyHost": null, "boundaryClass": "PublicObservationEndpoint"}]},
+  "files": [
+    {"role": "abi", "path": "abi.sps.yaml", "sha256": "9f50705919c1517a7e8d9df8d110e2f95e69e099e2e9f9f60f1883ecd280719c"},
+    {"role": "c", "path": "xor_secret_output_bad.c", "sha256": "eda0a3259644bbabd0104557f7607478fdc7e27f4f94510ecc8a9d873d426ac6"},
+    {"role": "mlir", "path": "precision_xor_secret_output.bad.mlir", "sha256": "a6446648c8190406a497c87da6c331919d2264ac6ad5d2f073f42d44ed3e6b40"},
+    {"role": "policy", "path": "policy.sps.yaml", "sha256": "ffdc708434093ebc524dc411686676c3ce9d2b7b81581ca404b74b144dbe9eab"},
+    {"role": "referenceFixture", "path": "relation-reference/fixture.json", "sha256": "68f300a5c5a43dd3d41817af69df13b534b0d52837b80a90fb3be668420a071d"},
+    {"role": "snapshot", "path": "snapshot.yaml", "sha256": "2b2524413a2dd970c63dff2d08068947de51a9b3140e2ddb52ddc7784bc54b2a"}
+  ],
+  "arguments": [
+    {"referenceInput": "secret", "component": "secret", "argumentIndex": 0, "argumentName": "secret", "fullWidth": 32, "reducedWidth": 2, "classification": "High"}
+  ],
+  "roots": [],
+  "observations": [
+    {"kind": "Output", "field": "valueBytes"}
+  ],
+  "limitations": ["ExecutableReferenceOnly", "HandAuthoredReduction", "NotFrozenLLVM", "ReducedBitWidth"]
+}

@@ -1,0 +1,53 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: abi_alias_explicit_same_actual
+c_evidence:
+- fixtures/abi-alias/explicit-same-actual-bad/abi_alias_explicit_same_actual.c
+secret:
+- arg: 0
+  name: secret
+public:
+- memory_at_arg: 2
+  name: public_output
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: public-output-payload-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+      id: public-output
+      first_bad: true
+    because: the wrapper passes the same shared pointer to both helper pointer slots
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - abi_alias_explicit_same_actual
+        operation.names:
+          ordered:
+          - llvm.call
+        call.callees:
+          contains:
+          - abi_alias_explicit_same_actual_helper

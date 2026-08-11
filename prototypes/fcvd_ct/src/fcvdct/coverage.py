@@ -199,8 +199,12 @@ FLATTENED_OPS = {
     "scf.if": "if-conversion (fcvdct.predication)",
     "scf.yield": "if-conversion (fcvdct.predication)",
     "scf.for": "bounded unrolling (fcvdct.predication)",
+    "scf.while": "bounded unrolling (fcvdct.predication)",
+    "scf.condition": "bounded unrolling (fcvdct.predication)",
     "affine.for": "exact unrolling, constant bounds only (fcvdct.predication)",
     "affine.yield": "exact unrolling, constant bounds only (fcvdct.predication)",
+    "affine.load": "map expansion to memref.load, dim/const maps only (fcvdct.predication)",
+    "affine.store": "map expansion to memref.store, dim/const maps only (fcvdct.predication)",
 }
 
 

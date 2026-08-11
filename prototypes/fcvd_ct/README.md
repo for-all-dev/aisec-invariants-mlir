@@ -66,6 +66,12 @@ raising an alarm:
 | `secret_free` — free one of two buffers by secret | INSECURE | `resource` |
 | `unsupported_float` — `f32` | UNKNOWN | — (no float semantics upstream) |
 
+An obligation whose sinks exist but are out of any secret's reach -- value and guard
+both -- is decided by the **taint prefilter** without a solver call, and says so
+(`taint-clean: ... solver skipped`). The prefilter is one-sided: it only skips queries
+whose answer is forced, so `--no-prefilter` gives byte-identical verdicts (pinned by
+tests), just slower.
+
 Each violated obligation comes with the two secrets z3 used to separate the traces (`secret1_run0 =
 0x3`, `secret1_run1 = 0x0` for the table lookup). A `secure` verdict is always printed with *how
 many* observations of that kind existed: zero observations means "nothing of this kind happens here",

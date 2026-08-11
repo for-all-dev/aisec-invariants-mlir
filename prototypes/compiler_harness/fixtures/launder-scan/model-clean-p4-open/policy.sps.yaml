@@ -1,0 +1,27 @@
+entry: launder_scan_model_proved
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  secret:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  x:
+    lifecycle: entry-input
+    type: bv64
+    visibility: public
+  p-input:
+    lifecycle: entry-input
+    type: bytes
+    visibility: public
+outputs:
+  return:
+    visibility: secret
+releases: {}

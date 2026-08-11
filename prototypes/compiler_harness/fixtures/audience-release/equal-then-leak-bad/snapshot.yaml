@@ -1,0 +1,63 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: audience_equal_release_then_leak_bad
+c_evidence:
+- fixtures/audience-release/equal-then-leak-bad/audience_equal_release_then_leak_bad.c
+secret:
+- arg: 0
+  name: secret
+public:
+- observable: transfer
+allowed:
+- the authorized zero release does not authorize the later secret value
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: equal-authorized-release-did-not-retire
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: zero-release
+    - kind: Transfer
+      field: valueBytes
+      first_bad: true
+    because: an equal authorized release records equality but cannot retire the secret obligation
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - ContractLocatorsResolved
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - OpenModelObligations
+          - ReleaseCarrierMismatch
+          count:
+            eq: 2
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - audience_equal_release_then_leak_bad
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.call
+          - llvm.call
+        call.callees:
+          contains:
+          - llvm.sps.release
+          - sps_transfer_equal_release_observer

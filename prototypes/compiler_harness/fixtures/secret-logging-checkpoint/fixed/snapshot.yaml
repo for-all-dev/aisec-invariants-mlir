@@ -1,0 +1,51 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: secret_logging_checkpoint_fixed
+c_evidence:
+- fixtures/secret-logging-checkpoint/fixed/secret_logging_checkpoint_fixed.c
+secret:
+- arg: 0
+  name: service_account_token
+public:
+- memory_at_arg: 2
+  name: public_log
+- memory_at_arg: 3
+  name: public_checkpoint
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: both public outputs receive zero while the token remains private
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - secret_logging_checkpoint_fixed
+        operation.names:
+          ordered:
+          - llvm.store
+          - llvm.mlir.constant
+          - llvm.return

@@ -1,0 +1,2 @@
+# RUN: %python %harness/c/check_harness.py artifacts | %FileCheck %s
+# CHECK: artifacts checks passed

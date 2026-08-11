@@ -1,0 +1,96 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "NF-FX-BAD-CIRCUIT",
+  "caseId": "release-equal-then-output-leak",
+  "kind": "noninterference",
+  "requirementRefs": [
+    "Normative 12",
+    "Normative 21.4 ledger recurrence"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "entry.release.equal",
+      "entryHost": "entry",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "secret",
+          "width": 8,
+          "classification": "High",
+          "host": "entry"
+        }
+      ],
+      "abi": {
+        "terminalOutputOrder": [
+          "return.value"
+        ],
+        "return": {
+          "outputId": "return.value",
+          "width": 8,
+          "host": "caller",
+          "byteOrder": "BigEndian"
+        },
+        "roots": []
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "releaseAttempt",
+          "site": "release.site",
+          "releaseId": "release.constant",
+          "guard": {
+            "bool": true
+          },
+          "value": {
+            "const": {
+              "width": 8,
+              "value": 0
+            }
+          },
+          "audience": [
+            "observer"
+          ],
+          "host": "release.host",
+          "footprintBytes": [
+            0
+          ]
+        },
+        {
+          "op": "return",
+          "site": "return.site",
+          "value": {
+            "var": "secret"
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "caller"
+      ]
+    }
+  },
+  "expected": {
+    "status": "sat",
+    "firstBadCause": "ProjectedPayloadMismatch",
+    "replayAccepted": true,
+    "eventShape": [
+      "Release@release.site",
+      "Output@return.site",
+      "Termination@return.site"
+    ],
+    "satisfiableCauses": [
+      "ProjectedPayloadMismatch"
+    ],
+    "canonicalReferencePONFDigest": "a88c32e709b87b6a3ebecd00830d4edd439760e7adff84c464087aa0eb456dfe",
+    "firstBadEventOrdinal": 1,
+    "firstTrueBadRow": 5
+  }
+}

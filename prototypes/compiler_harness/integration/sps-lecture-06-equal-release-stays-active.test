@@ -1,0 +1,14 @@
+# REQUIRES: llvm-as, llvm-dis
+# RUN: %llvm-as %harness/integration/Inputs/sps-lecture/06-equal-release-stays-active/capture-shape.ll -o %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+# RUN: %python %harness/tools/check_sps_lecture_cases.py --root %harness --case 06-equal-release-stays-active | %FileCheck %s --check-prefix=CONTRACT
+
+# SHAPE-LABEL: define internal void @release_bit(i1 %value)
+# SHAPE: call void (...) @llvm.sps.release(i1 %value)
+# SHAPE-LABEL: define i8 @fixture_entry(i8 %secret)
+# SHAPE: call void @release_bit(i1 %low)
+# SHAPE: br i1 %high
+# SHAPE: ret i8 %private
+
+# CONTRACT: verified 06-equal-release-stays-active: fixture-contract only; tier=CandidateOnly; claimable=false; ModelStatus=not-computed; expected-matcher=Counterexample

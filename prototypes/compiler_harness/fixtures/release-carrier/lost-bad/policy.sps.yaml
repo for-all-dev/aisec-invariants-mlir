@@ -1,0 +1,71 @@
+entry: release_carrier_lost_bad
+observation-model: constant-time
+principals:
+- observer
+adversaries:
+  maximal:
+  - - observer
+hosts:
+  compute:
+    visibility: secret
+components:
+  raw:
+    lifecycle: entry-input
+    type: bv32
+    visibility: secret
+  mask-a:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+  mask-b:
+    lifecycle: entry-input
+    type: bv32
+    visibility: public
+outputs:
+  sink:
+    visibility: public
+releases:
+  release-0:
+    locator:
+      helper: invalid-callable
+      call-ordinal: 0
+    audience: public
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      bit-and:
+        left:
+          component: raw
+        right:
+          component: mask-a
+    guard: true
+    payload-footprint:
+    - 0
+    - 1
+    - 2
+    - 3
+    multiplicity: 1
+  release-1:
+    locator:
+      helper: invalid-callable
+      call-ordinal: 1
+    audience: public
+    type:
+      kind: bv
+      width: 32
+      byte-order: little
+    expression:
+      bit-and:
+        left:
+          component: raw
+        right:
+          component: mask-b
+    guard: true
+    payload-footprint:
+    - 0
+    - 1
+    - 2
+    - 3
+    multiplicity: 1

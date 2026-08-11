@@ -1,0 +1,176 @@
+# REQUIRES: llvm-as, llvm-dis, opt
+#
+# THE RETIREMENT COVERAGE HOLE.
+#
+# Authority, in the corpus's own priority order:
+#   SPS_Rev4_Normative_Specification.md section 12 (prefix-causal authorized
+#     release). Transition 1: when Audience(q,A) holds and the deterministic
+#     release values differ, "the differing authorized payload is permitted and
+#     the pair's continuing obligation becomes Retired. No later observation
+#     from this pair is used to establish or refute this invocation's
+#     confidentiality." The same section fixes the other half: there is "no
+#     whole-trace ReleaseEq precondition and no future-release pair filter",
+#     so nothing removes those pairs from the domain in the first place.
+#   SPS_Rev4_Normative_Specification.md section 9 (universal coverage
+#     obligations), which quantifies over Admitted pairs and is likewise
+#     indifferent to how early they retire.
+#   SPS_Lecture_Notes/part5-soundness.tex:161-227, which names the consequence
+#     and argues it: for any authorized release effectively injective in the
+#     secret -- a hash, a MAC, a ciphertext -- every admitted pair with
+#     differing secrets retires at the first release, everything after the
+#     release is outside the theorem, and the verdict is indistinguishable from
+#     a covered one. Lines 194-206 explain why none of the four coverage
+#     queries fires: they detect an EMPTY domain, and this domain is richly
+#     populated and stops being checked immediately. Lines 216-219 propose the
+#     cheap remedy that "could ship now" -- a per-(A,e) retirement statistic.
+#
+# WHAT THIS TEST CHECKS.
+#   1. Two entries share one post-release secret-dependent difference (bit 7 of
+#      the secret selects which constant reaches a public store) and differ only
+#      in the authorized release that precedes it.
+#   2. tools/check_rev4_high_value_fixtures.py parses the released projection,
+#      the selector bit and both step indices out of the module text, enumerates
+#      an 8-bit secret pair domain, and computes the retirement statistic. It
+#      compares the computed statistic to the recorded golden record field by
+#      field, so the numbers below are derived from the IR, not asserted about
+#      it.
+#   3. All four coverage queries are recorded Satisfied for BOTH entries, and
+#      the checker independently witnesses each from the enumerated model. That
+#      is the lecture's claim made executable: the guards pass either way.
+#
+# WHAT THIS TEST DOES NOT CHECK, AND MUST NOT BE READ AS CHECKING.
+#   This is tier CandidateOnly. Nothing here evaluates NFConforms, executes the
+#   relational semantics, runs a solver, replays a witness, or computes a
+#   ModelStatus, a DeploymentStatus or a PolicyReviewStatus -- the three axes
+#   stay independent and all three remain uncomputed. The pair domain is an
+#   enumerated harness model over an 8-bit secret carrier, not LLVM semantics:
+#   it tells you how the release projection partitions pairs, and nothing about
+#   what the program does with them. The statistic is emitted under an
+#   SPS-Harness-* format id for exactly that reason.
+#
+#   In particular, a Proved on the collapsing entry would be vacuous-by-
+#   retirement, and the harness deliberately does not compute one. The catalog
+#   records that in prose and the checker rejects any Proved constructor
+#   smuggled into these two cases.
+#
+#   LLVM here is 17.0.6. The normative boundary is 22.1.8 and is absent; no
+#   22.1.8 property is claimed.
+
+# --- the module assembles, verifies, and round-trips ------------------------
+# RUN: %llvm-as %harness/integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in -o %t.bc
+# RUN: %opt -passes=verify -disable-output %t.bc
+# RUN: %llvm-dis %t.bc -o %t.ll
+# RUN: %FileCheck %s --check-prefix=SHAPE --input-file=%t.ll
+
+# The collapsing entry: five bijective steps over the whole secret word, then
+# the release, and only then the secret-dependent divergence.
+# SHAPE-LABEL: define void @release_injective_digest(i64 %secret, ptr %output)
+# SHAPE: %s0 = lshr i64 %secret, 30
+# SHAPE-NEXT: %x0 = xor i64 %secret, %s0
+# SHAPE-NEXT: %x1 = mul i64 %x0, -4658895280553007687
+# SHAPE-NEXT: %s1 = lshr i64 %x1, 27
+# SHAPE-NEXT: %x2 = xor i64 %x1, %s1
+# SHAPE-NEXT: %x3 = mul i64 %x2, -7723592293110705685
+# SHAPE-NEXT: %s2 = lshr i64 %x3, 31
+# SHAPE-NEXT: %digest = xor i64 %x3, %s2
+# SHAPE-NEXT: call void @emit_digest(i64 %digest)
+# SHAPE: %probe = and i64 %secret, 128
+# SHAPE-NEXT: %taken = icmp ne i64 %probe, 0
+# SHAPE: store i64 1, ptr %output
+# SHAPE: store i64 2, ptr %output
+
+# The contrast entry: identical tail, one-bit release.
+# SHAPE-LABEL: define void @release_low_bit(i64 %secret, ptr %output)
+# SHAPE: %low = and i64 %secret, 1
+# SHAPE-NEXT: call void @emit_low_bit(i64 %low)
+# SHAPE: %probe = and i64 %secret, 128
+# SHAPE-NEXT: %taken = icmp ne i64 %probe, 0
+# SHAPE: store i64 1, ptr %output
+# SHAPE: store i64 2, ptr %output
+
+# --- positive cardinalities, not presence checks ----------------------------
+# Exactly one authorized release per entry is what makes "retired at the FIRST
+# release" a well-defined step index rather than a summary over several sites.
+# RUN: grep -c "call void @emit_digest" %t.ll | %FileCheck %s --check-prefix=DIGESTCOUNT
+# DIGESTCOUNT: 1
+# RUN: grep -c "call void @emit_low_bit" %t.ll | %FileCheck %s --check-prefix=LOWBITCOUNT
+# LOWBITCOUNT: 1
+
+# Two reserved-marker declarations plus exactly two marker call sites.
+# RUN: grep -c "__sps_invalid_callable_emit_" %t.ll | %FileCheck %s --check-prefix=MARKERCOUNT
+# MARKERCOUNT: 4
+
+# Both entries select on the SAME secret bit and both reach a public store, so
+# the two statistics below differ because of the release and nothing else.
+# (the regex writes the sigil as `.` because a literal %s in a RUN line is a lit
+# substitution, not text)
+# RUN: grep -c "and i64 .secret, 128" %t.ll | %FileCheck %s --check-prefix=SELECTORCOUNT
+# SELECTORCOUNT: 2
+# RUN: grep -c "store i64" %t.ll | %FileCheck %s --check-prefix=STORECOUNT
+# STORECOUNT: 4
+
+# --- the harness matcher: coverage queries, statistic, and the vacuity note --
+# RUN: %python %harness/tools/check_rev4_high_value_fixtures.py --root %harness --family retirement-coverage | %FileCheck %s --check-prefix=CONTRACT
+
+# CONTRACT: verified retirement-coverage: 2 nonclaimable fixture cases; temporary-bitcode-ready; ModelStatus=not-computed
+
+# The collapse. 65280 of 65536 modelled pairs -- every pair with differing
+# secrets -- retire at step 9 of 18, and NOTHING secret-varying survives to the
+# bit-7 divergence at steps 11 to 17.
+# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v2 entry=release_injective_digest coalition=[alice] projection=splitmix64-finalizer admitted_pairs=65536 retired_pairs=65280 retirement_ppm=996094 first_release_step=9/18 post_release_active_pairs=256 post_release_active_varying_pairs=0
+
+# The contrast. Same tail, one-bit release: half the pairs retire, and 16384
+# secret-varying pairs are still Active when the divergence is reached, so that
+# difference is inside the theorem's active prefix.
+# CONTRACT-NEXT: SPS-Harness-Retirement-Statistic-v2 entry=release_low_bit coalition=[alice] projection=bit-mask admitted_pairs=65536 retired_pairs=32768 retirement_ppm=500000 first_release_step=2/11 post_release_active_pairs=32768 post_release_active_varying_pairs=16384
+
+# CONTRACT-NEXT: SPS-Harness-Retirement-Coverage-Note-v2 all-four-coverage-queries=Satisfied collapsing-entry=release_injective_digest contrast-entry=release_low_bit model_status=NotComputed nf_conforms=NotEvaluated
+
+# ============================================================================
+# NEGATIVE ARMS. Each copies the fixture tree, mutates one property, and shows
+# the checker refusing for that reason.
+# ============================================================================
+
+# --- the statistic is derived from the IR, not recited from the catalog -----
+# Zero the first splitmix multiplier. The finalizer stops being injective (it
+# collapses to the constant 0), so no pair retires at all. If the checker were
+# reading the golden numbers back to itself this arm would still pass.
+# RUN: rm -rf %t.inj && mkdir -p %t.inj
+# RUN: cp -R %harness/integration %t.inj/integration
+# RUN: cp -R %harness/examples %t.inj/examples
+# RUN: sed 's/-4658895280553007687/0/' %harness/integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in > %t.inj/integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in
+# RUN: not %python %harness/tools/check_rev4_high_value_fixtures.py --root %t.inj --family retirement-coverage 2>&1 | %FileCheck %s --check-prefix=NEG-INJECTIVE
+# NEG-INJECTIVE: RET-01: recomputed retirement statistic disagrees on retired_pairs: derived 0, recorded 65280
+
+# --- the four coverage queries must be recorded as passing ------------------
+# The lecture's argument depends on all four passing. A catalog that quietly
+# says HighVariation failed would be describing a different, already-detected
+# situation, so the checker refuses it.
+# RUN: rm -rf %t.cov && mkdir -p %t.cov
+# RUN: cp -R %harness/integration %t.cov/integration
+# RUN: cp -R %harness/examples %t.cov/examples
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.cov/integration/Inputs/sps-rev4-high-value/cases.json'); d=json.loads(p.read_text()); c=[x for x in d['cases'] if x['id']=='RET-01'][0]; c['coverage_queries'][2]['harness_observation']='Unsatisfied'; p.write_text(json.dumps(d,indent=2)+chr(10))"
+# RUN: not %python %harness/tools/check_rev4_high_value_fixtures.py --root %t.cov --family retirement-coverage 2>&1 | %FileCheck %s --check-prefix=NEG-COVERAGE
+# NEG-COVERAGE: RET-01: coverage query HighVariation must be recorded Satisfied
+
+# --- no Proved may be smuggled into a retirement fixture --------------------
+# RUN: rm -rf %t.proved && mkdir -p %t.proved
+# RUN: cp -R %harness/integration %t.proved/integration
+# RUN: cp -R %harness/examples %t.proved/examples
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.proved/integration/Inputs/sps-rev4-high-value/cases.json'); d=json.loads(p.read_text()); c=[x for x in d['cases'] if x['id']=='RET-01'][0]; c['claimed_model_status']={'tag':'Proved'}; p.write_text(json.dumps(d,indent=2)+chr(10))"
+# RUN: not %python %harness/tools/check_rev4_high_value_fixtures.py --root %t.proved --family retirement-coverage 2>&1 | %FileCheck %s --check-prefix=NEG-PROVED
+# NEG-PROVED: RET-01: retirement fixtures must not carry a Proved ModelStatus claim
+
+# --- the contrast must stay a contrast --------------------------------------
+# Widen the contrast entry's release mask to the full word. Its release becomes
+# injective too, both entries collapse, and the statistic degenerates into a
+# constant -- at which point it distinguishes nothing and the pair is useless.
+# The recorded statistic is repaired to the newly derived values first, so the
+# only thing left to fail is the contrast property itself.
+# RUN: rm -rf %t.contrast && mkdir -p %t.contrast
+# RUN: cp -R %harness/integration %t.contrast/integration
+# RUN: cp -R %harness/examples %t.contrast/examples
+# RUN: sed 's/\(.low = and i64 .secret, \)1$/\1-1/' %harness/integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in > %t.contrast/integration/Inputs/sps-rev4-high-value/retirement-coverage.ll.in
+# RUN: %python -c "import json,pathlib; p=pathlib.Path(r'%t.contrast/integration/Inputs/sps-rev4-high-value/cases.json'); d=json.loads(p.read_text()); s=[x for x in d['cases'] if x['id']=='RET-02'][0]['retirement_statistic']; s.update({'retired_pairs':65280,'retired_at_first_release':65280,'retirement_fraction_ppm':996094,'post_release_active_pairs':256,'post_release_active_varying_pairs':0}); p.write_text(json.dumps(d,indent=2)+chr(10))"
+# RUN: not %python %harness/tools/check_rev4_high_value_fixtures.py --root %t.contrast --family retirement-coverage 2>&1 | %FileCheck %s --check-prefix=NEG-CONTRAST
+# NEG-CONTRAST: RET-02: the contrast entry must keep the post-release secret-dependent difference in scope; derived post_release_active_varying_pairs=0

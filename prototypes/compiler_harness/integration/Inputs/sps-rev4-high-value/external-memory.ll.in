@@ -1,0 +1,100 @@
+; HAND-AUTHORED FIXTURE SHAPE: temporary bitcode input, not canonical frozen.bc.
+
+declare i32 @contracted_scalar(i32)
+declare ptr @contracted_allocate(i64)
+declare void @sps_host_transfer_i8(i8, i1)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg)
+declare void @llvm.memmove.p0.p0.i64(ptr nocapture writeonly, ptr nocapture readonly, i64, i1 immarg)
+
+define i32 @call_contracted_scalar(i32 %value) {
+entry:
+  %result = call i32 @contracted_scalar(i32 %value)
+  ret i32 %result
+}
+
+define ptr @call_contracted_allocate(i64 %size) {
+entry:
+  %result = call ptr @contracted_allocate(i64 %size)
+  ret ptr %result
+}
+
+define void @visible_host_transfer(i8 %secret) {
+entry:
+  call void @sps_host_transfer_i8(i8 %secret, i1 true)
+  ret void
+}
+
+define void @hidden_host_transfer(i8 %secret) {
+entry:
+  call void @sps_host_transfer_i8(i8 %secret, i1 false)
+  ret void
+}
+
+define void @whole_loop_init(ptr %output) {
+entry:
+  br label %loop
+
+loop:
+  %index = phi i64 [ 0, %entry ], [ %next, %loop ]
+  %address = getelementptr i8, ptr %output, i64 %index
+  store i8 0, ptr %address, align 1
+  %next = add i64 %index, 1
+  %done = icmp eq i64 %next, 4
+  br i1 %done, label %exit, label %loop
+
+exit:
+  ret void
+}
+
+define void @early_exit_init(ptr %output, i1 %stop) {
+entry:
+  br label %loop
+
+loop:
+  %index = phi i64 [ 0, %entry ], [ %next, %continue ]
+  %address = getelementptr i8, ptr %output, i64 %index
+  store i8 0, ptr %address, align 1
+  br i1 %stop, label %exit, label %continue
+
+continue:
+  %next = add i64 %index, 1
+  %done = icmp eq i64 %next, 4
+  br i1 %done, label %exit, label %loop
+
+exit:
+  ret void
+}
+
+define void @memcpy_uninitialized_byte(ptr %output) {
+entry:
+  %source = alloca [2 x i8], align 1
+  store i8 9, ptr %source, align 1
+  call void @llvm.memcpy.p0.p0.i64(ptr %output, ptr %source, i64 2, i1 false)
+  ret void
+}
+
+define void @overlapping_memmove(ptr %buffer) {
+entry:
+  %destination = getelementptr i8, ptr %buffer, i64 1
+  call void @llvm.memmove.p0.p0.i64(ptr %destination, ptr %buffer, i64 3, i1 false)
+  ret void
+}
+
+define void @zero_length_copy(ptr %output, ptr %input) {
+entry:
+  call void @llvm.memcpy.p0.p0.i64(ptr %output, ptr %input, i64 0, i1 false)
+  ret void
+}
+
+define void @partial_overwrite(ptr %output) {
+entry:
+  store i8 0, ptr %output, align 1
+  ret void
+}
+
+define void @full_overwrite(ptr %output) {
+entry:
+  store i32 0, ptr %output, align 4
+  ret void
+}
+

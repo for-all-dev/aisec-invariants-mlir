@@ -1,0 +1,36 @@
+format_id: SPS-Harness-Synthetic-Counterexample-Pair-v1
+claim_boundary: NonClaimableFixtureOracle
+source_class: SyntheticTestData
+entry: explicit_error_oracle_bad
+coalition:
+- observer
+inputs:
+  low_equal:
+    authorized-plaintext-length:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_left:
+    padding-is-valid:
+      bitvector:
+        width: 32
+        hex: "00000000"
+    padding-error-detail:
+      bitvector:
+        width: 32
+        hex: "00000000"
+  high_right:
+    padding-is-valid:
+      bitvector:
+        width: 32
+        hex: "00000000"
+    padding-error-detail:
+      bitvector:
+        width: 32
+        hex: "00000001"
+expected:
+  bad_state: public-error-detail-mismatch
+  first_difference:
+    kind: Output
+    field: valueBytes
+    id: public-error-detail

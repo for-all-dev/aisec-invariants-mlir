@@ -1,0 +1,27 @@
+\section{Threat Model}
+
+% OUTLINE ONLY. Source of truth: docs/research/threat-models.agents.md
+% and docs/research/formal_verif.threat-model.agents.md.
+
+\begin{itemize}
+  \item Four frameworks compose; we do not pick one
+    (leak class $\times$ observer ring; evidence layers A--D; evidence levels
+    L0--L4; the differential $2{\times}2$ attribution).
+  \item The observer-ring vocabulary (canonical grid:
+    \texttt{prototypes/fcvd\_ct/artifact/attacker\_profile.py}):
+    \begin{itemize}
+      \item O0 public transcript $\rightarrow$ O7 invasive observer, ordered by
+        directness of reach; ``proved at O2, carried outward to O1'' is
+        meaningful because of the ordering; O6-and-inward is moot rather than
+        uncovered.
+    \end{itemize}
+  \item The asset axis the rings do not carry: weights (static --- repetition
+    wins) vs activations/prompts (fresh per query --- one-shot channels only)
+    vs structure (sparsity, shapes, architecture --- leaked by control
+    structure, not values).
+  \item What ``secure'' means in this paper: a claim is fully specified only
+    with all four coordinates (observer, evidence kind, evidence level,
+    attribution).
+  \item Scope / non-goals: integrity of weights, TEE partitioning, and running
+    the compiled model are out (issues \#29, \#34, \#36).
+\end{itemize}

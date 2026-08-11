@@ -1,0 +1,9 @@
+# REQUIRES: z3
+#
+# Validate the complete source/policy/ABI/MLIR/reduction binding before running
+# the nonclaimable executable SPS relation reference. The dispatcher owns
+# exactly the eight precision-control checkpoints; their ordinary source and
+# MLIR-shape checkpoints remain independently owned by the case-local tests.
+
+# RUN: %python %harness/integration/Inputs/run_relation_reference_fixtures.py --checkpoint-pipeline relation-reference --root %harness --records %t.checkpoints --outputs %t.outputs --z3 %z3
+# RUN: %checkpoint-runner finalize --test integration/relation-reference-fixtures.test --records %t.checkpoints

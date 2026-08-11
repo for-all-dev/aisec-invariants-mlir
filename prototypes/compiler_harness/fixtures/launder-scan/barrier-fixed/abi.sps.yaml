@@ -1,0 +1,36 @@
+source: launder_scan_fixed.c
+relation: provenance-only
+entry:
+  id: launder_scan_fixed
+  symbol: launder_scan_fixed
+  host: compute
+  function-type: i64 (i32, i64, ptr)
+  return:
+    llvm-type: i64
+    bit-width: 64
+    output: return
+carriers:
+  secret:
+    argument: 0
+    llvm-type: i32
+    bit-width: 32
+  x:
+    argument: 1
+    llvm-type: i64
+    bit-width: 64
+roots:
+  p:
+    argument: 2
+    host: compute
+    extent-bytes: 4
+    alignment: 4
+    permission: read-only
+    initialization: initialized
+    ownership: caller
+    input: p-input
+aliases:
+  complete: true
+  relations: []
+terminal-output-order:
+  normal-value:
+  - return

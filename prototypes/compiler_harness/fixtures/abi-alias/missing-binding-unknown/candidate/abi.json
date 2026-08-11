@@ -1,0 +1,40 @@
+{
+  "format_id": "SPS-Harness-Candidate-ABI-v2",
+  "arguments": [
+    {
+      "index": 0,
+      "name": "secret",
+      "kind": "scalar"
+    },
+    {
+      "index": 1,
+      "name": "p",
+      "kind": "root",
+      "root_id": "p",
+      "extent_bytes": 4
+    },
+    {
+      "index": 2,
+      "name": "q",
+      "kind": "root",
+      "root_id": "q",
+      "extent_bytes": 4
+    },
+    {
+      "index": 3,
+      "name": "public_output",
+      "kind": "root",
+      "root_id": "public-output",
+      "extent_bytes": 4,
+      "output": "world"
+    }
+  ],
+  "admission_constraints": [],
+  "alias_topology": {
+    "complete": false,
+    "relations": []
+  },
+  "initialized_regions": [],
+  "entry": "abi_alias_missing_binding",
+  "candidate_bitcode_sha256": "7253ce30f6c1d263abfb5ea241427272d56046fb286c1ca68420137f445702d7"
+}

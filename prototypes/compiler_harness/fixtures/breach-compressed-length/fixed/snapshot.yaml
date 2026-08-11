@@ -1,0 +1,51 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: breach_compressed_length_fixed
+c_evidence:
+- fixtures/breach-compressed-length/fixed/breach_compressed_length_fixed.c
+secret:
+- arg: 0
+  name: secret_byte
+public:
+- memory_at_arg: 3
+  name: public_wire_length
+expect:
+  final:
+    model:
+      status: Proved
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Output
+      field: valueBytes
+    because: every run stores fixed wire length 32
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          count:
+            eq: 0
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - breach_compressed_length_fixed
+        operation.names:
+          ordered:
+          - llvm.mlir.constant
+          - llvm.store
+          - llvm.return
+          excludes:
+          - llvm.icmp

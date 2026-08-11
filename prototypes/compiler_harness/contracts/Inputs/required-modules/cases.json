@@ -1,0 +1,284 @@
+{
+  "formatId": "SPS-Harness-Required-Module-Cases-v2",
+  "cases": [
+    {
+      "caseId": "candidate-search-not-run",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "candidate-findings-do-not-vote",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "Completed", "findings": ["Candidate.SecretBranch"]},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "diagnostic-conclusions-do-not-vote",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "RelationalRequired", "findings": ["Diagnostic.HighSelector"]}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": ["Timing.HighConditionSelectLowering"]}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "missing-diagnostic-health",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [],
+        "timingRiskRecords": [],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": ["DiagnosticHealthFailure"],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": false,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "Open"
+      }
+    },
+    {
+      "caseId": "partial-entry-coalition-coverage",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [
+          {"entryId": "entry.main", "coalitionId": "coalition.admin"},
+          {"entryId": "entry.main", "coalitionId": "coalition.world"}
+        ],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.admin", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.admin", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": ["DiagnosticHealthFailure"],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": false,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "Open"
+      }
+    },
+    {
+      "caseId": "malformed-diagnostic-health",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Malformed", "conclusion": "RelationalRequired", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": ["DiagnosticHealthFailure"],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": false,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "Open"
+      }
+    },
+    {
+      "caseId": "missing-timing-record",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": ["EvidenceFinalizationFailure"],
+        "requiredModulesReadyForCompletion": false,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "missing-policy-review-for-completed-run",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "None"},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": ["EvidenceFinalizationFailure"],
+        "requiredModulesReadyForCompletion": false,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "policy-findings-preserve-proved-proof-axis",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Findings", "findings": ["IdentityReleaseOfHigh"]}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "backend-delta-not-required-without-closure",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": false,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": false,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "backend-delta-required-for-closure",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": true,
+        "backendControlDelta": {"tag": "None"},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": true,
+        "deploymentClosureEvidenceReady": false,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    },
+    {
+      "caseId": "backend-delta-closes-required-slot",
+      "input": {
+        "formatId": "SPS-Harness-Required-Module-Input-v2",
+        "requiredScopes": [{"entryId": "entry.main", "coalitionId": "coalition.world"}],
+        "candidateSearch": {"tag": "NotRun"},
+        "diagnostics": [{"entryId": "entry.main", "coalitionId": "coalition.world", "health": "Healthy", "conclusion": "AllLow", "findings": []}],
+        "timingRiskRecords": [{"entryId": "entry.main", "coalitionId": "coalition.world", "findings": []}],
+        "completedRunRequested": true,
+        "policyReview": {"tag": "Some", "value": {"statusTag": "Complete", "findings": []}},
+        "deploymentClosureAttempted": true,
+        "backendControlDelta": {"tag": "Some", "value": {"findings": []}},
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      },
+      "expected": {
+        "proofCompletionReasons": [],
+        "runFinalizationReasons": [],
+        "requiredModulesReadyForCompletion": true,
+        "backendControlDeltaRequired": true,
+        "deploymentClosureEvidenceReady": true,
+        "proofGateState": "WouldYieldProvedIfAuthoritativeRun"
+      }
+    }
+  ]
+}

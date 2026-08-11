@@ -1,0 +1,61 @@
+format_id: SPS-Harness-Fixture-Snapshot-v3
+entry: ckks_unsafe_release_bad
+c_evidence:
+- fixtures/ckks-release/bad/ckks_unsafe_release_bad.c
+secret:
+- arg: 0
+  name: raw_approximate_plaintext
+public:
+- memory_at_arg: 3
+  name: public_release
+allowed:
+- public_release may reveal only a sanitizer-approved value with a valid certificate
+expect:
+  final:
+    model:
+      status: Counterexample
+      bad_state: raw-unauthorized-public-release-mismatch
+    deployment: Open
+    policy: Complete
+    events:
+    - kind: Release
+      field: valueBytes
+      id: sanitized-release
+    - kind: Output
+      field: valueBytes
+      id: public-release
+      first_bad: true
+    because: raw approximate plaintext is stored directly to the public release sink
+  pipelines:
+    source-boundary:
+      kind: diagnostic
+      properties:
+        completedChecks:
+          contains:
+          - ABICarriersResolved
+          - CoalitionClosureEnumerated
+          - NormalLLVMAnnotationResidueAbsent
+          - PolicyIdsResolved
+          - ReleaseLocatorResolved
+          - SourceAnnotationsMatched
+        findings:
+          count:
+            eq: 0
+        blockers:
+          contains:
+          - ReleaseCarrierMismatch
+          count:
+            eq: 1
+    modeled-shape:
+      kind: mlir
+      properties:
+        function.names:
+          contains:
+          - ckks_unsafe_release_bad
+        operation.names:
+          ordered:
+          - llvm.call
+          - llvm.store
+        call.callees:
+          contains:
+          - llvm.sps.release

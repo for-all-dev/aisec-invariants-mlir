@@ -1,0 +1,124 @@
+{
+  "formatId": "SPS-Executable-Reference-Fixture-v3",
+  "familyId": "HARNESS-PRECISION-CONTROL",
+  "caseId": "overwritten-slot",
+  "kind": "relation",
+  "requirementRefs": [
+    "Normative 11",
+    "Conformance Profile 18"
+  ],
+  "input": {
+    "program": {
+      "formatId": "SPS-Reference-Program-v3",
+      "entryId": "overwritten_slot_control",
+      "entryHost": "compute",
+      "observerProfile": "EventInterfaceOnly",
+      "inputs": [
+        {
+          "id": "public-value",
+          "width": 2,
+          "classification": "Low",
+          "host": "compute"
+        },
+        {
+          "id": "secret",
+          "width": 2,
+          "classification": "High",
+          "host": "compute"
+        }
+      ],
+      "abi": {
+        "return": {
+          "outputId": "return",
+          "width": 2,
+          "host": "observer",
+          "byteOrder": "LittleEndian"
+        },
+        "roots": [
+          {
+            "id": "slot",
+            "byteLength": 1,
+            "host": "compute",
+            "terminalOutput": false,
+            "outputId": null,
+            "initialBytes": [
+              0
+            ],
+            "initialized": [
+              false
+            ]
+          }
+        ],
+        "terminalOutputOrder": [
+          "return"
+        ]
+      },
+      "admission": {
+        "bool": true
+      },
+      "statements": [
+        {
+          "op": "store",
+          "site": "store.secret",
+          "root": "slot",
+          "offset": 0,
+          "value": {
+            "var": "secret"
+          },
+          "byteOrder": "LittleEndian"
+        },
+        {
+          "op": "store",
+          "site": "store.public-value",
+          "root": "slot",
+          "offset": 0,
+          "value": {
+            "var": "public-value"
+          },
+          "byteOrder": "LittleEndian"
+        },
+        {
+          "op": "return",
+          "site": "return.reloaded",
+          "value": {
+            "extract": {
+              "value": {
+                "load": {
+                  "root": "slot",
+                  "offset": 0,
+                  "width": 8,
+                  "byteOrder": "LittleEndian"
+                }
+              },
+              "low": 0,
+              "width": 2
+            }
+          }
+        }
+      ]
+    },
+    "coalition": {
+      "id": "observer",
+      "principals": [
+        "observer"
+      ],
+      "controlledHosts": [
+        "observer"
+      ]
+    }
+  },
+  "expected": {
+    "auditAll": {
+      "status": "unsat",
+      "firstDifference": null
+    },
+    "admissionNonempty": "sat",
+    "highVariation": [
+      {
+        "componentId": "secret",
+        "status": "sat"
+      }
+    ],
+    "terminalOutputSurface": "unsat"
+  }
+}

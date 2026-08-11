@@ -1,0 +1,257 @@
+{
+  "format_id": "SPS-Harness-Candidate-Bundle-Spec-v2",
+  "bundle_id": "pointer-rebinding-same-allocation",
+  "catalog_authority": {
+    "tag": "CandidatePreflightCatalogV2",
+    "claimable": false
+  },
+  "policy": {
+    "format_id": "SPS-Harness-Candidate-Policy-v2",
+    "fixed_observation_model": "Theta_ct",
+    "principals": [
+      "observer"
+    ],
+    "maximal_adversary_coalitions": [
+      [
+        "observer"
+      ]
+    ],
+    "components": [
+      "left-input",
+      "right-input",
+      "secret-selector"
+    ],
+    "component_visibility": {
+      "world_visible": [
+        "left-input",
+        "right-input"
+      ],
+      "member_visible": {
+        "observer": []
+      },
+      "minimally_joint_visible": []
+    },
+    "output_visibility": {
+      "world_visible": [],
+      "member_visible": {
+        "observer": []
+      },
+      "minimally_joint_visible": []
+    },
+    "error_visibility": {
+      "world_visible": [],
+      "member_visible": {
+        "observer": []
+      },
+      "minimally_joint_visible": []
+    },
+    "argument_roles": [
+      {
+        "entry": "pointer_rebinding_same_allocation_control",
+        "argument_index": 0,
+        "role": {
+          "tag": "ComponentArgumentV2",
+          "args": [
+            "secret-selector"
+          ]
+        }
+      },
+      {
+        "entry": "pointer_rebinding_same_allocation_control",
+        "argument_index": 1,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "left"
+          ]
+        }
+      },
+      {
+        "entry": "pointer_rebinding_same_allocation_control",
+        "argument_index": 2,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "right"
+          ]
+        }
+      },
+      {
+        "entry": "pointer_rebinding_same_allocation_control",
+        "argument_index": 3,
+        "role": {
+          "tag": "PointerRootArgumentV2",
+          "args": [
+            "private-result"
+          ]
+        }
+      }
+    ],
+    "release_bindings": [],
+    "invocation_scope": "SingleInvocation",
+    "placement": [
+      {
+        "entry": "pointer_rebinding_same_allocation_control",
+        "host": "host0"
+      }
+    ]
+  },
+  "abi": {
+    "format_id": "SPS-Harness-Candidate-ABI-v2",
+    "arguments": [
+      {
+        "index": 0,
+        "name": "secret_selector",
+        "kind": "scalar"
+      },
+      {
+        "index": 1,
+        "name": "left",
+        "kind": "root",
+        "root_id": "left",
+        "extent_bytes": 1
+      },
+      {
+        "index": 2,
+        "name": "right",
+        "kind": "root",
+        "root_id": "right",
+        "extent_bytes": 1
+      },
+      {
+        "index": 3,
+        "name": "private_result",
+        "kind": "root",
+        "root_id": "private-result",
+        "extent_bytes": 1,
+        "output": "private-result"
+      }
+    ],
+    "admission_constraints": [],
+    "alias_topology": {
+      "complete": true,
+      "relations": [
+        {
+          "left": "left",
+          "right": "right",
+          "relation": "SameAllocation"
+        },
+        {
+          "left": "left",
+          "right": "private-result",
+          "relation": "Disjoint"
+        },
+        {
+          "left": "right",
+          "right": "private-result",
+          "relation": "Disjoint"
+        }
+      ]
+    },
+    "initialized_regions": [
+      {
+        "root": "left",
+        "offset": 0,
+        "width": 1
+      },
+      {
+        "root": "right",
+        "offset": 0,
+        "width": 1
+      }
+    ],
+    "entry": "pointer_rebinding_same_allocation_control"
+  },
+  "contracts": {
+    "format_id": "SPS-Harness-Candidate-Contracts-v2",
+    "mechanism_contracts": [],
+    "timing_contracts": [],
+    "target_profile": null,
+    "timing_environment": {
+      "format_id": "SPS-Harness-Candidate-Timing-Environment-v2",
+      "claimable": false,
+      "explicit_empty_timing_choice_contract": true,
+      "choiceDomain": [],
+      "occurrences": {},
+      "latencyMeaning": [],
+      "latencyClasses": [
+        {
+          "latencyClassId": "lat.fixed.1"
+        }
+      ],
+      "pairedChoiceCoupling": {},
+      "versionAndObservationBoundary": "generated-later-not-a-canonical-digest",
+      "notes": [
+        "Spec section 2.5.1 requires an explicit empty timing-choice contract when no ideal timing choice is modeled; an omitted or absent object is not that instance.",
+        "Every instruction transition is assigned the one fixed public latency class lat.fixed.1; that assignment introduces no timing choice.",
+        "This is a CandidateOnly harness mirror of TimingEnvironmentContract, not a canonical SPS-TimingEnvironment interface: timingEnvironmentId and versionAndObservationBoundary digests do not exist for a candidate bundle."
+      ]
+    }
+  },
+  "release_table": {
+    "format_id": "SPS-Harness-Candidate-Release-Table-v2",
+    "entries": []
+  },
+  "expected_report": {
+    "format_id": "SPS-Harness-Candidate-Expected-Run-v2",
+    "fixture_tier": {
+      "tag": "CandidateOnly"
+    },
+    "claimable_from_checked_in_pair": false,
+    "required_checker_feature": "sps-verifier",
+    "current_harness_status": {
+      "tag": "PendingV2",
+      "reasons": [
+        "sps-verifier-not-implemented",
+        "llvm-22.1.8-nf-recapture-required"
+      ]
+    },
+    "expected": {
+      "audit_all_expectations": [
+        {
+          "coalition": [],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotApplicableV2"
+          }
+        },
+        {
+          "coalition": [
+            "observer"
+          ],
+          "query_outcome": {
+            "tag": "ConstructedResultMatcherV2",
+            "raw_solver_result": "UNSAT",
+            "query_disposition": {
+              "tag": "Discharged"
+            }
+          },
+          "replay_expectation": {
+            "tag": "NotApplicableV2"
+          }
+        }
+      ],
+      "expected_deployment_status": {
+        "tag": "Open",
+        "args": [
+          {
+            "tag": "P4EvidenceProfileUnavailable"
+          }
+        ]
+      },
+      "expected_policy_review_status": {
+        "tag": "Complete"
+      },
+      "entry": "pointer_rebinding_same_allocation_control",
+      "expected_model_status": {
+        "tag": "Proved"
+      }
+    }
+  }
+}
