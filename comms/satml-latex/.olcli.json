@@ -1,0 +1,25 @@
+{
+  "projectId": "6a7a1c01fb4c1230e06c5eb0",
+  "projectName": "confidential-compilers-satml",
+  "lastPull": "2026-09-28T18:43:43.229Z",
+  "remoteManifest": [
+    "IEEEtran.cls",
+    "sections/10-appendix.tex",
+    ".gitignore",
+    "tools/onesentenceperline.py",
+    "sections/06-verification.tex",
+    "sections/09-conclusion.tex",
+    "sections/08-discussion.tex",
+    "sections/07-related-work.tex",
+    "sections/04-attack-leak-check.tex",
+    "sections/03-case-studies.tex",
+    "figs/cryptographic-observer-onion.svg",
+    "figs/fig1.png",
+    "IEEEtran.bst",
+    "refs.bib",
+    "sections/02-threat-model.tex",
+    "sections/01-introduction.tex",
+    "IEEEtran_HOWTO.pdf",
+    "conference_101719.tex"
+  ]
+}

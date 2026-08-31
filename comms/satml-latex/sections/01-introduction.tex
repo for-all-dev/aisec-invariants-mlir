@@ -1,39 +1,118 @@
+%% prev version is https://pad.riseup.net/p/Mmc8qAM4NcZ7yr89sgPv 
+
 \section{Introduction}
+\label{sec:intro}
 
-% OUTLINE ONLY — each bullet becomes a paragraph.
+A deployed machine learning model never runs as it was written.
+A compiler stack, such as PyTorch Inductor or an MLIR pipeline
+followed by an LLVM backend, rewrites it into the code that actually
+executes. What that code reveals through its branches, memory
+addresses and timing is what an attacker observes. Such side channels
+suffice to recover a model's architecture and even its
+weights~\cite{batina2019csinn,yan2020cachetelepathy,hu2020deepsniffer},
+so the compiler sits inside the model's confidentiality
+boundary~\cite{chen2026compilerbackdoor,simon2018whatyouc}.
 
-\begin{itemize}
-  \item Hook: the compiler is inside every deployed model's trust boundary, and
-    nobody audits it for confidentiality --- it can \emph{introduce} leaks the
-    source never had, and (surprise finding) \emph{remove} leaks the source did
-    have.
-  \item The gap: side-channel work targets hand-written crypto kernels; verified
-    compilation targets correctness, not secrecy; DL compilers
-    (Inductor, MLIR pipelines, Polygeist) have neither.
-  \item Two-sided thesis of the paper:
-    \begin{itemize}
-      \item \textbf{Measure} --- a differential eager-vs-compiled methodology
-        attributes each observed channel to source or compiler (the
-        $2{\times}2$,
-        \texttt{docs/research/leak\_check.methodology.siddharth.md}).
-      \item \textbf{Verify} --- per-pass checked specifications where a lowering
-        is safe only if it both computes the same thing \emph{and} preserves
-        non-interference (\texttt{prototypes/fcvd\_ct}).
-    \end{itemize}
-  \item Contributions list (draft):
-    \begin{enumerate}
-      \item A unified threat model: observer rings O0--O7 $\times$ leaked-asset
-        axis, composing four independently developed frameworks
-        (\texttt{docs/research/threat-models.agents.md}).
-      \item The differential measurement rig and activation-function corpus,
-        with the \texttt{exp} channel \emph{compiler-removed} as headline
-        (\texttt{prototypes/leak\_check}).
-      \item Two-property translation validation (``safe = congruent +
-        non-interfering'') instantiated on Polygeist's eight-step pipeline,
-        with SMT semantics for the memref$\rightarrow$LLVM slice
-        (\texttt{prototypes/fcvd\_ct}).
-      \item Negative-space honesty: the count-channel confound, retired probes,
-        and model-blocked steps reported as first-class results.
-    \end{enumerate}
-  \item Roadmap paragraph.
-\end{itemize}
+Cryptography has known this for a long time. Libraries written to run
+in constant time are broken by compiler
+optimizations~\cite{simon2018whatyouc,daniel2020binsecrel,kyberslash2024}.
+Tools exist that detect the resulting
+violations~\cite{almeida2016ctverif,daniel2020binsecrel},
+and compilers exist that provably preserve the
+property~\cite{barthe2020ctcompiler}.
+That work targets hand-written cryptographic kernels and fixed C
+compiler chains. Deep learning compilers are multi-level and
+extensible, and they have neither. Validators for MLIR and LLVM check
+that a transformation preserves computed
+values~\cite{fcvd2025,lopes2021alive2,wang2024mlirtv},
+not that it preserves secrecy. No existing analysis says, for an ML
+workload, whether an observed leak was written in the source or put
+there by the compiler.
+
+The question matters more for a model than for a cipher.
+Constant-time discipline assumes an ephemeral secret: a session key is
+discarded before a channel yielding a fraction of a bit per run has
+revealed anything. Model weights are frozen, and every forward pass
+re-exposes the same secret, so an attacker with ordinary query access
+averages a weak channel until it is clean. Inputs are the opposite
+case. A token id is seen once, but an embedding lookup at a secret
+index gives it away in a single cache observation. Both the weak
+channels cryptographers dismiss and address-shaped channels therefore
+matter, and for each we need to know what compilation does to it.
+
+We call a \emph{channel} any observable of an execution that differs
+between two runs with the same public inputs and different secrets.
+The observables are which branches are taken, which addresses are
+accessed, how long a variable-latency instruction runs, and how much
+memory is allocated. We address channels from two sides. To
+\emph{measure}, we build one kernel through several lowering pipelines
+and optimization levels and run each binary on two classes of secret
+input under Valgrind. Instruction, branch and write counts show that
+the runs differ. Memcheck, used as a taint tracker~\cite{langley2010ctgrind},
+shows which operand carried the secret to a branch or an address.
+Comparing builds labels each channel as absent, present in both,
+compiler-introduced or compiler-removed. Measurement speaks only about
+the binaries we built. To \emph{verify}, we therefore write each
+lowering step as a pair of source and target templates, with the
+surrounding code left as uninterpreted holes, and discharge two SMT
+queries on top of FCVD~\cite{fcvd2025}. The first requires the
+target to compute the same results as the source. The second, built by
+self-composition~\cite{barthe2004selfcomposition},
+requires that any two runs the source cannot tell apart remain
+indistinguishable in the target. A step is safe only if both hold.
+
+Three findings run through the results. First, compilation is not
+monotonically bad for confidentiality. A branchless
+\texttt{arith.select} on a secret mask is still a \texttt{select} in
+LLVM IR. The backend turns it into a conditional jump on the secret at
+\texttt{-O0} and into a branch-free vector blend at \texttt{-O2}, so
+the same toolchain introduces the channel and removes it. Second, a
+leak can be invisible to every instrument that counts work. MLIR's
+sparsifier moves a secret coordinate into a store address. Both secret
+classes execute identical numbers of instructions, branches and
+writes, and they differ only in where the writes land. Only taint
+tracking reports it. Third, neither verification property subsumes
+the other. A rewrite that forwards a stale value adds no observation
+and passes the leakage check while computing the wrong result. A
+rewrite that branches on a secret computes the right result and passes
+any equivalence check. Either check alone certifies a real bug as
+safe.
+
+This paper makes the following contributions.
+\begin{enumerate}
+  \item A differential measurement method and kernel corpus that
+    attribute each channel to the source or to the compiler across six
+    MLIR pipelines at \texttt{-O0}, and three LLVM optimization levels on
+    the baseline pipeline. Taint is the
+    primary evidence. Count differences are admitted only past guards
+    against a memory-layout confound that otherwise produces false
+    positives. Applied to PyTorch Inductor, the same method shows that
+    constant folding under weight freezing writes a weight-derived
+    quantization scale into the generated code, a leak that is
+    readable without running the model.
+  \item Two-property translation validation for MLIR lowerings: a
+    leakage model with four obligations (control, address, latency,
+    resource), templates whose holes leave the surrounding code symbolic
+    and whose shapes are swept over a declared range, and three-valued
+    verdicts in which an unknown is never counted as secure.
+  \item An application to Polygeist's eight-step C-to-LLVM
+    pipeline~\cite{moses2021polygeist}.
+    Six steps carry a bounded, two-property check of a rewrite
+    transcribed from the pass source, each paired with a faulty control
+    that the check rejects. Two steps are blocked by our sequential
+    memory model and reported as such. A coverage measurement by
+    translation, not by operation name, shows how far this is from the
+    compiler's own test programs: 8.2\% of their operation mentions
+    translate today.
+\end{enumerate}
+
+Section~\ref{sec:threat} fixes the threat model every later verdict is
+stated against: which observer is watching, which asset is at stake,
+and whether the leak occurs during a run or persists in what the
+compiler leaves behind. Section~\ref{sec:evaluation} works through small
+examples that fix the boundaries of each method.
+Section~\ref{sec:measure} presents the measurement method and results,
+and Section~\ref{sec:verify} the verification method and its
+application to Polygeist. Section~\ref{sec:related-work} discusses related
+work, Section~\ref{sec:discussion} limitations, and
+Section~\ref{sec:conclusion} concludes.
