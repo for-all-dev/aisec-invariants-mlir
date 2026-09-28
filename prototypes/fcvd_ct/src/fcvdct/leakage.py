@@ -78,6 +78,14 @@ VARIABLE_LATENCY_RULES: dict[type[Operation], LeakageRule] = {
     arith.CeilDivUIOp: Rule(LATENCY, operands(0, 1)),
     arith.FloorDivSIOp: Rule(LATENCY, operands(0, 1)),
 }
+for _llvm_div in (
+    getattr(llvm, "SDivOp", None),
+    getattr(llvm, "UDivOp", None),
+    getattr(llvm, "SRemOp", None),
+    getattr(llvm, "URemOp", None),
+):
+    if isinstance(_llvm_div, type):
+        VARIABLE_LATENCY_RULES[_llvm_div] = Rule(LATENCY, operands(0, 1))
 
 #: A memory access leaks the address it touches, which is the cache-line channel that
 #: `mlir_leak` found empirically in the sparsifier.
@@ -94,6 +102,10 @@ ADDRESS_RULES: dict[type[Operation], LeakageRule] = {
     # access leaked before lowering, so leaking them here keeps the two comparable --
     # the load/store themselves take an already-computed pointer and add no new secret.
     llvm.GEPOp: Rule(ADDRESS, operands_from(1)),
+    # The pointer itself is also part of the touched address. Without this, a secret
+    # choice between base pointers can look clean when indices are public.
+    llvm.LoadOp: Rule(ADDRESS, operands(0)),
+    llvm.StoreOp: Rule(ADDRESS, operands(1)),
 }
 
 #: The resource obligation of the plan -- "the sets of allocated and un-freed memory at

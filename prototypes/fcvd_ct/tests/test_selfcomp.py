@@ -188,3 +188,48 @@ builtin.module {
     )
     control = next(o for o in result.obligations if o.kind == "control")
     assert control.verdict == "insecure", "the branch on the secret is the leak itself"
+
+
+def test_prefilter_does_not_skip_secret_loaded_through_llvm_memory():
+    """A secret stored then loaded via llvm memory remains secret to the prefilter."""
+    source = """
+builtin.module {
+  func.func @llvm_memory_taint(%p: !llvm.ptr, %s: i8 {fcvdct.secret}, %public: i32) -> i32 {
+    "llvm.store"(%s, %p) <{ordering = 0 : i64}> : (i8, !llvm.ptr) -> ()
+    %loaded = "llvm.load"(%p) <{ordering = 0 : i64}> : (!llvm.ptr) -> i8
+    %wide = arith.extui %loaded : i8 to i32
+    %one = arith.constant 1 : i32
+    %divisor = arith.ori %wide, %one : i32
+    %q = arith.divui %public, %divisor : i32
+    func.return %q : i32
+  }
+}
+"""
+    ctx, module = load("llvm_memory_taint", source)
+    with_filter = check_module(ctx, module)
+    ctx2, module2 = load("llvm_memory_taint", source)
+    without_filter = check_module(ctx2, module2, prefilter=False)
+    assert with_filter.verdict == without_filter.verdict == "insecure"
+    latency = next(o for o in with_filter.obligations if o.kind == "latency")
+    assert latency.verdict == "insecure"
+
+
+@pytest.mark.parametrize("opname", ["llvm.udiv", "llvm.sdiv"])
+def test_llvm_division_with_secret_divisor_is_latency_insecure(opname: str):
+    """LLVM integer division is variable-latency under the same model as arith.div*."""
+    source = f"""
+builtin.module {{
+  func.func @llvm_div(%secret: i64 {{fcvdct.secret}}, %public: i64) -> i64 {{
+    %one = arith.constant 1 : i64
+    %divisor = arith.ori %secret, %one : i64
+    %q = {opname} %public, %divisor : i64
+    func.return %q : i64
+  }}
+}}
+"""
+    ctx, module = load("llvm_div", source)
+    result = check_module(ctx, module)
+    assert result.verdict == "insecure"
+    latency = next(o for o in result.obligations if o.kind == "latency")
+    assert latency.verdict == "insecure"
+    assert latency.n_observations > 0
