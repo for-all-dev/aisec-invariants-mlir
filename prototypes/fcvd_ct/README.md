@@ -260,7 +260,7 @@ readable (`structural._assume_memref_extent`, load-bearing and tested as such).
 body finds something is the standard optimisation and the standard way to make the trip count depend
 on data. The tool separates it from the honest skeleton, which is the point of having both.
 
-## `fcvd-ct-coverage` — how much of a given compiler can be verified today?
+## `fcvd-ct-coverage` — which of a compiler's operations can the method reach today?
 
 ```bash
 uv run fcvd-ct-coverage            # all three descriptors in compilers/
@@ -273,6 +273,12 @@ compiler's **own test corpus** and sorts them into the plan's forms — 0 (SMT s
 from the registry), 1 (covered by a macro-template that still proves — re-run, not trusted), 2
 (neither). Descriptors in `compilers/*.json` carry each pipeline as the compiler's own source spells
 it, with `file:line` for every step.
+
+The corpus is the compiler's lit tests — small unit tests of individual passes, not a sample of real
+inputs — so the percentages rank *where to work next*; they are not a statement about the compiler on
+all inputs, at any value. What does say something about the compiler is the step templates: each one
+is checked for every program its holes can stand for, not only the corpus programs, within its
+declared sweep and unroll bound, and it is as faithful as the pass source it was transcribed from.
 
 Form 0 by name is an **upper bound**: a registered name says nothing about whether a given
 occurrence translates (upstream's `memref.alloca` refuses dynamic sizes, `memref.load` non-`i8`

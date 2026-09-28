@@ -414,7 +414,7 @@ def main_coverage() -> None:
         total = sum(op.occurrences for op in result.operations)
         print(
             f"\n{result.compiler} @ {result.commit} "
-            f"({result.files_scanned} test files, {len(result.operations)} distinct "
+            f"(test corpus: {result.files_scanned} files, {len(result.operations)} distinct "
             f"operations, {total} mentions)"
         )
         for form, label in (

@@ -28,8 +28,13 @@ The forms are the ones the plan names:
 - **form 2** -- neither. This is the work item, and the number the choice of compiler
   should be based on.
 
-A form-0 count is not a claim that the compiler is verified; it is the size of the
-subset a proof could at most talk about. The measured `translated` count is the subset
+Every percentage here is over the compiler's own lit tests, which are small unit tests
+of individual passes, not a sample of real inputs: it says which operations the method
+can reach and so where to work next, not how safe the compiler is. A claim about the
+compiler itself is carried by the step templates instead -- each is checked for every
+program its holes can stand for, not just the corpus programs, within its declared
+sweep and unroll bound. A form-0 count is not a claim that the compiler is verified;
+it is the size of the subset a proof could at most talk about. The measured `translated` count is the subset
 it can talk about today, and a pipeline step is `ready` only when every source
 occurrence in the corpus translates, measured, not looked up.
 """
