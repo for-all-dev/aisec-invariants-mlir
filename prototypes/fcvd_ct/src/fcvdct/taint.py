@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects import memref
+from xdsl.dialects import llvm, memref
 from xdsl.ir import Block, SSAValue
 
 from .dialect import OTHER, ObserveOp, ResultOp
@@ -60,9 +60,17 @@ def tainted_kinds(program: Block, secret: Sequence[bool]) -> set[str]:
             if any(operand in tainted for operand in op.operands):
                 memory_tainted = True
             continue
+        if isinstance(op, llvm.StoreOp):
+            if any(operand in tainted for operand in op.operands):
+                memory_tainted = True
+            continue
         if isinstance(op, memref.LoadOp):
             if memory_tainted or any(operand in tainted for operand in op.operands):
                 tainted.add(op.res)
+            continue
+        if isinstance(op, llvm.LoadOp):
+            if memory_tainted or any(operand in tainted for operand in op.operands):
+                tainted.update(op.results)
             continue
         # Everything else -- arith, selects, holes -- computes values from operands:
         # any tainted operand taints every result.
