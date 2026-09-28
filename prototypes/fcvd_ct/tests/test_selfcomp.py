@@ -112,7 +112,7 @@ def test_secure_verdict_reports_what_it_checked():
     ctx, module = load("public_index")
     result = check_module(ctx, module)
     counts = {o.kind: o.n_observations for o in result.obligations}
-    assert counts["address"] == 1
+    assert counts["address"] == 2  # one access: its base and its index
     assert counts["control"] == 0
 
 
@@ -150,13 +150,14 @@ def test_prefilter_never_changes_a_verdict(kernel: str):
 
 
 def test_prefilter_skips_the_clean_sink_and_says_so():
-    """public_index: the address sink exists (1 observation) but only the value is
+    """public_index: the address sink exists (one access, observed as base and index)
+    but only the value is
     secret, so the solver is skipped -- and the skip is printed, never silent."""
     ctx, module = load("public_index")
     result = check_module(ctx, module)
     address = next(o for o in result.obligations if o.kind == "address")
     assert address.verdict == "secure"
-    assert address.n_observations == 1
+    assert address.n_observations == 2
     assert "solver skipped" in address.reason
 
 
@@ -233,3 +234,21 @@ builtin.module {{
     latency = next(o for o in result.obligations if o.kind == "latency")
     assert latency.verdict == "insecure"
     assert latency.n_observations > 0
+
+
+def test_secret_choice_between_memrefs_is_an_address_leak():
+    """The memref twin of #64: two buffers, a public index, and a secret picking the
+    buffer. The index alone is public, so only observing the base catches it."""
+    source = """
+builtin.module {
+  func.func @pick(%a: memref<4xi8>, %b: memref<4xi8>, %s: i1 {fcvdct.secret}, %i: index) -> i8 {
+    %m = arith.select %s, %a, %b : memref<4xi8>
+    %v = memref.load %m[%i] : memref<4xi8>
+    func.return %v : i8
+  }
+}
+"""
+    ctx, module = load("pick", source)
+    result = check_module(ctx, module)
+    address = next(o for o in result.obligations if o.kind == "address")
+    assert address.verdict == "insecure"

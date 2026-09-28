@@ -31,7 +31,8 @@ def test_gather_lowering_creates_the_address_channel():
     path = ROOT / "templates" / "onnx_mlir" / "gather_to_krnl.mlir"
     result = check_lowering(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
     assert result.verdict == "ct-breaking", result.reason
-    assert (result.n_source_observations, result.n_target_observations) == (0, 3)
+    # Three accesses, each observed as its base and its index.
+    assert (result.n_source_observations, result.n_target_observations) == (0, 6)
 
 
 def test_the_lowered_gather_leaks_and_the_oblivious_one_does_not():
@@ -41,7 +42,7 @@ def test_the_lowered_gather_leaks_and_the_oblivious_one_does_not():
 
     oblivious = kernel("gather_oblivious")
     assert oblivious.verdict == "secure"
-    # Proved equal, not absent: every one of the 18 reads is compared.
+    # Proved equal, not absent: every one of the 18 reads is compared, base and index.
     counts = {o.kind: o.n_observations for o in oblivious.obligations}
-    assert counts["address"] == 18
+    assert counts["address"] == 36
     assert not oblivious.bounded

@@ -12,9 +12,13 @@ computed rather than argued. For a compiler checkout, this module
 
 The forms are the ones the plan names:
 
-- **form 0** -- the operation has SMT semantics, so FCVD can translate it directly and
-  a program using it can be checked as it stands. Read from the live registry
-  (`SMTLowerer.op_semantics`), never from a hand-written list, so it cannot drift.
+- **form 0** -- the operation *name* has an SMT rule. Read from the live registry
+  (`SMTLowerer.op_semantics`), never from a hand-written list, so it cannot drift. This
+  is a name lookup and therefore an **upper bound**: rules are partial (upstream's
+  `memref.alloca` refuses dynamic sizes, `memref.load` refuses non-`i8` elements), and
+  a registered name says nothing about whether a given occurrence translates. What does
+  translate is measured separately, by running the lowering on every occurrence
+  (`translation.measure`), and reported next to it as `translated`.
 - **form 1** -- no semantics, but the operation is covered by a **macro-template**: a
   structural specification proved once by `fcvd-ct-lowering`. Counted only if the proof
   passes *now*, and only if **both** halves of the gate pass: `fcvd-ct-coverage` re-runs
@@ -24,8 +28,15 @@ The forms are the ones the plan names:
 - **form 2** -- neither. This is the work item, and the number the choice of compiler
   should be based on.
 
-A form-0 count is not a claim that the compiler is verified; it is the size of the
-subset a proof can currently talk about.
+Every percentage here is over the compiler's own lit tests, which are small unit tests
+of individual passes, not a sample of real inputs: it says which operations the method
+can reach and so where to work next, not how safe the compiler is. A claim about the
+compiler itself is carried by the step templates instead -- each is checked for every
+program its holes can stand for, not just the corpus programs, within its declared
+sweep and unroll bound. A form-0 count is not a claim that the compiler is verified;
+it is the size of the subset a proof could at most talk about. The measured `translated` count is the subset
+it can talk about today, and a pipeline step is `ready` only when every source
+occurrence in the corpus translates, measured, not looked up.
 """
 
 from __future__ import annotations
@@ -43,7 +54,8 @@ from xdsl.parser import Parser
 from xdsl_smt.passes.lower_to_smt.smt_lowerer import SMTLowerer
 
 from .context import make_context
-from .structural import check_template
+from .sweep import check_template_file
+from .translation import TranslationMeasure, measure
 
 COMPILERS = Path(__file__).parent.parent.parent / "compilers"
 TEMPLATES = Path(__file__).parent.parent.parent / "templates"
@@ -146,6 +158,19 @@ class OperationCoverage:
     Orthogonal to `form`: knowing how to translate an operation and knowing that its
     lowering is unsafe are different facts, and an operation can carry both.
     """
+    translated: int | None = None
+    """Occurrences the lowering actually accepted, or None when not measured."""
+    unparsed: int = 0
+    """Occurrences in a corpus split xdsl cannot parse: neither translated nor refuted."""
+    rejections: tuple[tuple[str, int], ...] = ()
+    """The most common reasons the lowering refused an occurrence."""
+
+    @property
+    def fully_translated(self) -> bool:
+        """Every occurrence was parsed and translated. Name-level when not measured."""
+        if self.translated is None:
+            return self.form == 0
+        return self.translated == self.occurrences
 
 
 @dataclass
@@ -159,7 +184,10 @@ class StageCoverage:
 
     stage: Stage
     forms: tuple[int, int, int]
-    """How many distinct source-dialect operations fall in form 0, 1 and 2."""
+    """How many distinct source-dialect operations fall in form 0, 1 and 2 (by name)."""
+    untranslated: int = 0
+    """Source-dialect operations with an occurrence that does not translate (measured),
+    other than those a proved template covers."""
     proved: tuple[str, ...] = ()
     """Templates that specify this step and came back ct-preserving, as documented."""
     breaks: tuple[str, ...] = ()
@@ -167,7 +195,7 @@ class StageCoverage:
 
     @property
     def ready(self) -> bool:
-        return self.forms[2] == 0 and (self.forms[0] + self.forms[1]) > 0
+        return self.forms[2] == 0 and self.untranslated == 0 and (self.forms[0] + self.forms[1]) > 0
 
 
 @dataclass
@@ -180,6 +208,8 @@ class CoverageReport:
     failed_templates: list[str] = field(default_factory=list[str])
 
     stages: list[StageCoverage] = field(default_factory=list["StageCoverage"])
+    translation: TranslationMeasure | None = None
+    """The measured half; None when the caller asked for the name lookup only."""
 
     def by_form(self, form: int) -> list[OperationCoverage]:
         return [op for op in self.operations if op.form == form]
@@ -260,6 +290,10 @@ class TemplateOutcome:
     """The other half. A template may only stand in for a translation if it preserves
     constant-time *and* leaves what the program computes alone, so this decides whether
     a ct-preserving template counts towards form 1."""
+    instances: int = 1
+    """How many sweep instances the verdict covers; 1 means one concrete program pair."""
+    closed: bool = False
+    """The template has no hole, so each instance fixes the surrounding code too."""
 
 
 def prove_templates(compiler: Compiler, timeout: int = 120) -> list[TemplateOutcome]:
@@ -277,25 +311,44 @@ def prove_templates(compiler: Compiler, timeout: int = 120) -> list[TemplateOutc
     ctx = make_context()
     outcomes: list[TemplateOutcome] = []
     for template in compiler.templates:
-        path = TEMPLATES / template.file
-        module = Parser(ctx, path.read_text(), str(path)).parse_module()
-        gate = check_template(ctx, module, timeout=timeout)
+        swept = check_template_file(ctx, TEMPLATES / template.file, timeout=timeout)
+        gate = swept.gate
+        refuted = "; ".join(
+            f"{half} failed at instance {label}" for half, label in swept.decided_by.items()
+        )
         outcomes.append(
             TemplateOutcome(
                 template,
                 gate.constant_time.verdict,
                 gate.constant_time.verdict == template.expect,
-                gate.reason,
+                "; ".join(part for part in (gate.reason, refuted) if part),
                 gate.equivalence.verdict,
+                swept.instances,
+                swept.closed,
             )
         )
     return outcomes
 
 
-def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> CoverageReport:
+def _label(outcome: TemplateOutcome) -> str:
+    """A template as the report names it: how many instances, and whether it has holes."""
+    notes = [f"x{outcome.instances}" if outcome.instances > 1 else "1 instance"]
+    if outcome.closed:
+        notes.append("closed")
+    return f"{outcome.template.file} ({', '.join(notes)})"
+
+
+def report(
+    compiler: Compiler, prove: bool = True, timeout: int = 120, translate: bool = True
+) -> CoverageReport:
     registry = semantics_registry()
     counts = scan_operations(compiler.checkout, compiler.test_globs, compiler.dialects)
     files = counts.pop("__files__", 0)
+    measured = (
+        measure(compiler.checkout, compiler.test_globs, compiler.dialects, OP_MENTION)
+        if translate
+        else None
+    )
 
     covered: dict[str, str] = {}
     failed: list[str] = []
@@ -321,12 +374,12 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
                 for op in template.covers:
                     covered.setdefault(op, template.file)
                 if template.verifies:
-                    proved_steps.setdefault(template.verifies, []).append(template.file)
+                    proved_steps.setdefault(template.verifies, []).append(_label(outcome))
             elif outcome.verdict == "ct-breaking":
                 for op in template.breaks_ops:
                     dangerous.setdefault(op, []).append(template.file)
                 if template.verifies:
-                    breaking_steps.setdefault(template.verifies, []).append(template.file)
+                    breaking_steps.setdefault(template.verifies, []).append(_label(outcome))
     else:
         # Claimed, not proved: only honest to report when the caller asked to skip.
         for template in compiler.templates:
@@ -341,24 +394,32 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
     for name, occurrences in counts.most_common():
         broken = tuple(dangerous.get(name, ()))
         if name in registry:
-            operations.append(OperationCoverage(name, occurrences, 0, registry[name], broken))
+            entry = OperationCoverage(name, occurrences, 0, registry[name], broken)
         elif name in covered:
-            operations.append(OperationCoverage(name, occurrences, 1, covered[name], broken))
+            entry = OperationCoverage(name, occurrences, 1, covered[name], broken)
         else:
-            operations.append(OperationCoverage(name, occurrences, 2, "", broken))
+            entry = OperationCoverage(name, occurrences, 2, "", broken)
+        if measured is not None:
+            entry.translated = measured.translated[name]
+            entry.unparsed = measured.unparsed[name]
+            entry.rejections = tuple(measured.reasons.get(name, Counter()).most_common(3))
+        operations.append(entry)
     per_dialect: dict[str, list[OperationCoverage]] = {}
     for op in operations:
         per_dialect.setdefault(op.name.split(".")[0], []).append(op)
     stages = []
     for stage in compiler.pipeline:
         forms = [0, 0, 0]
+        untranslated = 0
         for dialect in stage.source_dialects:
             for op in per_dialect.get(dialect, []):
                 forms[op.form] += 1
+                untranslated += op.form == 0 and not op.fully_translated
         stages.append(
             StageCoverage(
                 stage,
                 (forms[0], forms[1], forms[2]),
+                untranslated,
                 tuple(proved_steps.get(stage.pass_name, ())),
                 tuple(breaking_steps.get(stage.pass_name, ())),
             )
@@ -372,6 +433,7 @@ def report(compiler: Compiler, prove: bool = True, timeout: int = 120) -> Covera
         sorted(set(covered.values())),
         failed,
         stages,
+        measured,
     )
 
 

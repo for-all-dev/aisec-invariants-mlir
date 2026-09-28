@@ -18,11 +18,10 @@ import time
 from pathlib import Path
 
 from attacker_profile import profile_data
-from xdsl.parser import Parser
 
 from fcvdct.context import make_context
 from fcvdct.coverage import COMPILERS, TEMPLATES, Compiler, report
-from fcvdct.structural import check_template
+from fcvdct.sweep import check_template_file
 
 # Layers are assigned by hand: they encode how far a dialect is from the source
 # language, which is a judgement about MLIR, not something the data knows.
@@ -149,9 +148,9 @@ for d, entry in data["dialects"].items():
 
 # measured: one timed run per template, both halves of the gate
 for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
-    module = Parser(ctx, f.read_text(), str(f)).parse_module()
     start = time.perf_counter()
-    gate = check_template(ctx, module, timeout=120)
+    swept = check_template_file(ctx, f, timeout=120)
+    gate = swept.gate
     res = gate.constant_time
     data["templates"].append(
         {
@@ -161,6 +160,8 @@ for f in sorted(TEMPLATES.glob("*.mlir")) + sorted(TEMPLATES.glob("*/*.mlir")):
             "returned": gate.equivalence.n_compared,
             "obs": [res.n_source_observations, res.n_target_observations],
             "bounded": res.bounded or gate.equivalence.bounded,
+            "instances": swept.instances,
+            "closed": swept.closed,
             "seconds": round(time.perf_counter() - start, 3),
             "lines": len(f.read_text().splitlines()),
         }

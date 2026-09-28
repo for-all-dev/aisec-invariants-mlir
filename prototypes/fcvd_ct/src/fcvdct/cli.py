@@ -17,11 +17,12 @@ from xdsl.dialects.pdl import PatternOp
 from xdsl.parser import Parser
 
 from .context import make_context
-from .coverage import COMPILERS, Compiler, report
+from .coverage import COMPILERS, Compiler, CoverageReport, report
 from .pdl_ct import CTResult, check_pattern
 from .predication import DEFAULT_MAX_VISITS
 from .selfcomp import check_module, separating_secrets
-from .structural import GateResult, LoweringResult, check_lowering, check_template
+from .structural import GateResult, LoweringResult, check_lowering
+from .sweep import SweptGate, check_template_text, instances
 
 _SELFCOMP_LINE = {
     "secure": "SECURE",
@@ -96,6 +97,23 @@ def _report_gate(name: str, gate: GateResult, show_counterexample: bool) -> None
 
 
 _REFUTED = ("ct-breaking", "not-equivalent")
+
+
+def _report_family(swept: SweptGate) -> None:
+    """How many instances stand behind the verdict, and which one refuted it."""
+    if swept.instances > 1:
+        print(f"  instances: {swept.instances} (every declared sweep combination was checked)")
+    else:
+        print("  instances: 1 -- a single concrete instance, no fcvdct.sweep declared")
+    if swept.closed:
+        print("  closed: no fcvd.hole, so each instance is one fixed program pair")
+    verdicts = {
+        "constant-time": swept.gate.constant_time.verdict,
+        "equivalence": swept.gate.equivalence.verdict,
+    }
+    for half, label in swept.decided_by.items():
+        how = "not proved" if verdicts[half] == "unknown" else "refuted"
+        print(f"  {how} ({half}) at instance {label}")
 
 
 def main() -> None:
@@ -262,7 +280,16 @@ def main_lowering() -> None:
 
     ctx = make_context()
     with open(args.file) as f:
-        module = Parser(ctx, f.read(), args.file).parse_module()
+        text = f.read()
+    family = instances(text)
+    # The single-query modes take the first instance of a swept template and say so.
+    module = Parser(ctx, family[0].text, args.file).parse_module()
+    if len(family) > 1 and (args.print_smt or args.print_smt_equivalence or args.ct_only):
+        print(
+            f"note: {args.file} declares {len(family)} instances; this mode checks the "
+            f"first only ({family[0].label})",
+            file=sys.stderr,
+        )
 
     if args.print_smt or args.print_smt_equivalence:
         from .structural import build_equivalence_query, build_query
@@ -288,10 +315,12 @@ def main_lowering() -> None:
             raise SystemExit(3)
         return
 
-    gate = check_template(
-        ctx, module, opt=not args.no_opt, timeout=args.timeout, max_visits=args.unroll
+    swept = check_template_text(
+        ctx, text, args.file, opt=not args.no_opt, timeout=args.timeout, max_visits=args.unroll
     )
+    gate = swept.gate
     _report_gate(args.file, gate, args.counterexample)
+    _report_family(swept)
     if gate.verdict == "rejected":
         raise SystemExit(1)
     if gate.verdict == "unknown":
@@ -300,6 +329,37 @@ def main_lowering() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _print_translation(result: CoverageReport, total: int) -> None:
+    """The measured half of form 0, printed under the name-level line it bounds."""
+    measured = result.translation
+    if measured is None:
+        print("          (name lookup only: an upper bound, --names-only skipped measuring it)")
+        return
+    ops = result.by_form(0)
+    translated = sum(op.translated or 0 for op in ops)
+    unparsed = sum(op.unparsed for op in ops)
+    low = 100 * translated / total if total else 0.0
+    high = 100 * (translated + unparsed) / total if total else 0.0
+    print(
+        f"          of which translate (measured)  {translated:>6} mentions  {low:5.1f}%"
+        f"   -- the name-level figure above is an upper bound"
+    )
+    print(
+        f"          in splits xdsl cannot parse   {unparsed:>6} mentions"
+        f"   -- so the translated share is between {low:.1f}% and {high:.1f}%"
+    )
+    print(
+        f"          corpus: {measured.splits_parsed}/{measured.splits} splits parsed, "
+        f"{measured.functions_translated}/{measured.functions} functions translate whole"
+    )
+    refused = sorted(
+        (op for op in ops if op.rejections), key=lambda op: -sum(n for _, n in op.rejections)
+    )
+    for op in refused[:5]:
+        reason, count = op.rejections[0]
+        print(f"          refused: {op.name} x{count}: {reason}")
 
 
 def main_coverage() -> None:
@@ -325,6 +385,11 @@ def main_coverage() -> None:
         "--top", type=int, default=12, help="how many unproved operations to list"
     )
     arg_parser.add_argument("--timeout", type=int, default=120, help="solver timeout, s")
+    arg_parser.add_argument(
+        "--names-only",
+        action="store_true",
+        help="skip measuring which occurrences translate; form 0 is then a name lookup only",
+    )
     args = arg_parser.parse_args()
 
     paths = sorted(COMPILERS.glob("*.json"))
@@ -340,15 +405,20 @@ def main_coverage() -> None:
         if not compiler.checkout.exists():
             print(f"{compiler.name}: no checkout at {compiler.checkout}, skipped")
             continue
-        result = report(compiler, prove=not args.no_prove, timeout=args.timeout)
+        result = report(
+            compiler,
+            prove=not args.no_prove,
+            timeout=args.timeout,
+            translate=not args.names_only,
+        )
         total = sum(op.occurrences for op in result.operations)
         print(
             f"\n{result.compiler} @ {result.commit} "
-            f"({result.files_scanned} test files, {len(result.operations)} distinct "
+            f"(test corpus: {result.files_scanned} files, {len(result.operations)} distinct "
             f"operations, {total} mentions)"
         )
         for form, label in (
-            (0, "form 0  SMT semantics    "),
+            (0, "form 0  rule by name     "),
             (1, "form 1  proved template  "),
             (2, "form 2  UNPROVED         "),
         ):
@@ -356,13 +426,16 @@ def main_coverage() -> None:
             mentions = sum(op.occurrences for op in ops)
             share = 100 * mentions / total if total else 0.0
             print(f"  {label} {len(ops):>4} operations  {mentions:>6} mentions  {share:5.1f}%")
+            if form == 0:
+                _print_translation(result, total)
         if result.failed_templates:
             for failure in result.failed_templates:
                 print(f"  template did not prove, so it covers nothing: {failure}")
         ready = [stage for stage in result.stages if stage.ready]
+        basis = "measured" if result.translation is not None else "by name only"
         print(
             f"  pipeline: {len(ready)}/{len(result.stages)} lowering steps have every "
-            f"source operation translatable"
+            f"source occurrence translatable ({basis})"
         )
         specified = [s for s in result.stages if s.proved or s.breaks]
         print(
@@ -378,7 +451,8 @@ def main_coverage() -> None:
             print(
                 f"    {mark} {stage.stage.pass_name:<44} "
                 f"form0 {stage.forms[0]:>3}  form1 {stage.forms[1]:>3}  "
-                f"form2 {stage.forms[2]:>3}   [{stage.stage.cited}]{spec}"
+                f"form2 {stage.forms[2]:>3}  untranslated {stage.untranslated:>3}   "
+                f"[{stage.stage.cited}]{spec}"
             )
         top = result.by_form(2)[: args.top]
         if top:

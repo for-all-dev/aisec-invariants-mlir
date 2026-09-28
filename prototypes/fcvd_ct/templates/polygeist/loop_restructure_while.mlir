@@ -15,46 +15,50 @@
 // The body is a hole with one observation, so a body the rewrite ran under a different
 // guard, on different values, or a different number of times would change the trace.
 //
-// Expected: CT-PRESERVING and EQUIVALENT, both bounded (the loop is unrolled). The
-// falsifying twin is loop_restructure_dowhile.mlir — the same rewrite with the body
-// hoisted ahead of the first check, which must break.
+// Swept over the width W of the induction variable and bound (issue #63): the pass
+// restructures the CFG whatever type the header compares.
+//
+// Expected on every instance: CT-PRESERVING and EQUIVALENT, both bounded (the loop
+// is unrolled). The falsifying twin is loop_restructure_dowhile.mlir — the same
+// rewrite with the body hoisted ahead of the first check, which must break.
+// fcvdct.sweep W = i8, i16, i32, i64
 builtin.module {
-  func.func @source(%ub: i64, %x: i32) -> i1 {
-    %c0 = arith.constant 0 : i64
-    %c1 = arith.constant 1 : i64
-    cf.br ^bb1(%c0 : i64)
-  ^bb1(%i: i64):
-    %flag = arith.cmpi slt, %i, %c0 : i64
-    %go = arith.cmpi sle, %i, %ub : i64
+  func.func @source(%ub: ${W}, %x: i32) -> i1 {
+    %c0 = arith.constant 0 : ${W}
+    %c1 = arith.constant 1 : ${W}
+    cf.br ^bb1(%c0 : ${W})
+  ^bb1(%i: ${W}):
+    %flag = arith.cmpi slt, %i, %c0 : ${W}
+    %go = arith.cmpi sle, %i, %ub : ${W}
     cf.cond_br %go, ^bb2, ^bb3
   ^bb2:
     %seen = "fcvd.hole"(%x) {sym_name = "BODY", leaks = 1 : i64} : (i32) -> i32
-    %next = arith.addi %i, %c1 : i64
-    cf.br ^bb1(%next : i64)
+    %next = arith.addi %i, %c1 : ${W}
+    cf.br ^bb1(%next : ${W})
   ^bb3:
     func.return %flag : i1
   }
 
-  func.func @target(%ub: i64, %x: i32) -> i1 {
-    %c0 = arith.constant 0 : i64
-    %c1 = arith.constant 1 : i64
+  func.func @target(%ub: ${W}, %x: i32) -> i1 {
+    %c0 = arith.constant 0 : ${W}
+    %c1 = arith.constant 1 : ${W}
     %dead = arith.constant false
-    %res:2 = scf.while (%i = %c0, %carried = %dead) : (i64, i1) -> (i64, i1) {
-      %flag = arith.cmpi slt, %i, %c0 : i64
-      %go = arith.cmpi sle, %i, %ub : i64
+    %res:2 = scf.while (%i = %c0, %carried = %dead) : (${W}, i1) -> (${W}, i1) {
+      %flag = arith.cmpi slt, %i, %c0 : ${W}
+      %go = arith.cmpi sle, %i, %ub : ${W}
       %false = arith.constant false
-      %step:3 = scf.if %go -> (i1, i64, i1) {
+      %step:3 = scf.if %go -> (i1, ${W}, i1) {
         %seen = "fcvd.hole"(%x) {sym_name = "BODY", leaks = 1 : i64} : (i32) -> i32
-        %next = arith.addi %i, %c1 : i64
+        %next = arith.addi %i, %c1 : ${W}
         %true = arith.constant true
-        scf.yield %true, %next, %flag : i1, i64, i1
+        scf.yield %true, %next, %flag : i1, ${W}, i1
       } else {
-        scf.yield %false, %i, %flag : i1, i64, i1
+        scf.yield %false, %i, %flag : i1, ${W}, i1
       }
-      scf.condition(%step#0) %step#1, %step#2 : i64, i1
+      scf.condition(%step#0) %step#1, %step#2 : ${W}, i1
     } do {
-    ^bb0(%i2: i64, %carried2: i1):
-      scf.yield %i2, %carried2 : i64, i1
+    ^bb0(%i2: ${W}, %carried2: i1):
+      scf.yield %i2, %carried2 : ${W}, i1
     }
     func.return %res#1 : i1
   }
