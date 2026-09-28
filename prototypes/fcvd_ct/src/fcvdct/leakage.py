@@ -88,22 +88,25 @@ for _llvm_div in (
         VARIABLE_LATENCY_RULES[_llvm_div] = Rule(LATENCY, operands(0, 1))
 
 #: A memory access leaks the address it touches, which is the cache-line channel that
-#: `mlir_leak` found empirically in the sparsifier.
+#: `mlir_leak` found empirically in the sparsifier. The address is the base *and* the
+#: indices: a secret choice between two buffers indexed at a public position touches a
+#: secret-dependent line exactly as a secret index does (#64). Both memory dialects
+#: observe the base, so a lowering from one to the other compares like with like --
+#: when only `llvm.load/store` saw the pointer, `memref -> llvm` looked as if it added
+#: the base as a new leak, and a correct lowering came back ct-breaking.
 ADDRESS_RULES: dict[type[Operation], LeakageRule] = {
-    memref.LoadOp: Rule(ADDRESS, operands_from(1)),
-    memref.StoreOp: Rule(ADDRESS, operands_from(2)),
+    memref.LoadOp: Rule(ADDRESS, operands_from(0)),
+    memref.StoreOp: Rule(ADDRESS, operands_from(1)),
     # A tensor is not memory yet, but it becomes memory: HEIR bufferizes before its
     # backend, and an extraction at a secret index is exactly what its data-oblivious
     # passes exist to remove. See `tensor_ops.py` for the assumption in full.
     tensor.ExtractOp: Rule(ADDRESS, operands_from(1)),
     tensor.InsertOp: Rule(ADDRESS, operands_from(2)),
     # After memref is lowered C-style, the address is a getelementptr and the access is
-    # an llvm.load/store on its result. The index operands of the GEP are what a memref
-    # access leaked before lowering, so leaking them here keeps the two comparable --
-    # the load/store themselves take an already-computed pointer and add no new secret.
+    # an llvm.load/store on its result. The GEP's indices are what the memref access's
+    # indices were, and the pointer the load/store takes carries the base (and, through
+    # the GEP, the indices again), so the pair observes what the memref access did.
     llvm.GEPOp: Rule(ADDRESS, operands_from(1)),
-    # The pointer itself is also part of the touched address. Without this, a secret
-    # choice between base pointers can look clean when indices are public.
     llvm.LoadOp: Rule(ADDRESS, operands(0)),
     llvm.StoreOp: Rule(ADDRESS, operands(1)),
 }
