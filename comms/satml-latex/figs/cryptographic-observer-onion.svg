@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" role="img" aria-labelledby="title desc">
+  <title id="title">Cryptographic Observer Onion</title>
+  <desc id="desc">A layered taxonomy of observers, progressing from public transcripts and remote timing toward direct process state, physical emissions, invasive access, and secret state. A TEE or HSM boundary blocks direct host reads when isolation holds.</desc>
+
+  <rect width="1600" height="1050" fill="#f7f9fc"/>
+
+  <text x="80" y="62" fill="#172033" font-family="Arial, sans-serif" font-size="40" font-weight="500">Cryptographic Observer Onion</text>
+  <text x="80" y="101" fill="#5b6472" font-family="Arial, sans-serif" font-size="21">Moving inward means increasingly direct access to secret state.</text>
+
+  <g stroke="#b9c3d1" stroke-width="1.5">
+    <ellipse cx="500" cy="575" rx="430" ry="390" fill="#edf3fb"/>
+    <ellipse cx="500" cy="575" rx="380" ry="340" fill="#e5eef9"/>
+    <ellipse cx="500" cy="575" rx="330" ry="290" fill="#dce9f7"/>
+    <ellipse cx="500" cy="575" rx="280" ry="240" fill="#d2e3f4"/>
+    <ellipse cx="500" cy="575" rx="230" ry="190" fill="#c6dcf0"/>
+    <ellipse cx="500" cy="575" rx="180" ry="140" fill="#d9d1ee"/>
+    <ellipse cx="500" cy="575" rx="130" ry="90" fill="#d5c6e8"/>
+  </g>
+
+  <ellipse cx="500" cy="575" rx="75" ry="48" fill="#23395d" stroke="#172b49" stroke-width="2"/>
+
+  <g fill="#172033" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="18" font-weight="500" letter-spacing="0.8">
+    <text x="500" y="208">O0 · PUBLIC TRANSCRIPT</text>
+    <text x="500" y="258">O1 · REMOTE TIMING</text>
+    <text x="500" y="308">O2 · STRONG CONSTANT-TIME TRACE</text>
+    <text x="500" y="358">O3 · LOCAL MICROARCHITECTURE</text>
+    <text x="500" y="408">O4 · HOST / DEBUGGER STATE</text>
+    <text x="500" y="458">O6 · POWER · EM · FREQUENCY</text>
+    <text x="500" y="503">O7 · INVASIVE CHIP ACCESS</text>
+  </g>
+
+  <g fill="#ffffff" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif">
+    <text x="500" y="575" font-size="17" font-weight="500">SECRET STATE</text>
+  </g>
+
+  <ellipse cx="500" cy="575" rx="255" ry="215" fill="none" stroke="#a45d0b" stroke-width="3" stroke-dasharray="11 8"/>
+  <path d="M750 534 L784 518 L946 518" fill="none" stroke="#a45d0b" stroke-width="2.5"/>
+  <rect x="770" y="475" width="190" height="68" rx="10" fill="#fff8eb" stroke="#e3bd7f" stroke-width="1.5"/>
+  <g fill="#603808" font-family="Arial, sans-serif">
+    <text x="786" y="501" font-size="17" font-weight="500">O5 · TEE / HSM HOST</text>
+    <text x="786" y="525" font-size="15">Protected boundary</text>
+  </g>
+
+  <g font-family="Arial, sans-serif">
+    <text x="1010" y="169" fill="#5b6472" font-size="17" font-weight="500" letter-spacing="0.7">OUTSIDE → CORE · INCREASINGLY DIRECT ACCESS</text>
+
+    <circle cx="1024" cy="217" r="10" fill="#edf3fb" stroke="#b9c3d1"/>
+    <text x="1052" y="214" fill="#172033" font-size="22" font-weight="500">O0 Public transcript</text>
+    <text x="1052" y="239" fill="#5b6472" font-size="17">Keys, ciphertexts, signatures, outputs, public errors.</text>
+
+    <circle cx="1024" cy="307" r="10" fill="#e5eef9" stroke="#b9c3d1"/>
+    <text x="1052" y="304" fill="#172033" font-size="22" font-weight="500">O1 Remote timing</text>
+    <text x="1052" y="329" fill="#5b6472" font-size="17">End-to-end latency, timeouts, repeated-query statistics.</text>
+
+    <circle cx="1024" cy="397" r="10" fill="#dce9f7" stroke="#b9c3d1"/>
+    <text x="1052" y="394" fill="#172033" font-size="22" font-weight="500">O2 Strong constant-time trace</text>
+    <text x="1052" y="419" fill="#5b6472" font-size="17">Branches, opcodes/counts, address and latency classes—</text>
+    <text x="1052" y="441" fill="#5b6472" font-size="17">but not operands, registers, or memory values.</text>
+
+    <circle cx="1024" cy="497" r="10" fill="#d2e3f4" stroke="#b9c3d1"/>
+    <text x="1052" y="494" fill="#172033" font-size="22" font-weight="500">O3 Local microarchitecture</text>
+    <text x="1052" y="519" fill="#5b6472" font-size="17">Cache sets/lines, pages, predictor effects, contention.</text>
+
+    <circle cx="1024" cy="587" r="10" fill="#c6dcf0" stroke="#b9c3d1"/>
+    <text x="1052" y="584" fill="#172033" font-size="22" font-weight="500">O4 Host controller / debugger</text>
+    <text x="1052" y="609" fill="#5b6472" font-size="17">Process memory, stopped registers, logs, files, core dumps.</text>
+
+    <circle cx="1024" cy="677" r="10" fill="#f7f9fc" stroke="#a45d0b" stroke-width="3" stroke-dasharray="5 3"/>
+    <text x="1052" y="674" fill="#172033" font-size="22" font-weight="500">O5 TEE / HSM host</text>
+    <text x="1052" y="699" fill="#5b6472" font-size="17">Interface and leakage, not protected state if isolation holds.</text>
+
+    <circle cx="1024" cy="767" r="10" fill="#d9d1ee" stroke="#b9c3d1"/>
+    <text x="1052" y="764" fill="#172033" font-size="22" font-weight="500">O6 Physical observer</text>
+    <text x="1052" y="789" fill="#5b6472" font-size="17">Power, EM, acoustic, thermal, or frequency behavior.</text>
+
+    <circle cx="1024" cy="857" r="10" fill="#d5c6e8" stroke="#b9c3d1"/>
+    <text x="1052" y="854" fill="#172033" font-size="22" font-weight="500">O7 Invasive observer</text>
+    <text x="1052" y="879" fill="#5b6472" font-size="17">Internal buses, memories, registers, and chip probes.</text>
+  </g>
+
+  <line x1="1010" y1="927" x2="1520" y2="927" stroke="#c8d0dc" stroke-width="1.5"/>
+  <text x="1010" y="962" fill="#5b6472" font-family="Arial, sans-serif" font-size="17">Constant-time analysis targets O1–O3. Placement security handles O4.</text>
+  <text x="1010" y="988" fill="#5b6472" font-family="Arial, sans-serif" font-size="17">Power/EM and invasive probing require separate physical threat models.</text>
+</svg>

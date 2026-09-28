@@ -1,0 +1,10 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+ Measured results are specific to the machine and the toolchain version, as the Zen 5 confound showed, and proofs hold in a model, not on silicon. That model is also what blocks the two parallel Polygeist passes, which need a memory model with parallelism before they can be specified. The measurements held a surprise as well, because the compiler-removed verdict shows that compilation is not monotonically bad for confidentiality, which undercuts blanket guidance to \emph{compile with hardening}. Past Polygeist and Inductor, only what rests on the shared MLIR dialects transfers, and the rest is compiler-specific. No deployed system was exploited, and all measurement ran on our own hardware and models.
+
+The verification results carry four further limits, each stated where its result appears and collected here.
+A template is our transcription of a pass, cited to file and line, and a check of it says nothing about the pass if the transcription is wrong; running the pass on each template's source and comparing against the template's target would close that gap, and we have not yet done so.
+Every loop is unrolled to a bound, so the checks are bounded, and shapes are sampled rather than quantified, so a template covers the instances it was swept over.
+The coverage figures count operations in Polygeist's own lit tests, which exercise passes one at a time and are not a sample of the programs the compiler meets in practice.
+Finally, the leakage model observes the index of a memory access but not which memory reference it goes through before lowering, so a secret that chooses between two buffers is caught only once the access has become an LLVM pointer.

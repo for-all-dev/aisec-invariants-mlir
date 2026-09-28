@@ -1,0 +1,10 @@
+Building dense (baseline) and sparse lowerings of scatter.mlir ...
+
+Verdict is on the ADDRESS channel: both builds consume the secret, so
+both trip memcheck's cf channel (it covers a conditional jump OR MOVE,
+i.e. any comparison), and a leak/no-leak bit cannot separate them. What
+--sparsification is claimed to introduce is a secret-dependent ADDRESS.
+
+  LOWERING   ADDR   VERDICT (addr channel)             CHANNELS
+  dense      no     baseline-cell                      taint:cf
+  sparse     yes    introduced-relative-to-baseline    taint:addr

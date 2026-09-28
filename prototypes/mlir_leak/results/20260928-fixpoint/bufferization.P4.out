@@ -1,0 +1,23 @@
+Building 2 cell(s) = 1 pipeline(s) x 2 opt level(s) x 3 kernel(s) ...
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O0]
+
+kernel           P4
+matvec_t          .
+mask_select_t     L
+dynshape_t        L
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O2]
+
+kernel           P4
+matvec_t          .
+mask_select_t     .
+dynshape_t        L
+
+DETAIL  [verdict is relative to baseline cell P4@O0; taint: cf=control-flow, addr=address]
+  matvec_t       P4@O0  obliv  baseline-cell                    clean
+  mask_select_t  P4@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  dynshape_t     P4@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=+106703) Bc(dBc=+8233) Dw(dDw=+24595)
+  matvec_t       P4@O2  obliv  oblivious                        clean
+  mask_select_t  P4@O2  obliv  removed-relative-to-baseline     clean
+  dynshape_t     P4@O2  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+12391) Bc(dBc=+1194) Dw(dDw=+4631)

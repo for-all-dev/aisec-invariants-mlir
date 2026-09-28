@@ -1,0 +1,37 @@
+Building 5 cell(s) = 5 pipeline(s) x 1 opt level(s) x 5 kernel(s) ...
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O0]
+
+kernel           P0    P1    P2    P3    P5
+matvec            .     .     .     .     .
+cond_reduce       L     L     L     L     L
+mask_select       L     L     L     L     L
+idx_gather        L     L     L     L     L
+dynshape          L     L     L     L     L
+
+DETAIL  [verdict is relative to baseline cell P0@O0; taint: cf=control-flow, addr=address]
+  matvec         P0@O0  obliv  baseline-cell                    clean
+  matvec         P1@O0  obliv  oblivious                        clean
+  matvec         P2@O0  obliv  oblivious                        clean
+  matvec         P3@O0  obliv  oblivious                        clean
+  matvec         P5@O0  obliv  oblivious                        clean
+  cond_reduce    P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P1@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P2@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P3@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  cond_reduce    P5@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  mask_select    P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P1@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P2@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P3@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  mask_select    P5@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  idx_gather     P0@O0  LEAK   baseline-cell                    taint:addr
+  idx_gather     P1@O0  LEAK   leak-present-in-baseline         taint:addr
+  idx_gather     P2@O0  LEAK   leak-present-in-baseline         taint:addr
+  idx_gather     P3@O0  LEAK   leak-present-in-baseline         taint:addr
+  idx_gather     P5@O0  LEAK   leak-present-in-baseline         taint:addr
+  dynshape       P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=+73872) Bc(dBc=+4124) Dw(dDw=+20493)
+  dynshape       P1@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+73872) Bc(dBc=+4124) Dw(dDw=+20493)
+  dynshape       P2@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+61425) Bc(dBc=+4095) Dw(dDw=+16380)
+  dynshape       P3@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+73872) Bc(dBc=+4124) Dw(dDw=+20493)
+  dynshape       P5@O0  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+73872) Bc(dBc=+4124) Dw(dDw=+20493)

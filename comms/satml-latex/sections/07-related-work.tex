@@ -1,0 +1,57 @@
+\section{Related Work}
+\label{sec:related-work}
+
+\subsection{Model Side Channels and Compiler-Centered ML Security}
+
+Prior attacks establish that a model's execution can reveal much more than its final prediction.
+CSI NN recovers neural-network architecture parameters from electromagnetic traces~\cite{batina2019csinn}; Cache Telepathy infers DNN architectures through shared-cache behavior~\cite{yan2020cachetelepathy}; and DeepSniffer reconstructs architectural hints from accelerator execution signals~\cite{hu2020deepsniffer}.
+These systems demonstrate the exploitability of model-dependent timing, memory, and microarchitectural signatures.
+Our objective is complementary: we do not construct a complete model-extraction attack.
+We ask which signatures cross a compiler boundary, which are created or removed there, and whether an individual lowering specification preserves a declared observation policy.
+
+Compilers can also threaten ML systems through integrity failures.
+Chen et al. show that inconsistencies between eager and compiled execution can be weaponized as model backdoors~\cite{chen2026compilerbackdoor}.
+We use a related eager-versus-compiled comparison, but for confidentiality rather than output integrity: identical public behavior does not suffice when timing, control flow, or addresses remain distinguishable.
+Together, these lines of work motivate treating the compiler as part of the security boundary rather than as a semantics-neutral implementation detail.
+
+\subsection{Finding Constant-Time Violations}
+
+Constant-time analysis spans source, intermediate, and binary levels. ct-verif reduces constant-time verification to safety properties over a self-composed program~\cite{almeida2016ctverif}.
+Binsec/Rel performs relational symbolic execution directly on binaries and demonstrates that compiler choices can create constant-time violations~\cite{daniel2020binsecrel}.
+Simon et al. likewise show how mainstream C compilation can invalidate source-level control over security-relevant side effects~\cite{simon2018whatyouc}.
+These results preclude a claim that compiler-induced leakage or differential compiler analysis is new in itself.
+
+Our distinction is the workflow and workload boundary.
+We combine count-based and taint-based observations on ML kernels, execute eager and classify a channel as oblivious, distinguishable, compiler introduced, or compiler removed at a pinned configuration point.
+That four-way attribution is empirical rather than a constant-time proof.
+The FCVD-CT layer then supplies the complementary universal check for the inputs and observations represented by its symbolic model.
+In particular, it treats control flow, addresses, variable-latency operations, and selected resource counts as explicit semantic observations rather than reducing all leakage to wall-clock time.
+
+\subsection{Security-Preserving Compilation}
+
+The closest formal work studies whether compilation preserves information-flow or noninterference hyperproperties.
+Besson et al. formulate information-flow-preserving optimizations and apply translation validation to compiler transformations~\cite{besson2019ifpreservation}.
+Namjoshi and Tabajara generalize this direction with witness relations for validating secure compilation~\cite{namjoshi2020witnessing}.
+Barthe et al. machine-check a constant-time-preserving C compiler based on CompCert ~\cite{barthe2020ctcompiler}.
+More recently, SNIP checks preservation of speculative noninterference and shows that transformations such as register allocation must account for observations introduced by speculation ~\cite{vanderwall2025snip}.
+
+Those systems provide general proof principles or stronger guarantees for a fixed compiler chain.
+We make a different engineering tradeoff.
+FCVD-CT instantiates leakage-aware translation validation for extensible MLIR dialect semantics and checks a pair of pass specifications with two independent queries: functional refinement and channel-relative noninterference.
+This does not amount to a whole-compiler proof; the correspondence between a handwritten specification and its production pass remains trusted until actual before/after IR is validated.
+The benefit is that a dialect author can add semantics and an observation rule locally, while falsifying controls expose whether each of the two obligations is genuinely load-bearing.
+
+\texttt{ct\_select} intrinsic added to Clang and LLVM lowers to an optimization barrier that is selected into branch-free machine code, but it protects only the selections a programmer has marked and only against secret-dependent branching.
+
+\subsection{Translation Validation and MLIR Verification}
+
+Translation validation checks each compilation instance instead of verifying the compiler implementation once and for all.
+Alive2 applies bounded refinement checking to LLVM transformations~\cite{lopes2021alive2}.
+MLIR-TV brings systematic semantic validation to multiple MLIR dialects and lowering boundaries~\cite{wang2024mlirtv}.
+First-Class Verification Dialects (FCVD) package dialect semantics so that verification tools can reuse them ~\cite{fcvd2025}; our checker builds directly on that abstraction.
+MLIR's multi-level organization~\cite{lattner2021mlir} and Polygeist's C-to-MLIR pipeline~\cite{moses2021polygeist} provide the substrate and the realistic multi-stage evaluation target.
+
+These validators primarily ask whether the target computes a result permitted by the source.
+For confidential compilation, that condition is necessary but not sufficient: a target may compute the same value while exposing a secret-dependent branch or address.
+Our extension makes leakage observations part of the executable semantics, self-composes the source and target, and accepts a specification only when both the functional and relational obligations hold.
+The contribution is therefore not a new notion of secure compilation, but a concrete, coverage-accounted realization for MLIR lowering specifications coupled to empirical attribution on ML workloads.

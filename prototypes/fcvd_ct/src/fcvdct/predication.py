@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.dialects import affine, arith, cf, func, memref, scf
+from xdsl.dialects import affine, arith, cf, func, llvm, memref, scf
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, StringAttr
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.ir.affine import (
@@ -118,6 +118,13 @@ class Flattener:
         if isinstance(op, affine.StoreOp):
             self.run_affine_store(op, guard, values)
             return
+        if isinstance(op, llvm.StoreOp):
+            self.run_llvm_store(op, guard, values)
+            return
+        if isinstance(op, memref.DeallocOp) and not self.is_unconditional(guard):
+            # Freeing a block changes memory, and there is no select-shaped way to free
+            # it on some paths only. Executing it anyway would free on untaken paths.
+            raise UnsupportedTemplate("memref.dealloc under a branch is not modelled")
 
         copy = op.clone(value_mapper=dict(values))
         for original, new in zip(op.results, copy.results, strict=True):
@@ -251,6 +258,35 @@ class Flattener:
         if rule is not None:
             for observed in rule(copy.operands):
                 self.observe(guard, observed, rule.kind)
+
+    def run_llvm_store(
+        self, op: llvm.StoreOp, guard: SSAValue, values: dict[SSAValue, SSAValue]
+    ) -> None:
+        """`llvm.store` predicated the same way as `run_store`.
+
+        The pointer is already computed, so there are no indices to route to 0; the
+        synthetic load reads at the store's own pointer and so can trigger UB (a poison
+        pointer) exactly when the store itself would, adding none of its own.
+        """
+        stored = values.get(op.value, op.value)
+        pointer = values.get(op.ptr, op.ptr)
+        old = self.emit(llvm.LoadOp(pointer, stored.type)).results[0]
+        merged = self.emit(arith.SelectOp(guard, stored, old)).results[0]
+        copy = self.emit(llvm.StoreOp(merged, pointer))
+        rule = self.model.get(llvm.StoreOp)
+        if rule is not None:
+            for observed in rule(copy.operands):
+                self.observe(guard, observed, rule.kind)
+
+    @staticmethod
+    def is_unconditional(guard: SSAValue) -> bool:
+        """True for the entry path's guard, the constant `true` `run_path` starts from."""
+        owner = guard.owner
+        return (
+            isinstance(owner, arith.ConstantOp)
+            and isinstance(owner.value, IntegerAttr)
+            and owner.value.value.data != 0
+        )
 
     def run_if(self, op: scf.IfOp, guard: SSAValue, values: dict[SSAValue, SSAValue]) -> None:
         condition = values.get(op.cond, op.cond)

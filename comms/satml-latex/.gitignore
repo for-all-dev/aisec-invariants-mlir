@@ -1,0 +1,33 @@
+# Compiled paper (IEEEtran_HOWTO.pdf is documentation and stays tracked)
+/conference_101719.pdf
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.log
+*.nav
+*.out
+*.snm
+*.spl
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+*.bcf
+*.run.xml
+
+# Editor and tooling
+.vscode/
+__pycache__/
+
+# Local working notes
+/review.md

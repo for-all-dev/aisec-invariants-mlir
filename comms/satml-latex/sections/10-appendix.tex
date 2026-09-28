@@ -1,0 +1,110 @@
+\appendices
+\section{Supplementary Material}
+\label{sec:appendix}
+
+\begin{table}[H]
+\caption{The eight lowering steps of Polygeist. \emph{Specified}: a template transcribed from the pass, swept over shapes, holds on both halves with loops bounded, and its control is refused; mem2reg's equivalence is over returned values only. \emph{Partial}: arithmetic, control flow and memory access checked as separate slices.}
+\label{tab:polygeist}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}l@{\hspace{4pt}}>{\raggedright\arraybackslash}p{0.40\columnwidth}@{\hspace{4pt}}c@{}}
+\hline
+step & what it does & status \\
+\hline
+polygeist-mem2reg          & load and store into SSA        & specified \\
+loop-restructure           & cf back edges into while loops & specified \\
+affine-cfg                 & raise scf into affine          & specified \\
+canonicalize-for           & loop shape rewrites            & specified \\
+lower-affine               & affine into scf and memref     & specified \\
+parallel-lower             & GPU and barrier machinery      & blocked \\
+convert-scf-to-openmp      & parallel loops into omp        & blocked \\
+convert-polygeist-to-llvm  & arith, cf, memref to LLVM      & partial \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\caption{Measured cells, all from one run (AMD Ryzen AI 9 HX 370, toolchain of
+\S\ref{sec:measure}; recorded outputs in the artifact). dIr, dBc, dDw are class-B minus
+class-A, medians over five contexts; a dash means the difference did not pass the guards.
+Verdicts are relative to P0@-O0 (P4@-O0 for tensor kernels); \emph{leak} is leak present
+and \emph{new addr} is a leak introduced on the address channel, measured against the
+separately authored dense reference.}
+\label{tab:measured-cells}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{1.5pt}
+\begin{tabular}{@{}llrrrrll@{}}
+\hline
+kernel & pipes & -O & dIr & dBc & dDw & taint & verdict \\
+\hline
+\texttt{matvec}          & P0--3,5  & O0     & ---          & ---        & ---         & ---           & oblivious \\
+\texttt{matvec}          & P0       & O2, O3 & ---          & ---        & ---         & ---           & oblivious \\
+\texttt{cond\_reduce}    & P0--3,5  & O0     & $-3$         & ---        & $-1$        & \texttt{cf}   & leak \\
+\texttt{cond\_reduce}    & P0       & O2, O3 & ---          & ---        & ---         & ---           & \textbf{removed} \\
+\texttt{mask\_select}    & P0--3,5  & O0     & $-8{,}192$   & ---        & $-4{,}096$  & \texttt{cf}   & leak \\
+\texttt{mask\_select}    & P0       & O2, O3 & ---          & ---        & ---         & ---           & \textbf{removed} \\
+\texttt{idx\_gather}     & P0--3,5  & O0     & ---          & ---        & ---         & \texttt{addr} & leak \\
+\texttt{idx\_gather}     & P0       & O2, O3 & ---          & ---        & ---         & \texttt{addr} & leak \\
+\texttt{dynshape}        & P0,1,3,5 & O0     & $+73{,}872$  & $+4{,}124$ & $+20{,}493$ & \texttt{cf}   & leak \\
+\texttt{dynshape}        & P2       & O0     & $+61{,}425$  & $+4{,}095$ & $+16{,}380$ & \texttt{cf}   & leak \\
+\texttt{dynshape}        & P0       & O2, O3 & $+5{,}117$   & $+511$     & ---         & \texttt{cf}   & leak \\
+\texttt{matvec\_t}       & P4       & O0, O2 & ---          & ---        & ---         & ---           & oblivious \\
+\texttt{mask\_select\_t} & P4       & O0     & $-8{,}192$   & ---        & $-4{,}096$  & \texttt{cf}   & leak \\
+\texttt{mask\_select\_t} & P4       & O2     & ---          & ---        & ---         & ---           & \textbf{removed} \\
+\texttt{dynshape\_t}     & P4       & O0     & $+106{,}703$ & $+8{,}233$ & $+24{,}595$ & \texttt{cf}   & leak \\
+\texttt{dynshape\_t}     & P4       & O2     & $+12{,}391$  & $+1{,}194$ & $+4{,}631$  & \texttt{cf}   & leak \\
+\hline
+\texttt{scatter}, dense  & dense ref & O0 & --- & --- & --- & \texttt{cf}            & baseline \\
+\texttt{scatter}, sparse & sparsifier & O0 & --- & --- & --- & \textbf{\texttt{addr}} & \textbf{new addr} \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\caption{Measured specification control}
+\label{tab:gate-controls}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.52\columnwidth}cc@{}}
+\hline
+Specification & Equivalence & Leakage \\
+\hline
+Propagate unchanged carried value (faithful)                & Equivalent     & Preserving \\
+Propagate initial value after carried value changes (faulty) & Not equivalent & Preserving \\
+Restructure guarded loop as while (faithful)                & Equivalent     & Preserving \\
+Place body before first condition check (faulty)            & Equivalent     & Breaking \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\caption{Evidence scopes. This is a methodological comparison, not a measured accuracy
+table for the IR analyzer.}
+\label{tab:analysis-boundaries}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.19\columnwidth}
+                  >{\raggedright\arraybackslash}p{0.33\columnwidth}
+                  >{\raggedright\arraybackslash}p{0.38\columnwidth}@{}}
+\hline
+Method & Object and observations & Boundary or inconclusive case \\
+\hline
+IR dependency analysis & Protected-value flows to modeled IR sinks
+  & Later lowering is outside scope; unsupported flows and transfer-rule gaps limit
+    conclusions. \\
+Symbolic checking & Source and target values, memory, and guarded model observations
+  & Unsupported encoding or nondecisive solver result; truncation and hole semantics
+    remain part of the claim. \\
+Binary experiments & Executable behavior: taint dependencies and aggregate counts
+  & Sampled classes only; execution or instrumentation failure is inconclusive. No
+    finding is not a proof. \\
+\hline
+\end{tabular}
+\end{table}
