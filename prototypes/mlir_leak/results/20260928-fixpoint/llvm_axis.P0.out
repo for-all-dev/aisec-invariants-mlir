@@ -1,0 +1,45 @@
+Building 3 cell(s) = 1 pipeline(s) x 3 opt level(s) x 5 kernel(s) ...
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O0]
+
+kernel           P0
+matvec            .
+cond_reduce       L
+mask_select       L
+idx_gather        L
+dynshape          L
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O2]
+
+kernel           P0
+matvec            .
+cond_reduce       .
+mask_select       .
+idx_gather        L
+dynshape          L
+
+LEAK MATRIX (L=distinguishable  .=oblivious  -=did not lower)  [opt=O3]
+
+kernel           P0
+matvec            .
+cond_reduce       .
+mask_select       .
+idx_gather        L
+dynshape          L
+
+DETAIL  [verdict is relative to baseline cell P0@O0; taint: cf=control-flow, addr=address]
+  matvec         P0@O0  obliv  baseline-cell                    clean
+  cond_reduce    P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=-3) Dw(dDw=-1)
+  mask_select    P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=-8192) Dw(dDw=-4096)
+  idx_gather     P0@O0  LEAK   baseline-cell                    taint:addr
+  dynshape       P0@O0  LEAK   baseline-cell                    taint:cf Ir(dIr=+73872) Bc(dBc=+4124) Dw(dDw=+20493)
+  matvec         P0@O2  obliv  oblivious                        clean
+  cond_reduce    P0@O2  obliv  removed-relative-to-baseline     clean
+  mask_select    P0@O2  obliv  removed-relative-to-baseline     clean
+  idx_gather     P0@O2  LEAK   leak-present-in-baseline         taint:addr
+  dynshape       P0@O2  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+5117) Bc(dBc=+511)
+  matvec         P0@O3  obliv  oblivious                        clean
+  cond_reduce    P0@O3  obliv  removed-relative-to-baseline     clean
+  mask_select    P0@O3  obliv  removed-relative-to-baseline     clean
+  idx_gather     P0@O3  LEAK   leak-present-in-baseline         taint:addr
+  dynshape       P0@O3  LEAK   leak-present-in-baseline         taint:cf Ir(dIr=+5117) Bc(dBc=+511)
