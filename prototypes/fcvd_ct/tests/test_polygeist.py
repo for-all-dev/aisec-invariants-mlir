@@ -13,9 +13,19 @@ import pytest
 from xdsl.parser import Parser
 
 from fcvdct.context import make_context
-from fcvdct.structural import check_lowering
+from fcvdct.structural import LoweringResult, check_lowering
+from fcvdct.sweep import check_template_file, instances
 
 ROOT = Path(__file__).parent.parent
+
+
+def lower_every_instance(path: Path) -> list[LoweringResult]:
+    """The leakage half on every instance a template's sweep declares."""
+    ctx = make_context()
+    return [
+        check_lowering(ctx, Parser(ctx, instance.text, str(path)).parse_module())
+        for instance in instances(path.read_text())
+    ]
 
 
 @pytest.mark.parametrize(
@@ -38,10 +48,9 @@ ROOT = Path(__file__).parent.parent
     ],
 )
 def test_templates(template: str, verdict: str):
-    ctx = make_context()
     path = ROOT / "templates" / "polygeist" / f"{template}.mlir"
-    result = check_lowering(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
-    assert result.verdict == verdict, result.reason
+    for result in lower_every_instance(path):
+        assert result.verdict == verdict, result.reason
 
 
 def test_hole_congruence_ignores_poison_not_values():
@@ -53,26 +62,26 @@ def test_hole_congruence_ignores_poison_not_values():
     for observations. The same template with constant bounds always passed; this one
     only passes with the fix in place.
     """
-    ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "canonicalize_for_propagate.mlir"
-    result = check_lowering(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
-    assert result.verdict == "ct-preserving"
-    assert result.bounded, "the loop is unrolled, so the verdict must announce itself as bounded"
+    for result in lower_every_instance(path):
+        assert result.verdict == "ct-preserving"
+        assert result.bounded, (
+            "the loop is unrolled, so the verdict must announce itself as bounded"
+        )
 
 
 def test_loop_restructure_both_halves():
     """--loop-restructure: the while form is VERIFIED (both halves), the do-while twin
     is rejected by the leakage half alone -- its returned flag is constant false on
     both sides, so equivalence rightly holds (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "loop_restructure_while.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
 
     path = ROOT / "templates" / "polygeist" / "loop_restructure_dowhile.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-breaking"
     assert gate.equivalence.verdict == "equivalent"
@@ -82,16 +91,15 @@ def test_mem2reg_both_halves():
     """--polygeist-mem2reg: the faithful forwarding is VERIFIED (values-only equivalence,
     declared in the template); the stale forwarding adds no observation, so only the
     equivalence half can refuse it -- and does (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "mem2reg_if.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
     assert not gate.equivalence.memory_compared, "the declared values-only mode must be visible"
 
     path = ROOT / "templates" / "polygeist" / "mem2reg_if_stale.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-preserving"
     assert gate.equivalence.verdict == "not-equivalent"
@@ -101,15 +109,14 @@ def test_lower_affine_both_halves():
     """--lower-affine: the faithful lowering is VERIFIED; the off-by-one final index is
     refused by the equivalence half and only that half -- a shifted constant address is
     still deterministic, so the trace cannot tell (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "lower_affine_for_load_store.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
 
     path = ROOT / "templates" / "polygeist" / "lower_affine_wrong_index.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-preserving"
     assert gate.equivalence.verdict == "not-equivalent"
@@ -156,15 +163,14 @@ def test_affine_cfg_both_halves():
     """--affine-cfg: the composed-map raise is VERIFIED; the wrong-stride twin is
     refused by the equivalence half alone, through the memory clause -- nothing is
     returned, so the memory left behind is the entire claim (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "affine_cfg_raise_store.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
 
     path = ROOT / "templates" / "polygeist" / "affine_cfg_wrong_map.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.constant_time.verdict == "ct-preserving"
     assert gate.equivalence.verdict == "not-equivalent"
@@ -175,16 +181,15 @@ def test_polygeist_to_llvm_both_halves():
     is VERIFIED; the swapped subtraction is refused by the equivalence half alone --
     pure arithmetic emits no observation, so the leakage half is vacuous on both
     (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_arith.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
     assert gate.constant_time.n_source_observations == 0, "the leakage half must be vacuous here"
 
     path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_swapped_sub.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.equivalence.verdict == "not-equivalent"
 
@@ -193,18 +198,17 @@ def test_polygeist_to_llvm_memref_both_halves():
     """--convert-polygeist-to-llvm, memory slice: memref.load/store -> gep+llvm.load/store
     is VERIFIED (same cell, same byte); the off-by-one GEP is refused by the equivalence
     half alone -- a deterministic wrong address the trace cannot see (measured 2026-08-09)."""
-    from fcvdct.structural import check_template
 
     ctx = make_context()
     path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_memref.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "verified", (gate.constant_time.reason, gate.equivalence.reason)
     assert gate.constant_time.n_target_observations >= 1, (
         "the llvm.getelementptr address must be observed, or the channel is invisible"
     )
 
     path = ROOT / "templates" / "polygeist" / "polygeist_to_llvm_memref_offset.mlir"
-    gate = check_template(ctx, Parser(ctx, path.read_text(), str(path)).parse_module())
+    gate = check_template_file(ctx, path).gate
     assert gate.verdict == "rejected"
     assert gate.equivalence.verdict == "not-equivalent"
 

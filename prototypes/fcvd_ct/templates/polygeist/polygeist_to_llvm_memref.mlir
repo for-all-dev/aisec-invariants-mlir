@@ -12,15 +12,20 @@
 // The body reads a cell through a hole and writes it back, so the address obligation is
 // exercised on both a load and a store. The lowering must touch the same cell.
 //
-// Expected: CT-PRESERVING (obs equal: one load address + one store address each side)
+// Swept over the memref extent N (issue #63): the index %i is already symbolic, so
+// the extent only changes which indices are in bounds -- and a lowering that drops the
+// bound, or keeps it only for one size, would differ exactly there.
+//
+// Expected on every instance: CT-PRESERVING (obs equal: one load address + one store address each side)
 // and EQUIVALENT (same value read, same byte left in memory). The falsifying twin is
 // polygeist_to_llvm_memref_offset.mlir.
+// fcvdct.sweep N = 1, 2, 8, 64
 builtin.module {
-  func.func @source(%m: memref<8xi8>, %i: index, %x: i8) -> i8 {
-    %old = memref.load %m[%i] : memref<8xi8>
+  func.func @source(%m: memref<${N}xi8>, %i: index, %x: i8) -> i8 {
+    %old = memref.load %m[%i] : memref<${N}xi8>
     %new = "fcvd.hole"(%old, %x) {sym_name = "BODY", leaks = 0 : i64} : (i8, i8) -> i8
-    memref.store %new, %m[%i] : memref<8xi8>
-    %out = memref.load %m[%i] : memref<8xi8>
+    memref.store %new, %m[%i] : memref<${N}xi8>
+    %out = memref.load %m[%i] : memref<${N}xi8>
     func.return %out : i8
   }
 

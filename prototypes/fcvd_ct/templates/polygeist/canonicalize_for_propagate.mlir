@@ -16,23 +16,27 @@
 // The body is a hole with one observation, so that a change in the value it receives
 // would show up as a different trace rather than being invisible.
 //
-// Expected: CT-PRESERVING, same observation count on both sides. Bounded, because the
+// Swept over the width W of the carried value (issue #63): the rule is type-generic.
+// The bounds and the step are already symbolic.
+//
+// Expected on every instance: CT-PRESERVING, same observation count on both sides. Bounded, because the
 // loop is unrolled. The falsifying twin is canonicalize_for_propagate_moved.mlir.
+// fcvdct.sweep W = i1, i8, i32, i64
 builtin.module {
-  func.func @source(%lb: index, %ub: index, %step: index, %x: i32) {
-    %init = arith.addi %x, %x : i32
-    %r = scf.for %i = %lb to %ub step %step iter_args(%carried = %init) -> (i32) {
-      %seen = "fcvd.hole"(%carried) {sym_name = "body", leaks = 1 : i64} : (i32) -> i32
-      scf.yield %carried : i32
+  func.func @source(%lb: index, %ub: index, %step: index, %x: ${W}) {
+    %init = arith.addi %x, %x : ${W}
+    %r = scf.for %i = %lb to %ub step %step iter_args(%carried = %init) -> (${W}) {
+      %seen = "fcvd.hole"(%carried) {sym_name = "body", leaks = 1 : i64} : (${W}) -> ${W}
+      scf.yield %carried : ${W}
     }
     func.return
   }
 
-  func.func @target(%lb: index, %ub: index, %step: index, %x: i32) {
-    %init = arith.addi %x, %x : i32
-    %r = scf.for %i = %lb to %ub step %step iter_args(%carried = %init) -> (i32) {
-      %seen = "fcvd.hole"(%init) {sym_name = "body", leaks = 1 : i64} : (i32) -> i32
-      scf.yield %carried : i32
+  func.func @target(%lb: index, %ub: index, %step: index, %x: ${W}) {
+    %init = arith.addi %x, %x : ${W}
+    %r = scf.for %i = %lb to %ub step %step iter_args(%carried = %init) -> (${W}) {
+      %seen = "fcvd.hole"(%init) {sym_name = "body", leaks = 1 : i64} : (${W}) -> ${W}
+      scf.yield %carried : ${W}
     }
     func.return
   }

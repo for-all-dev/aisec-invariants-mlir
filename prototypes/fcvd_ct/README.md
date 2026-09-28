@@ -234,6 +234,28 @@ single-block restriction is worked around) and **loops unroll** — a header is 
 to `--unroll` times. A verdict whose paths were cut by that bound is reported as *bounded*, never as
 if it held for all iterations. `scf.while` is still refused outright.
 
+### Template families (`fcvdct.sweep`)
+
+A transcription picks concrete sizes, widths, bounds and strides where the pass is general over
+them. Holes quantify over the code *inside* a rewrite, not over its shape, so a template can declare
+the shape parameters it was written at and have every combination checked:
+
+```mlir
+// fcvdct.sweep N = 1, 2, 4
+// fcvdct.sweep K = 0, N - 1          // a value may use parameters declared above it
+builtin.module { ... memref<${N}xi8> ... arith.constant ${K} : index ... }
+```
+
+`${...}` is a bound value or integer arithmetic over bound integers; an unbound one is an error. The
+gate runs on every instance, each half is the worst any instance returned, and the report prints how
+many instances stand behind a verdict (`x36`), which instance refuted it, and `closed` for a
+template with no hole (each instance is then one fixed program pair). This is still sampling, not a
+proof over all shapes — it is stated rather than implied. The Polygeist step templates are families
+now (issue #63); the first sweep of `lower_affine_for_load_store` found an encoding artifact —
+untaken accesses are parked at index 0, which a free argument pointer need not make valid — now
+closed by assuming what the MLIR type promises: every cell of a static `memref` argument is
+readable (`structural._assume_memref_extent`, load-bearing and tested as such).
+
 `loop_early_exit` is the loop-level counterpart of `select_to_cf`: leaving a scan as soon as the
 body finds something is the standard optimisation and the standard way to make the trip count depend
 on data. The tool separates it from the honest skeleton, which is the point of having both.
@@ -251,6 +273,18 @@ compiler's **own test corpus** and sorts them into the plan's forms — 0 (SMT s
 from the registry), 1 (covered by a macro-template that still proves — re-run, not trusted), 2
 (neither). Descriptors in `compilers/*.json` carry each pipeline as the compiler's own source spells
 it, with `file:line` for every step.
+
+Form 0 by name is an **upper bound**: a registered name says nothing about whether a given
+occurrence translates (upstream's `memref.alloca` refuses dynamic sizes, `memref.load` non-`i8`
+elements). The report therefore also *measures* it (`fcvdct.translation`): every occurrence is lifted
+into a probe function and run through the same flatten + `SMTLowerer` path the checkers use, and a
+split xdsl cannot parse is counted as unmeasured, never as translated. It prints the measured share,
+the range it lies in, how many corpus functions translate whole, and the most common refusals; a
+pipeline step is `ready` only if every source occurrence translates. `--names-only` skips it. For
+Polygeist @ `77c04bb`: 74.4 % by name, **8.2 % measured**, between 8.2 % and 68.7 % once the 1655
+mentions in unparsable splits are counted either way, 11 / 51 functions whole. Measuring also found
+upstream's `memref.load`/`store` "translating" dynamic shapes with a bound of -1 (every access UB,
+so vacuously equivalent); `fcvdct.memref_ops` now refuses them.
 
 Measured 2026-07-29, at circt `2803829`, heir `de797a2`, onnx-mlir `de23de7`:
 

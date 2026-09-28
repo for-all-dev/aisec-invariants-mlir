@@ -32,6 +32,7 @@ from .dialect import FCVD
 from .hw_ops import HWConstant, load_hw_semantics
 from .index_ops import load_index_semantics
 from .llvm_mem import load_llvm_memory_semantics
+from .memref_ops import install_memref_support
 from .tensor_ops import load_tensor_semantics
 
 
@@ -106,4 +107,5 @@ def make_context() -> Context:
         **SMTLowerer.op_semantics,
         _memref.AllocaOp: SMTLowerer.op_semantics[_memref.AllocOp],
     }
+    install_memref_support()
     return ctx

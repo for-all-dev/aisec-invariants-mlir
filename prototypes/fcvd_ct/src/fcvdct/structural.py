@@ -314,6 +314,7 @@ def build_equivalence_query(
     max_visits: int = DEFAULT_MAX_VISITS,
     assume_defined_inputs: bool = True,
     compare_memory: bool = True,
+    assume_memref_extent: bool = True,
 ) -> tuple[str, int, bool, bool]:
     """Build the SMTLib script asserting that the lowering *changes what is computed*.
 
@@ -348,6 +349,8 @@ def build_equivalence_query(
             builder.insert(smt.AssertOp(builder.insert(smt.NotOp(poison)).result))
     state = builder.insert(smt.DeclareConstOp(StateType())).res
     state.name_hint = "memory_in"
+    if assume_memref_extent:
+        _assume_memref_extent(builder, source, inputs, state, max_visits)
 
     source_trace, source_bounded, source_state = instantiate(
         source, inputs, builder, model, max_visits, state
@@ -406,6 +409,56 @@ def build_equivalence_query(
     stream = StringIO()
     print_to_smtlib(module, stream)
     return stream.getvalue(), n_compared, bounded, bool(source_trace.results)
+
+
+def _assume_memref_extent(
+    builder: Builder,
+    function: FuncOp,
+    inputs: Sequence[SSAValue],
+    state: SSAValue,
+    max_visits: int,
+) -> None:
+    """A static `memref<N x i8>` argument can be read at every index its type allows.
+
+    That is the contract of the MLIR type, and every caller of the real pass satisfies
+    it. Upstream's memory model does not know it: an argument is a free pointer whose
+    block may hold fewer cells than the type says. The flattener sends an access on an
+    untaken path to index 0 (`predication.guarded_indices`), which is only harmless if
+    index 0 is valid -- and the sweep of `lower_affine_for_load_store.mlir` found an
+    instance (a loop starting at 1) where the solver picked a pointer valid at cell 1 and
+    not at cell 0, and reported the lowering as not equivalent. Stated here as an
+    assumption, on both programs' shared initial memory: reading each cell of each
+    static memref argument, before either program runs, raises no UB.
+    """
+    from itertools import product
+
+    from xdsl.dialects import memref
+    from xdsl.dialects.arith import ConstantOp
+    from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType
+    from xdsl.dialects.func import ReturnOp
+    from xdsl.ir import Block, Region
+
+    from .memref_ops import memref_limitation
+
+    types = function.function_type.inputs.data
+    block = Block(arg_types=types)
+    reads = 0
+    for argument, input_type in zip(block.args, types, strict=True):
+        if not isinstance(input_type, MemRefType) or memref_limitation(input_type):
+            continue
+        for cell in product(*(range(size) for size in input_type.get_shape())):
+            constants = [ConstantOp(IntegerAttr(k, IndexType())) for k in cell]
+            block.add_ops(constants)
+            block.add_op(memref.LoadOp.get(argument, [c.result for c in constants]))
+            reads += 1
+    if not reads:
+        return
+    block.add_op(ReturnOp())
+    prelude = FuncOp.from_region("extent", types, [], Region(block))
+    _, _, after = instantiate(prelude, inputs, builder, None, max_visits, state)
+    assert after is not None
+    undefined = builder.insert(ub_effect.ToBoolOp(after)).res
+    builder.insert(smt.AssertOp(builder.insert(smt.NotOp(undefined)).result))
 
 
 def _run_z3(script: str, timeout: int) -> subprocess.CompletedProcess[str]:
