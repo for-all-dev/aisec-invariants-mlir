@@ -1,0 +1,10 @@
+\section*{Open Science}
+% Required by the SaTML 2027 CfP: immediately before the references, not counted
+% toward the page limit. The anonymized artifact must be live by Oct 2 and not edited
+% afterwards.
+
+We release every artifact behind the results in this paper in an anonymized repository, \QD{anonymous.4open.science link, live by Oct 2}.
+It contains the measurement rig of \S\ref{sec:measure}, with its kernels, the six MLIR pipelines, the Valgrind drivers and the recorded outputs, with the machine and toolchain, of the one run behind Table~\ref{tab:measured-cells} and a container that rebuilds that toolchain; the PyTorch Inductor probes behind the freezing and autotuning results; the static IR analysis of \S\ref{sec:evaluation:boundaries}; and the verifier of \S\ref{sec:verify}, with its leakage model, every Polygeist template and control, the coverage tool and its test suite.
+
+The verifier builds on the verification dialects of~\cite{fcvd2025}, whose repository carries no license, so we do not redistribute it; a setup script fetches the exact revision we pinned, and the artifact pins Python~3.12 and the Polygeist commit (\texttt{77c04bb}) whose test corpus the coverage figures count.
+Every number in \S\ref{sec:verify} is printed by a command in the artifact, and the measured counts of \S\ref{sec:measure} are reproducible on any x86-64 host with the stated toolchain; we recorded them on one processor, and the counts of the allocating kernels may differ on others.

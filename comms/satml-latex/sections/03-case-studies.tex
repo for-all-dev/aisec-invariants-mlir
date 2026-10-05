@@ -1,0 +1,275 @@
+% Binary and symbolic results in III-A--III-C: 2026-09-14 artifact run.
+% Source revision: 6e61076262dd06a711778489a0dea55af890ff40.
+% Evidence: aisec-invariants-mlir/docs/research/satml-section3-results-20260914.agents.md.
+% III-E incorporates the 2026-09-14 Overleaf contribution; its static comparison
+% and regression claims were not rerun in the artifact batch above.
+% This file uses only packages already present in the paper.
+\section{Case Studies and Analysis Boundaries}
+\label{sec:evaluation}
+
+These cases show how lowering changes observable behaviour, why correctness and leakage require separate checks, and what each analysis can establish.
+
+We compare each kernel on two chosen secret inputs while keeping its public inputs fixed.
+Callgrind records the total numbers of executed instructions (Ir), conditional branches (Bc), and memory write references (Dw) around the kernel call, excluding input loading and program setup.
+These execution counts do not measure elapsed time.
+In separate runs, Memcheck tracks the secret input and reports when it influences a conditional jump or move (\texttt{cf}) or a memory address (\texttt{addr}).
+Thus counts and secret-dependent conditions or addresses are separate observations.
+Each count comparison uses five paired runs under the measurement procedure described in Section~IV.
+
+We use MLIR and Clang 18.1.3, Valgrind 3.22.0, and an AMD Ryzen AI 9 HX 370 running Linux x86-64.
+Core kernels follow the baseline \texttt{linalg}--\texttt{scf}--\texttt{cf}--LLVM lowering (P0), compiled with \texttt{-mavx2 -mno-avx512f} at \texttt{-O0}, \texttt{-O2}, and \texttt{-O3}.
+
+\subsection{Select and Backend Lowering}
+\label{sec:evaluation:select}
+
+The \texttt{mask\_select} kernel selects between two public arrays using a secret byte mask.
+It loads both candidate values and applies \texttt{arith.select} in a fixed-size traversal, without branching on the mask.
+The lowered LLVM IR retains \texttt{select}; the secret-dependent branch appears during backend compilation at \texttt{-O0} (Figure~\ref{fig:select-lowering}).
+
+\begin{figure}[!ht]
+\centering
+\begin{minipage}{0.97\columnwidth}
+\footnotesize
+\setlength{\topsep}{2pt}
+\textbf{Source MLIR and lowered LLVM IR}
+\begin{verbatim}
+%c = arith.cmpi ne, %m, %zero : i8
+%s = arith.select %c, %av, %bv : f32
+...
+%39 = select i1 %38, float %34, float %37
+\end{verbatim}
+\textbf{O0: the mask controls a jump}
+\begin{verbatim}
+3550: cmp $0x0,%al
+3558: jne 356a <mask_select+0x9a>
+\end{verbatim}
+\textbf{O2/O3: the vector path uses a blend}
+\begin{verbatim}
+2df2: vpcmpeqd %ymm0,%ymm1,%ymm1
+2df6: vblendvps %ymm1,(%rdx,%rax,4),
+                %ymm5,%ymm1
+\end{verbatim}
+\end{minipage}
+\caption{Measured select lowering. Surrounding loads and public loop/alias checks are omitted; the blend instruction is wrapped. LLVM IR retains selection until backend compilation.}
+\label{fig:select-lowering}
+\end{figure}
+% Coauthor note kept from the Overleaf version:
+% \EK{I believe we could remove code freely to save space - we have 13 pages already}
+
+% Author question addressed by the measurement paragraph above:
+% \SP{We should give some background on what is being measured and how}
+At \texttt{-O0}, the all-one mask executes 8,192 fewer instructions and 4,096 fewer write references than the all-zero mask.
+Both executions encounter the same number of conditional branches, but Memcheck identifies a branch whose condition depends on the mask.
+Equal branch counts therefore do not imply equal branch outcomes.
+
+% Author question addressed by specifying the kernel call below:
+% \SP{What is a marked region?}
+The exercised vector path uses \texttt{vblendvps} at \texttt{-O2} and \texttt{-O3}.
+Memcheck reports no secret-dependent conditional jump, conditional move, or memory address during the kernel call, and the two masks produce identical instruction, branch, and write-reference counts.
+This result applies to the tested executions; it is not a proof of constant-time behaviour.
+
+% \SP{what is a conditional reduction?}
+Table~\ref{tab:section3-core} compares the select with a fixed computation, a branch on a secret sum, a load at a secret index, and a loop with a secret extent.
+The \texttt{cond\_reduce} kernel sums its secret array, then branches on whether the sum is positive to write either 1 or 2.
+
+\begin{table}[t]
+\caption{P0 results for the chosen inputs. Memcheck reports \texttt{cf} or \texttt{addr}; count difference denotes a stable difference in Ir, Bc, or Dw. A dash means no finding or count difference detected, respectively.}
+\label{tab:section3-core}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccc@{}}
+\hline
+& \multicolumn{3}{c}{Memcheck finding} & \multicolumn{3}{c}{Count difference} \\
+\cline{2-4}\cline{5-7}
+Kernel & O0 & O2 & O3 & O0 & O2 & O3 \\
+\hline
+\texttt{matvec} & --- & --- & --- & --- & --- & --- \\
+\texttt{cond\_reduce} & \texttt{cf} & --- & --- & Yes & --- & --- \\
+\texttt{mask\_select} & \texttt{cf} & --- & --- & Yes & --- & --- \\
+\texttt{idx\_gather} & \texttt{addr} & \texttt{addr} & \texttt{addr} & --- & --- & --- \\
+\texttt{dynshape} & \texttt{cf} & \texttt{cf} & \texttt{cf} & Yes & Yes & Yes \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Shape and Sparsity}
+\label{sec:evaluation:structure}
+
+% \SP{stored-value counts?}
+Confidential structure can influence execution even when tensor dimensions and the number of explicitly stored entries are fixed.
+Our sparse example represents a vector of length 256 by eight stored values \(1,\ldots,8\), their coordinates, and a position array \([0,8]\).
+% \SP{What is the difference between a position and a coordinate?}
+% \SP{what is a public position array?}
+% \SP{What is a coordinate, still unclear}
+The positions are offsets into the stored-entry arrays: \([0,8]\) selects entries 0 through 7.
+Each coordinate gives the index in the length-256 vector where its associated value belongs.
+The vector length, values, and positions are public, meaning the observer may know them, and are identical in both inputs.
+Only the coordinate array changes: the first input uses \([0,1,2,3,4,5,6,7]\), while the second uses \([3,29,61,97,130,168,201,240]\).
+
+\paragraph{From representation to address}
+The source first assembles values, positions, and coordinates into a compressed sparse tensor, then converts it to a dense tensor.
+We apply MLIR's sparsifier with its runtime-library mode disabled, followed by LLVM conversion and a Clang \texttt{-O0} backend.
+The code zeroes a fixed-size output, then iterates over the eight stored entries.
+The public position array determines the loop bounds; each secret coordinate determines a store address (Figure~\ref{fig:sparse-address}).
+
+\begin{figure}[!ht]
+\centering
+\begin{minipage}{0.97\columnwidth}
+\footnotesize
+\setlength{\topsep}{2pt}
+\textbf{Dense materialization, summarized as pseudocode}
+\begin{verbatim}
+out[0:256] = 0
+for i in pos[0]:pos[1]:     # public range
+    c = crd[i]             # secret coordinate
+    out[c] = vals[i]       # secret address
+\end{verbatim}
+\textbf{Generated address and store, with SSA names shortened}
+\begin{verbatim}
+%c = llvm.load %crd_ptr : !llvm.ptr -> i64
+%p = llvm.getelementptr %out[%c]
+     : (!llvm.ptr, i64) -> !llvm.ptr, f32
+llvm.store %v, %p : f32, !llvm.ptr
+\end{verbatim}
+\textbf{Machine instruction reported by Memcheck}
+\begin{verbatim}
+1976: movss %xmm0,(%rcx,%rdx,4)
+\end{verbatim}
+\end{minipage}
+\caption{The sparse-to-dense lowering uses a secret coordinate as a store index. The public number of iterations does not determine the sequence of addresses.}
+\label{fig:sparse-address}
+\end{figure}
+
+\paragraph{Equal counts, different addresses}
+The scatter loop performs eight stores for either coordinate pattern, but their destination addresses differ.
+The sparse binary has equal instruction, branch, and write-reference counts in all five paired runs, while Memcheck reports a store address that depends on the secret coordinate.
+The \texttt{idx\_gather} example shows the same distinction at all three optimisation levels.
+Equal counts do not rule out secret-dependent addresses, though these experiments do not measure cache-line visibility or physical timing.
+
+The separately authored dense reference visits all \(256\times8\) position-entry pairs and uses loop-derived load and store addresses.
+No secret-dependent address is detected in that build, but its \texttt{-O0} binary contains a secret-dependent \texttt{je}, confirmed at the instruction identified by Memcheck.
+Its execution counts also remain equal across the two coordinate inputs.
+The comparison distinguishes their address channels; the reference already has a control channel.
+As these are separate source programs without a complete output comparison, the experiment does not establish functional correctness of the sparse lowering.
+
+\paragraph{Dynamic extent and bufferization}
+The \texttt{dynshape} kernel makes the allocation size and loop bound depend on a secret extent \(k\).
+% \SP{What is a backend level, do you mean opt level?}
+For \(k=1\) versus \(k=4096\), Memcheck reports a secret-dependent condition at all three P0 optimisation levels.
+The instruction difference falls from 73,872 at \texttt{-O0} to 5,117 at \texttt{-O2}/\texttt{-O3}; the write-reference difference falls from 20,493 to zero as the write-only buffer is eliminated.
+This experiment starts from \texttt{memref} operations.
+Attributing a channel to one-shot bufferization requires comparison with the corresponding tensor program lowered through that pass (P4).
+
+\subsection{Two Distinct Verification Obligations}
+\label{sec:evaluation:polygeist}
+
+A transformation can compute the wrong result without adding leakage, or preserve the result while adding an observation.
+We check four hand-transcribed Polygeist transformation specifications: two faithful examples and two deliberately modified versions.
+The equivalence check compares returned values and modeled final memory under the checker's refinement relation.
+The leakage-preservation check asks whether source-indistinguishable executions remain target-indistinguishable:
+% \SP{What do these symbols mean?}
+\[
+  L_S(x)=L_S(x')\ \Longrightarrow\ L_T(x)=L_T(x').
+\]
+Here \(L_S\) and \(L_T\) are the source and target observation traces, and \(x,x'\) agree on public inputs.
+The source may already leak; the target must not distinguish inputs the source's observations leave indistinguishable.
+The two obligations are logically distinct but share the SMT encoding infrastructure.
+Table~\ref{tab:gate-controls} uses the supported observation model with the \texttt{--unroll 8} truncation limit.
+The faulty specifications are deliberate modifications, not discovered upstream compiler bugs.
+
+
+Propagating an unchanged loop-carried value passes both checks.
+The modified specification substitutes its initial value after it changes: the returned accumulator exposes the error, while the leakage check passes.
+The faithful loop restructuring also passes both checks.
+Moving its body before the first condition check fails leakage preservation but passes equivalence for this example's returned flag.
+The flag is false within the modeled executions; this does not establish that arbitrary loop bodies can be moved safely.
+
+Verification succeeds only when both checks pass; each rejected specification returned a counterexample.
+All four results concern the model truncated with \texttt{--unroll 8}; the saved loop counterexample is sensitive to that truncation.
+For CFG loops, the limit counts visits per block rather than restricting input bounds to eight completed iterations.
+Unspecified computations, called holes, are symbolic functions shared between source and target, with effects and observations limited by the model.
+The results cover these specifications, not production passes, unbounded loops, or downstream executables.
+
+\subsection{Analysis Boundaries}
+\label{sec:evaluation:boundaries}
+
+Table~\ref{tab:analysis-boundaries} compares the methods' scopes: one IR stage, symbolic inputs under a truncated model, or an executable on chosen inputs.
+
+
+The select has no secret branch in the inspected IR but has one in the \texttt{-O0} executable: the compilation stage matters.
+Gather and sparse materialization use secret-dependent addresses despite equal counts: the observation matters.
+No method supplies universal ground truth for the others.
+
+Unsupported encodings, timeouts, and solver unknown responses yield \texttt{UNKNOWN}; none occurred in the four verification examples.
+A bounded result is not automatically \texttt{UNKNOWN}.
+IR analysis reports some unsupported operations, but missing dependency propagation rules can cause missed findings.
+Without validated rule coverage, an IR result with no finding does not establish obliviousness.
+The comparison in Section~\ref{sec:evaluation:static} concerns five kernels under the stated lowerings; agreement on that corpus does not establish complete rule coverage or general analyser accuracy.
+
+\subsection{Static prediction against measured ground truth}
+\label{sec:evaluation:static}
+% Imported comparison: verify the exact static-analysis revision, commands,
+% per-pipeline outputs, regression test, and runtime before submission.
+
+Measurement (§IV) speaks about the binary that ran, at one configuration and for two input classes.
+Symbolic verification speaks about inputs within its supported execution and observation model.
+A third tier sits between them: a forward taint analysis over the MLIR as given, needing no flattening, solver or per-operation semantics, and reasoning about the IR rather than the downstream binary.
+An all-inputs conclusion requires sound propagation rules for the supported IR.
+This subsection defines it and asks whether its verdicts agree with what the binary did.
+
+\paragraph{What the analysis is} A function argument marked secret taints its value, and taint propagates forward: any operation with a tainted operand taints all of its results, a store taints the buffer it writes, a yield taints both the parent operation's result and the loop argument it re-binds, and a branch's successor operands taint the block arguments they reach.
+These edges run in both directions around a loop, so the taint sets are iterated to a fixpoint rather than computed in one pass.
+A tainted value that reaches a loop bound, a load or store index, or a branch condition is a violation on the control or address obligation.
+Unsupported calls, buffer aliases, and opaque regions must produce an unknown result when their effects cannot be modeled.
+The analysis uses forward taint propagation, as does the verifier's prefilter, but operates directly on unflattened IR.
+This lets it inspect some programs that the flattener refuses; it does not establish that the two implementations have identical coverage.
+That propagation is standard taint over ordinary MLIR annotations, and we claim nothing for it (discussed in related work).
+What we claim is the comparison.
+
+\paragraph{The comparison} The five kernels of §IV were run through the analysis before and after the MLIR pipelines described in Section~IV, at the same lowerings the rig measured, and the static verdict was set beside the measured one at -O0.
+Table~\ref{tab:static-analysis-results} gives the result.
+
+The comparison distinguishes five verdicts: \emph{oblivious}, meaning no finding before or after lowering; \emph{authored-and-survives}, a violation before and after; \emph{lowering-introduced}; \emph{lowering-removed}; and \emph{unknown-after}.
+An unknown result after lowering must not be counted as removal.
+The reported static verdicts are the same for P0--P3 and P5; P4 applies to the tensor kernels.
+In Table~\ref{tab:static-analysis-results}, ``Authored'' abbreviates authored-and-survives.
+Agreement compares the presence of a control or address finding, not equality of every observation.
+The binary column retains the reported control and address findings; \texttt{Dw} denotes a difference in write-reference counts, rather than an additional static obligation.
+The one-write difference for \texttt{cond\_reduce} accompanies its control finding and is omitted from this summary.
+
+\begin{table}[t]
+% \EK{Oh my Godness, wha happened}
+\caption{Reported static and binary verdicts at \texttt{-O0}.}
+\label{tab:static-analysis-results}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccc@{}}
+\hline
+Kernel & Binary & IR before/after & Agree \\
+\hline
+\texttt{matvec} & Oblivious & Oblivious & Yes \\
+\texttt{cond\_reduce} & \texttt{cf} & Authored (\texttt{cf}) & Yes \\
+\texttt{idx\_gather} & \texttt{addr} & Authored (\texttt{addr}) & Yes \\
+\texttt{dynshape} & \texttt{cf}+\texttt{Dw} & Authored (\texttt{cf}) & Yes \\
+\texttt{mask\_select} & \texttt{cf} & Oblivious & \textbf{No} \\
+\hline
+\end{tabular}
+\end{table}
+
+The reported verdicts agree on four of five kernels; the disagreement has a compilation-stage explanation.
+At the MLIR level \texttt{mask\_select} has no secret-dependent branch or address; \texttt{arith.select} on the mask is exactly what the analysis models, and a finding-free result is consistent with that source structure.
+The measured branch appears during LLVM backend compilation at \texttt{-O0} (Section~\ref{sec:evaluation:select}), after the inspected IR stage; at -O2, where the selector emits a blend, the measured result has no finding and the two tiers agree again --- with the static tier having seen neither the introduction nor the removal.
+The comparison illustrates the compilation-stage limit described in Section~\ref{sec:evaluation:boundaries}.
+Agreement on these kernels is not a general accuracy or soundness guarantee.
+
+\paragraph{A false verdict caught by measurement} The comparison did work beyond confirming agreement.
+An earlier form of the analysis lost taint across \texttt{--convert-scf-to-cf}: it tracked \texttt{scf} conditions but not the \texttt{cf.cond\_br} they lower to, so one standard lowering step later it went blind.
+A before/after run then read that blindness as lowering-removed --- the compiler appeared to have fixed \texttt{cond\_reduce}, whose \texttt{-O0} binary is reported to retain a control finding across the measured pipelines.
+The blindness, not the compiler, had removed the leak.
+The reported fix propagates the missing edges and adds a regression kernel, but the lesson generalizes to any differential analysis: a verdict of removed is trustworthy only if the analysis can still see the program after the step, and one that cannot must answer unknown-after --- which must never be folded into removed.
+
+\paragraph{What the tier is for} It covers two of the four obligations, models no aliasing, is intraprocedural, and stops at the MLIR boundary.
+Within the supported IR it can propagate dependencies without translating each operation into SMT.
+Its conclusions still depend on sound propagation and detection of unsupported constructs; the five-kernel comparison does not validate those properties for arbitrary programs.

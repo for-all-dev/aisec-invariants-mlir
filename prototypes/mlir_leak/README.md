@@ -80,6 +80,9 @@ the verdict is taken on the address channel specifically.
 
 ## Results (config point: mlir-opt-18 1:18.1.3, clang-18, `-mavx2 -mno-avx512f`, Zen5, valgrind 3.22)
 
+Reproduced exactly, one run for every row, by `regen_table.sh` in the `Dockerfile`'s image
+(Ubuntu 24.04, glibc 2.39) on an AMD Ryzen AI 9 HX 370: `results/20260928-fixpoint/`.
+
 **MLIR-pipeline axis** (backend fixed `clang -O0`), P0=scf-loops, P1=affine, P2=canonicalize+cse,
 P3=affine-super-vectorize, P5=generalize-named-ops:
 
@@ -114,7 +117,8 @@ B `k=4096`). A `memref.alloc(%k)` + `scf.for 0..k` whose size/trip-count are sec
 
 ```
 build                              verdict  channels (dIr / dBc / dDw)
-dynshape  P0..P5 @ -O0              L        +73872 / +4124 / +20493   taint:cf
+dynshape  P0,P1,P3,P5 @ -O0         L        +73872 / +4124 / +20493   taint:cf
+dynshape  P2 @ -O0                  L        +61425 / +4095 / +16380   taint:cf
 dynshape  P0 @ -O2 / -O3           L         +5117 /  +511 / (Dw gone) taint:cf
 dynshape_t (bufferized) P4 @ -O0   L        +106703 / +8233 / +24595  taint:cf
 dynshape_t (bufferized) P4 @ -O2   L         +12391 / +1194 / +4631   taint:cf

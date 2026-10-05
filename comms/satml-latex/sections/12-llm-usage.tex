@@ -1,0 +1,20 @@
+\section*{LLM usage considerations}
+% Required by the SaTML 2027 CfP whenever LLMs were used: after Open Science, before
+% the references, not counted toward the page limit. Must address accountability,
+% transparency and responsibility. QD notes mark facts the authors must confirm.
+
+\paragraph{Accountability and correctness}
+LLMs were used for editorial purposes in this manuscript, and all outputs were inspected by the authors to ensure accuracy and originality.
+Beyond editing, coding assistants \QD{confirm list: Claude Code, GitHub Copilot, a Gemini-based agent} wrote parts of the measurement harness and of the verifier under the authors' direction, and every such change was reviewed by an author and pinned by tests before any result in this paper depended on it.
+Every reference was checked by hand against its published version \QD{only true once the open VERIFY entries and the ct\_select and MLIR-TV citations are fixed}.
+
+\paragraph{Transparency}
+LLM assistance enters the methodology in one place that matters for the claims: the Polygeist templates of \S\ref{sec:verify:polygeist}.
+A template is a transcription of a pass into a source and a target function, and \QD{confirm: which templates were first drafted by an agent following a written procedure, and which by an author}; in both cases the transcription cites the file and line of the pass it follows and is paired with a falsifying control whose expected verdict is recorded before it is run.
+This does not remove the risk that a transcription misstates the pass, which is why the paper states that limit where the results appear (\S\ref{sec:discussion}); an LLM-drafted template is exactly as trustworthy as its citation and its control, and no more.
+We also used LLM agents to audit the paper against the code before submission, comparing each claim with the artifact that should support it; findings from that audit were verified by an author before any text was changed, and several claims were weakened or removed as a result.
+No LLM is part of the measurement or verification methods themselves: every verdict comes from Valgrind, from the SMT solver or from the static analysis, and is reproducible without any LLM.
+
+\paragraph{Responsibility}
+We trained no models.
+The machine learning workloads we measure are small kernels and publicly available PyTorch models run for inference only, on a single workstation, and the LLM use described above consisted of interactive sessions with hosted models rather than batch experiments, so we do not expect it to add a significant footprint beyond ordinary software development.
